@@ -19,20 +19,20 @@ export class BootScene extends Phaser.Scene {
 
     const slimeGfx = this.add.graphics()
     slimeGfx.fillStyle(0xffffff, 1)
-    slimeGfx.fillRoundedRect(0, 0, 64, 52, 20)
-    slimeGfx.generateTexture('slime', 64, 52)
+    slimeGfx.fillRoundedRect(0, 0, 32, 26, 10)
+    slimeGfx.generateTexture('slime', 32, 26)
     slimeGfx.destroy()
 
     const orbGfx = this.add.graphics()
     orbGfx.fillStyle(0xffffff, 1)
-    orbGfx.fillCircle(14, 14, 14)
-    orbGfx.generateTexture('orb', 28, 28)
+    orbGfx.fillCircle(7, 7, 7)
+    orbGfx.generateTexture('orb', 14, 14)
     orbGfx.destroy()
 
     const goalGfx = this.add.graphics()
     goalGfx.fillStyle(0xffffff, 1)
-    goalGfx.fillRoundedRect(0, 0, 48, 48, 12)
-    goalGfx.generateTexture('goal', 48, 48)
+    goalGfx.fillRoundedRect(0, 0, 24, 24, 6)
+    goalGfx.generateTexture('goal', 24, 24)
     goalGfx.destroy()
   }
 }

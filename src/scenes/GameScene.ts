@@ -8,9 +8,9 @@ type ElementDef = {
 }
 
 const ELEMENTS: Record<ElementKey, ElementDef> = {
-  fire: { color: 0xff7043, jump: -700 },
-  thunder: { color: 0xb388ff, jump: -520 },
-  ice: { color: 0x81d4fa, jump: -420 },
+  fire: { color: 0xff7043, jump: -350 },
+  thunder: { color: 0xb388ff, jump: -260 },
+  ice: { color: 0x81d4fa, jump: -210 },
 }
 
 type PlatformDef = {
@@ -34,17 +34,17 @@ type LevelDef = {
 }
 
 const LEVEL: LevelDef = {
-  spawn: { x: 120, y: 300 },
-  goal: { x: 680, y: 300 },
+  spawn: { x: 60, y: 150 },
+  goal: { x: 340, y: 150 },
   platforms: [
-    { x: 480, y: 530, width: 960, height: 20 },
-    { x: 300, y: 440, width: 200, height: 20 },
-    { x: 620, y: 350, width: 200, height: 20 },
+    { x: 240, y: 258, width: 480, height: 24 },
+    { x: 165, y: 210, width: 120, height: 12 },
+    { x: 307, y: 168, width: 120, height: 12 },
   ],
   orbs: [
-    { x: 170, y: 470, element: 'fire' },
-    { x: 300, y: 390, element: 'thunder' },
-    { x: 560, y: 300, element: 'ice' },
+    { x: 90, y: 225, element: 'fire' },
+    { x: 165, y: 183, element: 'thunder' },
+    { x: 285, y: 141, element: 'ice' },
   ],
 }
 
@@ -54,7 +54,7 @@ export class GameScene extends Phaser.Scene {
   private orbs!: Phaser.Physics.Arcade.StaticGroup
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
   private restartKey!: Phaser.Input.Keyboard.Key
-  private jumpPower = -520
+  private jumpPower = -260
   private finished = false
 
   constructor() {
@@ -62,7 +62,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
-    this.jumpPower = -520
+    this.jumpPower = -260
     this.finished = false
 
     this.platforms = this.physics.add.staticGroup()
@@ -127,7 +127,7 @@ export class GameScene extends Phaser.Scene {
 
   update() {
     const body = this.slime.body as Phaser.Physics.Arcade.Body
-    const speed = 240
+    const speed = 120
 
     if (Phaser.Input.Keyboard.JustDown(this.restartKey)) {
       this.scene.restart()

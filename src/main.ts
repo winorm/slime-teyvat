@@ -7,8 +7,8 @@ import { ResultScene } from './scenes/ResultScene'
 new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
-  width: 960,
-  height: 540,
+  width: 480,
+  height: 270,
   backgroundColor: '#1a1a2e',
   pixelArt: true,
   scale: {
@@ -18,7 +18,7 @@ new Phaser.Game({
   physics: {
     default: 'arcade',
     arcade: {
-      gravity: { x: 0, y: 1200 },
+      gravity: { x: 0, y: 600 },
       debug: true,
     },
   },
