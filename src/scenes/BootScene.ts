@@ -1,5 +1,43 @@
 import Phaser from 'phaser'
 
+const ICON_NONE = [
+  '................',
+  '................',
+  '.....######.....',
+  '...##########...',
+  '..############..',
+  '..############..',
+  '.##############.',
+  '.##############.',
+  '.##############.',
+  '.##############.',
+  '..############..',
+  '..############..',
+  '...##########...',
+  '.....######.....',
+  '................',
+  '................',
+]
+
+const ICON_WIND = [
+  '................',
+  '................',
+  '...#####........',
+  '.......##.......',
+  '......##........',
+  '................',
+  '.....#####......',
+  '.........##.....',
+  '........##......',
+  '................',
+  '......#####.....',
+  '..........##....',
+  '.........##.....',
+  '................',
+  '................',
+  '................',
+]
+
 export class BootScene extends Phaser.Scene {
   constructor() {
     super('boot')
@@ -49,5 +87,24 @@ export class BootScene extends Phaser.Scene {
     chestGfx.fillRoundedRect(0, 4, 32, 10, 5)
     chestGfx.generateTexture('chest', 32, 28)
     chestGfx.destroy()
+
+    this.makeIcon('icon-none', ICON_NONE)
+    this.makeIcon('icon-wind', ICON_WIND)
+  }
+
+  private makeIcon(key: string, rows: string[]) {
+    const gfx = this.add.graphics()
+    gfx.fillStyle(0xffffff, 1)
+
+    rows.forEach((row, y) => {
+      for (let x = 0; x < row.length; x++) {
+        if (row[x] === '#') {
+          gfx.fillRect(x, y, 1, 1)
+        }
+      }
+    })
+
+    gfx.generateTexture(key, 16, 16)
+    gfx.destroy()
   }
 }

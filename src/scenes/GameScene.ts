@@ -13,22 +13,6 @@ const HOVER = {
 
 const STAMINA_MAX = 100
 
-const LEVEL: LevelDef = {
-  startElement: 'none',
-  spawn: { x: 40, y: 150 },
-  goal: { x: 290, y: 156, grants: 'wind' },
-  platforms: [
-    { x: 240, y: 258, width: 480, height: 24 },
-    { x: 140, y: 210, width: 80, height: 12 },
-    { x: 280, y: 186, width: 80, height: 12 },
-  ],
-  orbs: [],
-  hints: [
-    { x: 60, y: 215, text: '← → 移动' },
-    { x: 190, y: 165, text: '空格 跳跃' },
-  ],
-}
-
 export class GameScene extends Phaser.Scene {
   private level!: LevelDef
   private slime!: Phaser.Physics.Arcade.Sprite
@@ -39,7 +23,7 @@ export class GameScene extends Phaser.Scene {
   private prevKey!: Phaser.Input.Keyboard.Key
   private nextKey!: Phaser.Input.Keyboard.Key
   private staminaBar!: Phaser.GameObjects.Rectangle
-  private elementText!: Phaser.GameObjects.Text
+  private elementIcon!: Phaser.GameObjects.Image
 
   private element: ElementKey = 'none'
   private jumpPower = -260
@@ -103,19 +87,12 @@ export class GameScene extends Phaser.Scene {
       this.win()
     })
 
-    this.elementText = this.add
-      .text(14, 10, '', {
-        fontFamily: 'sans-serif',
-        fontSize: '16px',
-        color: '#ffffff',
-      })
-      .setScrollFactor(0)
+    this.elementIcon = this.add.image(18, 18, 'icon-none').setScrollFactor(0)
 
     this.staminaBar = this.add
-      .rectangle(14, 36, 60, 6, 0x74d0b0)
+      .rectangle(10, 38, 60, 6, 0x74d0b0)
       .setOrigin(0, 0.5)
       .setScrollFactor(0)
-
     this.cursors = this.input.keyboard!.createCursorKeys()
     this.restartKey = this.input.keyboard!.addKey('R')
     this.prevKey = this.input.keyboard!.addKey('Q')
@@ -128,12 +105,14 @@ export class GameScene extends Phaser.Scene {
 
   private refreshHud() {
     const element = ELEMENTS[this.element]
+    const iconKey = 'icon-' + this.element
 
-    this.elementText.setText('元素：' + element.label)
+    this.elementIcon.setTexture(this.textures.exists(iconKey) ? iconKey : 'icon-none')
+    this.elementIcon.setTint(element.color)
     this.staminaBar.setVisible(element.canHover)
     this.staminaBar.setFillStyle(element.color)
   }
-
+  
   private applyElement(key: ElementKey) {
     const element = ELEMENTS[key]
 
