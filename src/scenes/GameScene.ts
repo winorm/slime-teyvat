@@ -89,6 +89,9 @@ export class GameScene extends Phaser.Scene {
 
     this.slimeArt = this.add.image(this.level.spawn.x, this.level.spawn.y, 'slime-none')
     this.eyes = [this.add.image(0, 0, 'eye'), this.add.image(0, 0, 'eye')]
+    this.physics.world.setBounds(0, 0, this.level.width, 600)
+    this.cameras.main.setBounds(0, 0, this.level.width, 270)
+    this.cameras.main.startFollow(this.slime, true, 0.12, 0.12)
 
     this.physics.add.collider(this.slime, this.platforms)
 
@@ -198,6 +201,11 @@ export class GameScene extends Phaser.Scene {
 
     if (this.finished) {
       this.syncVisual(1, 1)
+      return
+    }
+
+    if (this.slime.y > 320) {
+      this.scene.restart()
       return
     }
 
