@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { ELEMENTS, type ElementKey } from '../data/elements'
+import { LEVELS, type LevelDef } from '../data/levels'
 import { progress, unlockElement, cycleElement } from '../state/progress'
 
 const HOVER = {
@@ -11,40 +12,6 @@ const HOVER = {
 }
 
 const STAMINA_MAX = 100
-
-type PlatformDef = {
-  x: number
-  y: number
-  width: number
-  height: number
-}
-
-type OrbDef = {
-  x: number
-  y: number
-  element: ElementKey
-}
-
-type HintDef = {
-  x: number
-  y: number
-  text: string
-}
-
-type GoalDef = {
-  x: number
-  y: number
-  grants?: ElementKey
-}
-
-type LevelDef = {
-  startElement: ElementKey
-  spawn: { x: number; y: number }
-  goal: GoalDef
-  platforms: PlatformDef[]
-  orbs: OrbDef[]
-  hints: HintDef[]
-}
 
 const LEVEL: LevelDef = {
   startElement: 'none',
@@ -63,6 +30,7 @@ const LEVEL: LevelDef = {
 }
 
 export class GameScene extends Phaser.Scene {
+  private level!: LevelDef
   private slime!: Phaser.Physics.Arcade.Sprite
   private platforms!: Phaser.Physics.Arcade.StaticGroup
   private orbs!: Phaser.Physics.Arcade.StaticGroup
@@ -84,20 +52,21 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
+    this.level = LEVELS[progress.levelIndex]
     this.finished = false
     this.stamina = STAMINA_MAX
 
     this.platforms = this.physics.add.staticGroup()
     this.orbs = this.physics.add.staticGroup()
 
-    LEVEL.platforms.forEach((def) => {
+    this.level.platforms.forEach((def) => {
       const platform = this.platforms.create(def.x, def.y, 'pixel') as Phaser.Physics.Arcade.Sprite
       platform.setDisplaySize(def.width, def.height)
       platform.setTint(0x2c3e50)
       platform.refreshBody()
     })
 
-    LEVEL.hints.forEach((hint) => {
+    this.level.hints.forEach((hint) => {
       this.add
         .text(hint.x, hint.y, hint.text, {
           fontFamily: 'sans-serif',
@@ -107,18 +76,18 @@ export class GameScene extends Phaser.Scene {
         .setOrigin(0.5)
     })
 
-    LEVEL.orbs.forEach((def) => {
+    this.level.orbs.forEach((def) => {
       const orb = this.orbs.create(def.x, def.y, 'orb') as Phaser.Physics.Arcade.Sprite
       orb.setTint(ELEMENTS[def.element].color)
       orb.setData('element', def.element)
     })
 
-    const goalTexture = LEVEL.goal.grants ? 'statue' : 'goal'
-    const goalColor = LEVEL.goal.grants ? ELEMENTS[LEVEL.goal.grants].color : 0xffd54f
-    const goal = this.physics.add.staticSprite(LEVEL.goal.x, LEVEL.goal.y, goalTexture)
-    goal.setTint(goalColor)
+    const goal = this.level.goal
+    const goalColor = goal.grants ? ELEMENTS[goal.grants].color : 0xffd54f
+    const goalSprite = this.physics.add.staticSprite(goal.x, goal.y, goal.kind)
+    goalSprite.setTint(goalColor)
 
-    this.slime = this.physics.add.sprite(LEVEL.spawn.x, LEVEL.spawn.y, 'slime')
+    this.slime = this.physics.add.sprite(this.level.spawn.x, this.level.spawn.y, 'slime')
     this.slime.setBounce(0.2)
     this.slime.setCollideWorldBounds(true)
 
@@ -130,7 +99,7 @@ export class GameScene extends Phaser.Scene {
       orbSprite.destroy()
     })
 
-    this.physics.add.overlap(this.slime, goal, () => {
+    this.physics.add.overlap(this.slime, goalSprite, () => {
       this.win()
     })
 
@@ -152,8 +121,8 @@ export class GameScene extends Phaser.Scene {
     this.prevKey = this.input.keyboard!.addKey('Q')
     this.nextKey = this.input.keyboard!.addKey('E')
 
-    progress.current = LEVEL.startElement
-    this.applyElement(LEVEL.startElement)
+    progress.current = this.level.startElement
+    this.applyElement(this.level.startElement)
     
   }
 
@@ -187,7 +156,7 @@ export class GameScene extends Phaser.Scene {
     this.finished = true
     this.slime.setVelocity(0, 0)
 
-    const granted = LEVEL.goal.grants
+    const granted = this.level.goal.grants
 
     if (granted) {
       unlockElement(granted)

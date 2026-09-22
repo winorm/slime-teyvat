@@ -42,5 +42,12 @@ export class BootScene extends Phaser.Scene {
     statueGfx.fillCircle(16, 12, 10)
     statueGfx.generateTexture('statue', 32, 48)
     statueGfx.destroy()
+
+    const chestGfx = this.add.graphics()
+    chestGfx.fillStyle(0xffffff, 1)
+    chestGfx.fillRect(0, 12, 32, 16)
+    chestGfx.fillRoundedRect(0, 4, 32, 10, 5)
+    chestGfx.generateTexture('chest', 32, 28)
+    chestGfx.destroy()
   }
 }

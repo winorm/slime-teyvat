@@ -4,6 +4,7 @@ import { ELEMENT_ORDER } from '../data/elements'
 export const progress = {
   unlocked: ['none'] as ElementKey[],
   current: 'none' as ElementKey,
+  levelIndex: 0,
 }
 
 export function unlockElement(key: ElementKey) {
