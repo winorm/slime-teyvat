@@ -1,5 +1,4 @@
 import Phaser from 'phaser'
-import { progress } from '../state/progress'
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
