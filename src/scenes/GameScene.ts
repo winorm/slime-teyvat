@@ -264,7 +264,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.slime.y > 320) {
-      this.scene.restart()
+      this.scene.pause()
+      this.scene.launch('dead')
       return
     }
 

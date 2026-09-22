@@ -5,6 +5,7 @@ import { GameScene } from './scenes/GameScene'
 import { ResultScene } from './scenes/ResultScene'
 import { SelectScene } from './scenes/SelectScene'
 import { PauseScene } from './scenes/PauseScene'
+import { DeadScene } from './scenes/DeadScene'
 
 new Phaser.Game({
   type: Phaser.AUTO,
@@ -24,6 +25,6 @@ new Phaser.Game({
       debug: true,
     },
   },
-  scene: [BootScene, MenuScene, SelectScene, GameScene, PauseScene, ResultScene],
+  scene: [BootScene, MenuScene, SelectScene, GameScene, PauseScene, DeadScene, ResultScene],
   
 })
