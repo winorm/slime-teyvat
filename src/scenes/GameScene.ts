@@ -1,17 +1,27 @@
 import Phaser from 'phaser'
 
-type ElementKey = 'fire' | 'thunder' | 'ice'
+type ElementKey = 'none' | 'wind'
 
 type ElementDef = {
   color: number
   jump: number
+  canHover: boolean
 }
 
 const ELEMENTS: Record<ElementKey, ElementDef> = {
-  fire: { color: 0xff7043, jump: -350 },
-  thunder: { color: 0xb388ff, jump: -260 },
-  ice: { color: 0x81d4fa, jump: -210 },
+  none: { color: 0xb8b8c8, jump: -260, canHover: false },
+  wind: { color: 0x74d0b0, jump: -260, canHover: true },
 }
+
+const HOVER = {
+  maxRise: 100,
+  riseSpeed: 70,
+  fallSpeed: 35,
+  drainPerSecond: 30,
+  regenPerSecond: 80,
+}
+
+const STAMINA_MAX = 100
 
 type PlatformDef = {
   x: number
@@ -35,17 +45,12 @@ type LevelDef = {
 
 const LEVEL: LevelDef = {
   spawn: { x: 60, y: 150 },
-  goal: { x: 340, y: 150 },
+  goal: { x: 400, y: 158 },
   platforms: [
     { x: 240, y: 258, width: 480, height: 24 },
-    { x: 165, y: 210, width: 120, height: 12 },
-    { x: 307, y: 168, width: 120, height: 12 },
+    { x: 360, y: 176, width: 160, height: 12 },
   ],
-  orbs: [
-    { x: 90, y: 225, element: 'fire' },
-    { x: 165, y: 183, element: 'thunder' },
-    { x: 285, y: 141, element: 'ice' },
-  ],
+  orbs: [{ x: 90, y: 225, element: 'wind' }],
 }
 
 export class GameScene extends Phaser.Scene {
@@ -54,7 +59,12 @@ export class GameScene extends Phaser.Scene {
   private orbs!: Phaser.Physics.Arcade.StaticGroup
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
   private restartKey!: Phaser.Input.Keyboard.Key
+  private staminaBar!: Phaser.GameObjects.Rectangle
+
+  private element: ElementKey = 'none'
   private jumpPower = -260
+  private stamina = STAMINA_MAX
+  private hoverOriginY = 0
   private finished = false
 
   constructor() {
@@ -62,7 +72,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
+    this.element = 'none'
     this.jumpPower = -260
+    this.stamina = STAMINA_MAX
     this.finished = false
 
     this.platforms = this.physics.add.staticGroup()
@@ -82,7 +94,7 @@ export class GameScene extends Phaser.Scene {
     })
 
     this.slime = this.physics.add.sprite(LEVEL.spawn.x, LEVEL.spawn.y, 'slime')
-    this.slime.setTint(0x7be0a8)
+    this.slime.setTint(ELEMENTS.none.color)
     this.slime.setBounce(0.2)
     this.slime.setCollideWorldBounds(true)
 
@@ -101,14 +113,23 @@ export class GameScene extends Phaser.Scene {
       this.win()
     })
 
+    this.staminaBar = this.add
+      .rectangle(14, 16, 60, 6, 0x74d0b0)
+      .setOrigin(0, 0.5)
+      .setScrollFactor(0)
+      .setVisible(false)
+
     this.cursors = this.input.keyboard!.createCursorKeys()
     this.restartKey = this.input.keyboard!.addKey('R')
   }
 
   private absorb(key: ElementKey) {
+    this.element = key
     const element = ELEMENTS[key]
     this.slime.setTint(element.color)
     this.jumpPower = element.jump
+    this.stamina = STAMINA_MAX
+    this.staminaBar.setVisible(element.canHover)
   }
 
   private win() {
@@ -125,9 +146,10 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
-  update() {
+  update(_time: number, delta: number) {
     const body = this.slime.body as Phaser.Physics.Arcade.Body
     const speed = 120
+    const dt = delta / 1000
 
     if (Phaser.Input.Keyboard.JustDown(this.restartKey)) {
       this.scene.restart()
@@ -148,8 +170,44 @@ export class GameScene extends Phaser.Scene {
       this.slime.setVelocityX(0)
     }
 
-    if (this.cursors.space.isDown && body.blocked.down) {
+    const element = ELEMENTS[this.element]
+    const onGround = body.blocked.down
+
+    if (onGround) {
+      this.hoverOriginY = this.slime.y
+      this.stamina = Math.min(STAMINA_MAX, this.stamina + HOVER.regenPerSecond * dt)
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.space) && onGround) {
       this.slime.setVelocityY(this.jumpPower)
     }
+
+    const wantHover =
+      element.canHover && this.cursors.space.isDown && !onGround && this.stamina > 0
+
+    if (wantHover) {
+      const risen = this.hoverOriginY - this.slime.y
+
+      if (risen < HOVER.maxRise) {
+        body.setAllowGravity(true)
+
+        if (body.velocity.y > -HOVER.riseSpeed) {
+          this.slime.setVelocityY(-HOVER.riseSpeed)
+        }
+      } else {
+        body.setAllowGravity(false)
+        this.slime.setVelocityY(0)
+      }
+
+      this.stamina = Math.max(0, this.stamina - HOVER.drainPerSecond * dt)
+    } else {
+      body.setAllowGravity(true)
+
+      if (element.canHover && body.velocity.y > HOVER.fallSpeed) {
+        this.slime.setVelocityY(HOVER.fallSpeed)
+      }
+    }
+
+    this.staminaBar.setScale(this.stamina / STAMINA_MAX, 1)
   }
 }
