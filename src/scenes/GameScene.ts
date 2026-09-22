@@ -25,23 +25,41 @@ type OrbDef = {
   element: ElementKey
 }
 
+type HintDef = {
+  x: number
+  y: number
+  text: string
+}
+
+type GoalDef = {
+  x: number
+  y: number
+  grants?: ElementKey
+}
+
 type LevelDef = {
   startElement: ElementKey
   spawn: { x: number; y: number }
-  goal: { x: number; y: number }
+  goal: GoalDef
   platforms: PlatformDef[]
   orbs: OrbDef[]
+  hints: HintDef[]
 }
 
 const LEVEL: LevelDef = {
   startElement: 'none',
-  spawn: { x: 60, y: 150 },
-  goal: { x: 400, y: 158 },
+  spawn: { x: 40, y: 150 },
+  goal: { x: 290, y: 156, grants: 'wind' },
   platforms: [
     { x: 240, y: 258, width: 480, height: 24 },
-    { x: 360, y: 176, width: 160, height: 12 },
+    { x: 140, y: 210, width: 80, height: 12 },
+    { x: 280, y: 186, width: 80, height: 12 },
   ],
-  orbs: [{ x: 90, y: 225, element: 'wind' }],
+  orbs: [],
+  hints: [
+    { x: 60, y: 215, text: '← → 移动' },
+    { x: 190, y: 165, text: '空格 跳跃' },
+  ],
 }
 
 export class GameScene extends Phaser.Scene {
@@ -79,14 +97,26 @@ export class GameScene extends Phaser.Scene {
       platform.refreshBody()
     })
 
+    LEVEL.hints.forEach((hint) => {
+      this.add
+        .text(hint.x, hint.y, hint.text, {
+          fontFamily: 'sans-serif',
+          fontSize: '14px',
+          color: '#8fa3b8',
+        })
+        .setOrigin(0.5)
+    })
+
     LEVEL.orbs.forEach((def) => {
       const orb = this.orbs.create(def.x, def.y, 'orb') as Phaser.Physics.Arcade.Sprite
       orb.setTint(ELEMENTS[def.element].color)
       orb.setData('element', def.element)
     })
 
-    const goal = this.physics.add.staticSprite(LEVEL.goal.x, LEVEL.goal.y, 'goal')
-    goal.setTint(0xffd54f)
+    const goalTexture = LEVEL.goal.grants ? 'statue' : 'goal'
+    const goalColor = LEVEL.goal.grants ? ELEMENTS[LEVEL.goal.grants].color : 0xffd54f
+    const goal = this.physics.add.staticSprite(LEVEL.goal.x, LEVEL.goal.y, goalTexture)
+    goal.setTint(goalColor)
 
     this.slime = this.physics.add.sprite(LEVEL.spawn.x, LEVEL.spawn.y, 'slime')
     this.slime.setBounce(0.2)
@@ -124,6 +154,7 @@ export class GameScene extends Phaser.Scene {
 
     progress.current = LEVEL.startElement
     this.applyElement(LEVEL.startElement)
+    
   }
 
   private refreshHud() {
@@ -155,9 +186,17 @@ export class GameScene extends Phaser.Scene {
 
     this.finished = true
     this.slime.setVelocity(0, 0)
-    this.slime.setTint(0xffd54f)
 
-    this.time.delayedCall(400, () => {
+    const granted = LEVEL.goal.grants
+
+    if (granted) {
+      unlockElement(granted)
+      this.applyElement(granted)
+    } else {
+      this.slime.setTint(0xffd54f)
+    }
+
+    this.time.delayedCall(600, () => {
       this.scene.start('result')
     })
   }

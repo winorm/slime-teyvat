@@ -34,5 +34,13 @@ export class BootScene extends Phaser.Scene {
     goalGfx.fillRoundedRect(0, 0, 24, 24, 6)
     goalGfx.generateTexture('goal', 24, 24)
     goalGfx.destroy()
+    
+    const statueGfx = this.add.graphics()
+    statueGfx.fillStyle(0xffffff, 1)
+    statueGfx.fillRect(0, 40, 32, 8)
+    statueGfx.fillRoundedRect(6, 16, 20, 26, 6)
+    statueGfx.fillCircle(16, 12, 10)
+    statueGfx.generateTexture('statue', 32, 48)
+    statueGfx.destroy()
   }
 }
