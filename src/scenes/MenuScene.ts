@@ -15,7 +15,7 @@ export class MenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
 
-    this.add.image(240, 140, 'slime').setTint(0x7be0a8)
+    this.add.image(240, 140, 'slime-none')
 
     this.add
       .text(240, 210, '按 空格 开始冒险', {

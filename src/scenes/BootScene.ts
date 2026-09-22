@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { ELEMENTS, ELEMENT_ORDER, type ElementKey } from '../data/elements'
 
 const ICON_NONE = [
   '................',
@@ -55,11 +56,11 @@ export class BootScene extends Phaser.Scene {
     pixelGfx.generateTexture('pixel', 1, 1)
     pixelGfx.destroy()
 
-    const slimeGfx = this.add.graphics()
-    slimeGfx.fillStyle(0xffffff, 1)
-    slimeGfx.fillRoundedRect(0, 0, 32, 26, 10)
-    slimeGfx.generateTexture('slime', 32, 26)
-    slimeGfx.destroy()
+    ELEMENT_ORDER.forEach((key) => {
+      this.makeSlime(key)
+    })
+
+    this.makeEye()
 
     const orbGfx = this.add.graphics()
     orbGfx.fillStyle(0xffffff, 1)
@@ -91,7 +92,30 @@ export class BootScene extends Phaser.Scene {
     this.makeIcon('icon-none', ICON_NONE)
     this.makeIcon('icon-wind', ICON_WIND)
   }
+  private makeSlime(key: ElementKey) {
+    const element = ELEMENTS[key]
+    const gfx = this.add.graphics()
 
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillCircle(16, 13, 12)
+    gfx.fillEllipse(16, 18, 30, 14)
+
+    gfx.fillStyle(element.color, 0.7)
+    gfx.fillCircle(16, 15, 8)
+    gfx.fillEllipse(16, 19, 20, 10)
+
+    gfx.generateTexture('slime-' + key, 32, 26)
+    gfx.destroy()
+  }
+
+  private makeEye() {
+    const gfx = this.add.graphics()
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillCircle(2, 2, 2)
+    gfx.generateTexture('eye', 4, 4)
+    gfx.destroy()
+  }
+  
   private makeIcon(key: string, rows: string[]) {
     const gfx = this.add.graphics()
     gfx.fillStyle(0xffffff, 1)

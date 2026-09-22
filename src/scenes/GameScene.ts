@@ -25,6 +25,9 @@ export class GameScene extends Phaser.Scene {
   private staminaBar!: Phaser.GameObjects.Rectangle
   private elementIcon!: Phaser.GameObjects.Image
 
+  private eyes: Phaser.GameObjects.Image[] = []
+  private blinkTimer = 0
+
   private element: ElementKey = 'none'
   private jumpPower = -260
   private stamina = STAMINA_MAX
@@ -71,9 +74,11 @@ export class GameScene extends Phaser.Scene {
     const goalSprite = this.physics.add.staticSprite(goal.x, goal.y, goal.kind)
     goalSprite.setTint(goalColor)
 
-    this.slime = this.physics.add.sprite(this.level.spawn.x, this.level.spawn.y, 'slime')
+    this.slime = this.physics.add.sprite(this.level.spawn.x, this.level.spawn.y, 'slime-none')
     this.slime.setBounce(0.2)
     this.slime.setCollideWorldBounds(true)
+
+    this.eyes = [this.add.image(0, 0, 'eye'), this.add.image(0, 0, 'eye')]
 
     this.physics.add.collider(this.slime, this.platforms)
 
@@ -112,13 +117,15 @@ export class GameScene extends Phaser.Scene {
     this.staminaBar.setVisible(element.canHover)
     this.staminaBar.setFillStyle(element.color)
   }
-  
+
   private applyElement(key: ElementKey) {
     const element = ELEMENTS[key]
 
     this.element = key
     this.jumpPower = element.jump
-    this.slime.setTint(element.color)
+    this.slime.clearTint()
+    this.slime.setTexture('slime-' + key)
+    this.eyes.forEach((eye) => eye.setTint(element.eyeColor))
     this.refreshHud()
   }
 
@@ -133,15 +140,14 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.finished = true
-    this.slime.setVelocity(0, 0)
+    this.slime.setVelocityX(0)
+    this.slime.setVelocityY(-160)
 
     const granted = this.level.goal.grants
 
     if (granted) {
       unlockElement(granted)
       this.applyElement(granted)
-    } else {
-      this.slime.setTint(0xffd54f)
     }
 
     this.time.delayedCall(600, () => {
@@ -167,6 +173,23 @@ export class GameScene extends Phaser.Scene {
     if (Phaser.Input.Keyboard.JustDown(this.nextKey)) {
       cycleElement(1)
       this.applyElement(progress.current)
+    }
+
+    const look = this.slime.flipX ? -2 : 2
+
+    this.eyes[0].setPosition(this.slime.x - 5 + look, this.slime.y - 2)
+    this.eyes[1].setPosition(this.slime.x + 5 + look, this.slime.y - 2)
+
+    this.blinkTimer -= delta
+
+    if (this.blinkTimer <= 0) {
+      this.blinkTimer = 1800 + Math.random() * 2200
+
+      this.eyes.forEach((eye) => eye.setScale(1, 0.15))
+
+      this.time.delayedCall(110, () => {
+        this.eyes.forEach((eye) => eye.setScale(1, 1))
+      })
     }
 
     if (this.finished) {
