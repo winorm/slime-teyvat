@@ -61,6 +61,8 @@ export class BootScene extends Phaser.Scene {
     })
 
     this.makeEye()
+    this.makeGem()
+    this.makeLock()
 
     const orbGfx = this.add.graphics()
     orbGfx.fillStyle(0xffffff, 1)
@@ -115,6 +117,15 @@ export class BootScene extends Phaser.Scene {
     gfx.generateTexture('eye', 4, 4)
     gfx.destroy()
   }
+
+  private makeGem() {
+    const gfx = this.add.graphics()
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillTriangle(6, 0, 0, 7, 12, 7)
+    gfx.fillTriangle(6, 14, 12, 7, 0, 7)
+    gfx.generateTexture('gem', 12, 14)
+    gfx.destroy()
+  }
   
   private makeIcon(key: string, rows: string[]) {
     const gfx = this.add.graphics()
@@ -129,6 +140,17 @@ export class BootScene extends Phaser.Scene {
     })
 
     gfx.generateTexture(key, 16, 16)
+    gfx.destroy()
+  }
+
+  private makeLock() {
+    const gfx = this.add.graphics()
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillRect(3, 9, 14, 10)
+    gfx.fillRect(5, 4, 3, 6)
+    gfx.fillRect(12, 4, 3, 6)
+    gfx.fillRect(5, 2, 10, 3)
+    gfx.generateTexture('lock', 20, 20)
     gfx.destroy()
   }
 }

@@ -36,6 +36,7 @@ export type LevelDef = {
   goal: GoalDef
   platforms: PlatformDef[]
   orbs: OrbDef[]
+  gems: { x: number; y: number }[]
   hints: HintDef[]
 }
 
@@ -46,6 +47,11 @@ export const LEVELS: LevelDef[] = [
     startElement: 'none',
     spawn: { x: 40, y: 150 },
     goal: { x: 850, y: 180, kind: 'statue', grants: 'wind' },
+    gems: [
+      { x: 200, y: 239 },
+      { x: 460, y: 197 },
+      { x: 600, y: 173 },
+    ],
     platforms: [
       { x: 140, y: 258, width: 280, height: 24 },
       { x: 495, y: 258, width: 290, height: 24 },
@@ -66,6 +72,11 @@ export const LEVELS: LevelDef[] = [
     startElement: 'wind',
     spawn: { x: 40, y: 150 },
     goal: { x: 960, y: 156, kind: 'chest' },
+    gems: [
+      { x: 200, y: 173 },
+      { x: 560, y: 173 },
+      { x: 880, y: 239 },
+    ],
     platforms: [
       { x: 160, y: 258, width: 320, height: 24 },
       { x: 560, y: 258, width: 320, height: 24 },

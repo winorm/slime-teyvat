@@ -26,8 +26,7 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5)
 
     this.input.keyboard!.once('keydown-SPACE', () => {
-      progress.levelIndex = 0
-      this.scene.start('game')
+      this.scene.start('select')
     })
   }
 }

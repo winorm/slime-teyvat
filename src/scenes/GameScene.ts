@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { ELEMENTS, type ElementKey } from '../data/elements'
 import { LEVELS, type LevelDef } from '../data/levels'
-import { progress, unlockElement, cycleElement } from '../state/progress'
+import { progress, unlockElement, cycleElement, recordClear } from '../state/progress'
 
 const HOVER = {
   maxRise: 100,
@@ -18,6 +18,11 @@ export class GameScene extends Phaser.Scene {
   private slime!: Phaser.Physics.Arcade.Sprite
   private platforms!: Phaser.Physics.Arcade.StaticGroup
   private orbs!: Phaser.Physics.Arcade.StaticGroup
+
+  private gems!: Phaser.Physics.Arcade.StaticGroup
+  private gemIcons: Phaser.GameObjects.Image[] = []
+  private collectedIndices: number[] = []
+
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
   private restartKey!: Phaser.Input.Keyboard.Key
   private prevKey!: Phaser.Input.Keyboard.Key
@@ -50,9 +55,11 @@ export class GameScene extends Phaser.Scene {
     this.blinkTimer = 1200
     this.landSquash = 0
     this.wasOnGround = false
+    this.collectedIndices = []
 
     this.platforms = this.physics.add.staticGroup()
     this.orbs = this.physics.add.staticGroup()
+    this.gems = this.physics.add.staticGroup()
 
     this.level.platforms.forEach((def) => {
       const platform = this.platforms.create(def.x, def.y, 'pixel') as Phaser.Physics.Arcade.Sprite
@@ -69,6 +76,18 @@ export class GameScene extends Phaser.Scene {
           color: '#8fa3b8',
         })
         .setOrigin(0.5)
+    })
+
+    const savedGems = progress.levelGems[progress.levelIndex] ?? []
+
+    this.level.gems.forEach((spot, index) => {
+      if (savedGems.includes(index)) {
+        return
+      }
+
+      const gem = this.gems.create(spot.x, spot.y, 'gem') as Phaser.Physics.Arcade.Sprite
+      gem.setTint(0xffd54f)
+      gem.setData('index', index)
     })
 
     this.level.orbs.forEach((def) => {
@@ -101,6 +120,13 @@ export class GameScene extends Phaser.Scene {
       orbSprite.destroy()
     })
 
+    this.physics.add.overlap(this.slime, this.gems, (_slime, gem) => {
+      const gemSprite = gem as Phaser.Physics.Arcade.Sprite
+      this.collectedIndices.push(gemSprite.getData('index') as number)
+      gemSprite.destroy()
+      this.refreshGemHud()
+    })
+
     this.physics.add.overlap(this.slime, goalSprite, () => {
       this.win()
     })
@@ -111,6 +137,13 @@ export class GameScene extends Phaser.Scene {
       .rectangle(10, 38, 60, 6, 0x74d0b0)
       .setOrigin(0, 0.5)
       .setScrollFactor(0)
+    
+    const gemTotal = this.level.gems.length
+    const gemStartX = 480 - 20 - (gemTotal - 1) * 18
+
+    this.gemIcons = this.level.gems.map((_spot, index) =>
+      this.add.image(gemStartX + index * 18, 18, 'gem').setScrollFactor(0).setTint(0x33333f)
+    )
     this.cursors = this.input.keyboard!.createCursorKeys()
     this.restartKey = this.input.keyboard!.addKey('R')
     this.prevKey = this.input.keyboard!.addKey('Q')
@@ -118,6 +151,7 @@ export class GameScene extends Phaser.Scene {
 
     progress.current = this.level.startElement
     this.applyElement(this.level.startElement)
+    this.refreshGemHud()
     
   }
 
@@ -152,6 +186,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.finished = true
+    recordClear(progress.levelIndex, this.collectedIndices)
     this.slime.setVelocityX(0)
     this.slime.setVelocityY(-160)
 
@@ -177,6 +212,15 @@ export class GameScene extends Phaser.Scene {
     this.eyes[0].setPosition(this.slime.x + (-5 + look) * sx, this.slime.y - 2 * sy)
     this.eyes[1].setPosition(this.slime.x + (5 + look) * sx, this.slime.y - 2 * sy)
     this.eyes.forEach((eye) => eye.setScale(1, this.blinkScale))
+  }
+
+  private refreshGemHud() {
+    const saved = progress.levelGems[progress.levelIndex] ?? []
+
+    this.gemIcons.forEach((icon, index) => {
+      const lit = saved.includes(index) || this.collectedIndices.includes(index)
+      icon.setTint(lit ? 0xffd54f : 0x33333f)
+    })
   }
 
   update(time: number, delta: number) {

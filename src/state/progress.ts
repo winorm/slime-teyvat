@@ -5,6 +5,8 @@ export const progress = {
   unlocked: ['none'] as ElementKey[],
   current: 'none' as ElementKey,
   levelIndex: 0,
+  maxLevel: 0,
+  levelGems: [] as number[][],
 }
 
 export function unlockElement(key: ElementKey) {
@@ -22,4 +24,11 @@ export function cycleElement(step: number) {
   const next = (index + step + list.length) % list.length
 
   progress.current = list[next]
+}
+
+export function recordClear(levelIndex: number, indices: number[]) {
+  const saved = progress.levelGems[levelIndex] ?? []
+
+  progress.levelGems[levelIndex] = Array.from(new Set([...saved, ...indices]))
+  progress.maxLevel = Math.max(progress.maxLevel, levelIndex + 1)
 }

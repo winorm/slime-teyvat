@@ -3,6 +3,7 @@ import { BootScene } from './scenes/BootScene'
 import { MenuScene } from './scenes/MenuScene'
 import { GameScene } from './scenes/GameScene'
 import { ResultScene } from './scenes/ResultScene'
+import { SelectScene } from './scenes/SelectScene'
 
 new Phaser.Game({
   type: Phaser.AUTO,
@@ -22,5 +23,6 @@ new Phaser.Game({
       debug: true,
     },
   },
-  scene: [BootScene, MenuScene, GameScene, ResultScene],
+  scene: [BootScene, MenuScene, SelectScene, GameScene, ResultScene],
+  
 })
