@@ -41,6 +41,7 @@ export class GameScene extends Phaser.Scene {
   private jumpPower = -260
   private stamina = STAMINA_MAX
   private hoverOriginY = 0
+
   private finished = false
 
   constructor() {
@@ -144,6 +145,15 @@ export class GameScene extends Phaser.Scene {
     this.gemIcons = this.level.gems.map((_spot, index) =>
       this.add.image(gemStartX + index * 18, 18, 'gem').setScrollFactor(0).setTint(0x33333f)
     )
+
+    this.add
+      .text(10, 56, 'Esc  设置', {
+        fontFamily: 'sans-serif',
+        fontSize: '12px',
+        color: '#6a7a8e',
+      })
+      .setScrollFactor(0)
+
     this.cursors = this.input.keyboard!.createCursorKeys()
     this.restartKey = this.input.keyboard!.addKey('R')
     this.prevKey = this.input.keyboard!.addKey('Q')
@@ -152,6 +162,11 @@ export class GameScene extends Phaser.Scene {
     progress.current = this.level.startElement
     this.applyElement(this.level.startElement)
     this.refreshGemHud()
+
+    this.input.keyboard!.on('keydown-ESC', () => {
+      this.scene.pause()
+      this.scene.launch('pause')
+    })
     
   }
 
