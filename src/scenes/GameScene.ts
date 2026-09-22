@@ -25,8 +25,12 @@ export class GameScene extends Phaser.Scene {
   private staminaBar!: Phaser.GameObjects.Rectangle
   private elementIcon!: Phaser.GameObjects.Image
 
+  private slimeArt!: Phaser.GameObjects.Image
   private eyes: Phaser.GameObjects.Image[] = []
   private blinkTimer = 0
+  private blinkScale = 1
+  private landSquash = 0
+  private wasOnGround = false
 
   private element: ElementKey = 'none'
   private jumpPower = -260
@@ -42,6 +46,10 @@ export class GameScene extends Phaser.Scene {
     this.level = LEVELS[progress.levelIndex]
     this.finished = false
     this.stamina = STAMINA_MAX
+    this.blinkScale = 1
+    this.blinkTimer = 1200
+    this.landSquash = 0
+    this.wasOnGround = false
 
     this.platforms = this.physics.add.staticGroup()
     this.orbs = this.physics.add.staticGroup()
@@ -77,7 +85,9 @@ export class GameScene extends Phaser.Scene {
     this.slime = this.physics.add.sprite(this.level.spawn.x, this.level.spawn.y, 'slime-none')
     this.slime.setBounce(0.2)
     this.slime.setCollideWorldBounds(true)
+    this.slime.setVisible(false)
 
+    this.slimeArt = this.add.image(this.level.spawn.x, this.level.spawn.y, 'slime-none')
     this.eyes = [this.add.image(0, 0, 'eye'), this.add.image(0, 0, 'eye')]
 
     this.physics.add.collider(this.slime, this.platforms)
@@ -123,8 +133,7 @@ export class GameScene extends Phaser.Scene {
 
     this.element = key
     this.jumpPower = element.jump
-    this.slime.clearTint()
-    this.slime.setTexture('slime-' + key)
+    this.slimeArt.setTexture('slime-' + key)
     this.eyes.forEach((eye) => eye.setTint(element.eyeColor))
     this.refreshHud()
   }
@@ -155,7 +164,19 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
-  update(_time: number, delta: number) {
+  private syncVisual(sx: number, sy: number) {
+    this.slimeArt.setPosition(this.slime.x, this.slime.y)
+    this.slimeArt.setFlipX(this.slime.flipX)
+    this.slimeArt.setScale(sx, sy)
+
+    const look = this.slime.flipX ? -2 : 2
+
+    this.eyes[0].setPosition(this.slime.x + (-5 + look) * sx, this.slime.y - 2 * sy)
+    this.eyes[1].setPosition(this.slime.x + (5 + look) * sx, this.slime.y - 2 * sy)
+    this.eyes.forEach((eye) => eye.setScale(1, this.blinkScale))
+  }
+
+  update(time: number, delta: number) {
     const body = this.slime.body as Phaser.Physics.Arcade.Body
     const speed = 120
     const dt = delta / 1000
@@ -175,24 +196,8 @@ export class GameScene extends Phaser.Scene {
       this.applyElement(progress.current)
     }
 
-    const look = this.slime.flipX ? -2 : 2
-
-    this.eyes[0].setPosition(this.slime.x - 5 + look, this.slime.y - 2)
-    this.eyes[1].setPosition(this.slime.x + 5 + look, this.slime.y - 2)
-
-    this.blinkTimer -= delta
-
-    if (this.blinkTimer <= 0) {
-      this.blinkTimer = 1800 + Math.random() * 2200
-
-      this.eyes.forEach((eye) => eye.setScale(1, 0.15))
-
-      this.time.delayedCall(110, () => {
-        this.eyes.forEach((eye) => eye.setScale(1, 1))
-      })
-    }
-
     if (this.finished) {
+      this.syncVisual(1, 1)
       return
     }
 
@@ -244,6 +249,56 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    if (onGround && !this.wasOnGround) {
+      this.landSquash = 1
+    }
+
+    this.wasOnGround = onGround
+    this.landSquash = Math.max(0, this.landSquash - dt * 4)
+
+    let sx = 1
+    let sy = 1
+
+    if (!onGround) {
+      if (wantHover) {
+        const wave = Math.sin(time / 140)
+        sx = 0.95 + wave * 0.02
+        sy = 1.06 - wave * 0.02
+      } else if (element.canHover && this.stamina <= 0 && body.velocity.y > 0) {
+        sx = 1.16
+        sy = 0.86
+      } else if (body.velocity.y < 0) {
+        sx = 0.9
+        sy = 1.12
+      } else {
+        sx = 1.1
+        sy = 0.92
+      }
+    } else {
+      const moving = Math.abs(body.velocity.x) > 10
+      const amount = moving ? 0.05 : 0.03
+      const period = moving ? 120 : 340
+      const wave = Math.sin((time / period) * Math.PI * 2)
+
+      sx = 1 + wave * amount
+      sy = 1 - wave * amount
+    }
+
+    sx += this.landSquash * 0.22
+    sy -= this.landSquash * 0.22
+
+    this.blinkTimer -= delta
+
+    if (this.blinkTimer <= 0) {
+      this.blinkTimer = 1800 + Math.random() * 2200
+      this.blinkScale = 0.15
+
+      this.time.delayedCall(110, () => {
+        this.blinkScale = 1
+      })
+    }
+
+    this.syncVisual(sx, sy)
     this.staminaBar.setScale(this.stamina / STAMINA_MAX, 1)
   }
 }
