@@ -1,17 +1,6 @@
 import Phaser from 'phaser'
-
-type ElementKey = 'none' | 'wind'
-
-type ElementDef = {
-  color: number
-  jump: number
-  canHover: boolean
-}
-
-const ELEMENTS: Record<ElementKey, ElementDef> = {
-  none: { color: 0xb8b8c8, jump: -260, canHover: false },
-  wind: { color: 0x74d0b0, jump: -260, canHover: true },
-}
+import { ELEMENTS, type ElementKey } from '../data/elements'
+import { progress, unlockElement, cycleElement } from '../state/progress'
 
 const HOVER = {
   maxRise: 100,
@@ -37,6 +26,7 @@ type OrbDef = {
 }
 
 type LevelDef = {
+  startElement: ElementKey
   spawn: { x: number; y: number }
   goal: { x: number; y: number }
   platforms: PlatformDef[]
@@ -44,6 +34,7 @@ type LevelDef = {
 }
 
 const LEVEL: LevelDef = {
+  startElement: 'none',
   spawn: { x: 60, y: 150 },
   goal: { x: 400, y: 158 },
   platforms: [
@@ -59,7 +50,10 @@ export class GameScene extends Phaser.Scene {
   private orbs!: Phaser.Physics.Arcade.StaticGroup
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
   private restartKey!: Phaser.Input.Keyboard.Key
+  private prevKey!: Phaser.Input.Keyboard.Key
+  private nextKey!: Phaser.Input.Keyboard.Key
   private staminaBar!: Phaser.GameObjects.Rectangle
+  private elementText!: Phaser.GameObjects.Text
 
   private element: ElementKey = 'none'
   private jumpPower = -260
@@ -72,10 +66,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
-    this.element = 'none'
-    this.jumpPower = -260
-    this.stamina = STAMINA_MAX
     this.finished = false
+    this.stamina = STAMINA_MAX
 
     this.platforms = this.physics.add.staticGroup()
     this.orbs = this.physics.add.staticGroup()
@@ -93,13 +85,12 @@ export class GameScene extends Phaser.Scene {
       orb.setData('element', def.element)
     })
 
-    this.slime = this.physics.add.sprite(LEVEL.spawn.x, LEVEL.spawn.y, 'slime')
-    this.slime.setTint(ELEMENTS.none.color)
-    this.slime.setBounce(0.2)
-    this.slime.setCollideWorldBounds(true)
-
     const goal = this.physics.add.staticSprite(LEVEL.goal.x, LEVEL.goal.y, 'goal')
     goal.setTint(0xffd54f)
+
+    this.slime = this.physics.add.sprite(LEVEL.spawn.x, LEVEL.spawn.y, 'slime')
+    this.slime.setBounce(0.2)
+    this.slime.setCollideWorldBounds(true)
 
     this.physics.add.collider(this.slime, this.platforms)
 
@@ -113,23 +104,48 @@ export class GameScene extends Phaser.Scene {
       this.win()
     })
 
+    this.elementText = this.add
+      .text(14, 10, '', {
+        fontFamily: 'sans-serif',
+        fontSize: '16px',
+        color: '#ffffff',
+      })
+      .setScrollFactor(0)
+
     this.staminaBar = this.add
-      .rectangle(14, 16, 60, 6, 0x74d0b0)
+      .rectangle(14, 36, 60, 6, 0x74d0b0)
       .setOrigin(0, 0.5)
       .setScrollFactor(0)
-      .setVisible(false)
 
     this.cursors = this.input.keyboard!.createCursorKeys()
     this.restartKey = this.input.keyboard!.addKey('R')
+    this.prevKey = this.input.keyboard!.addKey('Q')
+    this.nextKey = this.input.keyboard!.addKey('E')
+
+    progress.current = LEVEL.startElement
+    this.applyElement(LEVEL.startElement)
+  }
+
+  private refreshHud() {
+    const element = ELEMENTS[this.element]
+
+    this.elementText.setText('元素：' + element.label)
+    this.staminaBar.setVisible(element.canHover)
+    this.staminaBar.setFillStyle(element.color)
+  }
+
+  private applyElement(key: ElementKey) {
+    const element = ELEMENTS[key]
+
+    this.element = key
+    this.jumpPower = element.jump
+    this.slime.setTint(element.color)
+    this.refreshHud()
   }
 
   private absorb(key: ElementKey) {
-    this.element = key
-    const element = ELEMENTS[key]
-    this.slime.setTint(element.color)
-    this.jumpPower = element.jump
-    this.stamina = STAMINA_MAX
-    this.staminaBar.setVisible(element.canHover)
+    unlockElement(key)
+    this.applyElement(key)
   }
 
   private win() {
@@ -154,6 +170,16 @@ export class GameScene extends Phaser.Scene {
     if (Phaser.Input.Keyboard.JustDown(this.restartKey)) {
       this.scene.restart()
       return
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.prevKey)) {
+      cycleElement(-1)
+      this.applyElement(progress.current)
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.nextKey)) {
+      cycleElement(1)
+      this.applyElement(progress.current)
     }
 
     if (this.finished) {
