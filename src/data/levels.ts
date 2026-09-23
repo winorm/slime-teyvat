@@ -5,6 +5,8 @@ export type PlatformDef = {
   y: number
   width: number
   height: number
+  oneWay?: boolean
+  crumble?: boolean
 }
 
 export type OrbDef = {
@@ -89,6 +91,34 @@ export const LEVELS: LevelDef[] = [
     hints: [
       { x: 70, y: 215, text: '长按 空格 悬浮' },
       { x: 560, y: 150, text: '悬浮中可左右移动' },
+    ],
+  },
+
+  {
+    name: '第三关 · 遗迹回廊',
+    width: 1040,
+    startElement: 'wind',
+    spawn: { x: 40, y: 150 },
+    goal: { x: 920, y: 116, kind: 'chest' },
+    platforms: [
+      { x: 120, y: 258, width: 240, height: 24 },
+      { x: 340, y: 215, width: 120, height: 10, oneWay: true },
+      { x: 340, y: 175, width: 120, height: 10, oneWay: true },
+      { x: 340, y: 135, width: 120, height: 10, oneWay: true },
+      { x: 500, y: 135, width: 70, height: 10, crumble: true },
+      { x: 630, y: 135, width: 70, height: 10, crumble: true },
+      { x: 760, y: 135, width: 70, height: 10, crumble: true },
+      { x: 920, y: 136, width: 120, height: 12 },
+    ],
+    orbs: [],
+    gems: [
+      { x: 340, y: 123 },
+      { x: 500, y: 123 },
+      { x: 920, y: 123 },
+    ],
+    hints: [
+      { x: 120, y: 215, text: '穿过平台往上跳' },
+      { x: 630, y: 95, text: '踩上去会碎，快跳' },
     ],
   },
 ]
