@@ -96,7 +96,10 @@ export class BootScene extends Phaser.Scene {
 
     this.makeRidge('bg-far', 480, 105, 0x2b2b46, [3, 7], 18)
     this.makeRidge('bg-mid', 480, 80, 0x222236, [2, 5], 14)
+
+    this.makeBlessing()
   }
+
   private makeSlime(key: ElementKey) {
     const element = ELEMENTS[key]
     const gfx = this.add.graphics()
@@ -193,6 +196,22 @@ export class BootScene extends Phaser.Scene {
     gfx.fillStyle(color, 1)
     gfx.fillPoints(points, true)
     gfx.generateTexture(key, width, height)
+    gfx.destroy()
+  }
+
+  private makeBlessing() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0xffe9a8, 0.35)
+    gfx.fillCircle(11, 11, 11)
+
+    gfx.fillStyle(0xffe9a8, 1)
+    gfx.fillCircle(11, 11, 6)
+
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillCircle(11, 11, 3)
+
+    gfx.generateTexture('blessing', 22, 22)
     gfx.destroy()
   }
 }

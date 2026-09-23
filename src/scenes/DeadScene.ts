@@ -3,18 +3,25 @@ import { LEVELS } from '../data/levels'
 import { progress } from '../state/progress'
 
 export class DeadScene extends Phaser.Scene {
+  private cause = 'fall'
+
   constructor() {
     super('dead')
   }
 
+  init(data: { cause?: string }) {
+    this.cause = data?.cause ?? 'fall'
+  }
+
   create() {
     const level = LEVELS[progress.levelIndex]
+    const title = this.cause === 'hazard' ? '撞上屏障了……' : '掉下去了……'
 
     this.add.rectangle(0, 0, 480, 270, 0x000000).setOrigin(0, 0).setAlpha(0.75)
     this.add.rectangle(240, 140, 300, 210, 0x241e2e).setStrokeStyle(2, 0x6a4a6a)
 
     this.add
-      .text(240, 56, '掉下去了……', {
+      .text(240, 56, title, {
         fontFamily: 'sans-serif',
         fontSize: '24px',
         color: '#ff8a8a',

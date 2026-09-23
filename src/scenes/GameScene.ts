@@ -13,6 +13,11 @@ const HOVER = {
 
 const STAMINA_MAX = 100
 
+const HAZARD = {
+  width: 24,
+  gapHeight: 70,
+}
+
 export class GameScene extends Phaser.Scene {
   private level!: LevelDef
   private slime!: Phaser.Physics.Arcade.Sprite
@@ -45,7 +50,16 @@ export class GameScene extends Phaser.Scene {
   private bgFar!: Phaser.GameObjects.TileSprite
   private bgMid!: Phaser.GameObjects.TileSprite
 
+  private blessings!: Phaser.Physics.Arcade.StaticGroup
+  private staminaGlow!: Phaser.GameObjects.Rectangle
+  private blessed = false
+  private hasFlown = false
+
   private finished = false
+
+  private hazards!: Phaser.Physics.Arcade.StaticGroup
+  private dying = false
+
 
   constructor() {
     super('game')
@@ -60,6 +74,10 @@ export class GameScene extends Phaser.Scene {
     this.landSquash = 0
     this.wasOnGround = false
     this.collectedIndices = []
+    this.blessed = false
+    this.hasFlown = false
+    this.dying = false
+
 
     this.platforms = this.physics.add.staticGroup()
     this.orbs = this.physics.add.staticGroup()
@@ -68,12 +86,25 @@ export class GameScene extends Phaser.Scene {
     this.bgMid = this.add.tileSprite(0, 190, 480, 80, 'bg-mid').setOrigin(0, 0).setScrollFactor(0)
 
     this.gems = this.physics.add.staticGroup()
+    this.blessings = this.physics.add.staticGroup()
+    this.hazards = this.physics.add.staticGroup()
 
     this.level.platforms.forEach((def) => {
       const platform = this.platforms.create(def.x, def.y, 'pixel') as Phaser.Physics.Arcade.Sprite
       platform.setDisplaySize(def.width, def.height)
-      platform.setTint(0x2c3e50)
+      platform.setTint(def.crumble ? 0x6b4a3a : def.oneWay ? 0x3a4a5e : 0x2c3e50)
       platform.refreshBody()
+
+      if (def.oneWay) {
+        const body = platform.body as Phaser.Physics.Arcade.StaticBody
+        body.checkCollision.down = false
+        body.checkCollision.left = false
+        body.checkCollision.right = false
+      }
+
+      if (def.crumble) {
+        platform.setData('crumble', true)
+      }
     })
 
     this.level.hints.forEach((hint) => {
@@ -98,6 +129,11 @@ export class GameScene extends Phaser.Scene {
       gem.setData('index', index)
     })
 
+    this.level.blessings.forEach((spot) => {
+      const item = this.blessings.create(spot.x, spot.y, 'blessing') as Phaser.Physics.Arcade.Sprite
+      item.setTint(0xffe9a8)
+    })
+
     this.level.orbs.forEach((def) => {
       const orb = this.orbs.create(def.x, def.y, 'orb') as Phaser.Physics.Arcade.Sprite
       orb.setTint(ELEMENTS[def.element].color)
@@ -116,11 +152,24 @@ export class GameScene extends Phaser.Scene {
 
     this.slimeArt = this.add.image(this.level.spawn.x, this.level.spawn.y, 'slime-none')
     this.eyes = [this.add.image(0, 0, 'eye'), this.add.image(0, 0, 'eye')]
-    this.physics.world.setBounds(0, 0, this.level.width, 600)
-    this.cameras.main.setBounds(0, 0, this.level.width, 270)
+    this.physics.world.setBounds(0, 0, this.level.width, this.level.height + 200)
+    this.cameras.main.setBounds(0, 0, this.level.width, this.level.height)
     this.cameras.main.startFollow(this.slime, true, 0.12, 0.12)
 
-    this.physics.add.collider(this.slime, this.platforms)
+    this.physics.add.collider(this.slime, this.platforms, (_slime, platform) => {
+      const sprite = platform as Phaser.Physics.Arcade.Sprite
+
+      if (!sprite.getData('crumble') || sprite.getData('crumbling')) {
+        return
+      }
+
+      sprite.setData('crumbling', true)
+      sprite.setTint(0x8a5a5a)
+
+      this.time.delayedCall(800, () => {
+        sprite.destroy()
+      })
+    })
 
     this.physics.add.overlap(this.slime, this.orbs, (_slime, orb) => {
       const orbSprite = orb as Phaser.Physics.Arcade.Sprite
@@ -135,11 +184,49 @@ export class GameScene extends Phaser.Scene {
       this.refreshGemHud()
     })
 
+    this.physics.add.overlap(this.slime, this.blessings, (_slime, item) => {
+      const sprite = item as Phaser.Physics.Arcade.Sprite
+      sprite.destroy()
+      this.grantBlessing()
+    })
+
     this.physics.add.overlap(this.slime, goalSprite, () => {
       this.win()
     })
 
+    this.level.hazards.forEach((def) => {
+      const gapTop = def.gapY - HAZARD.gapHeight / 2
+      const gapBottom = def.gapY + HAZARD.gapHeight / 2
+      const bottomHeight = this.level.height - gapBottom
+
+      const upper = this.hazards.create(def.x, gapTop / 2, 'pixel') as Phaser.Physics.Arcade.Sprite
+      upper.setDisplaySize(HAZARD.width, gapTop)
+      upper.setTint(0xb03a3a)
+      upper.refreshBody()
+
+      const lower = this.hazards.create(
+        def.x,
+        gapBottom + bottomHeight / 2,
+        'pixel'
+      ) as Phaser.Physics.Arcade.Sprite
+      lower.setDisplaySize(HAZARD.width, bottomHeight)
+      lower.setTint(0xb03a3a)
+      lower.refreshBody()
+    })
+
+    this.physics.add.overlap(this.slime, this.hazards, () => {
+      this.die('hazard')
+    })
+
+
     this.elementIcon = this.add.image(18, 18, 'icon-none').setScrollFactor(0)
+
+        
+    this.staminaGlow = this.add
+      .rectangle(10, 38, 68, 14, 0xffd54f)
+      .setOrigin(0, 0.5)
+      .setScrollFactor(0)
+      .setVisible(false)
 
     this.staminaBar = this.add
       .rectangle(10, 38, 60, 6, 0x74d0b0)
@@ -244,6 +331,58 @@ export class GameScene extends Phaser.Scene {
       icon.setTint(lit ? 0xffd54f : 0x33333f)
     })
   }
+
+  private grantBlessing() {
+    this.blessed = true
+    this.hasFlown = false
+    this.stamina = STAMINA_MAX
+    this.staminaGlow.setVisible(true)
+    this.showMessage('你已获得「风神的赐福」，漂浮时体力无限')
+  }
+
+  private endBlessing() {
+    this.blessed = false
+    this.hasFlown = false
+    this.staminaGlow.setVisible(false)
+    this.showMessage('愿风神忽悠你')
+  }
+
+  private showMessage(text: string) {
+    const message = this.add
+      .text(240, 232, text, {
+        fontFamily: 'sans-serif',
+        fontSize: '16px',
+        color: '#ffe9a8',
+        backgroundColor: '#000000aa',
+        padding: { x: 10, y: 5 },
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(50)
+      .setAlpha(0)
+
+    this.tweens.add({
+      targets: message,
+      alpha: 1,
+      duration: 250,
+      hold: 2000,
+      yoyo: true,
+      onComplete: () => {
+        message.destroy()
+      },
+    })
+  }
+
+  private die(cause: string) {
+    if (this.dying) {
+      return
+    }
+
+    this.dying = true
+    this.scene.pause()
+    this.scene.launch('dead', { cause })
+  }
+
   update(time: number, delta: number) {
     const camera = this.cameras.main
 
@@ -274,9 +413,8 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
-    if (this.slime.y > 320) {
-      this.scene.pause()
-      this.scene.launch('dead')
+    if (this.slime.y > this.level.height + 50) {
+      this.die('fall')
       return
     }
 
@@ -292,6 +430,14 @@ export class GameScene extends Phaser.Scene {
 
     const element = ELEMENTS[this.element]
     const onGround = body.blocked.down
+
+    if (this.blessed) {
+      if (!onGround) {
+        this.hasFlown = true
+      } else if (this.hasFlown) {
+        this.endBlessing()
+      }
+    }
 
     if (onGround) {
       this.hoverOriginY = this.slime.y
@@ -319,8 +465,10 @@ export class GameScene extends Phaser.Scene {
         this.slime.setVelocityY(0)
       }
 
-      this.stamina = Math.max(0, this.stamina - HOVER.drainPerSecond * dt)
-    } else {
+      this.stamina = this.blessed
+        ? STAMINA_MAX
+        : Math.max(0, this.stamina - HOVER.drainPerSecond * dt)
+      } else {
       body.setAllowGravity(true)
 
       if (element.canHover && body.velocity.y > HOVER.fallSpeed) {
