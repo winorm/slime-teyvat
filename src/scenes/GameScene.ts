@@ -42,6 +42,9 @@ export class GameScene extends Phaser.Scene {
   private stamina = STAMINA_MAX
   private hoverOriginY = 0
 
+  private bgFar!: Phaser.GameObjects.TileSprite
+  private bgMid!: Phaser.GameObjects.TileSprite
+
   private finished = false
 
   constructor() {
@@ -60,6 +63,10 @@ export class GameScene extends Phaser.Scene {
 
     this.platforms = this.physics.add.staticGroup()
     this.orbs = this.physics.add.staticGroup()
+
+    this.bgFar = this.add.tileSprite(0, 165, 480, 105, 'bg-far').setOrigin(0, 0).setScrollFactor(0)
+    this.bgMid = this.add.tileSprite(0, 190, 480, 80, 'bg-mid').setOrigin(0, 0).setScrollFactor(0)
+
     this.gems = this.physics.add.staticGroup()
 
     this.level.platforms.forEach((def) => {
@@ -237,8 +244,12 @@ export class GameScene extends Phaser.Scene {
       icon.setTint(lit ? 0xffd54f : 0x33333f)
     })
   }
-
   update(time: number, delta: number) {
+    const camera = this.cameras.main
+
+    this.bgFar.setTilePosition(camera.scrollX * 0.15, 0)
+    this.bgMid.setTilePosition(camera.scrollX * 0.35, 0)
+
     const body = this.slime.body as Phaser.Physics.Arcade.Body
     const speed = 120
     const dt = delta / 1000

@@ -93,10 +93,17 @@ export class BootScene extends Phaser.Scene {
 
     this.makeIcon('icon-none', ICON_NONE)
     this.makeIcon('icon-wind', ICON_WIND)
+
+    this.makeRidge('bg-far', 480, 105, 0x2b2b46, [3, 7], 18)
+    this.makeRidge('bg-mid', 480, 80, 0x222236, [2, 5], 14)
   }
   private makeSlime(key: ElementKey) {
     const element = ELEMENTS[key]
     const gfx = this.add.graphics()
+
+    gfx.fillStyle(0x14141f, 1)
+    gfx.fillCircle(16, 13, 13)
+    gfx.fillEllipse(16, 18, 32, 16)
 
     gfx.fillStyle(0xffffff, 1)
     gfx.fillCircle(16, 13, 12)
@@ -105,6 +112,9 @@ export class BootScene extends Phaser.Scene {
     gfx.fillStyle(element.color, 0.7)
     gfx.fillCircle(16, 15, 8)
     gfx.fillEllipse(16, 19, 20, 10)
+
+    gfx.fillStyle(0xffffff, 0.55)
+    gfx.fillEllipse(11, 9, 9, 5)
 
     gfx.generateTexture('slime-' + key, 32, 26)
     gfx.destroy()
@@ -151,6 +161,38 @@ export class BootScene extends Phaser.Scene {
     gfx.fillRect(12, 4, 3, 6)
     gfx.fillRect(5, 2, 10, 3)
     gfx.generateTexture('lock', 20, 20)
+    gfx.destroy()
+  }
+
+  private makeRidge(
+    key: string,
+    width: number,
+    height: number,
+    color: number,
+    waves: number[],
+    amplitude: number
+  ) {
+    const gfx = this.add.graphics()
+    const points: Phaser.Math.Vector2[] = []
+    const baseY = height - 30
+
+    for (let x = 0; x <= width; x++) {
+      let offset = 0
+
+      for (let index = 0; index < waves.length; index++) {
+        offset +=
+          Math.sin((x / width) * Math.PI * 2 * waves[index] + index) * (amplitude / (index + 1))
+      }
+
+      points.push(new Phaser.Math.Vector2(x, baseY + offset))
+    }
+
+    points.push(new Phaser.Math.Vector2(width, height))
+    points.push(new Phaser.Math.Vector2(0, height))
+
+    gfx.fillStyle(color, 1)
+    gfx.fillPoints(points, true)
+    gfx.generateTexture(key, width, height)
     gfx.destroy()
   }
 }
