@@ -7,6 +7,7 @@ export const progress = {
   levelIndex: 0,
   maxLevel: 0,
   levelGems: [] as number[][],
+  gemStorySeen: false,
 }
 
 export function unlockElement(key: ElementKey) {

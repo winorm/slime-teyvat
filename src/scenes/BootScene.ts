@@ -134,8 +134,19 @@ export class BootScene extends Phaser.Scene {
   private makeGem() {
     const gfx = this.add.graphics()
     gfx.fillStyle(0xffffff, 1)
-    gfx.fillTriangle(6, 0, 0, 7, 12, 7)
-    gfx.fillTriangle(6, 14, 12, 7, 0, 7)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(6, 0),
+        new Phaser.Math.Vector2(8, 5),
+        new Phaser.Math.Vector2(12, 7),
+        new Phaser.Math.Vector2(8, 9),
+        new Phaser.Math.Vector2(6, 14),
+        new Phaser.Math.Vector2(4, 9),
+        new Phaser.Math.Vector2(0, 7),
+        new Phaser.Math.Vector2(4, 5),
+      ],
+      true
+    )
     gfx.generateTexture('gem', 12, 14)
     gfx.destroy()
   }

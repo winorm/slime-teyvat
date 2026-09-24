@@ -34,7 +34,7 @@ export class PauseScene extends Phaser.Scene {
       this.add
         .image(240 - 32 + slot * 32, 116, 'gem')
         .setScale(2)
-        .setTint(slot < gems.length ? 0xffd54f : 0x33333f)
+        .setTint(slot < gems.length ? 0x6ec6ff : 0x33333f)
     }
 
     this.makeButton(160, '继续游戏', () => this.resumeGame())

@@ -18,6 +18,12 @@ const HAZARD = {
   gapHeight: 70,
 }
 
+const CHASE = {
+  speed: 60,
+  triggerX: 560,
+  stopX: 1450,
+}
+
 export class GameScene extends Phaser.Scene {
   private level!: LevelDef
   private slime!: Phaser.Physics.Arcade.Sprite
@@ -60,6 +66,15 @@ export class GameScene extends Phaser.Scene {
   private hazards!: Phaser.Physics.Arcade.StaticGroup
   private dying = false
 
+  private introShowing = false
+
+  private chase!: Phaser.Physics.Arcade.Image
+  private chased = false
+
+  private interactKey!: Phaser.Input.Keyboard.Key
+  private goalSprite!: Phaser.Physics.Arcade.Sprite
+  private promptBox!: Phaser.GameObjects.Rectangle
+  private promptText!: Phaser.GameObjects.Text
 
   constructor() {
     super('game')
@@ -78,7 +93,9 @@ export class GameScene extends Phaser.Scene {
     this.hasFlown = false
     this.dying = false
 
+    this.introShowing = false
 
+    this.chased = false
     this.platforms = this.physics.add.staticGroup()
     this.orbs = this.physics.add.staticGroup()
 
@@ -124,8 +141,8 @@ export class GameScene extends Phaser.Scene {
         return
       }
 
-      const gem = this.gems.create(spot.x, spot.y, 'gem') as Phaser.Physics.Arcade.Sprite
-      gem.setTint(0xffd54f)
+    const gem = this.gems.create(spot.x, spot.y, 'gem') as Phaser.Physics.Arcade.Sprite
+      gem.setTint(0x6ec6ff)
       gem.setData('index', index)
     })
 
@@ -142,8 +159,8 @@ export class GameScene extends Phaser.Scene {
 
     const goal = this.level.goal
     const goalColor = goal.grants ? ELEMENTS[goal.grants].color : 0xffd54f
-    const goalSprite = this.physics.add.staticSprite(goal.x, goal.y, goal.kind)
-    goalSprite.setTint(goalColor)
+    this.goalSprite = this.physics.add.staticSprite(goal.x, goal.y, goal.kind)
+    this.goalSprite.setTint(goalColor)
 
     this.slime = this.physics.add.sprite(this.level.spawn.x, this.level.spawn.y, 'slime-none')
     this.slime.setBounce(0.2)
@@ -178,10 +195,15 @@ export class GameScene extends Phaser.Scene {
     })
 
     this.physics.add.overlap(this.slime, this.gems, (_slime, gem) => {
-      const gemSprite = gem as Phaser.Physics.Arcade.Sprite
-      this.collectedIndices.push(gemSprite.getData('index') as number)
-      gemSprite.destroy()
-      this.refreshGemHud()
+    const gemSprite = gem as Phaser.Physics.Arcade.Sprite
+    this.collectedIndices.push(gemSprite.getData('index') as number)
+    gemSprite.destroy()
+    this.refreshGemHud()
+
+      if (!progress.gemStorySeen) {
+        progress.gemStorySeen = true
+        this.showMessage('透过这颗天蓝色的四角晶石，我仿佛看到了家乡的影子……')
+      }
     })
 
     this.physics.add.overlap(this.slime, this.blessings, (_slime, item) => {
@@ -190,21 +212,17 @@ export class GameScene extends Phaser.Scene {
       this.grantBlessing()
     })
 
-    this.physics.add.overlap(this.slime, goalSprite, () => {
-      this.win()
-    })
-
     this.level.hazards.forEach((def) => {
-      const gapTop = def.gapY - HAZARD.gapHeight / 2
-      const gapBottom = def.gapY + HAZARD.gapHeight / 2
-      const bottomHeight = this.level.height - gapBottom
+    const gapTop = def.gapY - HAZARD.gapHeight / 2
+    const gapBottom = def.gapY + HAZARD.gapHeight / 2
+    const bottomHeight = this.level.height - gapBottom
 
-      const upper = this.hazards.create(def.x, gapTop / 2, 'pixel') as Phaser.Physics.Arcade.Sprite
-      upper.setDisplaySize(HAZARD.width, gapTop)
-      upper.setTint(0xb03a3a)
-      upper.refreshBody()
+    const upper = this.hazards.create(def.x, gapTop / 2, 'pixel') as Phaser.Physics.Arcade.Sprite
+    upper.setDisplaySize(HAZARD.width, gapTop)
+    upper.setTint(0xb03a3a)
+    upper.refreshBody()
 
-      const lower = this.hazards.create(
+    const lower = this.hazards.create(
         def.x,
         gapBottom + bottomHeight / 2,
         'pixel'
@@ -221,7 +239,22 @@ export class GameScene extends Phaser.Scene {
 
     this.elementIcon = this.add.image(18, 18, 'icon-none').setScrollFactor(0)
 
-        
+        this.promptBox = this.add
+      .rectangle(0, 0, 80, 18, 0x1e1e30)
+      .setStrokeStyle(2, 0xffd54f)
+      .setDepth(20)
+      .setVisible(false)
+
+    this.promptText = this.add
+      .text(0, 0, '', {
+        fontFamily: 'sans-serif',
+        fontSize: '12px',
+        color: '#ffffff',
+      })
+      .setOrigin(0.5)
+      .setDepth(21)
+      .setVisible(false)
+
     this.staminaGlow = this.add
       .rectangle(10, 38, 68, 14, 0xffd54f)
       .setOrigin(0, 0.5)
@@ -252,11 +285,26 @@ export class GameScene extends Phaser.Scene {
     this.restartKey = this.input.keyboard!.addKey('R')
     this.prevKey = this.input.keyboard!.addKey('Q')
     this.nextKey = this.input.keyboard!.addKey('E')
+    this.interactKey = this.input.keyboard!.addKey('F')
 
     progress.current = this.level.startElement
     this.applyElement(this.level.startElement)
     this.refreshGemHud()
 
+    this.showIntro(this.level.intro)
+
+    if (this.level.chase) {
+      this.chase = this.physics.add.image(-40, this.level.height / 2, 'pixel')
+      this.chase.setDisplaySize(60, this.level.height)
+      this.chase.setTint(0x8a2b2b)
+
+      const chaseBody = this.chase.body as Phaser.Physics.Arcade.Body
+      chaseBody.setAllowGravity(false)
+
+      this.physics.add.overlap(this.slime, this.chase, () => {
+        this.die('crush')
+      })
+    }
     this.input.keyboard!.on('keydown-ESC', () => {
       this.scene.pause()
       this.scene.launch('pause')
@@ -296,8 +344,6 @@ export class GameScene extends Phaser.Scene {
 
     this.finished = true
     recordClear(progress.levelIndex, this.collectedIndices)
-    this.slime.setVelocityX(0)
-    this.slime.setVelocityY(-160)
 
     const granted = this.level.goal.grants
 
@@ -328,7 +374,7 @@ export class GameScene extends Phaser.Scene {
 
     this.gemIcons.forEach((icon, index) => {
       const lit = saved.includes(index) || this.collectedIndices.includes(index)
-      icon.setTint(lit ? 0xffd54f : 0x33333f)
+      icon.setTint(lit ? 0x6ec6ff : 0x33333f)
     })
   }
 
@@ -337,14 +383,14 @@ export class GameScene extends Phaser.Scene {
     this.hasFlown = false
     this.stamina = STAMINA_MAX
     this.staminaGlow.setVisible(true)
-    this.showMessage('你已获得「风神的赐福」，漂浮时体力无限')
+    this.showMessage('别怕，借你一点风的力量——去吧。')
   }
 
   private endBlessing() {
     this.blessed = false
     this.hasFlown = false
     this.staminaGlow.setVisible(false)
-    this.showMessage('愿风神忽悠你')
+    this.showMessage('愿风神护佑你')
   }
 
   private showMessage(text: string) {
@@ -383,7 +429,44 @@ export class GameScene extends Phaser.Scene {
     this.scene.launch('dead', { cause })
   }
 
+  private showIntro(text: string) {
+    this.introShowing = true
+    this.physics.world.pause()
+
+    const layer = this.add.container(0, 0).setDepth(200).setScrollFactor(0)
+
+    const shade = this.add.rectangle(0, 0, 480, 270, 0x0a0a14).setOrigin(0, 0)
+    const body = this.add
+      .text(240, 118, text, {
+        fontFamily: 'sans-serif',
+        fontSize: '16px',
+        color: '#ffffff',
+        align: 'center',
+        lineSpacing: 8,
+      })
+      .setOrigin(0.5)
+    const tip = this.add
+      .text(240, 232, '按 空格 继续', {
+        fontFamily: 'sans-serif',
+        fontSize: '12px',
+        color: '#8fa3b8',
+      })
+      .setOrigin(0.5)
+
+    layer.add([shade, body, tip])
+
+    this.input.keyboard!.once('keydown-SPACE', () => {
+      layer.destroy()
+      this.introShowing = false
+      this.physics.world.resume()
+    })
+  }
+
   update(time: number, delta: number) {
+    if (this.introShowing) {
+      return
+    }
+
     const camera = this.cameras.main
 
     this.bgFar.setTilePosition(camera.scrollX * 0.15, 0)
@@ -430,6 +513,43 @@ export class GameScene extends Phaser.Scene {
 
     const element = ELEMENTS[this.element]
     const onGround = body.blocked.down
+
+    const nearGoal =
+      Phaser.Math.Distance.Between(
+        this.slime.x,
+        this.slime.y,
+        this.goalSprite.x,
+        this.goalSprite.y
+      ) < 48
+
+     this.promptBox.setVisible(nearGoal)
+    this.promptText.setVisible(nearGoal)
+
+    if (nearGoal) {
+      this.promptBox.setPosition(this.slime.x, this.slime.y - 34)
+      this.promptText.setPosition(this.slime.x, this.slime.y - 34)
+      this.promptText.setText('[F] ' + this.level.goal.prompt)
+      
+      if (Phaser.Input.Keyboard.JustDown(this.interactKey)) {
+        this.win()
+      }
+    }
+
+    if (this.level.chase) {
+      if (!this.chased && this.slime.x > CHASE.triggerX) {
+        this.chased = true
+      }
+
+      if (this.chased) {
+        const chaseBody = this.chase.body as Phaser.Physics.Arcade.Body
+
+        if (this.chase.x >= CHASE.stopX) {
+          chaseBody.setVelocityX(0)
+        } else {
+          chaseBody.setVelocityX(CHASE.speed)
+        }
+      }
+    }
 
     if (this.blessed) {
       if (!onGround) {

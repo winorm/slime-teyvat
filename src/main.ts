@@ -22,7 +22,7 @@ new Phaser.Game({
     default: 'arcade',
     arcade: {
       gravity: { x: 0, y: 600 },
-      debug: true,
+      debug: false,
     },
   },
   scene: [BootScene, MenuScene, SelectScene, GameScene, PauseScene, DeadScene, ResultScene],

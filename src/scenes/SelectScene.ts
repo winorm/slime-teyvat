@@ -65,7 +65,7 @@ export class SelectScene extends Phaser.Scene {
     for (let slot = 0; slot < 3; slot++) {
       const lit = slot < gems.length
 
-      this.add.image(x - 16 + slot * 16, y + 16, 'gem').setTint(lit ? 0xffd54f : 0x33333f)
+      this.add.image(x - 16 + slot * 16, y + 16, 'gem').setTint(lit ? 0x6ec6ff : 0x33333f)
     }
 
     if (isPlayable) {

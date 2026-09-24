@@ -28,10 +28,12 @@ export type GoalDef = {
   y: number
   kind: GoalKind
   grants?: ElementKey
+  prompt: string
 }
 
 export type LevelDef = {
   name: string
+  intro: string
   width: number
   height: number
   startElement: ElementKey
@@ -42,6 +44,7 @@ export type LevelDef = {
   gems: { x: number; y: number }[]
   blessings: { x: number; y: number }[]
   hazards: HazardDef[]
+  chase?: boolean
   hints: HintDef[]
 }
 
@@ -52,12 +55,15 @@ export type HazardDef = {
 
 export const LEVELS: LevelDef[] = [
   {
-    name: '第一关 · 觉醒之前',
+    name: '第一关 · 你好，提瓦特',
+    intro:
+      '我从一片沙滩上醒来，这里的空气好熟悉。\n可是我又在哪里，现在是什么时候，我又睡了多久。\n这些问题一直在我脑里回想。\n先不管了，四处走走看吧。',
+
     width: 1400,
     height: 270,
     startElement: 'none',
     spawn: { x: 40, y: 150 },
-    goal: { x: 1330, y: 102, kind: 'statue', grants: 'wind' },
+    goal: { x: 1330, y: 102, kind: 'statue', grants: 'wind',prompt: '触摸', },
     platforms: [
       { x: 150, y: 258, width: 300, height: 24 },
       { x: 495, y: 258, width: 250, height: 24 },
@@ -81,12 +87,15 @@ export const LEVELS: LevelDef[] = [
   },
 
   {
-    name: '第二关 · 初次冒险',
+    name: '第二关 · 来自蒙德？',
+    intro:
+      '触碰到一座神像似的建筑后，我的身体似乎发生了变化。\n好像有一股力量将要涌出。\n那么，拿着新力量继续前进吧。',
+
     width: 1700,
     height: 540,
     startElement: 'wind',
     spawn: { x: 60, y: 400 },
-    goal: { x: 1600, y: 466, kind: 'chest' },
+    goal: { x: 1600, y: 466, kind: 'chest',prompt: '打开',},
     platforms: [
       { x: 200, y: 510, width: 400, height: 60 },
       { x: 870, y: 475, width: 300, height: 130 },
@@ -107,12 +116,15 @@ export const LEVELS: LevelDef[] = [
   },
 
   {
-    name: '第三关 · 遗迹回廊',
+    name: '第三关 · 无路可走',
+    intro:
+      '可恶，竟然中了陷阱！\n怎么后面有人追来，前面的路似乎快要塌了。\n不管了，冲吧！',
+
     width: 1700,
     height: 540,
     startElement: 'wind',
     spawn: { x: 260, y: 440 },
-    goal: { x: 1650, y: 376, kind: 'chest' },
+    goal: { x: 1650, y: 376, kind: 'chest',prompt: '打开', },
     platforms: [
       { x: 70, y: 465, width: 140, height: 150 },
       { x: 450, y: 465, width: 140, height: 150 },
@@ -131,6 +143,7 @@ export const LEVELS: LevelDef[] = [
     ],
     blessings: [],
     hazards: [],
+    chase: true,
     hints: [
       { x: 260, y: 430, text: '长按空格飞出坑口' },
       { x: 840, y: 330, text: '松开空格可以缓降' },
@@ -138,12 +151,15 @@ export const LEVELS: LevelDef[] = [
   },
 
   {
-    name: '第四关 · 风神的赐福',
+    name: '第四关 · 曙光？',
+    intro:
+      '前面全是障碍，这可怎么办。\n突然，脑中隐隐约约有一个声音指引着我前进。\n他似乎没有恶意……现在也只能相信他了。',
+
     width: 2600,
     height: 540,
     startElement: 'wind',
     spawn: { x: 60, y: 300 },
-    goal: { x: 2520, y: 466, kind: 'chest' },
+    goal: { x: 2520, y: 466, kind: 'chest',prompt: '打开', },
     platforms: [
       { x: 200, y: 465, width: 400, height: 150 },
       { x: 2400, y: 510, width: 400, height: 60 },

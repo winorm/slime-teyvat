@@ -15,8 +15,14 @@ export class DeadScene extends Phaser.Scene {
 
   create() {
     const level = LEVELS[progress.levelIndex]
-    const title = this.cause === 'hazard' ? '撞上屏障了……' : '掉下去了……'
+    let title = '掉下去了……'
 
+    if (this.cause === 'hazard') {
+      title = '撞上屏障了……'
+    } else if (this.cause === 'crush') {
+      title = '被崩塌吞没了……'
+    }
+    
     this.add.rectangle(0, 0, 480, 270, 0x000000).setOrigin(0, 0).setAlpha(0.75)
     this.add.rectangle(240, 140, 300, 210, 0x241e2e).setStrokeStyle(2, 0x6a4a6a)
 

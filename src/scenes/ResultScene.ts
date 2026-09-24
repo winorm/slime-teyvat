@@ -35,7 +35,7 @@ export class ResultScene extends Phaser.Scene {
       this.add
         .image(240 - 36 + slot * 36, 104, 'gem')
         .setScale(2)
-        .setTint(lit ? 0xffd54f : 0x33333f)
+        .setTint(lit ? 0x6ec6ff : 0x33333f)
     }
 
     this.add
