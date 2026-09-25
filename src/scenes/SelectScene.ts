@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { LEVELS } from '../data/levels'
 import { progress } from '../state/progress'
+import { ELEMENTS } from '../data/elements'
 
 const COLS = 5
 const CELL_W = 84
@@ -54,7 +55,34 @@ export class SelectScene extends Phaser.Scene {
       return
     }
 
+    const element = ELEMENTS[level.startElement]
+
     const slime = this.add.image(x, y - 8, 'slime-' + level.startElement)
+
+    if (element.wing) {
+      const wings: [number, number, number][] = [
+        [-8, 1, -45],
+        [8, 0, 45],
+      ]
+
+      wings.forEach(([offset, originX, angle]) => {
+        const wing = this.add
+          .image(x + offset, y - 14, 'wing')
+          .setOrigin(originX, 0.5)
+          .setAngle(angle)
+          .setScale(0.75)
+          .setTint(isPlayable ? element.color : 0x3a3a4e)
+
+        if (originX === 1) {
+          wing.setFlipX(true)
+        }
+      })
+    }
+
+    const eyeTint = isPlayable ? element.eyeColor : 0x2a2a3a
+
+    this.add.image(x - 5, y - 10, 'eye').setTint(eyeTint)
+    this.add.image(x + 5, y - 10, 'eye').setTint(eyeTint)
 
     if (!isPlayable) {
       slime.setTint(0x3a3a4e)

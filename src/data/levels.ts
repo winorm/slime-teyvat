@@ -44,6 +44,7 @@ export type LevelDef = {
   gems: { x: number; y: number }[]
   blessings: { x: number; y: number }[]
   hazards: HazardDef[]
+  monuments: MonumentDef[]
   chase?: boolean
   hints: HintDef[]
 }
@@ -51,6 +52,12 @@ export type LevelDef = {
 export type HazardDef = {
   x: number
   gapY: number
+}
+
+export type MonumentDef = {
+  x: number
+  y: number
+  element: ElementKey
 }
 
 export const LEVELS: LevelDef[] = [
@@ -63,7 +70,7 @@ export const LEVELS: LevelDef[] = [
     height: 270,
     startElement: 'none',
     spawn: { x: 40, y: 150 },
-    goal: { x: 1330, y: 102, kind: 'statue', grants: 'wind',prompt: '触摸', },
+    goal: { x: 1330, y: 80, kind: 'statue', grants: 'wind',prompt: '触摸', },
     platforms: [
       { x: 150, y: 258, width: 300, height: 24 },
       { x: 495, y: 258, width: 250, height: 24 },
@@ -80,6 +87,7 @@ export const LEVELS: LevelDef[] = [
     ],
     blessings: [],
     hazards: [],
+    monuments: [],
     hints: [
       { x: 60, y: 215, text: '← → 移动' },
       { x: 260, y: 205, text: '按空格可跳跃' },
@@ -109,6 +117,7 @@ export const LEVELS: LevelDef[] = [
     ],
     blessings: [],
     hazards: [],
+    monuments: [],
     hints: [
       { x: 330, y: 440, text: '长按空格漂浮' },
       { x: 1190, y: 465, text: '风史莱姆可以缓降' },
@@ -143,6 +152,7 @@ export const LEVELS: LevelDef[] = [
     ],
     blessings: [],
     hazards: [],
+    monuments: [],
     chase: true,
     hints: [
       { x: 260, y: 430, text: '长按空格飞出坑口' },
@@ -183,7 +193,26 @@ export const LEVELS: LevelDef[] = [
       { x: 1900, gapY: 300 },
       { x: 2050, gapY: 380 },
     ],
+    monuments: [],
     hints: [{ x: 340, y: 320, text: '穿过中间的缝隙' }],
+  },
+
+  {
+    name: '第五关 · 登塔',
+    intro:
+      '被一位自称是风神的人指引，我来到了这座塔下。\n塔中似乎关押着他的伙伴，需要我帮他解救出来。\n既然他帮助过我，那我也应该帮他一次，这样就算扯平了吧。',
+    width: 800,
+    height: 270,
+    startElement: 'wind',
+    spawn: { x: 60, y: 150 },
+    goal: { x: 700, y: 208, kind: 'chest', prompt: '打开' },
+    platforms: [{ x: 400, y: 246, width: 800, height: 48 }],
+    orbs: [],
+    gems: [],
+    blessings: [],
+    hazards: [],
+    monuments: [{ x: 320, y: 200, element: 'wind' }],
+    hints: [],
   },
 
 ]

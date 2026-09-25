@@ -23,17 +23,17 @@ const ICON_NONE = [
 const ICON_WIND = [
   '................',
   '................',
-  '...#####........',
   '.......##.......',
-  '......##........',
-  '................',
-  '.....#####......',
-  '.........##.....',
-  '........##......',
-  '................',
-  '......#####.....',
-  '..........##....',
-  '.........##.....',
+  '......###.......',
+  '.....####.......',
+  '....#####.......',
+  '...######.......',
+  '..######.#......',
+  '..#####.##......',
+  '..####.##.......',
+  '...##.##........',
+  '....###.........',
+  '.....#..........',
   '................',
   '................',
   '................',
@@ -78,18 +78,39 @@ export class BootScene extends Phaser.Scene {
     
     const statueGfx = this.add.graphics()
     statueGfx.fillStyle(0xffffff, 1)
-    statueGfx.fillRect(0, 40, 32, 8)
-    statueGfx.fillRoundedRect(6, 16, 20, 26, 6)
-    statueGfx.fillCircle(16, 12, 10)
-    statueGfx.generateTexture('statue', 32, 48)
+
+    statueGfx.fillRect(2, 82, 44, 10)
+    statueGfx.fillRect(7, 76, 34, 6)
+    statueGfx.fillRect(18, 42, 12, 34)
+
+    statueGfx.fillRoundedRect(14, 26, 20, 18, 6)
+    statueGfx.fillCircle(24, 19, 8)
+
+    statueGfx.fillTriangle(15, 32, 1, 20, 15, 15)
+    statueGfx.fillTriangle(33, 32, 47, 20, 33, 15)
+
+    statueGfx.generateTexture('statue', 48, 92)
     statueGfx.destroy()
 
     const chestGfx = this.add.graphics()
-    chestGfx.fillStyle(0xffffff, 1)
-    chestGfx.fillRect(0, 12, 32, 16)
-    chestGfx.fillRoundedRect(0, 4, 32, 10, 5)
+    chestGfx.fillStyle(0xc79a3a, 1)
+    chestGfx.fillRect(2, 15, 28, 11)
+    chestGfx.fillRoundedRect(1, 5, 30, 10, 4)
+    chestGfx.fillStyle(0x6b4a1a, 1)
+    chestGfx.fillRect(2, 15, 28, 2)
+    chestGfx.fillStyle(0x4a3413, 1)
+    chestGfx.fillRoundedRect(13, 12, 6, 9, 2)
     chestGfx.generateTexture('chest', 32, 28)
     chestGfx.destroy()
+
+    const chestOpenGfx = this.add.graphics()
+    chestOpenGfx.fillStyle(0xc79a3a, 1)
+    chestOpenGfx.fillRect(2, 16, 28, 10)
+    chestOpenGfx.fillRoundedRect(1, 2, 30, 9, 4)
+    chestOpenGfx.fillStyle(0x2a1f0a, 1)
+    chestOpenGfx.fillRect(4, 13, 24, 5)
+    chestOpenGfx.generateTexture('chest-open', 32, 28)
+    chestOpenGfx.destroy()
 
     this.makeIcon('icon-none', ICON_NONE)
     this.makeIcon('icon-wind', ICON_WIND)
@@ -98,6 +119,35 @@ export class BootScene extends Phaser.Scene {
     this.makeRidge('bg-mid', 480, 80, 0x222236, [2, 5], 14)
 
     this.makeBlessing()
+
+    this.makeMonument()
+
+    this.makeWing()
+  }
+
+  private makeWing() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillEllipse(5, 8, 11, 15)
+    gfx.fillEllipse(9, 7, 11, 11)
+    gfx.fillEllipse(13, 6, 8, 7)
+    gfx.fillEllipse(16, 5, 5, 4)
+
+    gfx.fillStyle(0x555555, 0.4)
+    gfx.fillEllipse(7, 12, 10, 6)
+    gfx.fillEllipse(12, 10, 7, 4)
+
+    gfx.generateTexture('wing', 18, 16)
+    gfx.destroy()
+  }
+  
+  private makeMonument() {
+    const gfx = this.add.graphics()
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillRoundedRect(0, 0, 28, 44, 6)
+    gfx.generateTexture('monument', 28, 44)
+    gfx.destroy()
   }
 
   private makeSlime(key: ElementKey) {
@@ -105,19 +155,27 @@ export class BootScene extends Phaser.Scene {
     const gfx = this.add.graphics()
 
     gfx.fillStyle(0x14141f, 1)
-    gfx.fillCircle(16, 13, 13)
-    gfx.fillEllipse(16, 18, 32, 16)
+    gfx.fillEllipse(16, 15, 32, 25)
 
     gfx.fillStyle(0xffffff, 1)
-    gfx.fillCircle(16, 13, 12)
-    gfx.fillEllipse(16, 18, 30, 14)
+    gfx.fillEllipse(16, 15, 30, 23)
 
-    gfx.fillStyle(element.color, 0.7)
-    gfx.fillCircle(16, 15, 8)
-    gfx.fillEllipse(16, 19, 20, 10)
+    const layers = [
+      { w: 28, h: 21, alpha: 0.35 },
+      { w: 25, h: 18, alpha: 0.5 },
+      { w: 21, h: 15, alpha: 0.6 },
+      { w: 17, h: 12, alpha: 0.7 },
+      { w: 13, h: 9, alpha: 0.8 },
+      { w: 8, h: 6, alpha: 0.9 },
+    ]
 
-    gfx.fillStyle(0xffffff, 0.55)
-    gfx.fillEllipse(11, 9, 9, 5)
+    layers.forEach((layer) => {
+      gfx.fillStyle(element.color, layer.alpha)
+      gfx.fillEllipse(16, 15, layer.w, layer.h)
+    })
+
+    gfx.fillStyle(0xffffff, 0.5)
+    gfx.fillEllipse(11, 8, 9, 5)
 
     gfx.generateTexture('slime-' + key, 32, 26)
     gfx.destroy()

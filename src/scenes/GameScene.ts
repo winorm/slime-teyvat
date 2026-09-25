@@ -24,6 +24,13 @@ const CHASE = {
   stopX: 1450,
 }
 
+type MonumentRef = {
+  pillar: Phaser.Physics.Arcade.Sprite
+  icon: Phaser.GameObjects.Image
+  element: ElementKey
+  lit: boolean
+}
+
 export class GameScene extends Phaser.Scene {
   private level!: LevelDef
   private slime!: Phaser.Physics.Arcade.Sprite
@@ -76,6 +83,13 @@ export class GameScene extends Phaser.Scene {
   private promptBox!: Phaser.GameObjects.Rectangle
   private promptText!: Phaser.GameObjects.Text
 
+  private monuments!: Phaser.Physics.Arcade.StaticGroup
+  private monumentList: MonumentRef[] = []
+
+  private wingLeft!: Phaser.GameObjects.Image
+  private wingRight!: Phaser.GameObjects.Image
+  private wingOffset = 0
+
   constructor() {
     super('game')
   }
@@ -95,6 +109,8 @@ export class GameScene extends Phaser.Scene {
 
     this.introShowing = false
 
+    this.cameras.main.setZoom(1)
+
     this.chased = false
     this.platforms = this.physics.add.staticGroup()
     this.orbs = this.physics.add.staticGroup()
@@ -105,6 +121,8 @@ export class GameScene extends Phaser.Scene {
     this.gems = this.physics.add.staticGroup()
     this.blessings = this.physics.add.staticGroup()
     this.hazards = this.physics.add.staticGroup()
+
+    this.monuments = this.physics.add.staticGroup()
 
     this.level.platforms.forEach((def) => {
       const platform = this.platforms.create(def.x, def.y, 'pixel') as Phaser.Physics.Arcade.Sprite
@@ -158,7 +176,7 @@ export class GameScene extends Phaser.Scene {
     })
 
     const goal = this.level.goal
-    const goalColor = goal.grants ? ELEMENTS[goal.grants].color : 0xffd54f
+    const goalColor = goal.grants ? ELEMENTS[goal.grants].color : 0xffffff
     this.goalSprite = this.physics.add.staticSprite(goal.x, goal.y, goal.kind)
     this.goalSprite.setTint(goalColor)
 
@@ -168,6 +186,10 @@ export class GameScene extends Phaser.Scene {
     this.slime.setVisible(false)
 
     this.slimeArt = this.add.image(this.level.spawn.x, this.level.spawn.y, 'slime-none')
+
+    this.wingLeft = this.add.image(0, 0, 'wing')
+    this.wingRight = this.add.image(0, 0, 'wing')
+    
     this.eyes = [this.add.image(0, 0, 'eye'), this.add.image(0, 0, 'eye')]
     this.physics.world.setBounds(0, 0, this.level.width, this.level.height + 200)
     this.cameras.main.setBounds(0, 0, this.level.width, this.level.height)
@@ -210,6 +232,18 @@ export class GameScene extends Phaser.Scene {
       const sprite = item as Phaser.Physics.Arcade.Sprite
       sprite.destroy()
       this.grantBlessing()
+    })
+
+    this.monumentList = []
+
+    this.level.monuments.forEach((def) => {
+      const pillar = this.monuments.create(def.x, def.y, 'monument') as Phaser.Physics.Arcade.Sprite
+      pillar.setTint(0x2a2a3a)
+
+      const icon = this.add.image(def.x, def.y - 8, 'icon-' + def.element)
+      icon.setTint(0x3a3a4e)
+
+      this.monumentList.push({ pillar, icon, element: def.element, lit: false })
     })
 
     this.level.hazards.forEach((def) => {
@@ -325,6 +359,8 @@ export class GameScene extends Phaser.Scene {
   private applyElement(key: ElementKey) {
     const element = ELEMENTS[key]
 
+    this.wingLeft.setTint(element.color)
+    this.wingRight.setTint(element.color)
     this.element = key
     this.jumpPower = element.jump
     this.slimeArt.setTexture('slime-' + key)
@@ -345,15 +381,89 @@ export class GameScene extends Phaser.Scene {
     this.finished = true
     recordClear(progress.levelIndex, this.collectedIndices)
 
-    const granted = this.level.goal.grants
-
-    if (granted) {
-      unlockElement(granted)
-      this.applyElement(granted)
+    if (this.level.goal.kind === 'chest') {
+      this.goalSprite.setTexture('chest-open')
     }
 
-    this.time.delayedCall(600, () => {
+    const granted = this.level.goal.grants
+
+    if (this.level.goal.kind === 'statue' && granted) {
+      this.playStatueScene(granted)
+      return
+    }
+
+    if (this.level.goal.kind === 'chest') {
+      this.goalSprite.setTexture('chest-open')
+    }
+
+    this.time.delayedCall(900, () => {
       this.scene.start('result')
+    })
+  }
+
+  private playStatueScene(granted: ElementKey) {
+    unlockElement(granted)
+
+    this.cameras.main.stopFollow()
+    this.cameras.main.pan(
+      (this.slime.x + this.goalSprite.x) / 2,
+      this.slime.y - 30,
+      600,
+      'Sine.easeInOut'
+    )
+    this.cameras.main.zoomTo(1.8, 600, 'Sine.easeInOut')
+
+    const orb = this.add
+      .image(this.goalSprite.x, this.goalSprite.y - 46, 'icon-' + granted)
+      .setTint(ELEMENTS[granted].color)
+      .setDepth(30)
+      .setScale(0)
+
+    this.tweens.add({
+      targets: orb,
+      scale: 1,
+      duration: 300,
+      onComplete: () => {
+        this.tweens.add({
+          targets: orb,
+          x: this.slime.x,
+          y: this.slime.y,
+          scale: 1.4,
+          duration: 900,
+          ease: 'Sine.easeInOut',
+          onComplete: () => {
+            orb.destroy()
+            this.playTransformFlash(granted)
+          },
+        })
+      },
+    })
+  }
+
+  private playTransformFlash(granted: ElementKey) {
+    const flash = this.add
+      .rectangle(0, 0, 480, 270, 0xffffff)
+      .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setDepth(60)
+      .setAlpha(0)
+
+    this.tweens.add({
+      targets: flash,
+      alpha: 1,
+      duration: 260,
+      hold: 80,
+      yoyo: true,
+      onYoyo: () => {
+        this.applyElement(granted)
+      },
+      onComplete: () => {
+        flash.destroy()
+
+        this.time.delayedCall(400, () => {
+          this.scene.start('result')
+        })
+      },
     })
   }
 
@@ -367,6 +477,28 @@ export class GameScene extends Phaser.Scene {
     this.eyes[0].setPosition(this.slime.x + (-5 + look) * sx, this.slime.y - 2 * sy)
     this.eyes[1].setPosition(this.slime.x + (5 + look) * sx, this.slime.y - 2 * sy)
     this.eyes.forEach((eye) => eye.setScale(1, this.blinkScale))
+    const hasWing = ELEMENTS[this.element].wing
+
+    this.wingLeft.setVisible(hasWing)
+    this.wingRight.setVisible(hasWing)
+
+    if (hasWing) {
+      this.wingLeft.setScale(0.75)
+      this.wingRight.setScale(0.75)
+      this.wingLeft.setOrigin(1, 0.5)
+      this.wingRight.setOrigin(0, 0.5)
+      this.wingLeft.setPosition(
+        this.slime.x - 16 * sx,
+        this.slime.y - 6 * sy + this.wingOffset
+      )
+      this.wingRight.setPosition(
+        this.slime.x + 16 * sx,
+        this.slime.y - 6 * sy + this.wingOffset
+      )
+      this.wingLeft.setFlipX(true)
+      this.wingLeft.setAngle(-45)
+      this.wingRight.setAngle(45)
+    }
   }
 
   private refreshGemHud() {
@@ -462,6 +594,12 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
+  private lightMonument(monument: MonumentRef) {
+    monument.lit = true
+    monument.pillar.setTint(0x9a8a6a)
+    monument.icon.setTint(ELEMENTS[monument.element].color)
+  }
+
   update(time: number, delta: number) {
     if (this.introShowing) {
       return
@@ -469,11 +607,11 @@ export class GameScene extends Phaser.Scene {
 
     const camera = this.cameras.main
 
-    this.bgFar.setTilePosition(camera.scrollX * 0.15, 0)
-    this.bgMid.setTilePosition(camera.scrollX * 0.35, 0)
+    this.bgFar.setTilePosition(Math.floor(camera.scrollX * 0.15), 0)
+    this.bgMid.setTilePosition(Math.floor(camera.scrollX * 0.35), 0)
 
     const body = this.slime.body as Phaser.Physics.Arcade.Body
-    const speed = 120
+    const speed = ELEMENTS[this.element].speed
     const dt = delta / 1000
 
     if (Phaser.Input.Keyboard.JustDown(this.restartKey)) {
@@ -514,24 +652,60 @@ export class GameScene extends Phaser.Scene {
     const element = ELEMENTS[this.element]
     const onGround = body.blocked.down
 
-    const nearGoal =
-      Phaser.Math.Distance.Between(
+    let prompt: string | null = null
+    let action: (() => void) | null = null
+
+    for (const monument of this.monumentList) {
+      if (monument.lit) {
+        continue
+      }
+
+      const distance = Phaser.Math.Distance.Between(
         this.slime.x,
         this.slime.y,
-        this.goalSprite.x,
-        this.goalSprite.y
-      ) < 48
+        monument.pillar.x,
+        monument.pillar.y
+      )
 
-     this.promptBox.setVisible(nearGoal)
-    this.promptText.setVisible(nearGoal)
+      if (distance > 56) {
+        continue
+      }
 
-    if (nearGoal) {
+      if (this.element === monument.element) {
+        prompt = '[F] 点亮'
+        action = () => this.lightMonument(monument)
+      } else {
+        prompt = '需要' + ELEMENTS[monument.element].label + '元素'
+      }
+
+      break
+    }
+
+    if (!prompt) {
+      const nearGoal =
+        Phaser.Math.Distance.Between(
+          this.slime.x,
+          this.slime.y,
+          this.goalSprite.x,
+          this.goalSprite.y
+        ) < 48
+
+      if (nearGoal) {
+        prompt = '[F] ' + this.level.goal.prompt
+        action = () => this.win()
+      }
+    }
+
+    this.promptBox.setVisible(prompt !== null)
+    this.promptText.setVisible(prompt !== null)
+
+    if (prompt) {
       this.promptBox.setPosition(this.slime.x, this.slime.y - 34)
       this.promptText.setPosition(this.slime.x, this.slime.y - 34)
-      this.promptText.setText('[F] ' + this.level.goal.prompt)
-      
-      if (Phaser.Input.Keyboard.JustDown(this.interactKey)) {
-        this.win()
+      this.promptText.setText(prompt)
+
+      if (action && Phaser.Input.Keyboard.JustDown(this.interactKey)) {
+        action()
       }
     }
 
@@ -601,6 +775,24 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.wasOnGround = onGround
+    let flapSpeed = 420
+    let flapRange = 0.12
+
+    if (!onGround) {
+      if (wantHover || body.velocity.y < 0) {
+        flapSpeed = 110
+        flapRange = 0.5
+      } else {
+        flapSpeed = 260
+        flapRange = 0.3
+      }
+    } else if (Math.abs(body.velocity.x) > 10) {
+      flapRange = 0
+    }
+
+    const wave = Math.sin(this.time.now / flapSpeed)
+    this.wingOffset = Math.round(wave * flapRange * 8)
+
     this.landSquash = Math.max(0, this.landSquash - dt * 4)
 
     let sx = 1
