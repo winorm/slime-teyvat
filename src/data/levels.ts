@@ -43,6 +43,7 @@ export type LevelDef = {
   orbs: OrbDef[]
   gems: { x: number; y: number }[]
   blessings: { x: number; y: number }[]
+  blessingEndX?: number
   hazards: HazardDef[]
   monuments: MonumentDef[]
   chase?: boolean
@@ -69,7 +70,7 @@ export const LEVELS: LevelDef[] = [
     width: 1400,
     height: 270,
     startElement: 'none',
-    spawn: { x: 40, y: 150 },
+    spawn: { x: 40, y: 233 },
     goal: { x: 1330, y: 80, kind: 'statue', grants: 'wind',prompt: '触摸', },
     platforms: [
       { x: 150, y: 258, width: 300, height: 24 },
@@ -102,7 +103,7 @@ export const LEVELS: LevelDef[] = [
     width: 1700,
     height: 540,
     startElement: 'wind',
-    spawn: { x: 60, y: 400 },
+    spawn: { x: 60, y: 467 },
     goal: { x: 1600, y: 466, kind: 'chest',prompt: '打开',},
     platforms: [
       { x: 200, y: 510, width: 400, height: 60 },
@@ -132,7 +133,7 @@ export const LEVELS: LevelDef[] = [
     width: 1700,
     height: 540,
     startElement: 'wind',
-    spawn: { x: 260, y: 440 },
+    spawn: { x: 260, y: 467 },
     goal: { x: 1650, y: 376, kind: 'chest',prompt: '打开', },
     platforms: [
       { x: 70, y: 465, width: 140, height: 150 },
@@ -168,7 +169,7 @@ export const LEVELS: LevelDef[] = [
     width: 2600,
     height: 540,
     startElement: 'wind',
-    spawn: { x: 60, y: 300 },
+    spawn: { x: 60, y: 377 },
     goal: { x: 2520, y: 466, kind: 'chest',prompt: '打开', },
     platforms: [
       { x: 200, y: 465, width: 400, height: 150 },
@@ -181,6 +182,7 @@ export const LEVELS: LevelDef[] = [
       { x: 1900, y: 300 },
     ],
     blessings: [{ x: 370, y: 376 }],
+    blessingEndX: 2150,
     hazards: [
       { x: 700, gapY: 300 },
       { x: 850, gapY: 380 },
@@ -204,7 +206,7 @@ export const LEVELS: LevelDef[] = [
     width: 800,
     height: 270,
     startElement: 'wind',
-    spawn: { x: 60, y: 150 },
+    spawn: { x: 60, y: 209 },
     goal: { x: 700, y: 208, kind: 'chest', prompt: '打开' },
     platforms: [{ x: 400, y: 246, width: 800, height: 48 }],
     orbs: [],

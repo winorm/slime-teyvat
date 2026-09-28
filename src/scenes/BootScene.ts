@@ -144,8 +144,26 @@ export class BootScene extends Phaser.Scene {
   
   private makeMonument() {
     const gfx = this.add.graphics()
+
     gfx.fillStyle(0xffffff, 1)
-    gfx.fillRoundedRect(0, 0, 28, 44, 6)
+
+    gfx.fillRect(4, 13, 20, 24)
+    gfx.fillTriangle(4, 37, 24, 37, 28, 44)
+    gfx.fillTriangle(4, 37, 28, 44, 0, 44)
+    gfx.fillRect(10, 0, 8, 13)
+    gfx.fillTriangle(10, 2, 1, 8, 10, 12)
+    gfx.fillTriangle(18, 2, 27, 8, 18, 12)
+
+    gfx.fillStyle(0x666666, 0.45)
+    gfx.fillRect(17, 13, 7, 24)
+
+    gfx.fillStyle(0x666666, 0.35)
+    gfx.fillTriangle(18, 2, 27, 8, 18, 12)
+
+    gfx.fillStyle(0x555555, 0.5)
+    gfx.fillRect(4, 20, 20, 2)
+    gfx.fillRect(4, 30, 20, 2)
+
     gfx.generateTexture('monument', 28, 44)
     gfx.destroy()
   }

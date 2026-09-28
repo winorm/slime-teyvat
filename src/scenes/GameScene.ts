@@ -64,9 +64,9 @@ export class GameScene extends Phaser.Scene {
   private bgMid!: Phaser.GameObjects.TileSprite
 
   private blessings!: Phaser.Physics.Arcade.StaticGroup
+  private staminaGlowOuter!: Phaser.GameObjects.Rectangle
   private staminaGlow!: Phaser.GameObjects.Rectangle
   private blessed = false
-  private hasFlown = false
 
   private finished = false
 
@@ -90,6 +90,9 @@ export class GameScene extends Phaser.Scene {
   private wingRight!: Phaser.GameObjects.Image
   private wingOffset = 0
 
+  private windTrails: Phaser.GameObjects.Image[] = []
+  private trailFade = 0
+
   constructor() {
     super('game')
   }
@@ -104,9 +107,9 @@ export class GameScene extends Phaser.Scene {
     this.wasOnGround = false
     this.collectedIndices = []
     this.blessed = false
-    this.hasFlown = false
     this.dying = false
 
+    this.trailFade = 0
     this.introShowing = false
 
     this.cameras.main.setZoom(1)
@@ -190,7 +193,22 @@ export class GameScene extends Phaser.Scene {
     this.wingLeft = this.add.image(0, 0, 'wing')
     this.wingRight = this.add.image(0, 0, 'wing')
     
+    this.windTrails = [0, 1, 2].map((index) =>
+      this.add
+        .image(0, 0, 'pixel')
+        .setDisplaySize(12 + index * 5, 2)
+        .setTint(0xa8e8d4)
+        .setVisible(false)
+    )
+
     this.eyes = [this.add.image(0, 0, 'eye'), this.add.image(0, 0, 'eye')]
+    
+    this.slimeArt.setDepth(10)
+    this.wingLeft.setDepth(9)
+    this.wingRight.setDepth(9)
+    this.eyes.forEach((eye) => eye.setDepth(11))
+
+
     this.physics.world.setBounds(0, 0, this.level.width, this.level.height + 200)
     this.cameras.main.setBounds(0, 0, this.level.width, this.level.height)
     this.cameras.main.startFollow(this.slime, true, 0.12, 0.12)
@@ -240,7 +258,7 @@ export class GameScene extends Phaser.Scene {
       const pillar = this.monuments.create(def.x, def.y, 'monument') as Phaser.Physics.Arcade.Sprite
       pillar.setTint(0x2a2a3a)
 
-      const icon = this.add.image(def.x, def.y - 8, 'icon-' + def.element)
+      const icon = this.add.image(def.x, def.y - 16, 'icon-' + def.element).setScale(0.5)
       icon.setTint(0x3a3a4e)
 
       this.monumentList.push({ pillar, icon, element: def.element, lit: false })
@@ -287,6 +305,12 @@ export class GameScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setDepth(21)
+      .setVisible(false)
+
+    this.staminaGlowOuter = this.add
+      .rectangle(10, 38, 70, 16, 0x6b5210)
+      .setOrigin(0, 0.5)
+      .setScrollFactor(0)
       .setVisible(false)
 
     this.staminaGlow = this.add
@@ -499,6 +523,23 @@ export class GameScene extends Phaser.Scene {
       this.wingLeft.setAngle(-45)
       this.wingRight.setAngle(45)
     }
+
+    const body = this.slime.body as Phaser.Physics.Arcade.Body
+    const target = this.blessed && Math.abs(body.velocity.x) > 10 ? 1 : 0
+
+    this.trailFade = Phaser.Math.Linear(this.trailFade, target, 0.1)
+
+    const dir = this.slime.flipX ? 1 : -1
+    const shimmer = 0.7 + 0.3 * Math.sin(this.time.now / 180)
+
+    this.windTrails.forEach((trail, index) => {
+      trail.setVisible(this.trailFade > 0.02)
+
+      if (this.trailFade > 0.02) {
+        trail.setAlpha(this.trailFade * (0.5 - index * 0.14) * (shimmer - index * 0.15))
+        trail.setPosition(this.slime.x + dir * (24 + index * 9), this.slime.y + 9 + index * 2)
+      }
+    })
   }
 
   private refreshGemHud() {
@@ -512,15 +553,15 @@ export class GameScene extends Phaser.Scene {
 
   private grantBlessing() {
     this.blessed = true
-    this.hasFlown = false
     this.stamina = STAMINA_MAX
+    this.staminaGlowOuter.setVisible(true)
     this.staminaGlow.setVisible(true)
     this.showMessage('别怕，借你一点风的力量——去吧。')
   }
 
   private endBlessing() {
     this.blessed = false
-    this.hasFlown = false
+    this.staminaGlowOuter.setVisible(false)
     this.staminaGlow.setVisible(false)
     this.showMessage('愿风神护佑你')
   }
@@ -725,12 +766,12 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    if (this.blessed) {
-      if (!onGround) {
-        this.hasFlown = true
-      } else if (this.hasFlown) {
-        this.endBlessing()
-      }
+    if (
+      this.blessed &&
+      this.level.blessingEndX !== undefined &&
+      this.slime.x > this.level.blessingEndX
+    ) {
+      this.endBlessing()
     }
 
     if (onGround) {

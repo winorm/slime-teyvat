@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { LEVELS } from '../data/levels'
-import { progress } from '../state/progress'
+import { progress, DEV_MODE } from '../state/progress'
 import { ELEMENTS } from '../data/elements'
 
 const COLS = 5
@@ -41,11 +41,21 @@ export class SelectScene extends Phaser.Scene {
     this.input.keyboard!.once('keydown-ESC', () => {
       this.scene.start('menu')
     })
+
+    if (DEV_MODE) {
+      this.add
+        .text(12, 12, '开发者模式：全部关卡已解锁', {
+          fontFamily: 'sans-serif',
+          fontSize: '12px',
+          color: '#ff9a9a',
+        })
+        .setOrigin(0, 0)
+    }
   }
 
   private makeCell(index: number, x: number, y: number) {
     const level = LEVELS[index]
-    const isPlayable = level !== undefined && index <= progress.maxLevel
+    const isPlayable = level !== undefined && (DEV_MODE || index <= progress.maxLevel)
 
     this.add.rectangle(x, y, 76, 52, 0x1e1e30).setStrokeStyle(2, 0x3a3a5a)
 
