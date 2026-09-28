@@ -46,6 +46,8 @@ export type LevelDef = {
   blessingEndX?: number
   hazards: HazardDef[]
   monuments: MonumentDef[]
+  doors?: DoorDef[]
+  notes?: NoteDef[]
   chase?: boolean
   hints: HintDef[]
 }
@@ -59,6 +61,26 @@ export type MonumentDef = {
   x: number
   y: number
   element: ElementKey
+  id?: string
+  after?: string
+  neighbors?: string[]
+  startLit?: boolean
+}
+
+export type DoorDef = {
+  x: number
+  y: number
+  width: number
+  height: number
+  needs: string[]
+  ordered?: boolean
+}
+
+export type NoteDef = {
+  x: number
+  y: number
+  prompt: string
+  text: string
 }
 
 export const LEVELS: LevelDef[] = [
@@ -203,18 +225,129 @@ export const LEVELS: LevelDef[] = [
     name: '第五关 · 登塔',
     intro:
       '被一位自称是风神的人指引，我来到了这座塔下。\n塔中似乎关押着他的伙伴，需要我帮他解救出来。\n既然他帮助过我，那我也应该帮他一次，这样就算扯平了吧。',
-    width: 800,
-    height: 270,
+    width: 480,
+    height: 1600,
     startElement: 'wind',
-    spawn: { x: 60, y: 209 },
-    goal: { x: 700, y: 208, kind: 'chest', prompt: '打开' },
-    platforms: [{ x: 400, y: 246, width: 800, height: 48 }],
+    spawn: { x: 60, y: 1547 },
+    goal: { x: 400, y: 306, kind: 'chest', prompt: '打开' },
+    platforms: [
+      // 一层：塔底地面
+      { x: 240, y: 1580, width: 480, height: 40 },
+
+      // 一层 → 二层的天花板，右上角留出 70 宽的门洞
+      { x: 150, y: 1270, width: 300, height: 40 },
+      { x: 425, y: 1270, width: 110, height: 40 },
+      // 一层爬升台阶
+      { x: 120, y: 1485, width: 120, height: 10, oneWay: true },
+      { x: 240, y: 1400, width: 120, height: 10, oneWay: true },
+      { x: 335, y: 1330, width: 130, height: 10, oneWay: true },
+
+      // 二层 → 三层的天花板，左上角留门
+      { x: 25, y: 960, width: 50, height: 40 },
+      { x: 300, y: 960, width: 360, height: 40 },
+      // 二层爬升台阶
+      { x: 360, y: 1175, width: 120, height: 10, oneWay: true },
+      { x: 240, y: 1095, width: 120, height: 10, oneWay: true },
+      { x: 120, y: 1020, width: 120, height: 10, oneWay: true },
+
+      // 三层 → 四层的天花板，右上角留门
+      { x: 150, y: 650, width: 300, height: 40 },
+      { x: 425, y: 650, width: 110, height: 40 },
+      // 三层：星阵五碑各自踩的小石台
+      { x: 240, y: 742, width: 64, height: 10, oneWay: true },
+      { x: 321, y: 801, width: 64, height: 10, oneWay: true },
+      { x: 190, y: 896, width: 64, height: 10, oneWay: true },
+      { x: 159, y: 801, width: 64, height: 10, oneWay: true },
+      { x: 290, y: 896, width: 64, height: 10, oneWay: true },
+      // 三层通往门的那级台阶
+      { x: 380, y: 710, width: 160, height: 10, oneWay: true },
+
+      // 四层 → 五层的天花板，左上角留口（门在下面的 doors 里）
+      { x: 25, y: 340, width: 50, height: 40 },
+      { x: 300, y: 340, width: 360, height: 40 },
+      // 四层：六碑阵，每碑脚下垫一块小石台（4 号碑直接站在地板上）
+      { x: 240, y: 462, width: 64, height: 10, oneWay: true },
+      { x: 140, y: 522, width: 64, height: 10, oneWay: true },
+      { x: 340, y: 522, width: 64, height: 10, oneWay: true },
+      { x: 140, y: 577, width: 64, height: 10, oneWay: true },
+      { x: 340, y: 577, width: 64, height: 10, oneWay: true },
+      // 四层通往第五层洞口的那级台阶
+      { x: 120, y: 400, width: 120, height: 10, oneWay: true },
+
+      // 塔顶
+      { x: 240, y: 20, width: 480, height: 40 },
+    ],
     orbs: [],
-    gems: [],
+    gems: [
+      { x: 150, y: 1460 },
+      { x: 240, y: 800 },
+      { x: 200, y: 270 },
+    ],
     blessings: [],
     hazards: [],
-    monuments: [{ x: 320, y: 200, element: 'wind' }],
-    hints: [],
+    monuments: [
+      { x: 240, y: 1538, element: 'wind', id: 'f1' },
+      { x: 150, y: 1228, element: 'wind', id: 'f2a' },
+      { x: 240, y: 1068, element: 'wind', id: 'f2b', after: 'f2a' },
+      { x: 240, y: 715, element: 'wind', id: 'star0' },
+      { x: 321, y: 774, element: 'wind', id: 'star1' },
+      { x: 190, y: 869, element: 'wind', id: 'star2' },
+      { x: 159, y: 774, element: 'wind', id: 'star3' },
+      { x: 290, y: 869, element: 'wind', id: 'star4' },
+      // 四层：六碑阵，碰灭着的碑会让它自己变亮、相邻两座翻转
+      { x: 240, y: 435, element: 'wind', id: 'm1', neighbors: ['m6', 'm2'], startLit: true },
+      { x: 340, y: 495, element: 'wind', id: 'm2', neighbors: ['m1', 'm3'] },
+      { x: 340, y: 550, element: 'wind', id: 'm3', neighbors: ['m2', 'm4'], startLit: true },
+      { x: 240, y: 608, element: 'wind', id: 'm4', neighbors: ['m3', 'm5'] },
+      { x: 140, y: 550, element: 'wind', id: 'm5', neighbors: ['m4', 'm6'], startLit: true },
+      { x: 140, y: 495, element: 'wind', id: 'm6', neighbors: ['m5', 'm1'] },
+    ],
+    doors: [
+      { x: 335, y: 1270, width: 70, height: 40, needs: ['f1'] },
+      { x: 85, y: 960, width: 70, height: 40, needs: ['f2a', 'f2b'] },
+      {
+        x: 335,
+        y: 650,
+        width: 70,
+        height: 40,
+        needs: ['star0', 'star4', 'star3', 'star1', 'star2'],
+        ordered: true,
+      },
+      {
+        x: 85,
+        y: 340,
+        width: 70,
+        height: 40,
+        needs: ['m1', 'm2', 'm3', 'm4', 'm5', 'm6'],
+      },
+    ],
+    notes: [
+      {
+        x: 440,
+        y: 880,
+        prompt: '阅读',
+        text:
+          '五碑同形，五源归一。\n启门之序，不在碑，而在阵。\n一画成星，起与顶，越一而连。\n五步归始，门自开焉。\n逆序或错触，五碑俱灭。',
+      },
+      {
+        x: 440,
+        y: 590,
+        prompt: '阅读',
+        text:
+          '六碑同形，一炁共鸣。\n触其一，其自易，其领者亦易。\n明灭相易，六碑皆明，门自开。\n古碑残留，明灭有定。\n勿逆其性，顺其鸣。',
+      },
+    ],
+    hints: [
+      { x: 46, y: 1300, text: '第一层' },
+      { x: 46, y: 995, text: '第二层' },
+      { x: 46, y: 685, text: '第三层' },
+      { x: 46, y: 375, text: '第四层' },
+      { x: 46, y: 70, text: '塔顶' },
+      { x: 300, y: 1500, text: '按 F 点亮方碑' },
+      { x: 240, y: 1150, text: '两座方碑都要点亮' },
+      { x: 330, y: 900, text: '墙上有一张纸' },
+      { x: 400, y: 618, text: '墙上有一张纸' },
+    ],
   },
 
 ]

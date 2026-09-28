@@ -28,7 +28,25 @@ type MonumentRef = {
   pillar: Phaser.Physics.Arcade.Sprite
   icon: Phaser.GameObjects.Image
   element: ElementKey
+  id: string
+  after?: string
   lit: boolean
+  hidden: boolean
+  neighbors: string[]
+}
+
+type DoorRef = {
+  sprite: Phaser.Physics.Arcade.Sprite
+  needs: string[]
+  ordered: boolean
+  progress: string[]
+  opened: boolean
+}
+
+type NoteRef = {
+  sprite: Phaser.GameObjects.Image
+  prompt: string
+  text: string
 }
 
 export class GameScene extends Phaser.Scene {
@@ -74,6 +92,7 @@ export class GameScene extends Phaser.Scene {
   private dying = false
 
   private introShowing = false
+  private introLayer: Phaser.GameObjects.Container | null = null
 
   private chase!: Phaser.Physics.Arcade.Image
   private chased = false
@@ -85,6 +104,12 @@ export class GameScene extends Phaser.Scene {
 
   private monuments!: Phaser.Physics.Arcade.StaticGroup
   private monumentList: MonumentRef[] = []
+
+  private gates!: Phaser.Physics.Arcade.StaticGroup
+  private doorList: DoorRef[] = []
+  private noteList: NoteRef[] = []
+  private paperShowing = false
+  private paperLayer: Phaser.GameObjects.Container | null = null
 
   private wingLeft!: Phaser.GameObjects.Image
   private wingRight!: Phaser.GameObjects.Image
@@ -111,6 +136,9 @@ export class GameScene extends Phaser.Scene {
 
     this.trailFade = 0
     this.introShowing = false
+    this.introLayer = null
+    this.paperShowing = false
+    this.paperLayer = null
 
     this.cameras.main.setZoom(1)
 
@@ -261,7 +289,58 @@ export class GameScene extends Phaser.Scene {
       const icon = this.add.image(def.x, def.y - 16, 'icon-' + def.element).setScale(0.5)
       icon.setTint(0x3a3a4e)
 
-      this.monumentList.push({ pillar, icon, element: def.element, lit: false })
+      const hidden = def.after !== undefined
+
+      if (hidden) {
+        pillar.setVisible(false)
+        icon.setVisible(false)
+      }
+
+      const startLit = def.startLit === true
+
+      if (startLit) {
+        pillar.setTint(0x9a8a6a)
+        icon.setTint(ELEMENTS[def.element].color)
+      }
+
+      this.monumentList.push({
+        pillar,
+        icon,
+        element: def.element,
+        id: def.id ?? '',
+        after: def.after,
+        lit: startLit,
+        hidden,
+        neighbors: def.neighbors ?? [],
+      })
+    })
+
+    this.gates = this.physics.add.staticGroup()
+    this.doorList = []
+
+    ;(this.level.doors ?? []).forEach((def) => {
+      const sprite = this.gates.create(def.x, def.y, 'gate') as Phaser.Physics.Arcade.Sprite
+      sprite.setDisplaySize(def.width, def.height)
+      sprite.setTint(0x8f7bd6)
+      sprite.refreshBody()
+
+      this.doorList.push({
+        sprite,
+        needs: def.needs,
+        ordered: def.ordered === true,
+        progress: [],
+        opened: false,
+      })
+    })
+
+    this.physics.add.collider(this.slime, this.gates)
+
+    this.noteList = []
+
+    ;(this.level.notes ?? []).forEach((def) => {
+      const sprite = this.add.image(def.x, def.y, 'paper')
+
+      this.noteList.push({ sprite, prompt: def.prompt, text: def.text })
     })
 
     this.level.hazards.forEach((def) => {
@@ -628,21 +707,215 @@ export class GameScene extends Phaser.Scene {
 
     layer.add([shade, body, tip])
 
-    this.input.keyboard!.once('keydown-SPACE', () => {
-      layer.destroy()
-      this.introShowing = false
-      this.physics.world.resume()
-    })
+    this.introLayer = layer
   }
 
   private lightMonument(monument: MonumentRef) {
     monument.lit = true
     monument.pillar.setTint(0x9a8a6a)
     monument.icon.setTint(ELEMENTS[monument.element].color)
+
+    this.revealFollowers(monument.id)
+  }
+
+  private monumentById(id: string) {
+    return this.monumentList.find((monument) => monument.id === id) ?? null
+  }
+
+  private extinguishMonument(monument: MonumentRef) {
+    monument.lit = false
+    monument.pillar.setTint(0x2a2a3a)
+    monument.icon.setTint(0x3a3a4e)
+  }
+
+  private revealFollowers(id: string) {
+    if (id === '') {
+      return
+    }
+
+    this.monumentList.forEach((monument) => {
+      if (!monument.hidden || monument.after !== id) {
+        return
+      }
+
+      monument.hidden = false
+      monument.pillar.setVisible(true).setAlpha(0)
+      monument.icon.setVisible(true).setAlpha(0)
+
+      this.tweens.add({
+        targets: [monument.pillar, monument.icon],
+        alpha: 1,
+        duration: 400,
+      })
+    })
+  }
+
+  private touchMonument(monument: MonumentRef) {
+    const door = this.doorList.find(
+      (item) => !item.opened && monument.id !== '' && item.needs.includes(monument.id)
+    )
+
+    if (monument.neighbors.length > 0) {
+      this.lightMonument(monument)
+
+      monument.neighbors.forEach((id) => {
+        const neighbor = this.monumentById(id)
+
+        if (!neighbor) {
+          return
+        }
+
+        if (neighbor.lit) {
+          this.extinguishMonument(neighbor)
+        } else {
+          this.lightMonument(neighbor)
+        }
+      })
+
+      if (door && door.needs.every((id) => this.monumentById(id)?.lit === true)) {
+        this.openDoor(door)
+      }
+
+      return
+    }
+
+    if (!door) {
+      this.lightMonument(monument)
+      return
+    }
+
+    if (!door.ordered) {
+      this.lightMonument(monument)
+
+      if (door.needs.every((id) => this.monumentById(id)?.lit === true)) {
+        this.openDoor(door)
+      }
+
+      return
+    }
+
+    if (monument.id !== door.needs[door.progress.length]) {
+      this.extinguishAll(door)
+      return
+    }
+
+    this.lightMonument(monument)
+    door.progress.push(monument.id)
+
+    if (door.progress.length === door.needs.length) {
+      this.openDoor(door)
+    }
+  }
+
+  private extinguishAll(door: DoorRef) {
+    door.progress = []
+
+    door.needs.forEach((id) => {
+      const monument = this.monumentById(id)
+
+      if (monument) {
+        this.extinguishMonument(monument)
+      }
+    })
+
+    this.cameras.main.shake(240, 0.01)
+    this.showMessage('五碑俱灭……顺序错了。')
+  }
+
+  private openDoor(door: DoorRef) {
+    if (door.opened) {
+      return
+    }
+
+    door.opened = true
+
+    const body = door.sprite.body as Phaser.Physics.Arcade.StaticBody
+    body.enable = false
+
+    this.showMessage('门开了。')
+
+    const doorScaleY = door.sprite.scaleY * 0.12
+
+    this.tweens.add({
+      targets: door.sprite,
+      alpha: 0,
+      scaleY: doorScaleY,
+      duration: 420,
+      ease: 'Sine.easeIn',
+      onComplete: () => {
+        door.sprite.destroy()
+      },
+    })
+  }
+
+  private showPaper(text: string) {
+    if (this.paperShowing) {
+      return
+    }
+
+    this.paperShowing = true
+    this.physics.world.pause()
+
+    const layer = this.add.container(0, 0).setDepth(220).setScrollFactor(0)
+
+    const shade = this.add.rectangle(0, 0, 480, 270, 0x0a0a14, 0.88).setOrigin(0, 0)
+    const panel = this.add.rectangle(240, 128, 400, 188, 0x1b1b2a).setStrokeStyle(2, 0xffd54f)
+    const title = this.add
+      .text(240, 56, '残卷', {
+        fontFamily: 'sans-serif',
+        fontSize: '16px',
+        color: '#ffd54f',
+      })
+      .setOrigin(0.5)
+    const body = this.add
+      .text(240, 130, text, {
+        fontFamily: 'sans-serif',
+        fontSize: '14px',
+        color: '#e8e2d0',
+        align: 'center',
+        lineSpacing: 10,
+        wordWrap: { width: 340 },
+      })
+      .setOrigin(0.5)
+    const tip = this.add
+      .text(240, 244, '按 F 收起', {
+        fontFamily: 'sans-serif',
+        fontSize: '12px',
+        color: '#8fa3b8',
+      })
+      .setOrigin(0.5)
+
+    layer.add([shade, panel, title, body, tip])
+
+    this.paperLayer = layer
+  }
+
+  private updatePaper() {
+    if (Phaser.Input.Keyboard.JustDown(this.interactKey)) {
+      this.paperLayer?.destroy()
+      this.paperLayer = null
+      this.paperShowing = false
+      this.physics.world.resume()
+    }
+  }
+
+  private updateIntro() {
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.space)) {
+      this.introLayer?.destroy()
+      this.introLayer = null
+      this.introShowing = false
+      this.physics.world.resume()
+    }
   }
 
   update(time: number, delta: number) {
     if (this.introShowing) {
+      this.updateIntro()
+      return
+    }
+
+    if (this.paperShowing) {
+      this.updatePaper()
       return
     }
 
@@ -696,8 +969,11 @@ export class GameScene extends Phaser.Scene {
     let prompt: string | null = null
     let action: (() => void) | null = null
 
+    let target: MonumentRef | null = null
+    let nearest = 56
+
     for (const monument of this.monumentList) {
-      if (monument.lit) {
+      if (monument.lit || monument.hidden) {
         continue
       }
 
@@ -708,18 +984,42 @@ export class GameScene extends Phaser.Scene {
         monument.pillar.y
       )
 
-      if (distance > 56) {
+      if (distance > 56 || distance > nearest) {
         continue
       }
 
+      nearest = distance
+      target = monument
+    }
+
+    if (target) {
+      const monument = target
+
       if (this.element === monument.element) {
         prompt = '[F] 点亮'
-        action = () => this.lightMonument(monument)
+        action = () => this.touchMonument(monument)
       } else {
         prompt = '需要' + ELEMENTS[monument.element].label + '元素'
       }
+    }
 
-      break
+    if (!prompt && this.noteList.length > 0) {
+      for (const note of this.noteList) {
+        const distance = Phaser.Math.Distance.Between(
+          this.slime.x,
+          this.slime.y,
+          note.sprite.x,
+          note.sprite.y
+        )
+
+        if (distance < 52) {
+          const text = note.text
+
+          prompt = '[F] ' + note.prompt
+          action = () => this.showPaper(text)
+          break
+        }
+      }
     }
 
     if (!prompt) {

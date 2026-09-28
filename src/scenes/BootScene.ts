@@ -122,7 +122,50 @@ export class BootScene extends Phaser.Scene {
 
     this.makeMonument()
 
+    this.makeGate()
+
+    this.makePaper()
+
     this.makeWing()
+  }
+
+  private makeGate() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillRect(0, 0, 16, 2)
+    gfx.fillRect(0, 14, 16, 2)
+    gfx.fillRect(0, 2, 2, 12)
+    gfx.fillRect(14, 2, 2, 12)
+    gfx.fillRect(4, 2, 2, 12)
+    gfx.fillRect(10, 2, 2, 12)
+
+    gfx.fillStyle(0x888888, 0.6)
+    gfx.fillRect(2, 8, 12, 2)
+
+    gfx.generateTexture('gate', 16, 16)
+    gfx.destroy()
+  }
+
+  private makePaper() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0xf2e6c4, 1)
+    gfx.fillRect(0, 1, 14, 16)
+
+    gfx.fillStyle(0xcbb68c, 1)
+    gfx.fillRect(0, 1, 14, 1)
+    gfx.fillRect(0, 16, 14, 1)
+    gfx.fillRect(0, 1, 1, 16)
+    gfx.fillRect(13, 1, 1, 16)
+
+    gfx.fillStyle(0x8d7a55, 1)
+    gfx.fillRect(3, 5, 8, 1)
+    gfx.fillRect(3, 8, 8, 1)
+    gfx.fillRect(3, 11, 6, 1)
+
+    gfx.generateTexture('paper', 14, 18)
+    gfx.destroy()
   }
 
   private makeWing() {
