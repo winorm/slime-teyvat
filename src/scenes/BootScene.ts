@@ -46,6 +46,7 @@ export class BootScene extends Phaser.Scene {
 
   create() {
     this.makeTextures()
+    this.scene.launch('achievement')
     this.scene.start('menu')
   }
 
@@ -119,14 +120,141 @@ export class BootScene extends Phaser.Scene {
     this.makeRidge('bg-mid', 480, 80, 0x222236, [2, 5], 14)
 
     this.makeBlessing()
-
     this.makeMonument()
-
     this.makeGate()
-
     this.makePaper()
-
+    this.makeSpire()
+    this.makeCage()
+    this.makeCageOpen()
+    this.makeEgg()
+    this.makeDragonling()
     this.makeWing()
+  }
+
+  private makeSpire() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0x3a4a5e, 1)
+    gfx.fillTriangle(24, 10, 1, 38, 47, 38)
+
+    gfx.fillStyle(0x54697f, 1)
+    gfx.fillTriangle(24, 10, 1, 38, 24, 38)
+
+    gfx.fillStyle(0x24303f, 1)
+    gfx.fillTriangle(24, 10, 24, 38, 47, 38)
+
+    gfx.fillStyle(0x8a9bb0, 1)
+    gfx.fillRect(23, 0, 2, 12)
+    gfx.fillRect(19, 2, 10, 2)
+
+    gfx.generateTexture('spire', 48, 38)
+    gfx.destroy()
+  }
+  
+  private makeCage() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0x54697f, 1)
+    gfx.fillRect(2, 34, 28, 6)
+    gfx.fillRect(3, 6, 26, 3)
+
+    gfx.fillStyle(0x8a9bb0, 1)
+    gfx.fillRect(15, 1, 2, 5)
+    gfx.fillRect(11, 0, 10, 2)
+    gfx.fillRect(6, 9, 2, 25)
+    gfx.fillRect(12, 9, 2, 25)
+    gfx.fillRect(18, 9, 2, 25)
+    gfx.fillRect(24, 9, 2, 25)
+
+    gfx.fillStyle(0x54697f, 1)
+    gfx.fillRect(4, 17, 24, 2)
+    gfx.fillRect(4, 27, 24, 2)
+
+    gfx.generateTexture('cage', 32, 40)
+    gfx.destroy()
+  }
+
+  private makeCageOpen() {
+    const gfx = this.add.graphics()
+
+    // 底座、顶盖、提环和关着的那张一模一样，保证左右对称
+    gfx.fillStyle(0x54697f, 1)
+    gfx.fillRect(2, 34, 28, 6)
+    gfx.fillRect(3, 6, 26, 3)
+
+    gfx.fillStyle(0x8a9bb0, 1)
+    gfx.fillRect(15, 1, 2, 5)
+    gfx.fillRect(11, 0, 10, 2)
+
+    // 只留左右两根立柱，中间的门开了（位置和关着那张的外栏杆对齐）
+    gfx.fillRect(6, 9, 2, 25)
+    gfx.fillRect(24, 9, 2, 25)
+
+    // 横箍只留在立柱上
+    gfx.fillStyle(0x54697f, 1)
+    gfx.fillRect(4, 17, 8, 2)
+    gfx.fillRect(20, 17, 8, 2)
+    gfx.fillRect(4, 27, 8, 2)
+    gfx.fillRect(20, 27, 8, 2)
+
+    // 掀开的门朝着主角那一侧（左边）
+    gfx.fillStyle(0x8a9bb0, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(6, 10),
+        new Phaser.Math.Vector2(2, 13),
+        new Phaser.Math.Vector2(0, 31),
+        new Phaser.Math.Vector2(5, 32),
+      ],
+      true
+    )
+
+    gfx.generateTexture('cage-open', 32, 40)
+    gfx.destroy()
+  }
+
+  private makeEgg() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0xf2e6c4, 1)
+    gfx.fillEllipse(7, 11, 12, 14)
+
+    gfx.fillStyle(0xd8c49a, 1)
+    gfx.fillEllipse(7, 6, 8, 6)
+
+    gfx.fillStyle(0xc9b48a, 1)
+    gfx.fillRect(4, 10, 2, 2)
+    gfx.fillRect(9, 8, 2, 2)
+    gfx.fillRect(6, 14, 2, 2)
+    gfx.fillRect(10, 13, 1, 1)
+
+    gfx.generateTexture('egg', 14, 18)
+    gfx.destroy()
+  }
+
+  private makeDragonling() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0x5aa891, 1)
+    gfx.fillTriangle(11, 8, 2, 0, 13, 4)
+
+    gfx.fillStyle(0x74d0b0, 1)
+    gfx.fillEllipse(12, 10, 15, 8)
+    gfx.fillEllipse(19, 7, 8, 7)
+    gfx.fillRect(21, 6, 3, 3)
+    gfx.fillTriangle(6, 10, 0, 6, 7, 13)
+
+    gfx.fillStyle(0xa8e8d4, 1)
+    gfx.fillTriangle(18, 2, 17, 6, 21, 4)
+
+    gfx.fillStyle(0xd8f5ea, 1)
+    gfx.fillEllipse(12, 12, 10, 3)
+
+    gfx.fillStyle(0x1f4a3e, 1)
+    gfx.fillRect(20, 6, 1, 1)
+
+    gfx.generateTexture('dragonling', 24, 16)
+    gfx.destroy()
   }
 
   private makeGate() {

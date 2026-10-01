@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { LEVELS } from '../data/levels'
-import { progress, DEV_MODE } from '../state/progress'
+import { progress, saveProgress, DEV_MODE } from '../state/progress'
 import { ELEMENTS } from '../data/elements'
 
 const COLS = 5
@@ -111,6 +111,7 @@ export class SelectScene extends Phaser.Scene {
 
       slime.on('pointerdown', () => {
         progress.levelIndex = index
+        saveProgress()
         this.scene.start('game')
       })
     }

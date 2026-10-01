@@ -1,10 +1,10 @@
 import Phaser from 'phaser'
 import { ELEMENTS, type ElementKey } from '../data/elements'
-import { LEVELS, type LevelDef } from '../data/levels'
-import { progress, unlockElement, cycleElement, recordClear } from '../state/progress'
+import { LEVELS, type LevelDef, type DomeDef, type PlatformDef } from '../data/levels'
+import { progress, unlockElement, cycleElement, recordClear, saveProgress } from '../state/progress'
+import { queueAchievementToast } from '../state/achievements'
 
 const HOVER = {
-  maxRise: 100,
   riseSpeed: 70,
   fallSpeed: 35,
   drainPerSecond: 30,
@@ -76,7 +76,6 @@ export class GameScene extends Phaser.Scene {
   private element: ElementKey = 'none'
   private jumpPower = -260
   private stamina = STAMINA_MAX
-  private hoverOriginY = 0
 
   private bgFar!: Phaser.GameObjects.TileSprite
   private bgMid!: Phaser.GameObjects.TileSprite
@@ -110,6 +109,13 @@ export class GameScene extends Phaser.Scene {
   private noteList: NoteRef[] = []
   private paperShowing = false
   private paperLayer: Phaser.GameObjects.Container | null = null
+  
+  private cageSprite: Phaser.GameObjects.Image | null = null
+  private eggSprite: Phaser.GameObjects.Image | null = null
+  private dragonling: Phaser.GameObjects.Image | null = null
+  private cageScene = false
+  private cageOpened = false
+  private goalReady = true
 
   private wingLeft!: Phaser.GameObjects.Image
   private wingRight!: Phaser.GameObjects.Image
@@ -140,6 +146,12 @@ export class GameScene extends Phaser.Scene {
     this.paperShowing = false
     this.paperLayer = null
 
+    this.cageSprite = null
+    this.eggSprite = null
+    this.dragonling = null
+    this.cageScene = false
+    this.cageOpened = false
+
     this.cameras.main.setZoom(1)
 
     this.chased = false
@@ -155,7 +167,13 @@ export class GameScene extends Phaser.Scene {
 
     this.monuments = this.physics.add.staticGroup()
 
-    this.level.platforms.forEach((def) => {
+    const platformDefs = [...this.level.platforms]
+
+    if (this.level.dome) {
+      platformDefs.push(...this.buildDome(this.level.dome))
+    }
+
+    platformDefs.forEach((def) => {
       const platform = this.platforms.create(def.x, def.y, 'pixel') as Phaser.Physics.Arcade.Sprite
       platform.setDisplaySize(def.width, def.height)
       platform.setTint(def.crumble ? 0x6b4a3a : def.oneWay ? 0x3a4a5e : 0x2c3e50)
@@ -172,6 +190,36 @@ export class GameScene extends Phaser.Scene {
         platform.setData('crumble', true)
       }
     })
+
+    if (this.level.dome) {
+      const dome = this.level.dome
+      const holeBottom = Math.round(this.domeY(dome, dome.holeX))
+
+      this.add
+        .rectangle(
+          dome.holeX,
+          holeBottom - dome.thickness / 2,
+          dome.holeWidth,
+          dome.thickness,
+          0x9adcf0,
+          0.22
+        )
+        .setDepth(-1)
+    }
+
+    if (this.level.dome && this.level.spire) {
+      this.add
+        .image(this.level.spire.x, this.domeY(this.level.dome, this.level.spire.x) - 19, 'spire')
+        .setDepth(1)
+    }
+
+    if (this.level.cage) {
+      this.cageSprite = this.add.image(this.level.cage.x, this.level.cage.y, 'cage')
+      this.eggSprite = this.add.image(this.level.cage.x, this.level.cage.y + 8, 'egg')
+
+      this.eggSprite.setDepth(1)
+      this.cageSprite.setDepth(2)
+    }
 
     this.level.hints.forEach((hint) => {
       this.add
@@ -210,6 +258,12 @@ export class GameScene extends Phaser.Scene {
     const goalColor = goal.grants ? ELEMENTS[goal.grants].color : 0xffffff
     this.goalSprite = this.physics.add.staticSprite(goal.x, goal.y, goal.kind)
     this.goalSprite.setTint(goalColor)
+
+    this.goalReady = !goal.afterCage
+
+    if (!this.goalReady) {
+      this.goalSprite.setVisible(false).setScale(0)
+    }
 
     this.slime = this.physics.add.sprite(this.level.spawn.x, this.level.spawn.y, 'slime-none')
     this.slime.setBounce(0.2)
@@ -270,8 +324,11 @@ export class GameScene extends Phaser.Scene {
 
       if (!progress.gemStorySeen) {
         progress.gemStorySeen = true
+        saveProgress()
         this.showMessage('透过这颗天蓝色的四角晶石，我仿佛看到了家乡的影子……')
       }
+
+      queueAchievementToast('first-gem')
     })
 
     this.physics.add.overlap(this.slime, this.blessings, (_slime, item) => {
@@ -447,6 +504,33 @@ export class GameScene extends Phaser.Scene {
       this.scene.launch('pause')
     })
     
+  }
+
+  private domeY(dome: DomeDef, x: number) {
+    const half = this.level.width / 2
+    const rise = dome.springY - dome.apexY
+    const centerY =
+      (half * half + dome.springY * dome.springY - dome.apexY * dome.apexY) / (2 * rise)
+    const radius = centerY - dome.apexY
+
+    return centerY - Math.sqrt(radius * radius - (x - half) * (x - half))
+  }
+
+  private buildDome(dome: DomeDef): PlatformDef[] {
+    const blocks: PlatformDef[] = []
+    const step = 20
+
+    for (let cx = step / 2; cx < this.level.width; cx += step) {
+      if (Math.abs(cx - dome.holeX) < dome.holeWidth / 2 + step / 2) {
+        continue
+      }
+
+      const bottom = Math.round(this.domeY(dome, cx))
+
+      blocks.push({ x: cx, y: bottom - dome.thickness / 2, width: step, height: dome.thickness })
+    }
+
+    return blocks
   }
 
   private refreshHud() {
@@ -899,6 +983,206 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  private playCageScene() {
+    if (this.cageScene || !this.cageSprite || !this.eggSprite) {
+      return
+    }
+
+    this.cageScene = true
+    this.cageOpened = true
+    this.physics.world.pause()
+
+    const cageX = this.cageSprite.x
+    const cageY = this.cageSprite.y
+
+    this.cageSprite.setTexture('cage-open')
+
+    // 一、主角体内突然爆出一圈力量
+    this.cameras.main.shake(240, 0.006)
+
+    const ringDelays = [0, 130, 260]
+
+    ringDelays.forEach((delay, index) => {
+      this.time.delayedCall(delay, () => {
+        const ring = this.add
+          .image(this.slime.x, this.slime.y, 'blessing')
+          .setTint(0xa8e8d4)
+          .setDepth(8)
+          .setScale(0.6)
+
+        this.tweens.add({
+          targets: ring,
+          scale: 3.2 + index * 0.6,
+          alpha: 0,
+          duration: 640,
+          onComplete: () => {
+            ring.destroy()
+          },
+        })
+      })
+    })
+
+    // 二、蛋开始晃
+    this.time.delayedCall(620, () => {
+      this.tweens.add({
+        targets: this.eggSprite,
+        x: cageX + 2,
+        duration: 80,
+        yoyo: true,
+        repeat: 5,
+      })
+    })
+
+    // 三、白光一闪，趁白屏把蛋换成小龙
+    this.time.delayedCall(1200, () => {
+      const flash = this.add
+        .rectangle(0, 0, 480, 270, 0xffffff)
+        .setOrigin(0, 0)
+        .setScrollFactor(0)
+        .setDepth(60)
+        .setAlpha(0)
+
+      this.tweens.add({
+        targets: flash,
+        alpha: 1,
+        duration: 220,
+        hold: 90,
+        yoyo: true,
+        onYoyo: () => {
+          this.eggSprite?.destroy()
+          this.eggSprite = null
+
+          this.spawnDragonling(cageX, cageY + 6)
+        },
+        onComplete: () => {
+          flash.destroy()
+        },
+      })
+    })
+
+    // 四、小龙被风托起，从穹顶的孔洞飞出去
+    this.time.delayedCall(2500, () => {
+      this.flyDragonlingOut()
+    })
+  }
+
+  private spawnDragonling(x: number, y: number) {
+    const dragon = this.add.image(x, y, 'dragonling').setDepth(1).setScale(0)
+
+    this.dragonling = dragon
+
+    this.tweens.add({
+      targets: dragon,
+      scale: 1,
+      duration: 420,
+      ease: 'Back.easeOut',
+    })
+
+    this.time.delayedCall(440, () => {
+      this.tweens.add({
+        targets: dragon,
+        y: y - 14,
+        duration: 320,
+        yoyo: true,
+      })
+    })
+  }
+
+  private flyDragonlingOut() {
+    const dragon = this.dragonling
+
+    if (!dragon) {
+      this.endCageScene()
+      return
+    }
+
+    const holeX = this.level.dome ? this.level.dome.holeX : dragon.x
+
+    // 飞离笼子的这一刻才提到最前面
+    dragon.setDepth(8)
+
+    const glow = this.add
+      .image(dragon.x, dragon.y + 8, 'blessing')
+      .setTint(0xa8e8d4)
+      .setDepth(7)
+      .setScale(1.6)
+
+    this.cameras.main.stopFollow()
+    this.cameras.main.pan(240, 200, 600, 'Sine.easeInOut')
+
+    this.tweens.add({
+      targets: dragon,
+      x: holeX,
+      y: 18,
+      duration: 1200,
+      ease: 'Sine.easeInOut',
+      onUpdate: () => {
+        glow.setPosition(dragon.x, dragon.y + 8)
+      },
+      onComplete: () => {
+        glow.destroy()
+
+        this.tweens.add({
+          targets: dragon,
+          alpha: 0,
+          duration: 280,
+          onComplete: () => {
+            dragon.destroy()
+            this.dragonling = null
+          },
+        })
+      },
+    })
+
+    this.time.delayedCall(1900, () => {
+      this.showMessage('风神：「谢谢你……去飞吧，替我看看更远的地方。」')
+    })
+
+    this.time.delayedCall(2600, () => {
+      this.endCageScene()
+    })
+  }
+
+  private endCageScene() {
+    this.cameras.main.startFollow(this.slime, true, 0.12, 0.12)
+    this.physics.world.resume()
+    this.cageScene = false
+
+    if (this.level.goal.afterCage) {
+      this.time.delayedCall(1200, () => {
+        this.revealGoal()
+      })
+    }
+  }
+
+  private revealGoal() {
+    this.goalReady = true
+    this.goalSprite.setVisible(true).setScale(0)
+
+    const ring = this.add
+      .image(this.goalSprite.x, this.goalSprite.y + 10, 'blessing')
+      .setTint(0xffd54f)
+      .setDepth(6)
+      .setScale(0.8)
+
+    this.tweens.add({
+      targets: ring,
+      scale: 3,
+      alpha: 0,
+      duration: 640,
+      onComplete: () => {
+        ring.destroy()
+      },
+    })
+
+    this.tweens.add({
+      targets: this.goalSprite,
+      scale: 1,
+      duration: 420,
+      ease: 'Back.easeOut',
+    })
+  }
+
   private updateIntro() {
     if (Phaser.Input.Keyboard.JustDown(this.cursors.space)) {
       this.introLayer?.destroy()
@@ -916,6 +1200,10 @@ export class GameScene extends Phaser.Scene {
 
     if (this.paperShowing) {
       this.updatePaper()
+      return
+    }
+
+    if (this.cageScene) {
       return
     }
 
@@ -951,6 +1239,19 @@ export class GameScene extends Phaser.Scene {
     if (this.slime.y > this.level.height + 50) {
       this.die('fall')
       return
+    }
+
+    if (this.level.spire) {
+      const spireDistance = Phaser.Math.Distance.Between(
+        this.slime.x,
+        this.slime.y,
+        this.level.spire.x,
+        this.level.spire.y
+      )
+
+      if (spireDistance < this.level.spire.radius) {
+        queueAchievementToast('tower-top')
+      }
     }
 
     if (this.cursors.left.isDown) {
@@ -1022,8 +1323,23 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    if (!prompt && this.level.cage && !this.cageOpened) {
+      const cageDistance = Phaser.Math.Distance.Between(
+        this.slime.x,
+        this.slime.y,
+        this.level.cage.x,
+        this.level.cage.y
+      )
+
+      if (cageDistance < 56) {
+        prompt = '[F] ' + this.level.cage.prompt
+        action = () => this.playCageScene()
+      }
+    }
+
     if (!prompt) {
       const nearGoal =
+        this.goalReady &&
         Phaser.Math.Distance.Between(
           this.slime.x,
           this.slime.y,
@@ -1075,7 +1391,6 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (onGround) {
-      this.hoverOriginY = this.slime.y
       this.stamina = Math.min(STAMINA_MAX, this.stamina + HOVER.regenPerSecond * dt)
     }
 
@@ -1087,28 +1402,15 @@ export class GameScene extends Phaser.Scene {
       element.canHover && this.cursors.space.isDown && !onGround && this.stamina > 0
 
     if (wantHover) {
-      const risen = this.hoverOriginY - this.slime.y
-
-      if (risen < HOVER.maxRise) {
-        body.setAllowGravity(true)
-
-        if (body.velocity.y > -HOVER.riseSpeed) {
-          this.slime.setVelocityY(-HOVER.riseSpeed)
-        }
-      } else {
-        body.setAllowGravity(false)
-        this.slime.setVelocityY(0)
+      if (body.velocity.y > -HOVER.riseSpeed) {
+        this.slime.setVelocityY(-HOVER.riseSpeed)
       }
 
       this.stamina = this.blessed
         ? STAMINA_MAX
         : Math.max(0, this.stamina - HOVER.drainPerSecond * dt)
-      } else {
-      body.setAllowGravity(true)
-
-      if (element.canHover && body.velocity.y > HOVER.fallSpeed) {
-        this.slime.setVelocityY(HOVER.fallSpeed)
-      }
+    } else if (element.canHover && body.velocity.y > HOVER.fallSpeed) {
+      this.slime.setVelocityY(HOVER.fallSpeed)
     }
 
     if (onGround && !this.wasOnGround) {

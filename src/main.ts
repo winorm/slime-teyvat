@@ -6,6 +6,7 @@ import { ResultScene } from './scenes/ResultScene'
 import { SelectScene } from './scenes/SelectScene'
 import { PauseScene } from './scenes/PauseScene'
 import { DeadScene } from './scenes/DeadScene'
+import { AchievementScene } from './scenes/AchievementScene'
 
 // 出错时把错误直接画在页面上，不用打开浏览器控制台也能看到原因
 function showFatal(text: string) {
@@ -62,6 +63,6 @@ new Phaser.Game({
       debug: false,
     },
   },
-  scene: [BootScene, MenuScene, SelectScene, GameScene, PauseScene, DeadScene, ResultScene],
+  scene: [BootScene, MenuScene, SelectScene, GameScene, PauseScene, DeadScene, ResultScene, AchievementScene],
   
 })

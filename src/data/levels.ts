@@ -28,7 +28,22 @@ export type GoalDef = {
   y: number
   kind: GoalKind
   grants?: ElementKey
+  afterCage?: boolean
   prompt: string
+}
+
+export type CageDef = {
+  x: number
+  y: number
+  prompt: string
+}
+
+export type DomeDef = {
+  apexY: number      // 穹顶最高处（内表面）
+  springY: number    // 起拱线：贴墙那两端的 y
+  holeX: number      // 孔洞中心 x
+  holeWidth: number  // 孔洞宽度
+  thickness: number  // 穹顶壳厚
 }
 
 export type LevelDef = {
@@ -48,6 +63,9 @@ export type LevelDef = {
   monuments: MonumentDef[]
   doors?: DoorDef[]
   notes?: NoteDef[]
+  spire?: { x: number; y: number; radius: number }
+  dome?: DomeDef
+  cage?: CageDef
   chase?: boolean
   hints: HintDef[]
 }
@@ -229,7 +247,7 @@ export const LEVELS: LevelDef[] = [
     height: 1600,
     startElement: 'wind',
     spawn: { x: 60, y: 1547 },
-    goal: { x: 400, y: 306, kind: 'chest', prompt: '打开' },
+    goal: { x: 240, y: 306, kind: 'chest', prompt: '打开', afterCage: true },
     platforms: [
       // 一层：塔底地面
       { x: 240, y: 1580, width: 480, height: 40 },
@@ -274,8 +292,14 @@ export const LEVELS: LevelDef[] = [
       // 四层通往第五层洞口的那级台阶
       { x: 120, y: 400, width: 120, height: 10, oneWay: true },
 
-      // 塔顶
-      { x: 240, y: 20, width: 480, height: 40 },
+      // 塔顶：穹顶由 dome 数据在 GameScene 里拼出来，这里只放支柱、塔尖落脚点和窄台
+      { x: 30, y: 225, width: 16, height: 190 },
+      { x: 450, y: 225, width: 16, height: 190 },
+      // 塔尖顶上的小平台（站上去触发成就）
+      { x: 240, y: 36, width: 20, height: 8 },
+      // 爬向穹顶洞口的两级窄台
+      { x: 140, y: 235, width: 72, height: 10, oneWay: true },
+      { x: 330, y: 145, width: 72, height: 10, oneWay: true },
     ],
     orbs: [],
     gems: [
@@ -334,9 +358,12 @@ export const LEVELS: LevelDef[] = [
         y: 590,
         prompt: '阅读',
         text:
-          '六碑同形，一炁共鸣。\n触其一，其自易，其领者亦易。\n明灭相易，六碑皆明，门自开。\n古碑残留，明灭有定。\n勿逆其性，顺其鸣。',
+          '六碑同形，一炁共鸣。\n触其一，其自易，其邻者亦易。\n明灭相易，六碑皆明，门自开。\n古碑残留，明灭有定。\n勿逆其性，顺其鸣。',
       },
     ],
+    dome: { apexY: 70, springY: 150, holeX: 340, holeWidth: 80, thickness: 16 },
+    spire: { x: 240, y: 30, radius: 30 },
+    cage: { x: 400, y: 300, prompt: '开启' },
     hints: [
       { x: 46, y: 1300, text: '第一层' },
       { x: 46, y: 995, text: '第二层' },

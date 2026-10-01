@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { LEVELS } from '../data/levels'
-import { progress } from '../state/progress'
+import { progress, saveProgress } from '../state/progress'
+import { queueAchievementToast } from '../state/achievements'
 
 export class ResultScene extends Phaser.Scene {
   constructor() {
@@ -46,6 +47,8 @@ export class ResultScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
 
+    queueAchievementToast('first-clear')
+
     if (isLast) {
       this.makeButton(180, '重来一次', () => this.scene.start('game'))
       this.makeButton(218, '回到选择界面', () => this.scene.start('select'))
@@ -53,6 +56,7 @@ export class ResultScene extends Phaser.Scene {
       this.makeButton(170, '重来一次', () => this.scene.start('game'))
       this.makeButton(202, '下一关', () => {
         progress.levelIndex += 1
+        saveProgress()
         this.scene.start('game')
       })
       this.makeButton(234, '回到选择界面', () => this.scene.start('select'))
