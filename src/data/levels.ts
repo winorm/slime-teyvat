@@ -66,6 +66,7 @@ export type LevelDef = {
   spire?: { x: number; y: number; radius: number }
   dome?: DomeDef
   cage?: CageDef
+  music?: string
   chase?: boolean
   hints: HintDef[]
 }
@@ -195,6 +196,7 @@ export const LEVELS: LevelDef[] = [
     hazards: [],
     monuments: [],
     chase: true,
+    music: 'music-chase',
     hints: [
       { x: 260, y: 430, text: '长按空格飞出坑口' },
       { x: 840, y: 330, text: '松开空格可以缓降' },
@@ -363,6 +365,7 @@ export const LEVELS: LevelDef[] = [
     ],
     dome: { apexY: 70, springY: 150, holeX: 340, holeWidth: 80, thickness: 16 },
     spire: { x: 240, y: 30, radius: 30 },
+    music: 'music-tower',
     cage: { x: 400, y: 300, prompt: '开启' },
     hints: [
       { x: 46, y: 1300, text: '第一层' },

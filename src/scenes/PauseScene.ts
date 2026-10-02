@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { LEVELS } from '../data/levels'
-import { progress } from '../state/progress'
+import { progress, deleteSlot } from '../state/progress'
+import { audio, toggleMute } from '../state/audio'
 
 export class PauseScene extends Phaser.Scene {
   constructor() {
@@ -12,10 +13,10 @@ export class PauseScene extends Phaser.Scene {
     const gems = progress.levelGems[progress.levelIndex] ?? []
 
     this.add.rectangle(0, 0, 480, 270, 0x000000).setOrigin(0, 0).setAlpha(0.7)
-    this.add.rectangle(240, 140, 280, 210, 0x1e1e30).setStrokeStyle(2, 0x5a5a82)
+    this.add.rectangle(240, 135, 300, 250, 0x1e1e30).setStrokeStyle(2, 0x5a5a82)
 
     this.add
-      .text(240, 58, '设置', {
+      .text(240, 40, '设置', {
         fontFamily: 'sans-serif',
         fontSize: '24px',
         color: '#ffd54f',
@@ -23,7 +24,7 @@ export class PauseScene extends Phaser.Scene {
       .setOrigin(0.5)
 
     this.add
-      .text(240, 86, level.name, {
+      .text(240, 64, level.name, {
         fontFamily: 'sans-serif',
         fontSize: '14px',
         color: '#ffffff',
@@ -32,19 +33,47 @@ export class PauseScene extends Phaser.Scene {
 
     for (let slot = 0; slot < 3; slot++) {
       this.add
-        .image(240 - 32 + slot * 32, 116, 'gem')
+        .image(240 - 32 + slot * 32, 90, 'gem')
         .setScale(2)
         .setTint(slot < gems.length ? 0x6ec6ff : 0x33333f)
     }
 
-    this.makeButton(160, '继续游戏', () => this.resumeGame())
-    this.makeButton(194, '重开本关', () => {
+    this.makeButton(112, '继续游戏', () => this.resumeGame())
+    this.makeButton(144, '重开本关', () => {
       this.scene.stop('game')
       this.scene.start('game')
     })
-    this.makeButton(228, '回到选择界面', () => {
+    this.makeButton(176, '回到选择界面', () => {
       this.scene.stop('game')
       this.scene.start('select')
+    })
+
+    let clearArmed = false
+
+    const clearText = this.makeButton(208, '清除本档存档', () => {
+      if (!clearArmed) {
+        clearArmed = true
+        clearText.setText('再点一次确认清除')
+        clearText.setColor('#ff8a8a')
+
+        this.time.delayedCall(3000, () => {
+          clearArmed = false
+          clearText.setText('清除本档存档')
+          clearText.setColor('#ffffff')
+        })
+
+        return
+      }
+
+      deleteSlot()
+      this.scene.stop('game')
+      this.scene.start('menu')
+    })
+
+    const muteText = this.makeButton(240, audio.muted ? '声音：关' : '声音：开', () => {
+      const muted = toggleMute()
+
+      muteText.setText(muted ? '声音：关' : '声音：开')
     })
 
     this.input.keyboard!.on('keydown-ESC', () => {
@@ -80,5 +109,7 @@ export class PauseScene extends Phaser.Scene {
     })
 
     rect.on('pointerdown', onClick)
+
+    return text
   }
 }

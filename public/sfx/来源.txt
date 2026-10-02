@@ -1,0 +1,28 @@
+音效来源与授权
+==============
+
+这 8 个音效的来源（2026/10/2 由用户逐个试听后选定）：
+
+  jump.ogg       <- kenney_impact-sounds    / impactSoft_medium_000.ogg
+  land.ogg       <- kenney_impact-sounds    / impactSoft_heavy_000.ogg
+  gem.ogg        <- kenney_interface-sounds / confirmation_002.ogg
+  interact.ogg   <- kenney_interface-sounds / click_002.ogg
+  win.ogg        <- kenney_music-jingles    / jingles_STEEL00.ogg
+  die.ogg        <- kenney_interface-sounds / error_005.ogg
+  fly.wav        <- 自己合成（1.6 秒，褐噪声 + 两级低通 600Hz + 一层低音垫，两端归零所以能无缝循环）
+  glide.wav      <- 自己合成（1.5 秒，褐噪声 + 三级低通 300Hz，最闷的一档，同上）
+  step.wav       <- 自己合成（0.09 秒的低音"噗"，走路时每 0.3 秒响一次，播放速率随机 ±8%）
+
+风的两版都刻意避开了白噪声——白噪声高频太足，听感"粗糙"；用褐噪声 + 重滤波之后
+才柔和。要再调就往两个方向走：截止频率继续下压（更闷），或者彻底去掉噪声只留低音垫。
+
+授权：三个 Kenney 包都是 CC0 1.0（公共领域），可商用、无需署名。
+fly / glide 是用临时脚本自己生成的（脚本用完即删），不受任何外部授权约束。
+
+想换音色：去 kenney.nl 下这三个包（Interface Sounds / Impact Sounds / Music Jingles），
+挑好之后覆盖同名文件即可，代码一个字都不用改。当年试听用的候选项和试听页已经删掉了。
+
+音量分三层（2026/10/2 用户定的顺序：背景乐 ≤ 移动类 < 原石/通关）：
+背景乐 0.10（audio.ts 的 MUSIC_VOLUME）；行走 0.16、跳跃 0.16、落地 0.15、
+飞行 0.12、缓降 0.10；原石 0.50、通关 0.55。交互 0.30、死亡 0.45 不在那条链上，
+单独留着。数值都写在各自的 playSfx / setLoop 调用处。

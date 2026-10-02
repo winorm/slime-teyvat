@@ -9,7 +9,7 @@ export const DEV_MODE = true
 export const DEV_RESET_SAVE = false
 
 const SAVE_KEY = 'slime-teyvat'
-const SAVE_VERSION = 1
+const SAVE_VERSION = 2
 
 // 存档槽数量，主菜单的选档界面按这个数显示
 export const SLOT_COUNT = 3
@@ -17,6 +17,8 @@ export const SLOT_COUNT = 3
 // 一份存档里存什么。以后加字段，记得把 SAVE_VERSION 加一
 export type SaveData = {
   version: number
+  name: string
+  savedAt: number
   unlocked: ElementKey[]
   current: ElementKey
   levelIndex: number
@@ -26,9 +28,11 @@ export type SaveData = {
   achievements: string[]
 }
 
-function emptySave(): SaveData {
+function emptySave(slotIndex: number): SaveData {
   return {
     version: SAVE_VERSION,
+    name: '存档 ' + (slotIndex + 1),
+    savedAt: 0,
     unlocked: ['none'],
     current: 'none',
     levelIndex: 0,
@@ -50,8 +54,8 @@ function cloneSlot(data: SaveData): SaveData {
 }
 
 // 存档是从浏览器里读回来的，一律不可信：缺字段、类型不对、被手改过，都退回默认值
-function readSlot(raw: unknown): SaveData {
-  const save = emptySave()
+function readSlot(raw: unknown, slotIndex: number): SaveData {
+  const save = emptySave(slotIndex)
 
   if (typeof raw !== 'object' || raw === null) {
     return save
@@ -91,11 +95,19 @@ function readSlot(raw: unknown): SaveData {
 
   save.gemStorySeen = data.gemStorySeen === true
 
+  if (typeof data.name === 'string' && data.name.length > 0) {
+    save.name = data.name.slice(0, 12)
+  }
+
+  if (typeof data.savedAt === 'number') {
+    save.savedAt = data.savedAt
+  }
+
   return save
 }
 
 function readSlots(): SaveData[] {
-  const slots = Array.from({ length: SLOT_COUNT }, () => emptySave())
+  const slots = Array.from({ length: SLOT_COUNT }, (_item, index) => emptySave(index))
 
   try {
     const text = localStorage.getItem(SAVE_KEY)
@@ -112,7 +124,7 @@ function readSlots(): SaveData[] {
     }
 
     raw.slots.slice(0, SLOT_COUNT).forEach((item, index) => {
-      slots[index] = readSlot(item)
+    slots[index] = readSlot(item, index)
     })
   } catch {
     // 隐私模式、存储被禁用、存档被改坏——当新档处理，绝不因为存档崩掉游戏
@@ -150,7 +162,7 @@ const slots = readSlots()
 let activeSlot = 0
 
 // 当前正在玩的那一份。其它文件照旧读 progress.xxx，用法一点没变
-export const progress: SaveData = emptySave()
+export const progress: SaveData = emptySave(activeSlot)
 
 function copySlotToProgress(slot: SaveData) {
   Object.assign(progress, cloneSlot(slot))
@@ -170,7 +182,7 @@ export function saveProgress() {
   if (freshSession) {
     return
   }
-
+  progress.savedAt = Date.now()
   slots[activeSlot] = cloneSlot(progress)
   writeSlots(slots)
 }
@@ -180,10 +192,10 @@ export function clearSave() {
   clearStorage()
 
   for (let index = 0; index < SLOT_COUNT; index++) {
-    slots[index] = emptySave()
+    slots[index] = emptySave(index)
   }
 
-  Object.assign(progress, emptySave())
+  Object.assign(progress, emptySave(activeSlot))
 }
 
 export function unlockElement(key: ElementKey) {
@@ -211,3 +223,72 @@ export function recordClear(levelIndex: number, indices: number[]) {
   progress.maxLevel = Math.max(progress.maxLevel, levelIndex + 1)
   saveProgress()
 }
+
+export type SlotSummary = {
+  index: number
+  name: string
+  savedAt: number
+  maxLevel: number
+  gems: number
+  achievements: number
+  empty: boolean
+}
+
+function slotIsEmpty(slot: SaveData) {
+  return slot.maxLevel === 0 && slot.levelGems.length === 0 && slot.achievements.length === 0
+}
+
+// 存档界面用：只读一份摘要，不切换当前存档
+export function getSlotSummary(index: number): SlotSummary {
+  const safeIndex = Math.max(0, Math.min(SLOT_COUNT - 1, Math.floor(index)))
+  const slot = slots[safeIndex]
+
+  return {
+    index: safeIndex,
+    name: slot.name,
+    savedAt: slot.savedAt,
+    maxLevel: slot.maxLevel,
+    gems: slot.levelGems.reduce((total, list) => total + list.length, 0),
+    achievements: slot.achievements.length,
+    empty: slotIsEmpty(slot),
+  }
+}
+
+// 开新档：不指定槽位就挑一个空档，全满就覆盖最久没玩的那个。返回用掉的槽号
+export function newGame(slotIndex?: number) {
+  let index = slotIndex === undefined ? slots.findIndex(slotIsEmpty) : Math.floor(slotIndex)
+
+  if (index < 0) {
+    index = 0
+
+    slots.forEach((slot, candidate) => {
+      if (slot.savedAt < slots[index].savedAt) {
+        index = candidate
+      }
+    })
+  }
+
+  index = Math.max(0, Math.min(SLOT_COUNT - 1, index))
+
+  slots[index] = emptySave(index)
+  loadSlot(index)
+  saveProgress()
+
+  return index
+}
+
+// 删掉某一格（不传就是当前正在玩的这格）。注意这里直接写盘，
+// 不能调 saveProgress()，否则会把刚清掉的进度又写回去
+export function deleteSlot(index: number = activeSlot) {
+  const safeIndex = Math.max(0, Math.min(SLOT_COUNT - 1, Math.floor(index)))
+
+  slots[safeIndex] = emptySave(safeIndex)
+
+  if (safeIndex === activeSlot) {
+    Object.assign(progress, emptySave(activeSlot))
+  }
+
+  writeSlots(slots)
+}
+
+export const SAVE_HINT = '↑ ↓ 选择 · 空格 确认 · Delete 删除 · Esc 返回'

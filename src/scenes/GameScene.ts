@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { ELEMENTS, type ElementKey } from '../data/elements'
 import { LEVELS, type LevelDef, type DomeDef, type PlatformDef } from '../data/levels'
 import { progress, unlockElement, cycleElement, recordClear, saveProgress } from '../state/progress'
+import { playMusic, playSfx, setLoop, stopAllLoops } from '../state/audio'
 import { queueAchievementToast } from '../state/achievements'
 
 const HOVER = {
@@ -71,6 +72,7 @@ export class GameScene extends Phaser.Scene {
   private blinkTimer = 0
   private blinkScale = 1
   private landSquash = 0
+  private stepTimer = 0
   private wasOnGround = false
 
   private element: ElementKey = 'none'
@@ -135,6 +137,7 @@ export class GameScene extends Phaser.Scene {
     this.blinkScale = 1
     this.blinkTimer = 1200
     this.landSquash = 0
+    this.stepTimer = 0
     this.wasOnGround = false
     this.collectedIndices = []
     this.blessed = false
@@ -321,6 +324,7 @@ export class GameScene extends Phaser.Scene {
     this.collectedIndices.push(gemSprite.getData('index') as number)
     gemSprite.destroy()
     this.refreshGemHud()
+    playSfx(this, 'sfx-gem', 0.5)
 
       if (!progress.gemStorySeen) {
         progress.gemStorySeen = true
@@ -486,6 +490,7 @@ export class GameScene extends Phaser.Scene {
     this.refreshGemHud()
 
     this.showIntro(this.level.intro)
+    playMusic(this, this.level.music ?? 'music-field')
 
     if (this.level.chase) {
       this.chase = this.physics.add.image(-40, this.level.height / 2, 'pixel')
@@ -502,6 +507,10 @@ export class GameScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown-ESC', () => {
       this.scene.pause()
       this.scene.launch('pause')
+    })
+
+    this.events.once('shutdown', () => {
+      stopAllLoops()
     })
     
   }
@@ -567,6 +576,8 @@ export class GameScene extends Phaser.Scene {
 
     this.finished = true
     recordClear(progress.levelIndex, this.collectedIndices)
+    stopAllLoops()
+    playSfx(this, 'sfx-win', 0.55)
 
     if (this.level.goal.kind === 'chest') {
       this.goalSprite.setTexture('chest-open')
@@ -761,6 +772,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.dying = true
+    stopAllLoops()
+    playSfx(this, 'sfx-die', 0.45)
     this.scene.pause()
     this.scene.launch('dead', { cause })
   }
@@ -768,6 +781,7 @@ export class GameScene extends Phaser.Scene {
   private showIntro(text: string) {
     this.introShowing = true
     this.physics.world.pause()
+    stopAllLoops()
 
     const layer = this.add.container(0, 0).setDepth(200).setScrollFactor(0)
 
@@ -939,6 +953,7 @@ export class GameScene extends Phaser.Scene {
 
     this.paperShowing = true
     this.physics.world.pause()
+    stopAllLoops()
 
     const layer = this.add.container(0, 0).setDepth(220).setScrollFactor(0)
 
@@ -991,6 +1006,7 @@ export class GameScene extends Phaser.Scene {
     this.cageScene = true
     this.cageOpened = true
     this.physics.world.pause()
+    stopAllLoops()
 
     const cageX = this.cageSprite.x
     const cageY = this.cageSprite.y
@@ -1362,6 +1378,7 @@ export class GameScene extends Phaser.Scene {
       this.promptText.setText(prompt)
 
       if (action && Phaser.Input.Keyboard.JustDown(this.interactKey)) {
+        playSfx(this, 'sfx-interact', 0.3)
         action()
       }
     }
@@ -1396,6 +1413,7 @@ export class GameScene extends Phaser.Scene {
 
     if (Phaser.Input.Keyboard.JustDown(this.cursors.space) && onGround) {
       this.slime.setVelocityY(this.jumpPower)
+      playSfx(this, 'sfx-jump', 0.16)
     }
 
     const wantHover =
@@ -1413,8 +1431,28 @@ export class GameScene extends Phaser.Scene {
       this.slime.setVelocityY(HOVER.fallSpeed)
     }
 
+    setLoop(this, 'sfx-fly', wantHover, 0.12)
+    setLoop(
+      this,
+      'sfx-glide',
+      !wantHover && element.canHover && !onGround && body.velocity.y > 0,
+      0.1
+    )
+
     if (onGround && !this.wasOnGround) {
       this.landSquash = 1
+      playSfx(this, 'sfx-land', 0.15)
+    }
+
+    if (onGround && Math.abs(body.velocity.x) > 10) {
+      this.stepTimer -= dt
+
+      if (this.stepTimer <= 0) {
+        this.stepTimer = 0.3
+        playSfx(this, 'sfx-step', 0.16, Phaser.Math.FloatBetween(0.92, 1.08))
+      }
+    } else {
+      this.stepTimer = 0.06
     }
 
     this.wasOnGround = onGround

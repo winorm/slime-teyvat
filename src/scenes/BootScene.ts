@@ -44,6 +44,22 @@ export class BootScene extends Phaser.Scene {
     super('boot')
   }
 
+  preload() {
+    this.load.audio('sfx-jump', 'sfx/jump.ogg')
+    this.load.audio('sfx-land', 'sfx/land.ogg')
+    this.load.audio('sfx-gem', 'sfx/gem.ogg')
+    this.load.audio('sfx-interact', 'sfx/interact.ogg')
+    this.load.audio('sfx-win', 'sfx/win.ogg')
+    this.load.audio('sfx-die', 'sfx/die.ogg')
+    this.load.audio('sfx-fly', 'sfx/fly.wav')
+    this.load.audio('sfx-glide', 'sfx/glide.wav')
+    this.load.audio('sfx-step', 'sfx/step.wav')
+    this.load.audio('music-menu', 'bgm/menu.wav')
+    this.load.audio('music-field', 'bgm/field.wav')
+    this.load.audio('music-tower', 'bgm/tower.wav')
+    this.load.audio('music-chase', 'bgm/chase.wav')
+  }
+
   create() {
     this.makeTextures()
     this.scene.launch('achievement')

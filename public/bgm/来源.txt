@@ -1,0 +1,16 @@
+背景音乐来源
+============
+
+这四首全部是用临时脚本现场合成的芯片音乐（方波 / 三角波 / 噪声鼓点），
+不是任何外部素材，所以没有授权问题，也不需要在打包时额外声明。
+
+  menu.wav    标题 / 存档 / 成就界面    8 小节，C 大调，温暖慢速
+  field.wav   第一、二、四关            8 小节，C 大调，明快
+  tower.wav   第五关（塔）              8 小节，a 小调，神秘无鼓
+  chase.wav   第三关（追逐）            8 小节，a 小调，快速紧张
+
+参数：11025Hz 单声道 16bit，每段 8 小节、长度为整拍，首尾包络归零，
+所以能无缝循环。想调整，就重新跑一遍生成脚本（调式、速度、旋律、鼓点都在脚本里）。
+
+由谁播放在 GameScene / MenuScene / SaveScene / AchievementListScene 的 create() 里，
+统一走 state/audio.ts 的 playMusic()；音量在 audio.ts 的 MUSIC_VOLUME。

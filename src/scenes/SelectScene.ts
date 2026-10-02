@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { LEVELS } from '../data/levels'
 import { progress, saveProgress, DEV_MODE } from '../state/progress'
 import { ELEMENTS } from '../data/elements'
+import { playMusic } from '../state/audio'
 
 const COLS = 5
 const CELL_W = 84
@@ -15,6 +16,8 @@ export class SelectScene extends Phaser.Scene {
   }
 
   create() {
+    playMusic(this, 'music-menu')
+
     this.add
       .text(240, 22, '选择关卡', {
         fontFamily: 'sans-serif',
