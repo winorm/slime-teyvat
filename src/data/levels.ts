@@ -28,7 +28,14 @@ export type GoalDef = {
   y: number
   kind: GoalKind
   grants?: ElementKey
-  afterCage?: boolean
+  after?: 'cage' | 'statue'
+  prompt: string
+}
+
+export type StatueDef = {
+  x: number
+  y: number
+  grants: ElementKey
   prompt: string
 }
 
@@ -44,6 +51,24 @@ export type DomeDef = {
   holeX: number      // 孔洞中心 x
   holeWidth: number  // 孔洞宽度
   thickness: number  // 穹顶壳厚
+}
+
+export type BgTheme = 'beach' | 'field' | 'church' | 'sky' | 'tower'
+
+export type ThemeColor = {
+  ground: number
+  oneWay: number
+  crumble: number
+  hazard: number
+}
+
+// 每个主题的地形配色：地面 / 单向平台 / 碎裂平台 / 危险物
+export const THEME_COLORS: Record<BgTheme, ThemeColor> = {
+  beach: { ground: 0xc2a877, oneWay: 0xd6c194, crumble: 0xa97f57, hazard: 0xb03a3a },
+  field: { ground: 0x6b5836, oneWay: 0x8a7346, crumble: 0xa4583a, hazard: 0xb03a3a },
+  church: { ground: 0x5f6478, oneWay: 0x7d8398, crumble: 0x9a6a52, hazard: 0xb03a3a },
+  sky: { ground: 0x55607e, oneWay: 0x707d9c, crumble: 0x8a5a6a, hazard: 0x44608f },
+  tower: { ground: 0x39405a, oneWay: 0x4c5470, crumble: 0x7a5648, hazard: 0xb03a3a },
 }
 
 export type LevelDef = {
@@ -67,6 +92,9 @@ export type LevelDef = {
   dome?: DomeDef
   cage?: CageDef
   music?: string
+  bg?: BgTheme
+  windmill?: { x: number; y: number }
+  statue?: StatueDef
   chase?: boolean
   hints: HintDef[]
 }
@@ -112,7 +140,9 @@ export const LEVELS: LevelDef[] = [
     height: 270,
     startElement: 'none',
     spawn: { x: 40, y: 233 },
-    goal: { x: 1330, y: 80, kind: 'statue', grants: 'wind',prompt: '触摸', },
+    bg: 'beach',
+    goal: { x: 1230, y: 112, kind: 'chest', prompt: '打开', after: 'statue' },
+    statue: { x: 1330, y: 80, grants: 'wind', prompt: '触摸' },
     platforms: [
       { x: 150, y: 258, width: 300, height: 24 },
       { x: 495, y: 258, width: 250, height: 24 },
@@ -131,8 +161,8 @@ export const LEVELS: LevelDef[] = [
     hazards: [],
     monuments: [],
     hints: [
-      { x: 60, y: 215, text: '← → 移动' },
-      { x: 260, y: 205, text: '按空格可跳跃' },
+      { x: 60, y: 200, text: '← → 移动' },
+      { x: 260, y: 200, text: '按空格可跳跃' },
     ],
   },
 
@@ -145,6 +175,8 @@ export const LEVELS: LevelDef[] = [
     height: 540,
     startElement: 'wind',
     spawn: { x: 60, y: 467 },
+    bg: 'field',
+    windmill: { x: 200, y: 480 },
     goal: { x: 1600, y: 466, kind: 'chest',prompt: '打开',},
     platforms: [
       { x: 200, y: 510, width: 400, height: 60 },
@@ -175,6 +207,7 @@ export const LEVELS: LevelDef[] = [
     height: 540,
     startElement: 'wind',
     spawn: { x: 260, y: 467 },
+    bg: 'church',
     goal: { x: 1650, y: 376, kind: 'chest',prompt: '打开', },
     platforms: [
       { x: 70, y: 465, width: 140, height: 150 },
@@ -212,6 +245,7 @@ export const LEVELS: LevelDef[] = [
     height: 540,
     startElement: 'wind',
     spawn: { x: 60, y: 377 },
+    bg: 'sky',
     goal: { x: 2520, y: 466, kind: 'chest',prompt: '打开', },
     platforms: [
       { x: 200, y: 465, width: 400, height: 150 },
@@ -249,7 +283,8 @@ export const LEVELS: LevelDef[] = [
     height: 1600,
     startElement: 'wind',
     spawn: { x: 60, y: 1547 },
-    goal: { x: 240, y: 306, kind: 'chest', prompt: '打开', afterCage: true },
+    bg: 'tower',
+    goal: { x: 240, y: 306, kind: 'chest', prompt: '打开', after: 'cage' },
     platforms: [
       // 一层：塔底地面
       { x: 240, y: 1580, width: 480, height: 40 },
@@ -368,15 +403,47 @@ export const LEVELS: LevelDef[] = [
     music: 'music-tower',
     cage: { x: 400, y: 300, prompt: '开启' },
     hints: [
-      { x: 46, y: 1300, text: '第一层' },
+      { x: 46, y: 1310, text: '第一层' },
       { x: 46, y: 995, text: '第二层' },
-      { x: 46, y: 685, text: '第三层' },
-      { x: 46, y: 375, text: '第四层' },
-      { x: 46, y: 70, text: '塔顶' },
+      { x: 46, y: 690, text: '第三层' },
+      { x: 46, y: 380, text: '第四层' },
+      { x: 210, y: 260, text: '塔顶' },
       { x: 300, y: 1500, text: '按 F 点亮方碑' },
       { x: 240, y: 1150, text: '两座方碑都要点亮' },
-      { x: 330, y: 900, text: '墙上有一张纸' },
+      { x: 400, y: 920, text: '墙上有一张纸' },
       { x: 400, y: 618, text: '墙上有一张纸' },
+    ],
+  },
+
+  {
+    name: '第六关 · 岩之国度',
+    intro:
+      '这里就是风神提到的璃月吧。\n狄花洲上的芦苇茂盛，远处就是望舒客栈。\n天快黑了，我先上去休息一晚。',
+
+    width: 1200,
+    height: 270,
+    startElement: 'wind',
+    spawn: { x: 60, y: 233 },
+    bg: 'field',
+    statue: { x: 900, y: 200, grants: 'rock', prompt: '触摸' },
+    goal: { x: 860, y: 232, kind: 'chest', prompt: '打开', after: 'statue' },
+    platforms: [
+      // 平地占位，等岩之国度的正式关卡设计
+      { x: 600, y: 258, width: 1200, height: 24 },
+    ],
+    orbs: [],
+    gems: [
+      { x: 300, y: 180 },
+      { x: 620, y: 180 },
+      { x: 1080, y: 180 },
+    ],
+    blessings: [],
+    hazards: [],
+    monuments: [],
+    hints: [
+      { x: 240, y: 210, text: '前面有座神像' },
+      { x: 560, y: 160, text: '按 X 岩化：挡一次伤害' },
+      { x: 750, y: 205, text: '按 C 造一根石柱' },
     ],
   },
 

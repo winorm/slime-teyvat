@@ -1,6 +1,12 @@
 import Phaser from 'phaser'
 import { ELEMENTS, type ElementKey } from '../data/elements'
-import { LEVELS, type LevelDef, type DomeDef, type PlatformDef } from '../data/levels'
+import {
+  LEVELS,
+  THEME_COLORS,
+  type LevelDef,
+  type DomeDef,
+  type PlatformDef,
+} from '../data/levels'
 import { progress, unlockElement, cycleElement, recordClear, saveProgress } from '../state/progress'
 import { playMusic, playSfx, setLoop, stopAllLoops } from '../state/audio'
 import { queueAchievementToast } from '../state/achievements'
@@ -34,6 +40,7 @@ type MonumentRef = {
   lit: boolean
   hidden: boolean
   neighbors: string[]
+  aura: Phaser.GameObjects.Image[]
 }
 
 type DoorRef = {
@@ -81,6 +88,9 @@ export class GameScene extends Phaser.Scene {
 
   private bgFar!: Phaser.GameObjects.TileSprite
   private bgMid!: Phaser.GameObjects.TileSprite
+  private bgFarY = 0.2
+  private bgMidY = 0.45
+  private windmillBlades: Phaser.GameObjects.Image | null = null
 
   private blessings!: Phaser.Physics.Arcade.StaticGroup
   private staminaGlowOuter!: Phaser.GameObjects.Rectangle
@@ -91,6 +101,12 @@ export class GameScene extends Phaser.Scene {
 
   private hazards!: Phaser.Physics.Arcade.StaticGroup
   private dying = false
+  private armored = false
+  private armoredTimer = 0
+  private invulnTimer = 0
+  private rockPillar: Phaser.Physics.Arcade.Sprite | null = null
+  private armorKey!: Phaser.Input.Keyboard.Key
+  private rockKey!: Phaser.Input.Keyboard.Key
 
   private introShowing = false
   private introLayer: Phaser.GameObjects.Container | null = null
@@ -100,6 +116,8 @@ export class GameScene extends Phaser.Scene {
 
   private interactKey!: Phaser.Input.Keyboard.Key
   private goalSprite!: Phaser.Physics.Arcade.Sprite
+  private statueSprite: Phaser.GameObjects.Image | null = null
+  private statueUsed = false
   private promptBox!: Phaser.GameObjects.Rectangle
   private promptText!: Phaser.GameObjects.Text
 
@@ -120,6 +138,7 @@ export class GameScene extends Phaser.Scene {
   private goalReady = true
 
   private wingLeft!: Phaser.GameObjects.Image
+  private rockCrown!: Phaser.GameObjects.Image
   private wingRight!: Phaser.GameObjects.Image
   private wingOffset = 0
 
@@ -161,8 +180,38 @@ export class GameScene extends Phaser.Scene {
     this.platforms = this.physics.add.staticGroup()
     this.orbs = this.physics.add.staticGroup()
 
-    this.bgFar = this.add.tileSprite(0, 165, 480, 105, 'bg-far').setOrigin(0, 0).setScrollFactor(0)
-    this.bgMid = this.add.tileSprite(0, 190, 480, 80, 'bg-mid').setOrigin(0, 0).setScrollFactor(0)
+    const theme = this.level.bg ?? 'field'
+    const palette = THEME_COLORS[theme]
+
+    // 塔内的墙要跟相机 1:1 地往上走，每层的窗户才对得上楼层；户外的纵向几乎不动
+    this.bgFarY = theme === 'tower' ? 1 : 0.2
+    this.bgMidY = theme === 'tower' ? 1 : 0.45
+
+    this.bgFar = this.add
+      .tileSprite(0, 0, 480, 270, 'bg-' + theme + '-far')
+      .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setDepth(-30)
+
+    this.bgMid = this.add
+      .tileSprite(0, 0, 480, 270, 'bg-' + theme + '-mid')
+      .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setDepth(-20)
+
+    // 第二关的风车：塔身固定在世界坐标里，扇叶用另一张贴图负责转
+    this.windmillBlades = null
+
+    if (this.level.windmill) {
+      const windmill = this.level.windmill
+
+      this.add.image(windmill.x, windmill.y - 32, 'windmill').setDepth(-15)
+
+      this.windmillBlades = this.add
+        .image(windmill.x, windmill.y - 54, 'windmill-blades')
+        .setDepth(-14)
+        .setScale(0.8)
+    }
 
     this.gems = this.physics.add.staticGroup()
     this.blessings = this.physics.add.staticGroup()
@@ -179,7 +228,7 @@ export class GameScene extends Phaser.Scene {
     platformDefs.forEach((def) => {
       const platform = this.platforms.create(def.x, def.y, 'pixel') as Phaser.Physics.Arcade.Sprite
       platform.setDisplaySize(def.width, def.height)
-      platform.setTint(def.crumble ? 0x6b4a3a : def.oneWay ? 0x3a4a5e : 0x2c3e50)
+      platform.setTint(def.crumble ? palette.crumble : def.oneWay ? palette.oneWay : palette.ground)
       platform.refreshBody()
 
       if (def.oneWay) {
@@ -225,13 +274,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.level.hints.forEach((hint) => {
-      this.add
-        .text(hint.x, hint.y, hint.text, {
-          fontFamily: 'sans-serif',
-          fontSize: '14px',
-          color: '#8fa3b8',
-        })
-        .setOrigin(0.5)
+      this.makeHint(hint.x, hint.y, hint.text)
     })
 
     const savedGems = progress.levelGems[progress.levelIndex] ?? []
@@ -244,6 +287,7 @@ export class GameScene extends Phaser.Scene {
     const gem = this.gems.create(spot.x, spot.y, 'gem') as Phaser.Physics.Arcade.Sprite
       gem.setTint(0x6ec6ff)
       gem.setData('index', index)
+      gem.setDepth(5)
     })
 
     this.level.blessings.forEach((spot) => {
@@ -262,10 +306,22 @@ export class GameScene extends Phaser.Scene {
     this.goalSprite = this.physics.add.staticSprite(goal.x, goal.y, goal.kind)
     this.goalSprite.setTint(goalColor)
 
-    this.goalReady = !goal.afterCage
+    this.goalReady = goal.after === undefined
 
     if (!this.goalReady) {
       this.goalSprite.setVisible(false).setScale(0)
+    }
+
+    // 路边的神像：点了给元素，但不再是终点（真正过关的是随后出现的宝箱）
+    this.statueSprite = null
+    this.statueUsed = false
+
+    if (this.level.statue) {
+      const statue = this.level.statue
+
+      this.statueSprite = this.add
+        .image(statue.x, statue.y, 'statue')
+        .setTint(ELEMENTS[statue.grants].color)
     }
 
     this.slime = this.physics.add.sprite(this.level.spawn.x, this.level.spawn.y, 'slime-none')
@@ -277,6 +333,7 @@ export class GameScene extends Phaser.Scene {
 
     this.wingLeft = this.add.image(0, 0, 'wing')
     this.wingRight = this.add.image(0, 0, 'wing')
+    this.rockCrown = this.add.image(0, 0, 'rock-crown').setDepth(9).setVisible(false)
     
     this.windTrails = [0, 1, 2].map((index) =>
       this.add
@@ -345,10 +402,10 @@ export class GameScene extends Phaser.Scene {
 
     this.level.monuments.forEach((def) => {
       const pillar = this.monuments.create(def.x, def.y, 'monument') as Phaser.Physics.Arcade.Sprite
-      pillar.setTint(0x2a2a3a)
+      pillar.setTint(0x474d61)
 
       const icon = this.add.image(def.x, def.y - 16, 'icon-' + def.element).setScale(0.5)
-      icon.setTint(0x3a3a4e)
+      icon.setTint(0x7c8299)
 
       const hidden = def.after !== undefined
 
@@ -360,11 +417,11 @@ export class GameScene extends Phaser.Scene {
       const startLit = def.startLit === true
 
       if (startLit) {
-        pillar.setTint(0x9a8a6a)
+        pillar.setTint(0x1f7f9c)
         icon.setTint(ELEMENTS[def.element].color)
       }
 
-      this.monumentList.push({
+      const monument: MonumentRef = {
         pillar,
         icon,
         element: def.element,
@@ -373,7 +430,14 @@ export class GameScene extends Phaser.Scene {
         lit: startLit,
         hidden,
         neighbors: def.neighbors ?? [],
-      })
+        aura: [],
+      }
+
+      this.monumentList.push(monument)
+
+      if (startLit) {
+        this.makeMonumentAura(monument)
+      }
     })
 
     this.gates = this.physics.add.staticGroup()
@@ -399,7 +463,7 @@ export class GameScene extends Phaser.Scene {
     this.noteList = []
 
     ;(this.level.notes ?? []).forEach((def) => {
-      const sprite = this.add.image(def.x, def.y, 'paper')
+      const sprite = this.add.image(def.x, def.y, 'paper').setDepth(5)
 
       this.noteList.push({ sprite, prompt: def.prompt, text: def.text })
     })
@@ -411,8 +475,20 @@ export class GameScene extends Phaser.Scene {
 
     const upper = this.hazards.create(def.x, gapTop / 2, 'pixel') as Phaser.Physics.Arcade.Sprite
     upper.setDisplaySize(HAZARD.width, gapTop)
-    upper.setTint(0xb03a3a)
+    upper.setTint(palette.hazard)
     upper.refreshBody()
+
+    const upperSpark = this.add
+      .tileSprite(def.x, gapTop / 2, 10, gapTop, 'hazard-spark')
+      .setAlpha(0.3)
+
+    this.tweens.add({
+      targets: upperSpark,
+      alpha: 0.12,
+      duration: 420,
+      yoyo: true,
+      repeat: -1,
+    })
 
     const lower = this.hazards.create(
         def.x,
@@ -420,16 +496,40 @@ export class GameScene extends Phaser.Scene {
         'pixel'
       ) as Phaser.Physics.Arcade.Sprite
       lower.setDisplaySize(HAZARD.width, bottomHeight)
-      lower.setTint(0xb03a3a)
+      lower.setTint(palette.hazard)
       lower.refreshBody()
+
+      const lowerSpark = this.add
+        .tileSprite(def.x, gapBottom + bottomHeight / 2, 10, bottomHeight, 'hazard-spark')
+        .setAlpha(0.3)
+
+      this.tweens.add({
+        targets: lowerSpark,
+        alpha: 0.12,
+        duration: 420,
+        yoyo: true,
+        repeat: -1,
+      })
     })
 
-    this.physics.add.overlap(this.slime, this.hazards, () => {
-      this.die('hazard')
+    this.physics.add.overlap(this.slime, this.hazards, (_slime, hazard) => {
+      this.die('hazard', (hazard as Phaser.Physics.Arcade.Sprite).x)
     })
 
 
-    this.elementIcon = this.add.image(18, 18, 'icon-none').setScrollFactor(0)
+    // 左上角从上到下：设置齿轮、元素图标、体力条
+    const settingsIcon = this.add
+      .image(18, 16, 'gear')
+      .setScrollFactor(0)
+      .setTint(0x8fa3b8)
+      .setInteractive({ useHandCursor: true })
+
+    settingsIcon.on('pointerdown', () => {
+      this.scene.pause()
+      this.scene.launch('pause')
+    })
+
+    this.elementIcon = this.add.image(18, 40, 'icon-none').setScrollFactor(0)
 
         this.promptBox = this.add
       .rectangle(0, 0, 80, 18, 0x1e1e30)
@@ -448,19 +548,19 @@ export class GameScene extends Phaser.Scene {
       .setVisible(false)
 
     this.staminaGlowOuter = this.add
-      .rectangle(10, 38, 70, 16, 0x6b5210)
+      .rectangle(10, 60, 70, 16, 0x6b5210)
       .setOrigin(0, 0.5)
       .setScrollFactor(0)
       .setVisible(false)
 
     this.staminaGlow = this.add
-      .rectangle(10, 38, 68, 14, 0xffd54f)
+      .rectangle(10, 60, 68, 14, 0xffd54f)
       .setOrigin(0, 0.5)
       .setScrollFactor(0)
       .setVisible(false)
 
     this.staminaBar = this.add
-      .rectangle(10, 38, 60, 6, 0x74d0b0)
+      .rectangle(10, 60, 60, 6, 0x74d0b0)
       .setOrigin(0, 0.5)
       .setScrollFactor(0)
     
@@ -471,19 +571,18 @@ export class GameScene extends Phaser.Scene {
       this.add.image(gemStartX + index * 18, 18, 'gem').setScrollFactor(0).setTint(0x33333f)
     )
 
-    this.add
-      .text(10, 56, 'Esc  设置', {
-        fontFamily: 'sans-serif',
-        fontSize: '12px',
-        color: '#6a7a8e',
-      })
-      .setScrollFactor(0)
-
     this.cursors = this.input.keyboard!.createCursorKeys()
     this.restartKey = this.input.keyboard!.addKey('R')
     this.prevKey = this.input.keyboard!.addKey('Q')
     this.nextKey = this.input.keyboard!.addKey('E')
     this.interactKey = this.input.keyboard!.addKey('F')
+    this.armorKey = this.input.keyboard!.addKey('X')
+    this.rockKey = this.input.keyboard!.addKey('C')
+
+    this.armored = false
+    this.armoredTimer = 0
+    this.invulnTimer = 0
+    this.rockPillar = null
 
     progress.current = this.level.startElement
     this.applyElement(this.level.startElement)
@@ -495,13 +594,13 @@ export class GameScene extends Phaser.Scene {
     if (this.level.chase) {
       this.chase = this.physics.add.image(-40, this.level.height / 2, 'pixel')
       this.chase.setDisplaySize(60, this.level.height)
-      this.chase.setTint(0x8a2b2b)
+      this.chase.setTint(palette.crumble)
 
       const chaseBody = this.chase.body as Phaser.Physics.Arcade.Body
       chaseBody.setAllowGravity(false)
 
       this.physics.add.overlap(this.slime, this.chase, () => {
-        this.die('crush')
+        this.die('crush', this.chase.x)
       })
     }
     this.input.keyboard!.on('keydown-ESC', () => {
@@ -513,6 +612,27 @@ export class GameScene extends Phaser.Scene {
       stopAllLoops()
     })
     
+  }
+
+  // 关卡提示统一长这样：一块深色底 + 一行浅字，和交互提示、独白是同一套配色
+  private makeHint(x: number, y: number, text: string) {
+    const label = this.add
+      .text(x, y, text, {
+        fontFamily: 'sans-serif',
+        fontSize: '12px',
+        color: '#a8b6c8',
+      })
+      .setOrigin(0.5)
+      .setDepth(4)
+
+    // 底框按文字实测宽度来，不会出现空边或者字被切掉
+    const panel = this.add
+      .rectangle(x, y, Math.max(48, label.width + 16), 20, 0x14181f)
+      .setStrokeStyle(1, 0x3a4a5e)
+      .setAlpha(0.82)
+      .setDepth(3)
+
+    return { panel, label }
   }
 
   private domeY(dome: DomeDef, x: number) {
@@ -555,12 +675,16 @@ export class GameScene extends Phaser.Scene {
   private applyElement(key: ElementKey) {
     const element = ELEMENTS[key]
 
+    // 换元素会退出岩化
+    this.armored = false
+    this.armoredTimer = 0
+
     this.wingLeft.setTint(element.color)
     this.wingRight.setTint(element.color)
     this.element = key
     this.jumpPower = element.jump
     this.slimeArt.setTexture('slime-' + key)
-    this.eyes.forEach((eye) => eye.setTint(element.eyeColor))
+    this.refreshEyeTint()
     this.refreshHud()
   }
 
@@ -583,17 +707,6 @@ export class GameScene extends Phaser.Scene {
       this.goalSprite.setTexture('chest-open')
     }
 
-    const granted = this.level.goal.grants
-
-    if (this.level.goal.kind === 'statue' && granted) {
-      this.playStatueScene(granted)
-      return
-    }
-
-    if (this.level.goal.kind === 'chest') {
-      this.goalSprite.setTexture('chest-open')
-    }
-
     this.time.delayedCall(900, () => {
       this.scene.start('result')
     })
@@ -602,9 +715,12 @@ export class GameScene extends Phaser.Scene {
   private playStatueScene(granted: ElementKey) {
     unlockElement(granted)
 
+    // 演出以神像为中心：没有独立神像时（旧数据）退回用终点
+    const source = this.statueSprite ?? this.goalSprite
+
     this.cameras.main.stopFollow()
     this.cameras.main.pan(
-      (this.slime.x + this.goalSprite.x) / 2,
+      (this.slime.x + source.x) / 2,
       this.slime.y - 30,
       600,
       'Sine.easeInOut'
@@ -612,7 +728,7 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.zoomTo(1.8, 600, 'Sine.easeInOut')
 
     const orb = this.add
-      .image(this.goalSprite.x, this.goalSprite.y - 46, 'icon-' + granted)
+      .image(source.x, source.y - 46, 'icon-' + granted)
       .setTint(ELEMENTS[granted].color)
       .setDepth(30)
       .setScale(0)
@@ -658,6 +774,19 @@ export class GameScene extends Phaser.Scene {
       onComplete: () => {
         flash.destroy()
 
+        // 演出结束，镜头恢复到正常跟随和 1 倍缩放
+        this.cameras.main.zoomTo(1, 300)
+        this.cameras.main.startFollow(this.slime, true, 0.12, 0.12)
+
+        // 神像不是终点：演出结束后，如果这一关的宝箱在等神像，就把宝箱放出来
+        if (this.level.goal.after === 'statue') {
+          this.time.delayedCall(600, () => {
+            this.revealGoal()
+          })
+
+          return
+        }
+
         this.time.delayedCall(400, () => {
           this.scene.start('result')
         })
@@ -665,20 +794,93 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
+  // 眼睛颜色：平时用元素的眼珠色，岩化时换成亮金，保证在深色身体上也看得清
+  private refreshEyeTint() {
+    this.eyes.forEach((eye) => eye.setTint(ELEMENTS[this.element].eyeColor))
+  }
+
+  // 岩化：换成结晶态，能挡一次造物伤害，4 秒后自动解除
+  private setArmored(on: boolean) {
+    if (this.armored === on) {
+      return
+    }
+
+    this.armored = on
+    this.armoredTimer = on ? 4 : 0
+    this.slimeArt.setTexture(on ? 'slime-rock-armored' : 'slime-' + this.element)
+    this.refreshEyeTint()
+
+    playSfx(this, 'sfx-interact', 0.35)
+  }
+
+  // 岩造物：在身前立一根高石柱，可以踩着往上跳，6 秒后消失
+  private spawnRockPillar() {
+    this.rockPillar?.destroy()
+
+    const x = this.slime.x + (this.slime.flipX ? -30 : 30)
+    const y = this.slime.y + 10
+    const pillar = this.platforms.create(x, y, 'pixel') as Phaser.Physics.Arcade.Sprite
+
+    pillar.setDisplaySize(20, 72)
+    pillar.setTint(THEME_COLORS[this.level.bg ?? 'field'].ground)
+    pillar.refreshBody()
+
+    this.rockPillar = pillar
+    playSfx(this, 'sfx-gem', 0.4)
+
+    this.time.delayedCall(6000, () => {
+      if (this.rockPillar === pillar) {
+        this.rockPillar = null
+      }
+
+      pillar.destroy()
+    })
+  }
+
   private syncVisual(sx: number, sy: number) {
-    this.slimeArt.setPosition(this.slime.x, this.slime.y)
+    // 岩化时整体放大一圈，像个石墩。放大是绕贴图中心做的，所以贴图要往上提一点，
+    // 脚底才不会陷进地面
+    const grow = this.armored ? 1.15 : 1
+    const scaleX = sx * grow
+    const scaleY = sy * grow
+    const growLift = 14.5 * (grow - 1)
+
+    this.slimeArt.setPosition(this.slime.x, this.slime.y - growLift)
     this.slimeArt.setFlipX(this.slime.flipX)
-    this.slimeArt.setScale(sx, sy)
+    this.slimeArt.setScale(scaleX, scaleY)
 
     const look = this.slime.flipX ? -2 : 2
 
-    this.eyes[0].setPosition(this.slime.x + (-5 + look) * sx, this.slime.y - 2 * sy)
-    this.eyes[1].setPosition(this.slime.x + (5 + look) * sx, this.slime.y - 2 * sy)
+    this.eyes[0].setPosition(
+      this.slime.x + (-5 + look) * scaleX,
+      this.slime.y - growLift - 2 * scaleY
+    )
+    this.eyes[1].setPosition(
+      this.slime.x + (5 + look) * scaleX,
+      this.slime.y - growLift - 2 * scaleY
+    )
     this.eyes.forEach((eye) => eye.setScale(1, this.blinkScale))
+
     const hasWing = ELEMENTS[this.element].wing
 
     this.wingLeft.setVisible(hasWing)
     this.wingRight.setVisible(hasWing)
+
+    // 岩史莱姆的岩脊：单独一张贴图挂在头顶，所以能明显高过身体
+    const isRock = this.element === 'rock'
+
+    this.rockCrown.setVisible(isRock)
+
+    if (isRock) {
+      // 岩化态的岩脊贴图更高（32x36），贴图里身体圆心离贴图中心也更远，所以少提上来一点
+      const lift = this.armored ? 11 : 8
+
+      this.rockCrown.setTexture(this.armored ? 'rock-crown-armored' : 'rock-crown')
+      // 岩脊跟着本体一起放大、形变，所以任何姿势下底座都压在本体顶部
+      this.rockCrown.setScale(scaleX, scaleY)
+      this.rockCrown.setFlipX(this.slime.flipX)
+      this.rockCrown.setPosition(this.slime.x, this.slime.y - growLift - lift * scaleY)
+    }
 
     if (hasWing) {
       this.wingLeft.setScale(0.75)
@@ -766,8 +968,22 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
-  private die(cause: string) {
-    if (this.dying) {
+  private die(cause: string, sourceX?: number) {
+    if (this.dying || this.invulnTimer > 0) {
+      return
+    }
+
+    // 岩化能挡一次"造物伤害"（红闸门、崩塌的墙），摔落不算
+    if (this.armored && cause !== 'fall') {
+      this.setArmored(false)
+      this.invulnTimer = 1.2
+      this.showMessage('岩壳替你挡下了一击')
+
+      if (sourceX !== undefined) {
+        this.slime.setPosition(this.slime.x > sourceX ? sourceX + 44 : sourceX - 44, this.slime.y)
+        this.slime.setVelocity(0, 0)
+      }
+
       return
     }
 
@@ -810,9 +1026,10 @@ export class GameScene extends Phaser.Scene {
 
   private lightMonument(monument: MonumentRef) {
     monument.lit = true
-    monument.pillar.setTint(0x9a8a6a)
+    monument.pillar.setTint(0x1f7f9c)
     monument.icon.setTint(ELEMENTS[monument.element].color)
 
+    this.makeMonumentAura(monument)
     this.revealFollowers(monument.id)
   }
 
@@ -822,8 +1039,61 @@ export class GameScene extends Phaser.Scene {
 
   private extinguishMonument(monument: MonumentRef) {
     monument.lit = false
-    monument.pillar.setTint(0x2a2a3a)
-    monument.icon.setTint(0x3a3a4e)
+    monument.pillar.setTint(0x474d61)
+    monument.icon.setTint(0x7c8299)
+
+    this.clearMonumentAura(monument)
+  }
+
+  // 点亮后的竖线光圈：几条元素色的细竖线紧贴方碑轮廓，持续明暗呼吸
+  private makeMonumentAura(monument: MonumentRef) {
+    if (monument.aura.length > 0) {
+      return
+    }
+
+    const color = ELEMENTS[monument.element].color
+    const x = monument.pillar.x
+    const y = monument.pillar.y
+
+    // [横向偏移, 纵向偏移, 线高]
+    const lines: Array<[number, number, number]> = [
+      [-17, -4, 16],
+      [-17, -20, 10],
+      [17, -4, 16],
+      [17, -20, 10],
+      [-11, -30, 6],
+      [11, -30, 6],
+      [0, -38, 5],
+    ]
+
+    lines.forEach(([dx, dy, height], index) => {
+      const line = this.add
+        .image(x + dx, y + dy, 'pixel')
+        .setDisplaySize(2, height)
+        .setTint(color)
+        .setDepth(4)
+        .setAlpha(0.45)
+
+      this.tweens.add({
+        targets: line,
+        alpha: 0.95,
+        duration: 900,
+        yoyo: true,
+        repeat: -1,
+        delay: index * 90,
+      })
+
+      monument.aura.push(line)
+    })
+  }
+
+  private clearMonumentAura(monument: MonumentRef) {
+    monument.aura.forEach((line) => {
+      this.tweens.killTweensOf(line)
+      line.destroy()
+    })
+
+    monument.aura = []
   }
 
   private revealFollowers(id: string) {
@@ -1164,7 +1434,7 @@ export class GameScene extends Phaser.Scene {
     this.physics.world.resume()
     this.cageScene = false
 
-    if (this.level.goal.afterCage) {
+    if (this.level.goal.after === 'cage') {
       this.time.delayedCall(1200, () => {
         this.revealGoal()
       })
@@ -1225,8 +1495,19 @@ export class GameScene extends Phaser.Scene {
 
     const camera = this.cameras.main
 
-    this.bgFar.setTilePosition(Math.floor(camera.scrollX * 0.15), 0)
-    this.bgMid.setTilePosition(Math.floor(camera.scrollX * 0.35), 0)
+    this.bgFar.setTilePosition(
+      Math.floor(camera.scrollX * 0.15),
+      Math.floor(camera.scrollY * this.bgFarY)
+    )
+    this.bgMid.setTilePosition(
+      Math.floor(camera.scrollX * 0.35),
+      Math.floor(camera.scrollY * this.bgMidY)
+    )
+
+    if (this.windmillBlades) {
+      // 正角度在屏幕坐标里就是顺时针
+      this.windmillBlades.rotation += (delta / 1000) * 1.2
+    }
 
     const body = this.slime.body as Phaser.Physics.Arcade.Body
     const speed = ELEMENTS[this.element].speed
@@ -1245,6 +1526,26 @@ export class GameScene extends Phaser.Scene {
     if (Phaser.Input.Keyboard.JustDown(this.nextKey)) {
       cycleElement(1)
       this.applyElement(progress.current)
+    }
+
+    if (this.invulnTimer > 0) {
+      this.invulnTimer -= dt
+    }
+
+    if (this.armored) {
+      this.armoredTimer -= dt
+
+      if (this.armoredTimer <= 0) {
+        this.setArmored(false)
+      }
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.armorKey) && this.element === 'rock') {
+      this.setArmored(!this.armored)
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.rockKey) && this.element === 'rock') {
+      this.spawnRockPillar()
     }
 
     if (this.finished) {
@@ -1350,6 +1651,24 @@ export class GameScene extends Phaser.Scene {
       if (cageDistance < 56) {
         prompt = '[F] ' + this.level.cage.prompt
         action = () => this.playCageScene()
+      }
+    }
+
+    if (!prompt && this.level.statue && this.statueSprite && !this.statueUsed) {
+      const statue = this.level.statue
+      const statueDistance = Phaser.Math.Distance.Between(
+        this.slime.x,
+        this.slime.y,
+        statue.x,
+        statue.y
+      )
+
+      if (statueDistance < 64) {
+        prompt = '[F] ' + statue.prompt
+        action = () => {
+          this.statueUsed = true
+          this.playStatueScene(statue.grants)
+        }
       }
     }
 
@@ -1496,7 +1815,7 @@ export class GameScene extends Phaser.Scene {
       }
     } else {
       const moving = Math.abs(body.velocity.x) > 10
-      const amount = moving ? 0.05 : 0.03
+      const amount = (moving ? 0.05 : 0.03) * element.squash
       const period = moving ? 120 : 340
       const wave = Math.sin((time / period) * Math.PI * 2)
 
