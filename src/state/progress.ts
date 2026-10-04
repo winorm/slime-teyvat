@@ -208,10 +208,24 @@ export function unlockElement(key: ElementKey) {
   saveProgress()
 }
 
-export function cycleElement(step: number) {
-  const list = progress.unlocked
+export function cycleElement(step: number, allowed?: ElementKey[]) {
+  // 老存档、或者从选关直接跳进来时，当前元素可能不在解锁表里：先补进去。
+  // 不补的话 indexOf 是 -1，转来转去只会停在表里第一个元素上，看着像「之前的元素全没了」
+  if (!progress.unlocked.includes(progress.current)) {
+    unlockElement(progress.current)
+  }
+
+  // allowed 是这一关实际能用的元素（比如神像还没摸到，那个元素就先被锁着）
+  const list = allowed
+    ? progress.unlocked.filter((key) => allowed.includes(key))
+    : progress.unlocked
+
+  if (list.length === 0) {
+    return
+  }
+
   const index = list.indexOf(progress.current)
-  const next = (index + step + list.length) % list.length
+  const next = index < 0 ? 0 : (index + step + list.length) % list.length
 
   progress.current = list[next]
 }

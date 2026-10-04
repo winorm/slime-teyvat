@@ -30,12 +30,14 @@ export class MenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
 
-    this.makeSlime(200, 126, 'none')
-    this.makeSlime(280, 126, 'wind')
+    // 三种形态并排：普通 → 风 → 岩（岩脊要先画，它在身体背后）
+    this.makeSlime(160, 126, 'none')
+    this.makeSlime(240, 126, 'wind')
+    this.makeSlime(320, 126, 'rock')
 
     MENU_OPTIONS.forEach((text, index) => {
       const label = this.add
-        .text(240, 184 + index * 28, text, {
+        .text(240, 178 + index * 28, text, {
           fontFamily: 'sans-serif',
           fontSize: '18px',
           color: '#ffffff',
@@ -60,7 +62,7 @@ export class MenuScene extends Phaser.Scene {
     this.cursorIcon = this.add.image(0, 0, 'gem').setTint(0xffd54f)
 
     this.add
-      .text(240, 250, '↑ ↓ 选择 · 空格 确认', {
+      .text(240, 258, '↑ ↓ 选择 · 空格 确认', {
         fontFamily: 'sans-serif',
         fontSize: '12px',
         color: '#8fa3b8',
@@ -116,6 +118,11 @@ export class MenuScene extends Phaser.Scene {
   private makeSlime(x: number, y: number, key: ElementKey) {
     const element = ELEMENTS[key]
 
+    // 岩脊挂在人物背后，所以先画；位移和关卡里一样是 -8
+    if (key === 'rock') {
+      this.add.image(x, y - 8, 'rock-crown')
+    }
+
     this.add.image(x, y, 'slime-' + key)
 
     if (element.wing) {
@@ -135,7 +142,10 @@ export class MenuScene extends Phaser.Scene {
         .setTint(element.color)
     }
 
-    this.add.image(x - 5, y - 2, 'eye').setTint(element.eyeColor)
-    this.add.image(x + 5, y - 2, 'eye').setTint(element.eyeColor)
+    // 带黑描边的眼睛只有岩史莱姆用
+    const eyeKey = key === 'rock' ? 'eye-rock' : 'eye'
+
+    this.add.image(x - 5, y - 2, eyeKey).setTint(element.eyeColor)
+    this.add.image(x + 5, y - 2, eyeKey).setTint(element.eyeColor)
   }
 }

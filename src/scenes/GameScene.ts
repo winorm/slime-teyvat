@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { ELEMENTS, type ElementKey } from '../data/elements'
+import { ELEMENTS, ELEMENT_ORDER, type ElementKey } from '../data/elements'
 import {
   LEVELS,
   THEME_COLORS,
@@ -20,6 +20,40 @@ const HOVER = {
 
 const STAMINA_MAX = 100
 
+// 技能持续时间（秒）
+const ARMOR_TIME = 10
+const PILLAR_TIME = 30
+
+// 岩化的冷却：技能结束后要等这么久才能再按 X（时间到、被打碎、换元素都算结束）
+const ARMOR_COOLDOWN = 8
+
+// 岩化时的跳跃加成：速度 ×1.12，实际跳高从 48 涨到约 60 像素
+const ARMOR_JUMP = 1.12
+
+// 压力板：压到底要多久（秒），以及压下去多深（像素）
+const PLATE_PRESS_TIME = 0.45
+const PLATE_SINK = 3
+
+// 岩柱：贴图多大、从落点上方多高开始掉、蓄力多久、落点最远能低于脚底多少
+const PILLAR_SIZE = { width: 20, height: 72 }
+const PILLAR_DROP = 140
+const PILLAR_REACH = 170
+// 按住多久算「长按」（秒）：短按直接放，长按进预览、再点一次 C 才落柱
+const PILLAR_HOLD = 0.22
+// 依次尝试的生成距离：前面放不下就往人身边挪
+const PILLAR_OFFSETS = [30, 22, 14, 6, 0]
+
+type PillarTarget = {
+  x: number
+  landTop: number
+  spawnBottom: number
+  valid: boolean
+}
+
+// 岩化时本体放大的倍数。放大后同样的 sy 会摆出更大的位移，所以走动形变的幅度
+// 要按这个倍数收回来，岩化态和普通态的晃动幅度、节奏才是一样的
+const ARMOR_GROW = 1.15
+
 const HAZARD = {
   width: 24,
   gapHeight: 70,
@@ -33,6 +67,7 @@ const CHASE = {
 
 type MonumentRef = {
   pillar: Phaser.Physics.Arcade.Sprite
+  head: Phaser.GameObjects.Image
   icon: Phaser.GameObjects.Image
   element: ElementKey
   id: string
@@ -57,6 +92,22 @@ type NoteRef = {
   text: string
 }
 
+type PlateRef = {
+  sprite: Phaser.Physics.Arcade.Sprite
+  id: string
+  baseY: number
+  press: number       // 0 = 完全抬起，1 = 压到底
+  pressed: boolean
+}
+
+type LauncherRef = {
+  sprite: Phaser.GameObjects.Image
+  dir: 'down' | 'left' | 'right'
+  interval: number
+  speed: number
+  timer: number
+}
+
 export class GameScene extends Phaser.Scene {
   private level!: LevelDef
   private slime!: Phaser.Physics.Arcade.Sprite
@@ -72,7 +123,11 @@ export class GameScene extends Phaser.Scene {
   private prevKey!: Phaser.Input.Keyboard.Key
   private nextKey!: Phaser.Input.Keyboard.Key
   private staminaBar!: Phaser.GameObjects.Rectangle
-  private elementIcon!: Phaser.GameObjects.Image
+  private elementIcons: Phaser.GameObjects.Image[] = []
+  private elementMarks: Phaser.GameObjects.Rectangle[] = []
+  private elementHint!: Phaser.GameObjects.Text
+  private armorBarBack!: Phaser.GameObjects.Rectangle
+  private armorBar!: Phaser.GameObjects.Rectangle
 
   private slimeArt!: Phaser.GameObjects.Image
   private eyes: Phaser.GameObjects.Image[] = []
@@ -103,8 +158,14 @@ export class GameScene extends Phaser.Scene {
   private dying = false
   private armored = false
   private armoredTimer = 0
+  private armorCooldown = 0
   private invulnTimer = 0
   private rockPillar: Phaser.Physics.Arcade.Sprite | null = null
+  private pillarGhost: Phaser.GameObjects.Image | null = null
+  private pillarMark: Phaser.GameObjects.Rectangle | null = null
+  private pillarCharging = false
+  private pillarPressed = false
+  private pillarHold = 0
   private armorKey!: Phaser.Input.Keyboard.Key
   private rockKey!: Phaser.Input.Keyboard.Key
 
@@ -118,6 +179,9 @@ export class GameScene extends Phaser.Scene {
   private goalSprite!: Phaser.Physics.Arcade.Sprite
   private statueSprite: Phaser.GameObjects.Image | null = null
   private statueUsed = false
+  private lockedElement: ElementKey | null = null
+  // 神像演出期间把操作全锁住：移动、跳跃、技能、交互
+  private inputLocked = false
   private promptBox!: Phaser.GameObjects.Rectangle
   private promptText!: Phaser.GameObjects.Text
 
@@ -126,6 +190,10 @@ export class GameScene extends Phaser.Scene {
 
   private gates!: Phaser.Physics.Arcade.StaticGroup
   private doorList: DoorRef[] = []
+  private plates!: Phaser.Physics.Arcade.StaticGroup
+  private plateList: PlateRef[] = []
+  private spikes!: Phaser.Physics.Arcade.Group
+  private launchers: LauncherRef[] = []
   private noteList: NoteRef[] = []
   private paperShowing = false
   private paperLayer: Phaser.GameObjects.Container | null = null
@@ -139,6 +207,7 @@ export class GameScene extends Phaser.Scene {
 
   private wingLeft!: Phaser.GameObjects.Image
   private rockCrown!: Phaser.GameObjects.Image
+  private armorPlate!: Phaser.GameObjects.Image
   private wingRight!: Phaser.GameObjects.Image
   private wingOffset = 0
 
@@ -174,6 +243,15 @@ export class GameScene extends Phaser.Scene {
     this.cageScene = false
     this.cageOpened = false
 
+    // 场景实例是复用的：上一局留下的「锁操作」和暂停的物理世界必须清干净，
+    // 不然开完箱（win 里会锁上）之后再进任何一关，人都会原地动不了
+    this.inputLocked = false
+    this.pillarPressed = false
+    this.pillarCharging = false
+    this.pillarGhost = null
+    this.pillarMark = null
+    this.physics.world.resume()
+
     this.cameras.main.setZoom(1)
 
     this.chased = false
@@ -183,9 +261,13 @@ export class GameScene extends Phaser.Scene {
     const theme = this.level.bg ?? 'field'
     const palette = THEME_COLORS[theme]
 
-    // 塔内的墙要跟相机 1:1 地往上走，每层的窗户才对得上楼层；户外的纵向几乎不动
-    this.bgFarY = theme === 'tower' ? 1 : 0.2
-    this.bgMidY = theme === 'tower' ? 1 : 0.45
+    // 纵向视差：户外的天空/远山/湖面/芦苇是「远景」，纵向一律不跟着相机走，
+    // 所以跳起来的时候整片背景不会上下滑动（横向的视差保留）。
+    // 塔内的墙反过来，要跟世界 1:1 地往上走，每层的窗户才对得上楼层
+    const worldLocked = theme === 'tower'
+
+    this.bgFarY = worldLocked ? 1 : 0
+    this.bgMidY = worldLocked ? 1 : 0
 
     this.bgFar = this.add
       .tileSprite(0, 0, 480, 270, 'bg-' + theme + '-far')
@@ -213,11 +295,51 @@ export class GameScene extends Phaser.Scene {
         .setScale(0.8)
     }
 
+    // 望舒客栈：背景里的地标，贴着地面立着
+    if (this.level.inn) {
+      this.add.image(this.level.inn.x, this.level.inn.y - 80, 'inn').setDepth(-15)
+    }
+
     this.gems = this.physics.add.staticGroup()
     this.blessings = this.physics.add.staticGroup()
     this.hazards = this.physics.add.staticGroup()
 
     this.monuments = this.physics.add.staticGroup()
+
+    this.plates = this.physics.add.staticGroup()
+    this.plateList = []
+
+    ;(this.level.plates ?? []).forEach((def) => {
+      const plate = this.plates.create(def.x, def.y, 'plate') as Phaser.Physics.Arcade.Sprite
+
+      plate.setDisplaySize(def.width ?? 28, 8)
+      plate.setTint(0x8a7f6a)
+      plate.refreshBody()
+
+      this.plateList.push({ sprite: plate, id: def.id, baseY: def.y, press: 0, pressed: false })
+    })
+
+    // 岩刺造物：贴在建筑上的发射器 + 它吐出来的岩刺。
+    // 注意：和史莱姆的判定要等史莱姆创建之后再注册（见下面 slime 那一段），
+    // 这里 this.slime 还不存在，注册了会变成一句空操作
+    this.spikes = this.physics.add.group({ allowGravity: false })
+    this.launchers = []
+
+    ;(this.level.launchers ?? []).forEach((def) => {
+      const dir = def.dir ?? 'down'
+      const sprite = this.add.image(def.x, def.y, 'spike-launcher').setDepth(4)
+
+      // 贴图是朝下的：朝左的口就把图转 90°，朝右的转 -90°
+      sprite.setAngle(dir === 'left' ? 90 : dir === 'right' ? -90 : 0)
+
+      this.launchers.push({
+        sprite,
+        dir,
+        interval: def.interval ?? 2,
+        speed: def.speed ?? 220,
+        timer: 0.8,
+      })
+    })
 
     const platformDefs = [...this.level.platforms]
 
@@ -334,6 +456,7 @@ export class GameScene extends Phaser.Scene {
     this.wingLeft = this.add.image(0, 0, 'wing')
     this.wingRight = this.add.image(0, 0, 'wing')
     this.rockCrown = this.add.image(0, 0, 'rock-crown').setDepth(9).setVisible(false)
+    this.armorPlate = this.add.image(0, 0, 'armor-plate').setDepth(9).setVisible(false)
     
     this.windTrails = [0, 1, 2].map((index) =>
       this.add
@@ -354,6 +477,18 @@ export class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, this.level.width, this.level.height + 200)
     this.cameras.main.setBounds(0, 0, this.level.width, this.level.height)
     this.cameras.main.startFollow(this.slime, true, 0.12, 0.12)
+
+    // 岩刺的判定：撞地形就碎，撞到史莱姆就按危险物算（岩化能挡、其它情况死亡结算）
+    this.physics.add.collider(this.spikes, this.platforms, (spike) => {
+      this.breakSpike(spike as Phaser.Physics.Arcade.Sprite)
+    })
+
+    this.physics.add.overlap(this.spikes, this.slime, (_slime, spike) => {
+      const shot = spike as Phaser.Physics.Arcade.Sprite
+
+      this.die('spike')
+      this.breakSpike(shot)
+    })
 
     this.physics.add.collider(this.slime, this.platforms, (_slime, platform) => {
       const sprite = platform as Phaser.Physics.Arcade.Sprite
@@ -402,7 +537,11 @@ export class GameScene extends Phaser.Scene {
 
     this.level.monuments.forEach((def) => {
       const pillar = this.monuments.create(def.x, def.y, 'monument') as Phaser.Physics.Arcade.Sprite
-      pillar.setTint(0x474d61)
+      // 底座是烤好的砖瓦色，没点亮时压暗一点，点亮就恢复本色
+      pillar.setTint(0x9a9a9a)
+
+      const head = this.add.image(def.x, def.y, 'monument-head')
+      head.setTint(0x3a3a46)
 
       const icon = this.add.image(def.x, def.y - 16, 'icon-' + def.element).setScale(0.5)
       icon.setTint(0x7c8299)
@@ -411,18 +550,21 @@ export class GameScene extends Phaser.Scene {
 
       if (hidden) {
         pillar.setVisible(false)
+        head.setVisible(false)
         icon.setVisible(false)
       }
 
       const startLit = def.startLit === true
 
       if (startLit) {
-        pillar.setTint(0x1f7f9c)
-        icon.setTint(ELEMENTS[def.element].color)
+        pillar.setTint(0xffffff)
+        head.setTint(ELEMENTS[def.element].color)
+        icon.setTint(0xffffff)
       }
 
       const monument: MonumentRef = {
         pillar,
+        head,
         icon,
         element: def.element,
         id: def.id ?? '',
@@ -459,6 +601,11 @@ export class GameScene extends Phaser.Scene {
     })
 
     this.physics.add.collider(this.slime, this.gates)
+
+    // 关着的门也挡岩刺（门开的时候 body.enable 被关掉，岩刺就能飞过去了）
+    this.physics.add.collider(this.spikes, this.gates, (spike) => {
+      this.breakSpike(spike as Phaser.Physics.Arcade.Sprite)
+    })
 
     this.noteList = []
 
@@ -512,8 +659,8 @@ export class GameScene extends Phaser.Scene {
       })
     })
 
-    this.physics.add.overlap(this.slime, this.hazards, (_slime, hazard) => {
-      this.die('hazard', (hazard as Phaser.Physics.Arcade.Sprite).x)
+    this.physics.add.overlap(this.slime, this.hazards, () => {
+      this.die('hazard')
     })
 
 
@@ -529,7 +676,27 @@ export class GameScene extends Phaser.Scene {
       this.scene.launch('pause')
     })
 
-    this.elementIcon = this.add.image(18, 40, 'icon-none').setScrollFactor(0)
+    // 元素图标一横排：先铺底框再放图标，否则底框会盖住图标
+    this.elementMarks = ELEMENT_ORDER.map((_key, index) =>
+      this.add
+        .rectangle(18 + index * 20, 40, 18, 18, 0x1e1e30, 0.9)
+        .setStrokeStyle(1, 0xffd54f)
+        .setScrollFactor(0)
+        .setVisible(false)
+    )
+
+    this.elementIcons = ELEMENT_ORDER.map((_key, index) =>
+      this.add.image(18 + index * 20, 40, 'icon-none').setScrollFactor(0).setVisible(false)
+    )
+
+    this.elementHint = this.add
+      .text(34, 40, 'Q / E 切换元素', {
+        fontFamily: 'sans-serif',
+        fontSize: '10px',
+        color: '#8fa3b8',
+      })
+      .setOrigin(0, 0.5)
+      .setScrollFactor(0)
 
         this.promptBox = this.add
       .rectangle(0, 0, 80, 18, 0x1e1e30)
@@ -563,7 +730,19 @@ export class GameScene extends Phaser.Scene {
       .rectangle(10, 60, 60, 6, 0x74d0b0)
       .setOrigin(0, 0.5)
       .setScrollFactor(0)
-    
+
+    this.armorBarBack = this.add
+      .rectangle(10, 51, 70, 5, 0x2a2118)
+      .setOrigin(0, 0.5)
+      .setScrollFactor(0)
+      .setVisible(false)
+
+    this.armorBar = this.add
+      .rectangle(10, 51, 70, 3, 0xd9a441)
+      .setOrigin(0, 0.5)
+      .setScrollFactor(0)
+      .setVisible(false)
+
     const gemTotal = this.level.gems.length
     const gemStartX = 480 - 20 - (gemTotal - 1) * 18
 
@@ -581,11 +760,21 @@ export class GameScene extends Phaser.Scene {
 
     this.armored = false
     this.armoredTimer = 0
+    this.armorCooldown = 0
     this.invulnTimer = 0
     this.rockPillar = null
 
-    progress.current = this.level.startElement
-    this.applyElement(this.level.startElement)
+    // 关卡自带的元素也要登记进解锁表：不然它不在表里，Q/E 一转就把它丢了
+    unlockElement(this.level.startElement)
+
+    // 本关神像授予的元素，在摸到神像之前先锁着：存档里解锁过也不算数，
+    // 只锁这一关，不动存档，别的关照样能用。锁的是本关自己出场的元素
+    this.lockedElement =
+      this.level.statue && this.level.statue.grants !== this.level.startElement
+        ? this.level.statue.grants
+        : null
+
+    this.applyElement(progress.current)
     this.refreshGemHud()
 
     this.showIntro(this.level.intro)
@@ -600,7 +789,7 @@ export class GameScene extends Phaser.Scene {
       chaseBody.setAllowGravity(false)
 
       this.physics.add.overlap(this.slime, this.chase, () => {
-        this.die('crush', this.chase.x)
+        this.die('crush')
       })
     }
     this.input.keyboard!.on('keydown-ESC', () => {
@@ -662,12 +851,62 @@ export class GameScene extends Phaser.Scene {
     return blocks
   }
 
-  private refreshHud() {
-    const element = ELEMENTS[this.element]
-    const iconKey = 'icon-' + this.element
+  // 这一关能用的元素：从第一关走到本关，途中真正会拿到的那些——
+  // 各关自带元素 + 前面各关神像授予的元素（本关神像要摸到才算），
+  // 最后再和存档里的解锁表取交集。所以哪怕存档里已经有岩元素，
+  // 回到第一关也切不出来，得按关卡顺序重新把神像摸一遍
+  private availableElements(): ElementKey[] {
+    const list: ElementKey[] = []
 
-    this.elementIcon.setTexture(this.textures.exists(iconKey) ? iconKey : 'icon-none')
-    this.elementIcon.setTint(element.color)
+    const add = (key: ElementKey) => {
+      if (!list.includes(key)) {
+        list.push(key)
+      }
+    }
+
+    LEVELS.forEach((level, index) => {
+      if (index > progress.levelIndex) {
+        return
+      }
+
+      add(level.startElement)
+
+      // 本关神像还没摸到就先不给
+      if (level.statue && !(index === progress.levelIndex && this.lockedElement !== null)) {
+        add(level.statue.grants)
+      }
+    })
+
+    return ELEMENT_ORDER.filter((key) => list.includes(key) && progress.unlocked.includes(key))
+  }
+
+  private refreshHud() {
+    const unlocked = this.availableElements()
+
+    unlocked.forEach((key, index) => {
+      const icon = this.elementIcons[index]
+      const active = key === this.element
+      const iconKey = 'icon-' + key
+
+      icon.setVisible(true)
+      icon.setPosition(18 + index * 20, 40)
+      icon.setTexture(this.textures.exists(iconKey) ? iconKey : 'icon-none')
+      icon.setTint(ELEMENTS[key].color)
+      icon.setAlpha(active ? 1 : 0.4)
+
+      this.elementMarks[index].setPosition(icon.x, icon.y).setVisible(active)
+    })
+
+    // 没解锁的位置全部收起来
+    for (let index = unlocked.length; index < this.elementIcons.length; index++) {
+      this.elementIcons[index].setVisible(false)
+      this.elementMarks[index].setVisible(false)
+    }
+
+    this.elementHint.setPosition(14 + unlocked.length * 20, 40)
+
+    const element = ELEMENTS[this.element]
+
     this.staminaBar.setVisible(element.canHover)
     this.staminaBar.setFillStyle(element.color)
   }
@@ -675,9 +914,11 @@ export class GameScene extends Phaser.Scene {
   private applyElement(key: ElementKey) {
     const element = ELEMENTS[key]
 
-    // 换元素会退出岩化
-    this.armored = false
-    this.armoredTimer = 0
+    // 换元素会退出岩化：走同一条收尾流程，所以也会进冷却（不能切走再切回来白嫖）
+    this.setArmored(false)
+    // 预览也一起收掉
+    this.pillarPressed = false
+    this.stopPillarPreview()
 
     this.wingLeft.setTint(element.color)
     this.wingRight.setTint(element.color)
@@ -699,6 +940,15 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.finished = true
+
+    // 开箱之后也锁住操作：物理世界暂停 + 清速度 + 收掉岩柱预览，
+    // 等 900 毫秒后结算界面接手，玩家不会带着惯性滑出去
+    this.inputLocked = true
+    this.physics.world.pause()
+    this.slime.setVelocity(0, 0)
+    this.pillarPressed = false
+    this.stopPillarPreview()
+
     recordClear(progress.levelIndex, this.collectedIndices)
     stopAllLoops()
     playSfx(this, 'sfx-win', 0.55)
@@ -714,6 +964,18 @@ export class GameScene extends Phaser.Scene {
 
   private playStatueScene(granted: ElementKey) {
     unlockElement(granted)
+
+    // 演出期间锁操作：物理世界暂停 + 清速度 + 收掉岩柱预览
+    this.inputLocked = true
+    this.physics.world.pause()
+    this.slime.setVelocity(0, 0)
+    this.pillarPressed = false
+    this.stopPillarPreview()
+
+    // 本关的锁解开了：元素图标那一排会多出一个，Q/E 也能切到它了
+    if (this.lockedElement === granted) {
+      this.lockedElement = null
+    }
 
     // 演出以神像为中心：没有独立神像时（旧数据）退回用终点
     const source = this.statueSprite ?? this.goalSprite
@@ -774,6 +1036,10 @@ export class GameScene extends Phaser.Scene {
       onComplete: () => {
         flash.destroy()
 
+        // 演出结束，解锁操作、恢复物理世界，再恢复镜头
+        this.inputLocked = false
+        this.physics.world.resume()
+
         // 演出结束，镜头恢复到正常跟随和 1 倍缩放
         this.cameras.main.zoomTo(1, 300)
         this.cameras.main.startFollow(this.slime, true, 0.12, 0.12)
@@ -794,41 +1060,255 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
-  // 眼睛颜色：平时用元素的眼珠色，岩化时换成亮金，保证在深色身体上也看得清
+  // 眼睛：颜色用元素的眼珠色；带黑描边的只有岩史莱姆，所以贴图也在这里一起换
   private refreshEyeTint() {
-    this.eyes.forEach((eye) => eye.setTint(ELEMENTS[this.element].eyeColor))
+    const eyeKey = this.element === 'rock' ? 'eye-rock' : 'eye'
+
+    this.eyes.forEach((eye) => {
+      eye.setTexture(eyeKey)
+      eye.setTint(ELEMENTS[this.element].eyeColor)
+    })
   }
 
-  // 岩化：换成结晶态，能挡一次造物伤害，4 秒后自动解除
+  // 岩化：换成结晶态，能挡一次造物伤害，到时间或者被打碎才解除。
+  // 按 X 只能开、不能关；开完这一轮就进 ARMOR_COOLDOWN 秒冷却
   private setArmored(on: boolean) {
     if (this.armored === on) {
       return
     }
 
     this.armored = on
-    this.armoredTimer = on ? 4 : 0
+    this.armoredTimer = on ? ARMOR_TIME : 0
+
+    if (!on) {
+      // 时间到、被打碎、换元素打断，都从这一刻开始算冷却
+      this.armorCooldown = ARMOR_COOLDOWN
+    }
+
     this.slimeArt.setTexture(on ? 'slime-rock-armored' : 'slime-' + this.element)
     this.refreshEyeTint()
+    this.playArmorShift(on)
 
     playSfx(this, 'sfx-interact', 0.35)
   }
 
-  // 岩造物：在身前立一根高石柱，可以踩着往上跳，6 秒后消失
-  private spawnRockPillar() {
+  // 两种状态切换那一下的动画：白光一闪 + 一圈扩散 + 左右各崩一块石屑
+  private playArmorShift(on: boolean) {
+    const flash = this.add
+      .image(this.slime.x, this.slime.y, 'pixel')
+      .setDisplaySize(36, 30)
+      .setTint(on ? 0xffd54f : 0xffffff)
+      .setAlpha(0.55)
+      .setDepth(12)
+
+    this.tweens.add({
+      targets: flash,
+      displayWidth: 46,
+      displayHeight: 38,
+      alpha: 0,
+      duration: 200,
+      onComplete: () => flash.destroy(),
+    })
+
+    const ring = this.add
+      .image(this.slime.x, this.slime.y, 'blessing')
+      .setTint(on ? 0xffd54f : 0x8a7f6a)
+      .setAlpha(0.7)
+      .setScale(0.2)
+      .setDepth(12)
+
+    this.tweens.add({
+      targets: ring,
+      scale: 1.7,
+      alpha: 0,
+      duration: on ? 280 : 220,
+      onComplete: () => ring.destroy(),
+    })
+
+    ;[-1, 1].forEach((dir) => {
+      const chip = this.add
+        .image(this.slime.x + dir * 10, this.slime.y, 'pixel')
+        .setDisplaySize(3, 3)
+        .setTint(on ? 0x8a7f6a : 0x4a3f2c)
+        .setDepth(12)
+
+      this.tweens.add({
+        targets: chip,
+        x: chip.x + dir * 24,
+        y: chip.y - (on ? 16 : 6),
+        alpha: 0,
+        duration: 320,
+        ease: 'Quad.easeOut',
+        onComplete: () => chip.destroy(),
+      })
+    })
+  }
+
+  // 岩造物落点：就是正前方脚下那块地形。从脚底开始往下找，不往上找，
+  // 所以头顶有建筑也不会跑到上面去；找不到合适的高度、或者柱身会跟地形撞上，就算不能放
+  // 落点：从 PILLAR_OFFSETS 里挑第一个放得下的距离，前面的位置放不下就往人身边挪
+  private pillarTarget(): PillarTarget {
+    const dir = this.slime.flipX ? -1 : 1
+    let last: PillarTarget | null = null
+
+    for (const offset of PILLAR_OFFSETS) {
+      const target = this.pillarSpotAt(this.slime.x + dir * offset, this.slime.y)
+
+      if (target.valid) {
+        return target
+      }
+
+      last = target
+    }
+
+    return last ?? this.pillarSpotAt(this.slime.x, this.slime.y)
+  }
+
+  // 某一个 x 上能不能立柱子：从脚底往下找地形，不许穿模
+  private pillarSpotAt(x: number, slimeY: number): PillarTarget {
+    const feet = slimeY + 13
+    const landTop = this.pillarLandingY(x, PILLAR_SIZE.width / 2, feet)
+
+    if (landTop === null || landTop - feet > PILLAR_REACH) {
+      return { x, landTop: feet, spawnBottom: feet - PILLAR_DROP, valid: false }
+    }
+
+    // 柱身这一段不许和别的地形/关着的门重叠，不然会穿模
+    const box = {
+      left: x - PILLAR_SIZE.width / 2,
+      right: x + PILLAR_SIZE.width / 2,
+      top: landTop - PILLAR_SIZE.height,
+      bottom: landTop,
+    }
+    let blocked = false
+    // 头顶最近的障碍物底边：下落就从它下面开始，免得掉下来的过程从楼板里穿过去
+    let ceilingBottom: number | null = null
+
+    const scan = (child: Phaser.GameObjects.GameObject) => {
+      const body = (child as Phaser.Physics.Arcade.Sprite).body as Phaser.Physics.Arcade.StaticBody
+
+      if (!body || !body.enable) {
+        return
+      }
+
+      if (
+        box.left < body.right &&
+        box.right > body.left &&
+        box.top < body.bottom &&
+        box.bottom > body.top
+      ) {
+        blocked = true
+      }
+
+      if (body.bottom <= box.top && body.right > box.left && body.left < box.right) {
+        ceilingBottom = ceilingBottom === null ? body.bottom : Math.max(ceilingBottom, body.bottom)
+      }
+    }
+
+    this.platforms.getChildren().forEach(scan)
+    this.gates.getChildren().forEach(scan)
+
+    const lowest = ceilingBottom === null ? -Infinity : ceilingBottom + PILLAR_SIZE.height
+
+    return {
+      x,
+      landTop,
+      spawnBottom: Math.min(landTop, Math.max(landTop - PILLAR_DROP, lowest)),
+      valid: !blocked,
+    }
+  }
+
+  // 长按 C：进入预览，正前方立一根半透明的柱子 + 脚下的落点线，松手才真的落柱
+  private startPillarPreview() {
+    this.pillarCharging = true
+
+    this.pillarGhost?.destroy()
+    this.pillarGhost = this.add.image(0, 0, 'rock-pillar').setAlpha(0.45).setDepth(8)
+
+    this.pillarMark?.destroy()
+    this.pillarMark = this.add
+      .rectangle(0, 0, PILLAR_SIZE.width + 6, 3, 0x74d0b0)
+      .setOrigin(0.5)
+      .setDepth(8)
+
+    this.pillarGhost.setScale(1, 0.6)
+
+    this.tweens.add({
+      targets: this.pillarGhost,
+      scaleY: 1,
+      duration: 140,
+      ease: 'Quad.easeOut',
+    })
+  }
+
+  private stopPillarPreview() {
+    this.pillarCharging = false
+    this.pillarGhost?.destroy()
+    this.pillarMark?.destroy()
+    this.pillarGhost = null
+    this.pillarMark = null
+  }
+
+  // 预览每帧更新：位置跟着史莱姆走，合法是绿线、放不下整根变红
+  private updatePillarPreview() {
+    if (!this.pillarCharging || !this.pillarGhost || !this.pillarMark) {
+      return
+    }
+
+    const target = this.pillarTarget()
+
+    this.pillarGhost.setPosition(target.x, target.landTop - PILLAR_SIZE.height / 2)
+    this.pillarGhost.setTint(target.valid ? 0xffffff : 0xff6b6b)
+
+    this.pillarMark.setPosition(target.x, target.landTop)
+    this.pillarMark.setFillStyle(target.valid ? 0x74d0b0 : 0xff6b6b)
+  }
+
+  // 落柱：合法就砸下来并返回 true，不合法就提示一声
+  private castPillar(): boolean {
+    const target = this.pillarTarget()
+
+    if (!target.valid) {
+      this.showMessage('这里放不下石柱')
+      return false
+    }
+
+    this.spawnRockPillar(target.x, target.landTop, target.spawnBottom)
+
+    return true
+  }
+
+  // 真正生成：从落点上方掉下来，动画期间不参与碰撞，落点就是预览里那一个
+  private spawnRockPillar(x: number, landTop: number, spawnBottom: number) {
     this.rockPillar?.destroy()
 
-    const x = this.slime.x + (this.slime.flipX ? -30 : 30)
-    const y = this.slime.y + 10
-    const pillar = this.platforms.create(x, y, 'pixel') as Phaser.Physics.Arcade.Sprite
+    const pillar = this.platforms.create(x, 0, 'rock-pillar') as Phaser.Physics.Arcade.Sprite
+    const restY = landTop - pillar.displayHeight / 2
+    const spawnY = spawnBottom - pillar.displayHeight / 2
+    const fall = Math.abs(restY - spawnY)
 
-    pillar.setDisplaySize(20, 72)
-    pillar.setTint(THEME_COLORS[this.level.bg ?? 'field'].ground)
+    pillar.setY(spawnY)
+    pillar.disableBody()
     pillar.refreshBody()
 
     this.rockPillar = pillar
-    playSfx(this, 'sfx-gem', 0.4)
 
-    this.time.delayedCall(6000, () => {
+    this.tweens.add({
+      targets: pillar,
+      y: restY,
+      // 重力 600，自由落体的时间是 sqrt(2h/g)；Quad.easeIn 的位移正好是 t²，配起来像真掉下来
+      duration: Phaser.Math.Clamp(Math.sqrt((2 * fall) / 600) * 1000, 180, 900),
+      ease: 'Quad.easeIn',
+      onComplete: () => {
+        pillar.enableBody()
+        pillar.refreshBody()
+        playSfx(this, 'sfx-land', 0.4)
+        this.cameras.main.shake(160, 0.005)
+        this.spawnPillarDust(x, landTop)
+      },
+    })
+
+    this.time.delayedCall(PILLAR_TIME * 1000, () => {
       if (this.rockPillar === pillar) {
         this.rockPillar = null
       }
@@ -837,10 +1317,199 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
+  // 柱脚正下方最高的那块地形顶面；底下是空的（悬崖、洞口）就返回 null
+  private pillarLandingY(x: number, halfWidth: number, fromY: number): number | null {
+    let landTop: number | null = null
+
+    this.platforms.getChildren().forEach((child) => {
+      const body = (child as Phaser.Physics.Arcade.Sprite).body as Phaser.Physics.Arcade.StaticBody
+
+      // 只管还开着的、在柱脚下面的地形（柱子自己这会儿是关着的，会自动跳过）
+      if (!body || !body.enable || body.top < fromY) {
+        return
+      }
+
+      // 柱脚这条横带得真的压在这块地形上
+      if (x - halfWidth > body.right || x + halfWidth < body.left) {
+        return
+      }
+
+      if (landTop === null || body.top < landTop) {
+        landTop = body.top
+      }
+    })
+
+    return landTop
+  }
+
+  // 石柱落地那一下溅起的几粒土：左右各三粒，斜着抛出去，再掉回地面、边掉边淡出
+  private spawnPillarDust(x: number, groundY: number) {
+    ;[-1, 1].forEach((dir) => {
+      for (let index = 0; index < 3; index++) {
+        const size = index === 0 ? 3 : 2
+        const dust = this.add
+          .image(x + dir * 8, groundY - 2, 'pixel')
+          .setDisplaySize(size, size)
+          .setTint(index % 2 === 0 ? 0x8a7f6a : 0x6b5a3a)
+          .setDepth(8)
+
+        this.tweens.add({
+          targets: dust,
+          x: x + dir * (16 + index * 9),
+          y: groundY - 12 - index * 4,
+          duration: 180,
+          ease: 'Quad.easeOut',
+          onComplete: () => {
+            this.tweens.add({
+              targets: dust,
+              y: groundY - 1,
+              alpha: 0,
+              duration: 220,
+              onComplete: () => dust.destroy(),
+            })
+          },
+        })
+      }
+    })
+  }
+ 
+  // 压力板：只有岩柱和「岩化状态」的史莱姆压得动，而且是慢慢压下去的
+  private updatePlates(dt: number) {
+    this.plateList.forEach((plate) => {
+      const weight =
+        (this.armored && this.physics.overlap(plate.sprite, this.slime)) ||
+        (this.rockPillar !== null && this.physics.overlap(plate.sprite, this.rockPillar))
+      const step = dt / PLATE_PRESS_TIME
+
+      // 有重量就往下沉，重量一走就慢慢弹回来
+      plate.press = Phaser.Math.Clamp(plate.press + (weight ? step : -step), 0, 1)
+      // 只动画面、不动刚体：判定范围固定在抬起时的位置，不会跟着往下跑
+      plate.sprite.setY(plate.baseY + plate.press * PLATE_SINK)
+
+      // 压到底才算数：跑过去踩一下（不到 0.45 秒）是压不动的
+      const pressed = plate.press >= 1
+
+      if (pressed === plate.pressed) {
+        return
+      }
+
+      plate.pressed = pressed
+      plate.sprite.setTint(pressed ? 0xffd54f : 0x8a7f6a)
+      playSfx(this, pressed ? 'sfx-interact' : 'sfx-step', 0.3)
+
+      this.doorList.forEach((door) => {
+        if (
+          !door.opened &&
+          door.needs.includes(plate.id) &&
+          door.needs.every((id) => this.idReady(id))
+        ) {
+          this.openDoor(door)
+        }
+      })
+    })
+  }
+
+  // 门点名到的东西算不算数：方碑看亮没亮，压力板看上面压没压着东西
+  private idReady(id: string) {
+    const monument = this.monumentById(id)
+
+    if (monument) {
+      return monument.lit
+    }
+
+    return this.plateList.some((plate) => plate.id === id && plate.pressed)
+  }
+
+  // 岩刺造物：到点先抖一下当预警，0.15 秒后真的吐出一根
+  private updateLaunchers(dt: number) {
+    this.launchers.forEach((launcher) => {
+      launcher.timer -= dt
+
+      if (launcher.timer > 0) {
+        return
+      }
+
+      launcher.timer = launcher.interval
+
+      this.tweens.add({
+        targets: launcher.sprite,
+        scaleX: 1.15,
+        scaleY: 0.85,
+        duration: 120,
+        yoyo: true,
+      })
+
+      this.time.delayedCall(150, () => {
+        this.fireSpike(launcher)
+      })
+    })
+
+    this.spikes.getChildren().forEach((child) => {
+      const spike = child as Phaser.Physics.Arcade.Sprite
+
+      // 飞出关卡就收掉，别越攒越多
+      if (
+        spike.x < -40 ||
+        spike.x > this.level.width + 40 ||
+        spike.y < -40 ||
+        spike.y > this.level.height + 60
+      ) {
+        this.breakSpike(spike)
+        return
+      }
+
+      // 岩柱挡得住：柱子在的话就对一下位置
+      if (!this.rockPillar) {
+        return
+      }
+
+      const hit =
+        spike.x + 5 > this.rockPillar.x - 10 &&
+        spike.x - 5 < this.rockPillar.x + 10 &&
+        spike.y + 8 > this.rockPillar.y - 36 &&
+        spike.y - 8 < this.rockPillar.y + 36
+
+      if (hit) {
+        this.breakSpike(spike)
+      }
+    })
+  }
+
+  private fireSpike(launcher: LauncherRef) {
+    const dirX = launcher.dir === 'left' ? -1 : launcher.dir === 'right' ? 1 : 0
+    const dirY = launcher.dir === 'down' ? 1 : 0
+    // 锥口离贴图中心 6 像素，岩刺半长 7，再往里压 2 像素就是出生点
+    const muzzle = 11
+    const spike = this.spikes.create(
+      launcher.sprite.x + dirX * muzzle,
+      launcher.sprite.y + dirY * muzzle,
+      'rock-spike'
+    ) as Phaser.Physics.Arcade.Sprite
+
+    spike.setAngle(launcher.dir === 'left' ? 90 : launcher.dir === 'right' ? -90 : 0)
+    spike.setDepth(6)
+    spike.setVelocity(dirX * launcher.speed, dirY * launcher.speed)
+
+    // 横着飞的那根要把判定盒也横过来，不然会和画面错开
+    if (dirX !== 0) {
+      const body = spike.body as Phaser.Physics.Arcade.Body
+
+      body.setSize(14, 8)
+    }
+  }
+
+  private breakSpike(spike: Phaser.Physics.Arcade.Sprite) {
+    if (!spike.active) {
+      return
+    }
+
+    spike.destroy()
+  }
+
   private syncVisual(sx: number, sy: number) {
     // 岩化时整体放大一圈，像个石墩。放大是绕贴图中心做的，所以贴图要往上提一点，
     // 脚底才不会陷进地面
-    const grow = this.armored ? 1.15 : 1
+    const grow = this.armored ? ARMOR_GROW : 1
     const scaleX = sx * grow
     const scaleY = sy * grow
     const growLift = 14.5 * (grow - 1)
@@ -848,6 +1517,14 @@ export class GameScene extends Phaser.Scene {
     this.slimeArt.setPosition(this.slime.x, this.slime.y - growLift)
     this.slimeArt.setFlipX(this.slime.flipX)
     this.slimeArt.setScale(scaleX, scaleY)
+
+    // 护甲层：贴图中心就是身体圆心，所以挂在身体圆心、和身体同一个缩放
+    this.armorPlate.setVisible(this.armored)
+
+    if (this.armored) {
+      this.armorPlate.setScale(scaleX, scaleY)
+      this.armorPlate.setPosition(this.slime.x, this.slime.y - growLift + 2 * scaleY)
+    }
 
     const look = this.slime.flipX ? -2 : 2
 
@@ -968,7 +1645,7 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
-  private die(cause: string, sourceX?: number) {
+  private die(cause: string) {
     if (this.dying || this.invulnTimer > 0) {
       return
     }
@@ -978,11 +1655,6 @@ export class GameScene extends Phaser.Scene {
       this.setArmored(false)
       this.invulnTimer = 1.2
       this.showMessage('岩壳替你挡下了一击')
-
-      if (sourceX !== undefined) {
-        this.slime.setPosition(this.slime.x > sourceX ? sourceX + 44 : sourceX - 44, this.slime.y)
-        this.slime.setVelocity(0, 0)
-      }
 
       return
     }
@@ -1026,8 +1698,10 @@ export class GameScene extends Phaser.Scene {
 
   private lightMonument(monument: MonumentRef) {
     monument.lit = true
-    monument.pillar.setTint(0x1f7f9c)
-    monument.icon.setTint(ELEMENTS[monument.element].color)
+    // 点亮：底座恢复砖瓦本色，碑头整段染成元素色，元素标记留白当发光刻印
+    monument.pillar.setTint(0xffffff)
+    monument.head.setTint(ELEMENTS[monument.element].color)
+    monument.icon.setTint(0xffffff)
 
     this.makeMonumentAura(monument)
     this.revealFollowers(monument.id)
@@ -1039,7 +1713,8 @@ export class GameScene extends Phaser.Scene {
 
   private extinguishMonument(monument: MonumentRef) {
     monument.lit = false
-    monument.pillar.setTint(0x474d61)
+    monument.pillar.setTint(0x9a9a9a)
+    monument.head.setTint(0x3a3a46)
     monument.icon.setTint(0x7c8299)
 
     this.clearMonumentAura(monument)
@@ -1108,10 +1783,11 @@ export class GameScene extends Phaser.Scene {
 
       monument.hidden = false
       monument.pillar.setVisible(true).setAlpha(0)
+      monument.head.setVisible(true).setAlpha(0)
       monument.icon.setVisible(true).setAlpha(0)
 
       this.tweens.add({
-        targets: [monument.pillar, monument.icon],
+        targets: [monument.pillar, monument.head, monument.icon],
         alpha: 1,
         duration: 400,
       })
@@ -1140,7 +1816,7 @@ export class GameScene extends Phaser.Scene {
         }
       })
 
-      if (door && door.needs.every((id) => this.monumentById(id)?.lit === true)) {
+      if (door && door.needs.every((id) => this.idReady(id))) {
         this.openDoor(door)
       }
 
@@ -1155,7 +1831,7 @@ export class GameScene extends Phaser.Scene {
     if (!door.ordered) {
       this.lightMonument(monument)
 
-      if (door.needs.every((id) => this.monumentById(id)?.lit === true)) {
+      if (door.needs.every((id) => this.idReady(id))) {
         this.openDoor(door)
       }
 
@@ -1518,18 +2194,24 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
-    if (Phaser.Input.Keyboard.JustDown(this.prevKey)) {
-      cycleElement(-1)
-      this.applyElement(progress.current)
-    }
+    if (!this.inputLocked) {
+      if (Phaser.Input.Keyboard.JustDown(this.prevKey)) {
+        cycleElement(-1, this.availableElements())
+        this.applyElement(progress.current)
+      }
 
-    if (Phaser.Input.Keyboard.JustDown(this.nextKey)) {
-      cycleElement(1)
-      this.applyElement(progress.current)
+      if (Phaser.Input.Keyboard.JustDown(this.nextKey)) {
+        cycleElement(1, this.availableElements())
+        this.applyElement(progress.current)
+      }
     }
 
     if (this.invulnTimer > 0) {
       this.invulnTimer -= dt
+    }
+
+    if (this.armorCooldown > 0) {
+      this.armorCooldown -= dt
     }
 
     if (this.armored) {
@@ -1540,12 +2222,59 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    if (Phaser.Input.Keyboard.JustDown(this.armorKey) && this.element === 'rock') {
-      this.setArmored(!this.armored)
+    if (
+      !this.inputLocked &&
+      Phaser.Input.Keyboard.JustDown(this.armorKey) &&
+      this.element === 'rock'
+    ) {
+      // 只能开：岩化中按不掉，冷却中按不了
+      if (!this.armored && this.armorCooldown <= 0) {
+        this.setArmored(true)
+      }
     }
 
-    if (Phaser.Input.Keyboard.JustDown(this.rockKey) && this.element === 'rock') {
-      this.spawnRockPillar()
+    // C：短按直接在身前落柱（前面放不下会自动往人身边挪）；
+    // 长按进入预览状态（松手也不退出），再点一次 C 才落柱
+    if (this.inputLocked) {
+      this.pillarPressed = false
+    } else if (this.element === 'rock') {
+      if (Phaser.Input.Keyboard.JustDown(this.rockKey)) {
+        if (this.pillarCharging) {
+          // 预览状态里再点一次 = 放置；放不下就留在预览里继续找位置
+          if (this.castPillar()) {
+            this.stopPillarPreview()
+          }
+        } else {
+          this.pillarPressed = true
+          this.pillarHold = 0
+        }
+      }
+
+      if (this.pillarPressed) {
+        this.pillarHold += dt
+
+        if (this.pillarHold >= PILLAR_HOLD) {
+          // 长按：进预览状态，之后松手也不会退出去
+          this.pillarPressed = false
+          this.startPillarPreview()
+        }
+      }
+
+      if (Phaser.Input.Keyboard.JustUp(this.rockKey) && this.pillarPressed) {
+        // 短按：直接放
+        this.pillarPressed = false
+        this.castPillar()
+      }
+    } else if (this.pillarPressed || this.pillarCharging) {
+      // 换元素时把预览收干净
+      this.pillarPressed = false
+      this.stopPillarPreview()
+    }
+
+    if (!this.inputLocked) {
+      this.updatePlates(dt)
+      this.updateLaunchers(dt)
+      this.updatePillarPreview()
     }
 
     if (this.finished) {
@@ -1571,7 +2300,10 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    if (this.cursors.left.isDown) {
+    if (this.inputLocked) {
+      // 神像演出期间原地不动
+      this.slime.setVelocityX(0)
+    } else if (this.cursors.left.isDown) {
       this.slime.setVelocityX(-speed)
       this.slime.setFlipX(true)
     } else if (this.cursors.right.isDown) {
@@ -1696,7 +2428,7 @@ export class GameScene extends Phaser.Scene {
       this.promptText.setPosition(this.slime.x, this.slime.y - 34)
       this.promptText.setText(prompt)
 
-      if (action && Phaser.Input.Keyboard.JustDown(this.interactKey)) {
+      if (!this.inputLocked && action && Phaser.Input.Keyboard.JustDown(this.interactKey)) {
         playSfx(this, 'sfx-interact', 0.3)
         action()
       }
@@ -1730,13 +2462,18 @@ export class GameScene extends Phaser.Scene {
       this.stamina = Math.min(STAMINA_MAX, this.stamina + HOVER.regenPerSecond * dt)
     }
 
-    if (Phaser.Input.Keyboard.JustDown(this.cursors.space) && onGround) {
-      this.slime.setVelocityY(this.jumpPower)
+    if (!this.inputLocked && Phaser.Input.Keyboard.JustDown(this.cursors.space) && onGround) {
+      // 岩化时身体更结实，跳得也略高一点
+      this.slime.setVelocityY(this.jumpPower * (this.armored ? ARMOR_JUMP : 1))
       playSfx(this, 'sfx-jump', 0.16)
     }
 
     const wantHover =
-      element.canHover && this.cursors.space.isDown && !onGround && this.stamina > 0
+      !this.inputLocked &&
+      element.canHover &&
+      this.cursors.space.isDown &&
+      !onGround &&
+      this.stamina > 0
 
     if (wantHover) {
       if (body.velocity.y > -HOVER.riseSpeed) {
@@ -1815,7 +2552,9 @@ export class GameScene extends Phaser.Scene {
       }
     } else {
       const moving = Math.abs(body.velocity.x) > 10
-      const amount = (moving ? 0.05 : 0.03) * element.squash
+      // 岩化后体型放大，形变幅度按倍数收回来：绝对位移、节奏都和普通态一致
+      const amount =
+        ((moving ? 0.05 : 0.03) * element.squash) / (this.armored ? ARMOR_GROW : 1)
       const period = moving ? 120 : 340
       const wave = Math.sin((time / period) * Math.PI * 2)
 
@@ -1839,5 +2578,19 @@ export class GameScene extends Phaser.Scene {
 
     this.syncVisual(sx, sy)
     this.staminaBar.setScale(this.stamina / STAMINA_MAX, 1)
+
+    // 岩化条：岩化时是剩余时间（金色，越用越短），冷却时是回充进度（土色，长满就能再按 X）
+    const showArmor = this.element === 'rock' && (this.armored || this.armorCooldown > 0)
+
+    this.armorBarBack.setVisible(showArmor)
+    this.armorBar.setVisible(showArmor)
+
+    if (this.armored) {
+      this.armorBar.setFillStyle(0xd9a441)
+      this.armorBar.setScale(Math.max(0, this.armoredTimer / ARMOR_TIME), 1)
+    } else {
+      this.armorBar.setFillStyle(0x6b5a3a)
+      this.armorBar.setScale(Math.max(0, 1 - this.armorCooldown / ARMOR_COOLDOWN), 1)
+    }
   }
 }

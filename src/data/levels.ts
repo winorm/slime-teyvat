@@ -39,6 +39,21 @@ export type StatueDef = {
   prompt: string
 }
 
+export type PlateDef = {
+  x: number
+  y: number
+  width?: number      // 不写就是 28
+  id: string          // 门的 needs 里点这个 id
+}
+
+export type LauncherDef = {
+  x: number
+  y: number
+  dir?: 'down' | 'left' | 'right'   // 默认 down：贴天花板往下打
+  interval?: number                 // 发射间隔（秒），默认 2
+  speed?: number                    // 岩刺速度（像素/秒），默认 220
+}
+
 export type CageDef = {
   x: number
   y: number
@@ -53,7 +68,7 @@ export type DomeDef = {
   thickness: number  // 穹顶壳厚
 }
 
-export type BgTheme = 'beach' | 'field' | 'church' | 'sky' | 'tower'
+export type BgTheme = 'beach' | 'field' | 'church' | 'sky' | 'tower' | 'liyue'
 
 export type ThemeColor = {
   ground: number
@@ -69,6 +84,8 @@ export const THEME_COLORS: Record<BgTheme, ThemeColor> = {
   church: { ground: 0x5f6478, oneWay: 0x7d8398, crumble: 0x9a6a52, hazard: 0xb03a3a },
   sky: { ground: 0x55607e, oneWay: 0x707d9c, crumble: 0x8a5a6a, hazard: 0x44608f },
   tower: { ground: 0x39405a, oneWay: 0x4c5470, crumble: 0x7a5648, hazard: 0xb03a3a },
+  // 璃月·荻花洲：岩土色的地面，黄昏里偏暖
+  liyue: { ground: 0x8a6a4a, oneWay: 0xb09068, crumble: 0x9a5a44, hazard: 0x2f6f8f },
 }
 
 export type LevelDef = {
@@ -94,7 +111,10 @@ export type LevelDef = {
   music?: string
   bg?: BgTheme
   windmill?: { x: number; y: number }
+  inn?: { x: number; y: number }          // 望舒客栈：画在背景里的地标，不参与碰撞
   statue?: StatueDef
+  plates?: PlateDef[]
+  launchers?: LauncherDef[]
   chase?: boolean
   hints: HintDef[]
 }
@@ -418,32 +438,81 @@ export const LEVELS: LevelDef[] = [
   {
     name: '第六关 · 岩之国度',
     intro:
-      '这里就是风神提到的璃月吧。\n狄花洲上的芦苇茂盛，远处就是望舒客栈。\n天快黑了，我先上去休息一晚。',
+      '这里就是风神提到的璃月吧。\n荻花洲的芦苇在晚风里摇，远处那座岩柱上的木楼就是望舒客栈。\n天快黑了，先摸一摸路边的神像，再上去歇一晚。',
 
-    width: 1200,
-    height: 270,
+    width: 2000,
+    height: 540,
     startElement: 'wind',
-    spawn: { x: 60, y: 233 },
-    bg: 'field',
-    statue: { x: 900, y: 200, grants: 'rock', prompt: '触摸' },
-    goal: { x: 860, y: 232, kind: 'chest', prompt: '打开', after: 'statue' },
+    spawn: { x: 60, y: 467 },
+    bg: 'liyue',
+    inn: { x: 1860, y: 480 },
+    // 神像在关卡开头：这一关开局没有岩元素，得先摸神像拿到，后面的岩刺/板子/石壁才用得上
+    statue: { x: 520, y: 434, grants: 'rock', prompt: '触摸' },
+    goal: { x: 1770, y: 466, kind: 'chest', prompt: '打开', after: 'statue' },
     platforms: [
-      // 平地占位，等岩之国度的正式关卡设计
-      { x: 600, y: 258, width: 1200, height: 24 },
+      // 荻花洲的长堤：从岸边一直铺到望舒客栈前，顶上 480
+      { x: 1000, y: 510, width: 2000, height: 60 },
+      // 岩刺走廊上方的岩棚（走廊净高 80，正好卡着人走）
+      { x: 850, y: 380, width: 460, height: 40 },
+      // 压力板上方的岩檐：想站上去踩板子，就得顶着落下来的岩刺
+      { x: 1200, y: 380, width: 160, height: 40 },
+      // 拦路的岩壁：一整根从关卡顶部挂到门顶（0~380），下面就是石门（380~480）。
+      // 只有 80 宽，玩家走到它跟前正好站在门口，不会被旁边的石头夹住；
+      // 顶到 y=0 是为了风元素也没法从上面绕过去
+      { x: 1460, y: 190, width: 80, height: 380 },
+      // 客栈前的小石台，上面放着最后一颗原石
+      { x: 1700, y: 444, width: 80, height: 20 },
+    ],
+    plates: [
+      // 板子压在岩刺正下方：站上去要挨扎，拿岩柱压住才是最稳的办法
+      { x: 1200, y: 476, id: 'p1' },
+    ],
+    doors: [
+      { x: 1460, y: 430, width: 80, height: 100, needs: ['p1'] },
+    ],
+    launchers: [
+      // 走廊里的两门：间隔一样但错开摆放，跑过去要卡节奏
+      { x: 760, y: 407, interval: 2.6 },
+      { x: 940, y: 407, interval: 2.6 },
+      // 压力板上方那一门
+      { x: 1200, y: 407, interval: 2.2 },
     ],
     orbs: [],
     gems: [
-      { x: 300, y: 180 },
-      { x: 620, y: 180 },
-      { x: 1080, y: 180 },
+      { x: 300, y: 440 },
+      { x: 760, y: 440 },
+      { x: 940, y: 440 },
+      { x: 1290, y: 440 },
+      { x: 1700, y: 404 },
     ],
     blessings: [],
     hazards: [],
     monuments: [],
+    notes: [
+      {
+        x: 150,
+        y: 464,
+        prompt: '阅读',
+        text:
+          '残卷上写着：\n"岩之国度，契约之乡。\n' +
+          '一柱立地，可承千钧。\n一石在身，可挡一劫。\n' +
+          '然岩性不移，行则迟缓。\n顺其性者，可行远。"',
+      },
+      {
+        x: 1330,
+        y: 464,
+        prompt: '阅读',
+        text:
+          '残卷上写着：\n"重物压机，门自启。\n' +
+          '人立其上，机亦应之，\n然山中之石，可代人行远。"',
+      },
+    ],
     hints: [
-      { x: 240, y: 210, text: '前面有座神像' },
-      { x: 560, y: 160, text: '按 X 岩化：挡一次伤害' },
-      { x: 750, y: 205, text: '按 C 造一根石柱' },
+      { x: 220, y: 430, text: '按 F 读一读残卷' },
+      { x: 520, y: 356, text: '按 F 触摸神像' },
+      { x: 700, y: 440, text: '岩刺会扎人：按 X 岩化能挡一下' },
+      { x: 1130, y: 440, text: '按 C 把岩柱砸在压力板上' },
+      { x: 1660, y: 400, text: '望舒客栈就在前面' },
     ],
   },
 

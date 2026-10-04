@@ -101,9 +101,19 @@ export class BootScene extends Phaser.Scene {
 
     this.makeRockCrown()
 
+    this.makeArmorPlate()
+
+    this.makeRockPillar()
+
+    this.makePlate()
+
+    this.makeSpikeLauncher()
+    this.makeRockSpike()
+
     this.makeEyeGlow()
 
     this.makeEye()
+    this.makeRockEye()
     this.makeGem()
     this.makeLock()
 
@@ -175,6 +185,7 @@ export class BootScene extends Phaser.Scene {
     this.makeBackgrounds()
     this.makeWindmill()
     this.makeWindmillBlades()
+    this.makeInn()
     this.makeHazardSpark()
 
     this.makeBlessing()
@@ -371,30 +382,119 @@ export class BootScene extends Phaser.Scene {
     gfx.destroy()
   }
   
+  // 元素方碑拆成两半：
+  // `monument` 是碑身和底座，烤成砖瓦色 + 深浅杂点，不参与元素染色；
+  // `monument-head` 是上面带元素标记的那一段，画成白色，点亮时用元素色染它。
+  // 两张贴图都是 28x44、贴图坐标一一对应，所以直接摆同一个坐标就对齐
   private makeMonument() {
     const gfx = this.add.graphics()
+    const outline = 0x14141f
 
-    gfx.fillStyle(0xffffff, 1)
+    // 本体的三块形状（碑身 + 两级台阶），dx/dy 是偏移量
+    const body = (dx: number, dy: number) => {
+      gfx.fillRect(4 + dx, 13 + dy, 20, 24)
+      gfx.fillTriangle(4 + dx, 37 + dy, 24 + dx, 37 + dy, 28 + dx, 44 + dy)
+      gfx.fillTriangle(4 + dx, 37 + dy, 28 + dx, 44 + dy, dx, 44 + dy)
+    }
 
+    // 轮廓：把本体朝八个方向各铺一遍，中间再盖回本色，就得到一圈 1 像素黑边
+    gfx.fillStyle(outline, 1)
+
+    ;[-1, 0, 1].forEach((dx) => {
+      ;[-1, 0, 1].forEach((dy) => {
+        if (dx !== 0 || dy !== 0) {
+          body(dx, dy)
+        }
+      })
+    })
+
+    // 碑身：石砖灰（取塔里砖瓦 0x39405a 调亮一档，比冷蓝更偏石头）
+    gfx.fillStyle(0x4e5878, 1)
     gfx.fillRect(4, 13, 20, 24)
-    gfx.fillTriangle(4, 37, 24, 37, 28, 44)
-    gfx.fillTriangle(4, 37, 28, 44, 0, 44)
-    gfx.fillRect(10, 0, 8, 13)
-    gfx.fillTriangle(10, 2, 1, 8, 10, 12)
-    gfx.fillTriangle(18, 2, 27, 8, 18, 12)
 
-    gfx.fillStyle(0x666666, 0.45)
+    // 左边一整条受光面：用明暗分面做体积，不画竖缝（竖缝就成砖墙了）
+    gfx.fillStyle(0x5c688c, 1)
+    gfx.fillRect(4, 13, 5, 24)
+
+    // 右侧压暗
+    gfx.fillStyle(0x333b52, 0.45)
     gfx.fillRect(17, 13, 7, 24)
 
-    gfx.fillStyle(0x666666, 0.35)
-    gfx.fillTriangle(18, 2, 27, 8, 18, 12)
+    // 底座两级台阶，压深一档，台面留一条亮边当石棱
+    gfx.fillStyle(0x424a66, 1)
+    gfx.fillTriangle(4, 37, 24, 37, 28, 44)
+    gfx.fillTriangle(4, 37, 28, 44, 0, 44)
+    gfx.fillStyle(0x555f80, 1)
+    gfx.fillRect(4, 36, 20, 1)
 
-    gfx.fillStyle(0x555555, 0.5)
-    gfx.fillRect(4, 20, 20, 2)
-    gfx.fillRect(4, 30, 20, 2)
+    // 石头的感觉：几道带错位的裂纹（走向不规则，所以不像砖缝）+ 边角崩口
+    gfx.fillStyle(0x2f3648, 0.85)
+    gfx.fillRect(6, 19, 5, 1)
+    gfx.fillRect(10, 20, 4, 1)
+    gfx.fillRect(13, 19, 4, 1)
+    gfx.fillRect(7, 27, 4, 1)
+    gfx.fillRect(11, 28, 6, 1)
+    gfx.fillRect(19, 24, 3, 1)
+
+    gfx.fillRect(4, 15, 1, 2)
+    gfx.fillRect(4, 25, 2, 1)
+    gfx.fillRect(23, 18, 1, 2)
+    gfx.fillRect(22, 30, 2, 1)
+
+    // 杂质质感：深浅不一的小点，让砖面不是一块死板色
+    const specks: Array<[number, number, number]> = [
+      [6, 16, 0x646e8e],
+      [20, 15, 0x3b4358],
+      [12, 24, 0x545e80],
+      [22, 27, 0x3b4358],
+      [8, 33, 0x646e8e],
+      [15, 34, 0x545e80],
+      [5, 26, 0x3b4358],
+      [23, 19, 0x646e8e],
+      [10, 18, 0x3b4358],
+      [19, 32, 0x545e80],
+    ]
+
+    specks.forEach(([x, y, color]) => {
+      gfx.fillStyle(color, 1)
+      gfx.fillRect(x, y, 1, 1)
+    })
 
     gfx.generateTexture('monument', 28, 44)
     gfx.destroy()
+
+    // 碑头：白的，点亮时整段染成元素色，元素标记本身保持白色当发光刻印
+    const head = this.add.graphics()
+
+    const headShape = (dx: number, dy: number) => {
+      head.fillRect(10 + dx, dy, 8, 13)
+      head.fillTriangle(10 + dx, 2 + dy, 1 + dx, 8 + dy, 10 + dx, 12 + dy)
+      head.fillTriangle(18 + dx, 2 + dy, 27 + dx, 8 + dy, 18 + dx, 12 + dy)
+    }
+
+    // 同一套黑边（黑色乘任何染色都还是黑，所以点亮染元素色时描边不会被带走）
+    head.fillStyle(outline, 1)
+
+    ;[-1, 0, 1].forEach((dx) => {
+      ;[-1, 0, 1].forEach((dy) => {
+        if (dx !== 0 || dy !== 0) {
+          headShape(dx, dy)
+        }
+      })
+    })
+
+    head.fillStyle(0xffffff, 1)
+    head.fillRect(10, 0, 8, 13)
+    head.fillTriangle(10, 2, 1, 8, 10, 12)
+    head.fillTriangle(18, 2, 27, 8, 18, 12)
+
+    // 右侧压暗，和碑身同一个受光方向
+    head.fillStyle(0x8f8f8f, 0.4)
+    head.fillRect(14, 0, 4, 13)
+    head.fillTriangle(18, 2, 27, 8, 18, 12)
+
+    head.generateTexture('monument-head', 28, 44)
+    head.destroy()
   }
 
   private makeSlime(key: ElementKey) {
@@ -417,36 +517,37 @@ export class BootScene extends Phaser.Scene {
     ]
 
     if (key === 'rock') {
-      // 四个取色点：正上=岩脊色，正中=身体黄，正下两侧=白。
+      // 三档取色：正上=岩脊色，正中=土色，正下=浅黄（原来是白色，太亮，删掉了）。
       // 逐行铺满椭圆，横向宽度按椭圆公式收，所以四周不会再有单独的白边
       for (let y = 3; y <= 27; y++) {
         const t = (15 - y) / 11.5
         const color =
           t >= 0
-            ? this.mixColor(element.color, 0x8a6a2c, Math.min(1, t))
-            : this.mixColor(element.color, 0xffffff, Math.min(1, -t))
+            ? this.mixColor(0x9d7430, 0x8a6a2c, Math.min(1, t))
+            : this.mixColor(0x9d7430, 0xefd79b, Math.min(1, -t))
         const half = 15 * Math.sqrt(Math.max(0, 1 - t * t))
 
         gfx.fillStyle(color, 1)
         gfx.fillRect(16 - half, y, half * 2, 1)
       }
 
-      // 头顶挂一层泥沼：几摊深浅不一的泥，带两滴往下淌的泥浆，普通态头部也不至于空着
+      // 头顶挂一层泥沼：几摊深浅不一的泥。眼睛占着 y 10~16、x 6~26 这一片，
+      // 所以泥一律待在 y 10 以上、往左右两个边缘靠，别糊到眼睛上
       gfx.fillStyle(0x6b5734, 1)
-      gfx.fillEllipse(12, 9.5, 9, 6)
+      gfx.fillEllipse(9, 8, 8.5, 3.8)
 
       gfx.fillStyle(0x5c6238, 1)
-      gfx.fillEllipse(21, 8, 8, 5)
+      gfx.fillEllipse(23, 7.5, 7, 3.8)
 
       gfx.fillStyle(0x54452a, 1)
-      gfx.fillEllipse(16.5, 11, 6, 4)
-      gfx.fillRect(9, 12, 1, 3)
-      gfx.fillRect(22, 10, 1, 2)
+      gfx.fillEllipse(16, 5.5, 6, 3)
+      gfx.fillRect(6, 8, 1, 2)
+      gfx.fillRect(26, 7, 1, 2)
 
       gfx.fillStyle(0x7d6640, 1)
-      gfx.fillRect(9, 7, 2, 1)
-      gfx.fillRect(22, 10, 2, 1)
-      gfx.fillRect(14, 6, 1, 1)
+      gfx.fillRect(9, 5, 2, 1)
+      gfx.fillRect(21, 5, 1, 1)
+      gfx.fillRect(15, 4, 1, 1)
     } else {
       layers.forEach((layer) => {
         gfx.fillStyle(element.color, layer.alpha)
@@ -471,13 +572,13 @@ export class BootScene extends Phaser.Scene {
     gfx.fillStyle(0xffffff, 1)
     gfx.fillEllipse(16, 15, 30, 23)
 
-    // 岩化态同样四个取色点，只是正上方换成岩化岩脊的深色、中心换成压暗的岩色
+    // 岩化态也走同一套：正上=岩化岩脊的深色，正中=更深的土色，正下=哑一点的浅黄（不再是白）
     for (let y = 3; y <= 27; y++) {
       const t = (15 - y) / 11.5
       const color =
         t >= 0
-          ? this.mixColor(0xa8823a, 0x5c4d33, Math.min(1, t))
-          : this.mixColor(0xa8823a, 0xffffff, Math.min(1, -t))
+          ? this.mixColor(0x866631, 0x5c4d33, Math.min(1, t))
+          : this.mixColor(0x866631, 0xc6b07e, Math.min(1, -t))
       const half = 15 * Math.sqrt(Math.max(0, 1 - t * t))
 
       gfx.fillStyle(color, 1)
@@ -516,6 +617,202 @@ export class BootScene extends Phaser.Scene {
     gfx.destroy()
   }
 
+  // 岩化态多出来的一层护甲：一圈贴着身体轮廓的岩板，单独一张贴图挂在身体后面，
+  // 所以只有探出轮廓的那一圈会露出来，放大、震动时和身体一起变形（和岩脊同一个套路）。
+  // 贴图中心就是身体圆心，挂点直接写身体圆心就行
+  private makeArmorPlate() {
+    const gfx = this.add.graphics()
+    const cx = 20
+    const cy = 17
+    const rx = 15
+    const ry = 11.5
+    const back = { x: rx * 0.9, y: ry * 0.9 }
+
+    // [中角, 半张角, 探出多少]，屏幕坐标：0=右、90=下、180=左、270=上。
+    // 头顶那段留空给岩壳，肩上那两块也少探一点，免得在岩壳旁边戳出孤立的小点
+    const plates: Array<[number, number, number]> = [
+      [305, 21, 0.78],
+      [345, 19, 1],
+      [25, 21, 1],
+      [65, 20, 1],
+      [105, 21, 1],
+      [145, 19, 1],
+      [185, 21, 1],
+      [225, 20, 0.78],
+    ]
+
+    plates.forEach(([angle, half, shrink], index) => {
+      const a1 = ((angle - half) * Math.PI) / 180
+      const a2 = ((angle + half) * Math.PI) / 180
+      const inner = { x: rx * 0.8, y: ry * 0.8 }
+      const outer = { x: rx + 3.5 * shrink, y: ry + 3.5 * shrink }
+      const face = { x: rx + 2.2 * shrink, y: ry + 2.2 * shrink }
+      const at = (r: { x: number; y: number }, a: number) =>
+        new Phaser.Math.Vector2(cx + r.x * Math.cos(a), cy + r.y * Math.sin(a))
+
+      // 先铺一层深色，再把亮面往里收一点盖上去，每块板就自带一圈描边
+      gfx.fillStyle(0x4a3f2c, 1)
+      gfx.fillPoints([at(inner, a1), at(outer, a1), at(outer, a2), at(inner, a2)], true)
+
+      gfx.fillStyle(index % 3 === 1 ? 0x7a7060 : 0x8a7f6a, 1)
+      gfx.fillPoints([at(back, a1), at(face, a1), at(face, a2), at(back, a2)], true)
+    })
+
+    gfx.generateTexture('armor-plate', 40, 34)
+    gfx.destroy()
+  }
+
+  // 岩造物的石柱：一头一尾是石箍 + 金色的岩元素标识（就是 ICON_ROCK 那套字符画），
+  // 中间那段柱身盘着一条竖着走的龙身线
+  private makeRockPillar() {
+    const gfx = this.add.graphics()
+
+    // 柱身：左侧一条亮面、右侧一条暗面，做出圆柱感
+    gfx.fillStyle(0x5c4d33, 1)
+    gfx.fillRect(2, 15, 16, 42)
+    gfx.fillStyle(0x866631, 1)
+    gfx.fillRect(2, 15, 6, 42)
+    gfx.fillStyle(0x4a3f2c, 1)
+    gfx.fillRect(15, 15, 3, 42)
+
+    // 上下两头更粗的石箍
+    gfx.fillStyle(0x4a3f2c, 1)
+    gfx.fillRect(0, 0, 20, 15)
+    gfx.fillRect(0, 57, 20, 15)
+
+    gfx.fillStyle(0x5c4d33, 1)
+    gfx.fillRect(0, 0, 20, 2)
+    gfx.fillRect(0, 57, 20, 2)
+
+    // 金箍线：一头一道，正好压在石箍和柱身的分界上
+    gfx.fillStyle(0xffd54f, 1)
+    gfx.fillRect(0, 15, 20, 1)
+    gfx.fillRect(0, 56, 20, 1)
+
+    // 两头的岩元素标识：ICON_ROCK 是 16 宽的字符画，放在 x=2 正好居中
+    ;[0, 57].forEach((top) => {
+      gfx.fillStyle(0xffd54f, 1)
+
+      ICON_ROCK.forEach((row, y) => {
+        for (let x = 0; x < row.length; x++) {
+          if (row[x] === '#') {
+            gfx.fillRect(2 + x, top + y, 1, 1)
+          }
+        }
+      })
+    })
+
+    // 中间的龙身：一条左右盘着的竖线（宽 3 像素），两侧再点几片鳍刺
+    gfx.fillStyle(0xd9a441, 1)
+
+    for (let y = 16; y <= 55; y++) {
+      const x = 10 + Math.round(2.4 * Math.sin(y / 5.5))
+
+      gfx.fillRect(x - 1, y, 3, 1)
+    }
+
+    gfx.fillStyle(0x8a6a2c, 1)
+
+    for (let y = 19; y <= 53; y += 7) {
+      gfx.fillRect(4, y, 2, 1)
+      gfx.fillRect(14, y + 3, 2, 1)
+    }
+
+    gfx.generateTexture('rock-pillar', 20, 72)
+    gfx.destroy()
+  }
+
+  // 压力板：灰阶贴图，靠 setTint 变色（没踩住=石头色，踩住=金色）
+  private makePlate() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0x8a8a8a, 1)
+    gfx.fillRect(0, 4, 28, 4)
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillRect(1, 1, 26, 4)
+    gfx.fillStyle(0xb0b0b0, 1)
+    gfx.fillRect(1, 1, 26, 1)
+
+    gfx.generateTexture('plate', 28, 8)
+    gfx.destroy()
+  }
+
+  // 岩刺造物：背后一层贴在建筑上的岩壳，前面收成锥口，口上一点金。
+  // 贴图画的是「朝下」，贴天花板直接用，贴左墙 / 右墙靠旋转
+  private makeSpikeLauncher() {
+    const gfx = this.add.graphics()
+
+    // 贴住建筑的那层壳
+    gfx.fillStyle(0x4a3f2c, 1)
+    gfx.fillRect(0, 0, 20, 6)
+    gfx.fillStyle(0x5c4d33, 1)
+    gfx.fillRect(0, 0, 20, 2)
+
+    // 往下收的锥体
+    gfx.fillStyle(0x5c4d33, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(1, 6),
+        new Phaser.Math.Vector2(19, 6),
+        new Phaser.Math.Vector2(12, 13),
+        new Phaser.Math.Vector2(8, 13),
+      ],
+      true
+    )
+
+    // 左侧受光面
+    gfx.fillStyle(0x6b5d42, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(1, 6),
+        new Phaser.Math.Vector2(7, 6),
+        new Phaser.Math.Vector2(10, 13),
+        new Phaser.Math.Vector2(8, 13),
+      ],
+      true
+    )
+
+    // 锥口 + 一点金，提示它是岩元素造物
+    gfx.fillStyle(0x2f2617, 1)
+    gfx.fillRect(8, 13, 4, 1)
+    gfx.fillStyle(0xffd54f, 1)
+    gfx.fillRect(9, 12, 2, 1)
+
+    gfx.generateTexture('spike-launcher', 20, 14)
+    gfx.destroy()
+  }
+
+  // 岩刺：上宽下尖的一根石锥，按发射方向旋转
+  private makeRockSpike() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0x4a3f2c, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(1, 0),
+        new Phaser.Math.Vector2(7, 0),
+        new Phaser.Math.Vector2(4, 13),
+      ],
+      true
+    )
+
+    gfx.fillStyle(0x8a7f6a, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(1, 0),
+        new Phaser.Math.Vector2(4, 0),
+        new Phaser.Math.Vector2(4, 13),
+      ],
+      true
+    )
+
+    gfx.fillStyle(0xffd54f, 1)
+    gfx.fillRect(3, 1, 1, 2)
+
+    gfx.generateTexture('rock-spike', 8, 14)
+    gfx.destroy()
+  }
+
   // 眼睛底下的一圈白晕：让眼睛在深色身体上也能看清
   private makeEyeGlow() {
     const gfx = this.add.graphics()
@@ -529,11 +826,29 @@ export class BootScene extends Phaser.Scene {
     gfx.destroy()
   }
 
+  // 普通眼睛：一颗白眼球，染色后就是元素色
   private makeEye() {
     const gfx = this.add.graphics()
+
     gfx.fillStyle(0xffffff, 1)
     gfx.fillCircle(2, 2, 2)
     gfx.generateTexture('eye', 4, 4)
+    gfx.destroy()
+  }
+
+  // 岩史莱姆专用：白眼球外面加一圈黑描边。染色只把白的那圈乘成元素色，
+  // 黑色乘任何颜色都还是黑，所以描边不受 tint 影响；眨眼是整张图一起压扁，
+  // 描边也跟着变，闭眼时正好压成一条深色细线
+  private makeRockEye() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0x0b0b12, 1)
+    gfx.fillCircle(4, 4, 3)
+
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillCircle(4, 4, 2)
+
+    gfx.generateTexture('eye-rock', 8, 8)
     gfx.destroy()
   }
 
@@ -649,8 +964,10 @@ export class BootScene extends Phaser.Scene {
         for (let index = peaks.length - 1; index >= 0; index--) {
           const [x, y] = peaks[index]
 
+          // 每个峰是下宽上窄的梯形，不是三角形：峰顶留出 3 像素宽的平顶
           points.push(new Phaser.Math.Vector2(x + 3, y + saddle))
-          points.push(new Phaser.Math.Vector2(x, y))
+          points.push(new Phaser.Math.Vector2(x + 1.5, y))
+          points.push(new Phaser.Math.Vector2(x - 1.5, y))
           points.push(new Phaser.Math.Vector2(x - 3, y + saddle))
         }
 
@@ -736,6 +1053,36 @@ export class BootScene extends Phaser.Scene {
         armorPeaks.map(([x, y]) => [x, y + step * 1.2]),
         7,
         0.5 + step * 1.2
+      )
+    }
+
+    // 岩化态的三个峰之间各填一坨新岩石：顶边从左边那峰的腰连到右边那峰的腰、
+    // 中间塌下去一点，像一整块裂开的岩壳，三个峰之间只留浅浅的凹口。
+    // 只填岩化态，普通态那两个凹口保持原样。底边压在身体后面，不用管接缝
+    const armorBottom = 34
+
+    armor.fillStyle(this.mixColor(0x5c4d33, 0x2a2316, 0.4), 1)
+
+    for (let index = 0; index + 1 < armorPeaks.length; index++) {
+      const [leftX, leftY] = armorPeaks[index]
+      const [rightX, rightY] = armorPeaks[index + 1]
+      const topLeftX = leftX + 1
+      const topLeftY = leftY + 3
+      const topRightX = rightX - 1
+      const topRightY = rightY + 3
+      // 顶边按两个峰的高度插值，再整体压下去 2 像素，中间就自然塌一点
+      const edge = (t: number) => topLeftY + (topRightY - topLeftY) * t + 2
+
+      armor.fillPoints(
+        [
+          new Phaser.Math.Vector2(topLeftX, topLeftY),
+          new Phaser.Math.Vector2(topLeftX + (topRightX - topLeftX) * 0.35, edge(0.35)),
+          new Phaser.Math.Vector2(topLeftX + (topRightX - topLeftX) * 0.65, edge(0.65)),
+          new Phaser.Math.Vector2(topRightX, topRightY),
+          new Phaser.Math.Vector2(rightX - 3, armorBottom),
+          new Phaser.Math.Vector2(leftX + 3, armorBottom),
+        ],
+        true
       )
     }
 
@@ -916,9 +1263,11 @@ export class BootScene extends Phaser.Scene {
     this.makeChurchBackground()
     this.makeSkyBackground()
     this.makeTowerBackground()
+    this.makeLiyueBackground()
   }
 
-  // 第一关·沙滩：天上一个太阳，远处海面，近处沙丘
+  // 第一关·沙滩：天上一个太阳，远处海面，近处沙丘。
+  // 沙丘别低于 y≈200，再往下会被地面盖掉（背景是钉在屏幕上的）
   private makeBeachBackground() {
     const far = this.add.graphics()
 
@@ -941,13 +1290,13 @@ export class BootScene extends Phaser.Scene {
 
     const mid = this.add.graphics()
 
-    this.drawRidge(mid, 480, 270, 0xefdcae, [1, 3], 8, 228)
+    this.drawRidge(mid, 480, 270, 0xefdcae, [1, 3], 8, 196)
     mid.fillStyle(0xd9c188, 1)
-    mid.fillRect(70, 248, 26, 3)
-    mid.fillRect(306, 242, 34, 3)
+    mid.fillRect(70, 218, 26, 3)
+    mid.fillRect(306, 212, 34, 3)
     mid.fillStyle(0xfaf0d6, 1)
-    mid.fillCircle(140, 244, 3)
-    mid.fillCircle(392, 236, 3)
+    mid.fillCircle(140, 214, 3)
+    mid.fillCircle(392, 206, 3)
 
     mid.generateTexture('bg-beach-mid', 480, 270)
     mid.destroy()
@@ -971,8 +1320,9 @@ export class BootScene extends Phaser.Scene {
 
     const mid = this.add.graphics()
 
-    this.drawRidge(mid, 480, 270, 0x9ed3a0, [1, 3], 12, 214)
-    this.drawRidge(mid, 480, 270, 0x84bd88, [2, 5], 8, 240)
+    // 两层草坡都要留在 y≈200 以上，不然会被地面挡住
+    this.drawRidge(mid, 480, 270, 0x9ed3a0, [1, 3], 12, 152)
+    this.drawRidge(mid, 480, 270, 0x84bd88, [2, 5], 8, 186)
 
     mid.generateTexture('bg-field-mid', 480, 270)
     mid.destroy()
@@ -1013,17 +1363,18 @@ export class BootScene extends Phaser.Scene {
 
     const mid = this.add.graphics()
 
-    this.drawRidge(mid, 480, 270, 0x2b3040, [1, 3], 6, 236)
+    // 长椅和地台留在 y≈200 以上，不然会被地面挡住
+    this.drawRidge(mid, 480, 270, 0x2b3040, [1, 3], 6, 190)
 
     // 一排长椅剪影
     mid.fillStyle(0x1f2430, 1)
     for (let index = 0; index < 4; index++) {
       const x = 34 + index * 120
 
-      mid.fillRect(x, 246, 74, 6)
-      mid.fillRect(x + 4, 252, 6, 18)
-      mid.fillRect(x + 64, 252, 6, 18)
-      mid.fillRect(x, 228, 6, 24)
+      mid.fillRect(x, 200, 74, 6)
+      mid.fillRect(x + 4, 206, 6, 18)
+      mid.fillRect(x + 64, 206, 6, 18)
+      mid.fillRect(x, 182, 6, 24)
     }
 
     mid.generateTexture('bg-church-mid', 480, 270)
@@ -1037,9 +1388,9 @@ export class BootScene extends Phaser.Scene {
     this.paintGradient(far, 480, 270, 0x3f6fb5, 0xbcd9f0)
 
     far.fillStyle(0xffffff, 0.32)
-    far.fillEllipse(120, 206, 220, 40)
-    far.fillEllipse(360, 234, 260, 46)
-    far.fillEllipse(250, 184, 160, 30)
+    far.fillEllipse(120, 176, 220, 40)
+    far.fillEllipse(360, 196, 260, 46)
+    far.fillEllipse(250, 152, 160, 30)
 
     const spire = (x: number, top: number, width: number, alpha: number) => {
       far.fillStyle(0x6a7c9c, alpha)
@@ -1047,23 +1398,24 @@ export class BootScene extends Phaser.Scene {
       far.fillTriangle(x, top - 34, x - width / 2, top, x + width / 2, top)
     }
 
-    spire(96, 118, 30, 0.55)
-    spire(384, 140, 24, 0.45)
+    spire(96, 96, 30, 0.55)
+    spire(384, 116, 24, 0.45)
 
     far.generateTexture('bg-sky-far', 480, 270)
     far.destroy()
 
     const mid = this.add.graphics()
 
+    // 云和塔都留在 y≈200 以上，下面那一截会被地面挡住
     mid.fillStyle(0xffffff, 0.5)
-    mid.fillEllipse(80, 250, 300, 54)
-    mid.fillEllipse(400, 258, 300, 50)
+    mid.fillEllipse(80, 196, 300, 54)
+    mid.fillEllipse(400, 204, 300, 50)
 
     // 近处那一座尖塔
     mid.fillStyle(0x54688c, 0.8)
-    mid.fillRect(206, 176, 20, 94)
-    mid.fillTriangle(216, 138, 197, 178, 235, 178)
-    mid.fillRect(210, 150, 12, 12)
+    mid.fillRect(206, 132, 20, 70)
+    mid.fillTriangle(216, 94, 197, 134, 235, 134)
+    mid.fillRect(210, 106, 12, 12)
 
     mid.generateTexture('bg-sky-mid', 480, 270)
     mid.destroy()
@@ -1206,6 +1558,146 @@ export class BootScene extends Phaser.Scene {
 
     mid.generateTexture('bg-tower-mid', 480, 1600)
     mid.destroy()
+  }
+
+  // 第六关·荻花洲的黄昏。从上到下分四段：天空(0~138) → 远山(138~196)
+  // → 湖面 → 堤岸和芦苇，一层压一层，各占各的高度不互相盖掉。
+  // 注意：户外的背景是钉在屏幕上的，而地面站在屏幕最下边（大约 y>210 那一带），
+  // 所以有内容的东西都要画在 y≈205 以上，芦苇的顶也是从堤岸往上伸到这一段里
+  private makeLiyueBackground() {
+    const far = this.add.graphics()
+
+    // 天空
+    this.paintGradient(far, 480, 270, 0xf3b072, 0x745f92)
+
+    // 落日
+    far.fillStyle(0xffe2ad, 0.9)
+    far.fillEllipse(352, 86, 140, 66)
+
+    // 晚霞
+    far.fillStyle(0xffffff, 0.3)
+    far.fillEllipse(120, 34, 130, 22)
+    far.fillEllipse(300, 20, 96, 16)
+    far.fillEllipse(60, 58, 90, 14)
+
+    // 远山：两层剪影，上面的浅、下面的深
+    this.drawRidge(far, 480, 270, 0x8a7396, [2, 5], 20, 100, 0.9)
+    this.drawRidge(far, 480, 270, 0x5d5075, [1, 4], 26, 128)
+
+    far.generateTexture('bg-liyue-far', 480, 270)
+    far.destroy()
+
+    const mid = this.add.graphics()
+
+    // 湖面（155 起，露在地面以上的那一截才是玩家看得到的）
+    mid.fillStyle(0x4f6f8a, 1)
+    mid.fillRect(0, 155, 480, 60)
+
+    mid.fillStyle(0x6f8fa8, 1)
+    mid.fillRect(0, 155, 480, 2)
+
+    // 落日在水面上拉出的反光
+    mid.fillStyle(0xffd9a0, 0.45)
+
+    for (let index = 0; index < 10; index++) {
+      const width = 34 - (index % 4) * 6
+
+      mid.fillRect(340 - width / 2 + ((index % 3) - 1) * 10, 161 + index * 4, width, 2)
+    }
+
+    // 堤岸 + 芦苇：芦苇站在岸线（215）上，往湖里伸出来，
+    // 岸线本身藏在地面后面，露出来的是芦苇的上半截
+    this.drawRidge(mid, 480, 270, 0x6b5a44, [3, 7], 6, 215)
+    this.drawRidge(mid, 480, 270, 0x50442f, [4, 9], 4, 232)
+
+    for (let index = 0; index < 26; index++) {
+      const x = 8 + index * 19 + ((index * 7) % 5)
+      const height = 26 + ((index * 11) % 16)
+      const y = 215 - height
+
+      mid.fillStyle(0x6f6a3c, 1)
+      mid.fillRect(x, y, 1, height)
+
+      // 穗子
+      mid.fillStyle(0x9a945a, 1)
+      mid.fillRect(x - 1, y - 3, 2, 4)
+    }
+
+    mid.generateTexture('bg-liyue-mid', 480, 270)
+    mid.destroy()
+  }
+
+  // 望舒客栈：一根很高的岩柱，顶上压着一栋木楼，檐下挂着灯笼。
+  // 画在背景层里当路标，不参与碰撞
+  private makeInn() {
+    const gfx = this.add.graphics()
+
+    // 岩柱：上窄下宽，右侧压暗做出体积
+    gfx.fillStyle(0x5b4a38, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(18, 160),
+        new Phaser.Math.Vector2(54, 160),
+        new Phaser.Math.Vector2(46, 56),
+        new Phaser.Math.Vector2(26, 56),
+      ],
+      true
+    )
+
+    gfx.fillStyle(0x6f5c46, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(18, 160),
+        new Phaser.Math.Vector2(32, 160),
+        new Phaser.Math.Vector2(32, 56),
+        new Phaser.Math.Vector2(26, 56),
+      ],
+      true
+    )
+
+    gfx.fillStyle(0x3f3225, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(44, 160),
+        new Phaser.Math.Vector2(54, 160),
+        new Phaser.Math.Vector2(46, 56),
+        new Phaser.Math.Vector2(40, 56),
+      ],
+      true
+    )
+
+    // 木楼：三层，越上面越窄
+    gfx.fillStyle(0x8a5a3c, 1)
+    gfx.fillRect(14, 38, 44, 20)
+    gfx.fillRect(18, 22, 36, 16)
+    gfx.fillRect(22, 8, 28, 14)
+
+    gfx.fillStyle(0x6d452e, 1)
+    gfx.fillRect(14, 54, 44, 4)
+    gfx.fillRect(18, 36, 36, 3)
+    gfx.fillRect(22, 20, 28, 3)
+
+    // 青瓦屋顶，两端翘一点
+    gfx.fillStyle(0x3f6b62, 1)
+    gfx.fillTriangle(36, 0, 12, 10, 60, 10)
+    gfx.fillRect(10, 9, 52, 3)
+    gfx.fillRect(60, 6, 4, 4)
+    gfx.fillRect(8, 6, 4, 4)
+
+    // 窗和灯笼
+    gfx.fillStyle(0xffd54f, 1)
+    gfx.fillRect(24, 26, 4, 5)
+    gfx.fillRect(44, 26, 4, 5)
+    gfx.fillRect(20, 43, 4, 5)
+    gfx.fillRect(34, 43, 4, 5)
+    gfx.fillRect(48, 43, 4, 5)
+
+    gfx.fillStyle(0xd94f3a, 1)
+    gfx.fillRect(13, 30, 3, 5)
+    gfx.fillRect(56, 30, 3, 5)
+
+    gfx.generateTexture('inn', 72, 160)
+    gfx.destroy()
   }
 
   private makeBlessing() {

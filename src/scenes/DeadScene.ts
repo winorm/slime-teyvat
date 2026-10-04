@@ -19,6 +19,8 @@ export class DeadScene extends Phaser.Scene {
 
     if (this.cause === 'hazard') {
       title = '撞上屏障了……'
+    } else if (this.cause === 'spike') {
+      title = '被岩刺钉了个对穿……'
     } else if (this.cause === 'crush') {
       title = '被崩塌吞没了……'
     }
