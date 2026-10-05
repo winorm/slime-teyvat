@@ -34,6 +34,10 @@ jobs:
       - name: 类型检查 + 构建
         run: npm run build
 
+      # 生成单文件版并放进 dist，这样 /game.html 也能直接下载、直接玩
+      - name: 打包单文件版
+        run: node 打包单文件.mjs
+
       # 首次使用时要在仓库 Settings → Pages → Source 选「GitHub Actions」，
       # 这一步只是读取 Pages 的配置（工作流的令牌没有权限替仓库打开 Pages）
       - name: 读取 Pages 配置

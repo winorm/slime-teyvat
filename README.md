@@ -2,6 +2,8 @@
 
 **▶ 在线试玩：<https://winorm.github.io/slime-teyvat/>**（手机浏览器也能玩，竖屏时会提示横过来）
 
+**⤓ 单文件版下载：<https://winorm.github.io/slime-teyvat/game.html>**（3.5MB，保存下来双击就能玩，也能直接发给别人）
+
 [![部署状态](https://github.com/winorm/slime-teyvat/actions/workflows/deploy-pages.yml/badge.svg?branch=main)](https://github.com/winorm/slime-teyvat/actions/workflows/deploy-pages.yml)
 
 一只从星间旅行坠落到提瓦特的史莱姆，摸到七天神像就能吸收对应的元素力——外貌、移速、

@@ -4,7 +4,7 @@
 // 音效和 BGM 会一起转成 base64 的 data URI 塞进去，所以单文件版也有声音
 // （代价是体积从 1.4MB 涨到 3.5MB 左右）。
 
-import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs'
+import { readFileSync, writeFileSync, readdirSync, existsSync, copyFileSync } from 'node:fs'
 import { join, extname } from 'node:path'
 
 const distDir = 'dist'
@@ -62,4 +62,10 @@ for (const dir of AUDIO_DIRS) {
 
 writeFileSync(outputFile, html, 'utf8')
 
+// 再往 dist 里放一份：GitHub Pages 会把 dist 整个发布出去，
+// 于是 https://<用户名>.github.io/<仓库名>/game.html 就是一个能直接下载/直接玩的单文件版，
+// 不用再去 Release 里传附件（那个走的是 Amazon S3，国内经常传不上去）
+copyFileSync(outputFile, join(distDir, 'game.html'))
+
 console.log('已生成 ' + outputFile + '（内联音频 ' + inlined + ' 个）')
+console.log('已复制一份到 ' + join(distDir, 'game.html'))
