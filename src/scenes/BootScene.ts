@@ -107,6 +107,9 @@ export class BootScene extends Phaser.Scene {
 
     this.makePlate()
 
+    this.makeWaterTop()
+    this.makeGrassTop()
+
     this.makeSpikeLauncher()
     this.makeRockSpike()
 
@@ -175,6 +178,13 @@ export class BootScene extends Phaser.Scene {
     this.makeBlessing()
     this.makeMonument()
     this.makeGate()
+    this.makeIronGate()
+    this.makeRuinBrick()
+    this.makeWoodPlank()
+    this.makeRuinHouse()
+    this.makeRuinHouseBroken()
+    this.makeMineHill()
+    this.makeMineCliff()
     this.makePaper()
     this.makeSpire()
     this.makeCage()
@@ -310,21 +320,412 @@ export class BootScene extends Phaser.Scene {
     gfx.destroy()
   }
 
+  // 石门：嵌在墙里的双扇石闸。门框比门扇深，两扇中间留一道缝，
+  // 上下各压一条砌石线，四角有铁钉，右下角带一点缺角
   private makeGate() {
     const gfx = this.add.graphics()
 
-    gfx.fillStyle(0xffffff, 1)
+    // 门框（沉进墙里）
+    gfx.fillStyle(0x4a443b, 1)
+    gfx.fillRect(0, 0, 70, 40)
+
+    // 门洞底色
+    gfx.fillStyle(0x241f1a, 1)
+    gfx.fillRect(3, 3, 64, 37)
+
+    // 两扇门扇
+    gfx.fillStyle(0x8a8175, 1)
+    gfx.fillRect(4, 4, 31, 34)
+    gfx.fillRect(35, 4, 31, 34)
+
+    // 受光的上棱和压暗的下棱
+    gfx.fillStyle(0xa39a8c, 1)
+    gfx.fillRect(4, 4, 31, 2)
+    gfx.fillRect(35, 4, 31, 2)
+    gfx.fillStyle(0x6d6558, 1)
+    gfx.fillRect(4, 36, 31, 2)
+    gfx.fillRect(35, 36, 31, 2)
+
+    // 中缝
+    gfx.fillStyle(0x595247, 1)
+    gfx.fillRect(34, 4, 2, 34)
+
+    // 竖向石纹（每扇三道，深浅交错，免得像平板）
+    gfx.fillStyle(0x7c7365, 1)
+    gfx.fillRect(13, 8, 1, 26)
+    gfx.fillRect(22, 12, 1, 20)
+    gfx.fillRect(44, 9, 1, 25)
+    gfx.fillRect(55, 14, 1, 18)
+    gfx.fillRect(30, 16, 1, 16)
+    gfx.fillRect(62, 10, 1, 22)
+
+    // 横向砌石线：两扇各一条，做成上下两层砌石
+    gfx.fillStyle(0x6d6558, 1)
+    gfx.fillRect(4, 20, 31, 1)
+    gfx.fillRect(35, 20, 31, 1)
+
+    // 铁钉 + 门环
+    gfx.fillStyle(0x3b352e, 1)
+    gfx.fillRect(9, 9, 2, 2)
+    gfx.fillRect(27, 9, 2, 2)
+    gfx.fillRect(41, 9, 2, 2)
+    gfx.fillRect(59, 9, 2, 2)
+    gfx.fillRect(9, 29, 2, 2)
+    gfx.fillRect(27, 29, 2, 2)
+    gfx.fillRect(41, 29, 2, 2)
+    gfx.fillRect(59, 29, 2, 2)
+
+    gfx.fillStyle(0x4a423a, 1)
+    gfx.fillRect(26, 22, 8, 3)
+    gfx.fillRect(36, 22, 8, 3)
+
+    // 几道细裂纹和右下缺角
+    gfx.fillStyle(0x6d6558, 1)
+    gfx.fillRect(18, 26, 1, 8)
+    gfx.fillRect(49, 24, 1, 10)
+    gfx.fillStyle(0x241f1a, 1)
+    gfx.fillRect(62, 34, 4, 4)
+    gfx.fillRect(60, 36, 2, 2)
+
+    gfx.generateTexture('gate', 70, 40)
+    gfx.destroy()
+  }
+
+  // 铁栅栏：两侧嵌石柱，中间一排尖头铁栏，两道横梁 + 铆钉，带一点锈
+  private makeIronGate() {
+    const gfx = this.add.graphics()
+
+    // 两侧石柱
+    gfx.fillStyle(0x6b6257, 1)
+    gfx.fillRect(0, 0, 8, 100)
+    gfx.fillRect(72, 0, 8, 100)
+    gfx.fillStyle(0x877d6f, 1)
+    gfx.fillRect(0, 0, 2, 100)
+    gfx.fillRect(72, 0, 2, 100)
+    gfx.fillStyle(0x4f483f, 1)
+    gfx.fillRect(6, 0, 2, 100)
+    gfx.fillRect(78, 0, 2, 100)
+
+    // 栅栏后面的黑暗
+    gfx.fillStyle(0x231d17, 1)
+    gfx.fillRect(8, 0, 64, 100)
+
+    // 七根竖栏 + 尖头
+    for (let index = 0; index < 7; index++) {
+      const x = 11 + index * 9
+
+      gfx.fillStyle(0x54545e, 1)
+      gfx.fillRect(x, 6, 4, 88)
+      gfx.fillStyle(0x6f6f7a, 1)
+      gfx.fillRect(x, 6, 1, 88)
+      gfx.fillStyle(0x2f2f36, 1)
+      gfx.fillRect(x + 3, 6, 1, 88)
+
+      gfx.fillStyle(0x54545e, 1)
+      gfx.fillTriangle(x - 1, 6, x + 5, 6, x + 2, 0)
+      gfx.fillStyle(0x6f6f7a, 1)
+      gfx.fillTriangle(x, 6, x + 2, 6, x + 2, 2)
+    }
+
+    // 两道横梁
+    gfx.fillStyle(0x4b4b55, 1)
+    gfx.fillRect(8, 22, 64, 8)
+    gfx.fillRect(8, 72, 64, 8)
+    gfx.fillStyle(0x66666f, 1)
+    gfx.fillRect(8, 22, 64, 2)
+    gfx.fillRect(8, 72, 64, 2)
+    gfx.fillStyle(0x30303a, 1)
+    gfx.fillRect(8, 28, 64, 2)
+    gfx.fillRect(8, 78, 64, 2)
+
+    // 铆钉
+    gfx.fillStyle(0x82828e, 1)
+    for (let index = 0; index < 4; index++) {
+      gfx.fillRect(12 + index * 18, 25, 3, 3)
+      gfx.fillRect(12 + index * 18, 75, 3, 3)
+    }
+
+    // 锈迹
+    gfx.fillStyle(0x8a5a3a, 0.5)
+    gfx.fillRect(19, 40, 3, 10)
+    gfx.fillRect(46, 52, 2, 13)
+    gfx.fillRect(64, 36, 3, 8)
+    gfx.fillRect(28, 62, 2, 6)
+
+    gfx.generateTexture('iron-gate', 80, 100)
+    gfx.destroy()
+  }
+
+  // 村庄断墙用的砖石：可平铺的一小块
+  private makeRuinBrick() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0x6a5a48, 1)
+    gfx.fillRect(0, 0, 16, 16)
+    gfx.fillStyle(0x7c6a56, 1)
+    gfx.fillRect(0, 0, 16, 1)
+    gfx.fillRect(0, 8, 16, 1)
+    gfx.fillStyle(0x4a3f33, 1)
+    gfx.fillRect(0, 7, 16, 1)
+    gfx.fillRect(0, 15, 16, 1)
+    gfx.fillRect(7, 0, 1, 8)
+    gfx.fillRect(15, 8, 1, 8)
+    gfx.fillStyle(0x5c4e3e, 1)
+    gfx.fillRect(2, 3, 4, 2)
+    gfx.fillRect(10, 11, 4, 2)
+
+    gfx.generateTexture('ruin-brick', 16, 16)
+    gfx.destroy()
+  }
+
+  // 木桥的板材：横铺的一根板子，可平铺。上沿受光、下沿压暗，
+  // 中间几道木纹，两头各一颗钉子
+  private makeWoodPlank() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0x8a6034, 1)
+    gfx.fillRect(0, 0, 16, 16)
+    gfx.fillStyle(0xa8794a, 1)
     gfx.fillRect(0, 0, 16, 2)
-    gfx.fillRect(0, 14, 16, 2)
-    gfx.fillRect(0, 2, 2, 12)
-    gfx.fillRect(14, 2, 2, 12)
-    gfx.fillRect(4, 2, 2, 12)
-    gfx.fillRect(10, 2, 2, 12)
+    gfx.fillStyle(0x5f4224, 1)
+    gfx.fillRect(0, 13, 16, 3)
+    gfx.fillRect(0, 0, 1, 16)
+    gfx.fillStyle(0x74512c, 1)
+    gfx.fillRect(3, 6, 6, 1)
+    gfx.fillRect(10, 9, 4, 1)
+    gfx.fillRect(5, 11, 5, 1)
+    gfx.fillStyle(0x4a3418, 1)
+    gfx.fillRect(2, 3, 1, 1)
+    gfx.fillRect(13, 3, 1, 1)
 
-    gfx.fillStyle(0x888888, 0.6)
-    gfx.fillRect(2, 8, 12, 2)
+    gfx.generateTexture('wood-plank', 16, 16)
+    gfx.destroy()
+  }
 
-    gfx.generateTexture('gate', 16, 16)
+  // 村里的破屋：石基 + 木板墙，屋顶塌了一半，门洞黑着，墙根长苔
+  private makeRuinHouse() {
+    const gfx = this.add.graphics()
+
+    // 石基
+    gfx.fillStyle(0x6b6257, 1)
+    gfx.fillRect(2, 52, 72, 12)
+    gfx.fillStyle(0x574f45, 1)
+    gfx.fillRect(2, 60, 72, 4)
+
+    // 木墙
+    gfx.fillStyle(0x6a4f34, 1)
+    gfx.fillRect(6, 26, 64, 28)
+    gfx.fillStyle(0x533d28, 1)
+
+    for (let index = 0; index < 8; index++) {
+      gfx.fillRect(6 + index * 8, 26, 1, 28)
+    }
+
+    gfx.fillStyle(0x7c5e40, 1)
+    gfx.fillRect(6, 26, 64, 2)
+
+    // 屋顶：左边还立着，右边只剩几根椽子
+    gfx.fillStyle(0x8a4a38, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(0, 26),
+        new Phaser.Math.Vector2(38, 8),
+        new Phaser.Math.Vector2(38, 26),
+      ],
+      true
+    )
+    gfx.fillStyle(0xa85c46, 1)
+    gfx.fillRect(4, 24, 30, 2)
+    gfx.fillStyle(0x533d28, 1)
+    gfx.fillRect(42, 16, 3, 10)
+    gfx.fillRect(52, 20, 3, 6)
+    gfx.fillRect(62, 14, 3, 12)
+
+    // 门洞和窗
+    gfx.fillStyle(0x241a12, 1)
+    gfx.fillRect(32, 38, 14, 16)
+    gfx.fillRect(12, 32, 10, 9)
+    gfx.fillStyle(0x3a2a1c, 1)
+    gfx.fillRect(32, 36, 14, 2)
+    gfx.fillRect(16, 32, 1, 9)
+    gfx.fillRect(12, 36, 10, 1)
+
+    // 裂缝和苔
+    gfx.fillStyle(0x3f2f1f, 1)
+    gfx.fillRect(24, 30, 1, 10)
+    gfx.fillRect(56, 34, 1, 14)
+    gfx.fillStyle(0x5f7a3c, 1)
+    gfx.fillRect(4, 50, 8, 3)
+    gfx.fillRect(58, 50, 12, 3)
+    gfx.fillRect(28, 52, 4, 2)
+
+    gfx.generateTexture('ruin-house', 76, 64)
+    gfx.destroy()
+  }
+
+  // 彻底塌掉的那种：只剩半截墙，顶上参差不齐，中间破了个洞
+  private makeRuinHouseBroken() {
+    const gfx = this.add.graphics()
+
+    // 参差的墙头
+    gfx.fillStyle(0x6a4f34, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(4, 44),
+        new Phaser.Math.Vector2(4, 12),
+        new Phaser.Math.Vector2(14, 7),
+        new Phaser.Math.Vector2(24, 14),
+        new Phaser.Math.Vector2(34, 5),
+        new Phaser.Math.Vector2(46, 12),
+        new Phaser.Math.Vector2(58, 6),
+        new Phaser.Math.Vector2(64, 14),
+        new Phaser.Math.Vector2(64, 44),
+      ],
+      true
+    )
+
+    gfx.fillStyle(0x533d28, 1)
+
+    for (let index = 0; index < 8; index++) {
+      gfx.fillRect(6 + index * 8, 16, 1, 26)
+    }
+
+    // 破洞
+    gfx.fillStyle(0x241a12, 1)
+    gfx.fillRect(20, 26, 16, 12)
+    gfx.fillRect(40, 22, 10, 8)
+
+    // 石基
+    gfx.fillStyle(0x6b6257, 1)
+    gfx.fillRect(2, 36, 64, 8)
+    gfx.fillStyle(0x574f45, 1)
+    gfx.fillRect(2, 41, 64, 3)
+
+    // 苔
+    gfx.fillStyle(0x5f7a3c, 1)
+    gfx.fillRect(6, 42, 10, 2)
+    gfx.fillRect(50, 42, 9, 2)
+
+    gfx.generateTexture('ruin-house-broken', 68, 44)
+    gfx.destroy()
+  }
+
+  // 矿山剪影：一座秃石头山，左边受光、右边压暗
+  private makeMineHill() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0x4a3d30, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(0, 90),
+        new Phaser.Math.Vector2(0, 52),
+        new Phaser.Math.Vector2(24, 26),
+        new Phaser.Math.Vector2(54, 8),
+        new Phaser.Math.Vector2(88, 26),
+        new Phaser.Math.Vector2(120, 58),
+        new Phaser.Math.Vector2(120, 90),
+      ],
+      true
+    )
+
+    gfx.fillStyle(0x5b4a38, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(0, 52),
+        new Phaser.Math.Vector2(24, 26),
+        new Phaser.Math.Vector2(54, 8),
+        new Phaser.Math.Vector2(62, 90),
+        new Phaser.Math.Vector2(0, 90),
+      ],
+      true
+    )
+
+    gfx.fillStyle(0x382d22, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(88, 26),
+        new Phaser.Math.Vector2(120, 58),
+        new Phaser.Math.Vector2(120, 90),
+        new Phaser.Math.Vector2(74, 90),
+      ],
+      true
+    )
+
+    gfx.fillStyle(0x2f261d, 1)
+    gfx.fillRect(38, 34, 2, 16)
+    gfx.fillRect(70, 44, 2, 12)
+    gfx.fillRect(52, 58, 2, 10)
+
+    gfx.generateTexture('mine-hill', 120, 90)
+    gfx.destroy()
+  }
+
+  // 洞口那面岩壁：一整块秃岩，中间挖出一个拱形洞口，铁栅栏就装在里面
+  private makeMineCliff() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0x4a3d30, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(0, 170),
+        new Phaser.Math.Vector2(0, 62),
+        new Phaser.Math.Vector2(28, 30),
+        new Phaser.Math.Vector2(74, 10),
+        new Phaser.Math.Vector2(150, 8),
+        new Phaser.Math.Vector2(196, 36),
+        new Phaser.Math.Vector2(220, 72),
+        new Phaser.Math.Vector2(220, 170),
+      ],
+      true
+    )
+
+    // 左侧受光面
+    gfx.fillStyle(0x5b4a38, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(0, 62),
+        new Phaser.Math.Vector2(28, 30),
+        new Phaser.Math.Vector2(74, 10),
+        new Phaser.Math.Vector2(84, 170),
+        new Phaser.Math.Vector2(0, 170),
+      ],
+      true
+    )
+
+    // 右侧暗面
+    gfx.fillStyle(0x372c22, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(150, 8),
+        new Phaser.Math.Vector2(196, 36),
+        new Phaser.Math.Vector2(220, 72),
+        new Phaser.Math.Vector2(220, 170),
+        new Phaser.Math.Vector2(146, 170),
+      ],
+      true
+    )
+
+    // 岩层线
+    gfx.fillStyle(0x2f261d, 1)
+    gfx.fillRect(20, 84, 44, 2)
+    gfx.fillRect(150, 62, 50, 2)
+    gfx.fillRect(96, 44, 40, 2)
+    gfx.fillStyle(0x6b5a44, 0.6)
+    gfx.fillRect(30, 100, 30, 2)
+    gfx.fillRect(160, 96, 40, 2)
+
+    // 洞口：拱顶 + 竖直洞身，洞口正好让 80x100 的铁栅栏嵌进来
+    gfx.fillStyle(0x14100c, 1)
+    gfx.fillRect(72, 70, 76, 100)
+    gfx.fillEllipse(110, 70, 76, 44)
+
+    // 洞口上沿的一圈岩棱
+    gfx.fillStyle(0x5b4a38, 1)
+    gfx.fillRect(68, 66, 6, 12)
+    gfx.fillRect(146, 66, 6, 12)
+    gfx.fillRect(88, 44, 44, 4)
+
+    gfx.generateTexture('mine-cliff', 220, 170)
     gfx.destroy()
   }
 
@@ -718,6 +1119,40 @@ export class BootScene extends Phaser.Scene {
     gfx.fillRect(1, 1, 26, 1)
 
     gfx.generateTexture('plate', 28, 8)
+    gfx.destroy()
+  }
+
+  // 浅水层：可平铺的一小条，上亮下暗，摊在地形顶面上当水面
+  private makeWaterTop() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0x4a7fa0, 0.55)
+    gfx.fillRect(0, 2, 16, 6)
+    gfx.fillStyle(0x9fd0e8, 0.9)
+    gfx.fillRect(0, 0, 16, 2)
+    gfx.fillStyle(0x8fc8e0, 0.5)
+    gfx.fillRect(3, 3, 4, 1)
+    gfx.fillRect(10, 4, 3, 1)
+
+    gfx.generateTexture('water-top', 16, 8)
+    gfx.destroy()
+  }
+
+  // 草地层：也是可平铺的一小条，顶上冒几根草叶
+  private makeGrassTop() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0x5f8a3a, 1)
+    gfx.fillRect(0, 2, 16, 5)
+    gfx.fillStyle(0x7fb04a, 1)
+    gfx.fillRect(0, 1, 16, 2)
+    gfx.fillStyle(0x86bb52, 1)
+    gfx.fillRect(2, 0, 1, 3)
+    gfx.fillRect(6, 0, 1, 2)
+    gfx.fillRect(11, 0, 1, 3)
+    gfx.fillRect(14, 1, 1, 2)
+
+    gfx.generateTexture('grass-top', 16, 7)
     gfx.destroy()
   }
 

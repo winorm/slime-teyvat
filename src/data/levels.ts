@@ -7,6 +7,19 @@ export type PlatformDef = {
   height: number
   oneWay?: boolean
   crumble?: boolean
+  water?: boolean   // 顶面叠一层浅水（只做画面，不参与碰撞）
+  grass?: boolean   // 顶面叠一层草（只做画面，不参与碰撞）
+  brick?: boolean   // 表面盖一层砖石（村庄断墙用，同样只做画面）
+  plank?: boolean   // 表面盖一层木板（木桥用，同样只做画面）
+  tint?: number     // 覆盖主题配色：村庄断墙、矿洞岩壁这类要单独上色的块
+}
+
+// 背景静物：房子、山体这类只做画面、不参与碰撞的东西
+export type DecorDef = {
+  x: number
+  y: number         // 底边贴着的那条线（地面顶面）
+  key: string
+  scale?: number
 }
 
 export type OrbDef = {
@@ -112,6 +125,7 @@ export type LevelDef = {
   bg?: BgTheme
   windmill?: { x: number; y: number }
   inn?: { x: number; y: number }          // 望舒客栈：画在背景里的地标，不参与碰撞
+  decor?: DecorDef[]                      // 背景静物：破屋、矿山剪影
   statue?: StatueDef
   plates?: PlateDef[]
   launchers?: LauncherDef[]
@@ -141,6 +155,8 @@ export type DoorDef = {
   height: number
   needs: string[]
   ordered?: boolean
+  texture?: string  // 不写就是石门（gate），铁栅栏用 iron-gate
+  tint?: number     // 不写就按贴图本来的颜色
 }
 
 export type NoteDef = {
@@ -442,79 +458,105 @@ export const LEVELS: LevelDef[] = [
     intro:
       '这里就是风神提到的璃月吧。\n荻花洲的芦苇在晚风里摇，远处那座岩柱上的木楼就是望舒客栈。\n天快黑了，先摸一摸路边的神像，再上去歇一晚。',
 
-    width: 2000,
+    width: 3500,
     height: 540,
     startElement: 'wind',
     spawn: { x: 60, y: 467 },
     bg: 'liyue',
-    inn: { x: 1860, y: 480 },
-    // 神像在关卡开头：这一关开局没有岩元素，得先摸神像拿到，后面的岩刺/板子/石壁才用得上
-    statue: { x: 520, y: 480, grants: 'rock', prompt: '触摸' },
-    goal: { x: 1770, y: 466, kind: 'chest', prompt: '打开', after: 'statue' },
+    inn: { x: 3450, y: 480 },
+    // 神像在过桥之后的土堆顶上：这一关开局没有岩元素，得先摸神像拿到，
+    // 后面的双压力板、铁栅栏、岩刺走廊才用得上
+    statue: { x: 1500, y: 444, grants: 'rock', prompt: '触摸' },
+    // 宝箱放在出洞口那颗原石后面，先捡原石再开箱
+    goal: { x: 3390, y: 466, kind: 'chest', prompt: '打开', after: 'statue' },
     platforms: [
-      // 荻花洲的长堤：从岸边一直铺到望舒客栈前，顶上 480
-      { x: 1000, y: 510, width: 2000, height: 60 },
-      // 岩刺走廊上方的岩棚（走廊净高 80，正好卡着人走）
-      { x: 850, y: 380, width: 460, height: 40 },
-      // 压力板上方的岩檐：想站上去踩板子，就得顶着落下来的岩刺
-      { x: 1200, y: 380, width: 160, height: 40 },
-      // 拦路的岩壁：一整根从关卡顶部挂到门顶（0~380），下面就是石门（380~480）。
-      // 只有 80 宽，玩家走到它跟前正好站在门口，不会被旁边的石头夹住；
+      // ① 荻花洲岸边：出生点，往右就是断桥
+      { x: 350, y: 510, width: 700, height: 60, grass: true },
+      // ② 木桥：拱形，桥面是一级级的台阶（扶梯），中间两处断板
+      // （820~880、1180~1240）可以掉下去；顶面从岸边的 480 起拱，最高 432
+      { x: 730, y: 474, width: 60, height: 16, plank: true },
+      { x: 790, y: 460, width: 60, height: 16, plank: true },
+      { x: 910, y: 448, width: 60, height: 16, plank: true },
+      { x: 970, y: 442, width: 60, height: 16, plank: true },
+      { x: 1030, y: 440, width: 60, height: 16, plank: true },
+      { x: 1090, y: 442, width: 60, height: 16, plank: true },
+      { x: 1150, y: 448, width: 60, height: 16, plank: true },
+      { x: 1270, y: 460, width: 60, height: 16, plank: true },
+      // 桥洞下的浅水：顶面 496，比桥面最高的地方低 64，
+      // 从两个缺口都能跳回桥面（最近的断板顶面 452，跳高 56 够用）
+      { x: 1000, y: 511, width: 600, height: 30, water: true },
+      // ③ 神像土堆：两层往里收的草土堆，神像站在最上面那层
+      { x: 1525, y: 510, width: 450, height: 60, grass: true },
+      { x: 1500, y: 471, width: 200, height: 18, grass: true },
+      // 顶面留宽一点，玩家站到神像两侧时交互距离（64）才够得着
+      { x: 1500, y: 450, width: 160, height: 12, grass: true },
+      // ④ 破败的村庄：几段断墙，跳过去就是矿洞口
+      { x: 2050, y: 510, width: 600, height: 60 },
+      { x: 1830, y: 466, width: 16, height: 28, brick: true },
+      { x: 1900, y: 460, width: 60, height: 40, brick: true },
+      { x: 2030, y: 466, width: 20, height: 28, brick: true },
+      // ⑤ 矿洞口：门前空地 + 从关卡顶部挂到门顶的岩壁（0~380），
       // 顶到 y=0 是为了风元素也没法从上面绕过去
-      { x: 1460, y: 190, width: 80, height: 380 },
-      // 客栈前的小石台，上面放着最后一颗原石
-      { x: 1700, y: 444, width: 80, height: 20 },
+      { x: 2500, y: 510, width: 300, height: 60 },
+      { x: 2650, y: 190, width: 80, height: 380, tint: 0x5b4a38 },
+      // ⑥ 矿洞：地面一直铺到客栈，洞顶从洞口盖到陷阱尽头（净高 80，正好卡着人走）
+      { x: 3075, y: 510, width: 850, height: 60 },
+      { x: 2955, y: 200, width: 610, height: 400, tint: 0x4a3d30 },
     ],
     plates: [
-      // 板子压在岩刺正下方：站上去要挨扎，拿岩柱压住才是最稳的办法
-      { x: 1200, y: 476, id: 'p1' },
+      // 两块板隔 70 像素：一个人的身位压不住两块，一根岩柱也只能压一块，
+      // 所以必须「岩柱压一块 + 自己岩化站在另一块上」
+      { x: 2450, y: 476, id: 'p1' },
+      { x: 2520, y: 476, id: 'p2' },
     ],
     doors: [
-      { x: 1460, y: 430, width: 80, height: 100, needs: ['p1'] },
+      // 洞口铁栅栏：单独一张铁栏杆贴图，两块板同时压住才开
+      { x: 2650, y: 430, width: 80, height: 100, needs: ['p1', 'p2'], texture: 'iron-gate' },
     ],
     launchers: [
-      // 走廊里的两门：间隔一样但错开摆放，跑过去要卡节奏
-      { x: 760, y: 407, interval: 2.6 },
-      { x: 940, y: 407, interval: 2.6 },
-      // 压力板上方那一门
-      { x: 1200, y: 407, interval: 2.2 },
+      // 前两门是教学：间隔 2.6 秒，卡着节奏能跑过去
+      { x: 2760, y: 407, interval: 2.6 },
+      { x: 2880, y: 407, interval: 2.6 },
+      // 强制点：四门挤在 108 像素里，每 0.9 秒一轮。
+      // 危险区 148 像素：岩化（90/秒）要 1.64 秒才能穿过去，> 0.9 秒，
+      // 所以不管什么节奏进来都躲不掉，必挨一下；
+      // 又因为 1.64 < 0.9×2，最多只会碰上两轮，第二轮被 1.2 秒无敌吃掉，
+      // 于是「岩化挡一次」是唯一解，也不会被第二下打死。
+      { x: 3060, y: 407, interval: 0.9 },
+      { x: 3096, y: 407, interval: 0.9 },
+      { x: 3132, y: 407, interval: 0.9 },
+      { x: 3168, y: 407, interval: 0.9 },
     ],
     orbs: [],
     gems: [
-      { x: 300, y: 440 },
-      { x: 760, y: 440 },
-      { x: 940, y: 440 },
-      { x: 1290, y: 440 },
-      { x: 1700, y: 404 },
+      { x: 860, y: 470 },   // 桥洞下那一颗：得从缺口跳下去才拿得到
+      { x: 2700, y: 440 },  // 进矿洞
+      { x: 3320, y: 440 },  // 出矿洞
     ],
     blessings: [],
     hazards: [],
     monuments: [],
+    // 背景静物：左边是塌掉的村子，越往右越像矿山，最后收在洞口那面岩壁上
+    decor: [
+      { x: 1790, y: 480, key: 'ruin-house' },
+      { x: 1980, y: 480, key: 'ruin-house-broken' },
+      { x: 2170, y: 480, key: 'ruin-house', scale: 0.85 },
+      { x: 2360, y: 480, key: 'mine-hill' },
+      { x: 2520, y: 480, key: 'mine-hill', scale: 1.25 },
+      { x: 2650, y: 480, key: 'mine-cliff' },
+    ],
     notes: [
       {
-        x: 150,
+        x: 2380,
         y: 464,
         prompt: '阅读',
-        text:
-          '残卷上写着：\n"岩之国度，契约之乡。\n' +
-          '一柱立地，可承千钧。\n一石在身，可挡一劫。\n' +
-          '然岩性不移，行则迟缓。\n顺其性者，可行远。"',
-      },
-      {
-        x: 1330,
-        y: 464,
-        prompt: '阅读',
-        text:
-          '残卷上写着：\n"重物压机，门自启。\n' +
-          '人立其上，机亦应之，\n然山中之石，可代人行远。"',
+        text: '"重物压机，门自启。\n人立其上，机亦应之，\n然山中之石，可代人行远。"',
       },
     ],
     hints: [
-      { x: 220, y: 430, text: '按 F 读一读残卷' },
-      { x: 520, y: 356, text: '按 F 触摸神像' },
-      { x: 700, y: 440, text: '岩刺会扎人：按 X 岩化能挡一下' },
-      { x: 1130, y: 440, text: '按 C 把岩柱砸在压力板上' },
-      { x: 1660, y: 400, text: '望舒客栈就在前面' },
+      { x: 1630, y: 420, text: '按 F 触摸神像' },
+      { x: 2760, y: 440, text: '岩刺会扎人：按 X 岩化能挡一下' },
+      { x: 3300, y: 286, text: '望舒客栈就在前面' },
     ],
   },
 

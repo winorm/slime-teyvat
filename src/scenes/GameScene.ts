@@ -125,6 +125,7 @@ export class GameScene extends Phaser.Scene {
   private level!: LevelDef
   private slime!: Phaser.Physics.Arcade.Sprite
   private platforms!: Phaser.Physics.Arcade.StaticGroup
+  private pillars!: Phaser.Physics.Arcade.StaticGroup
   private orbs!: Phaser.Physics.Arcade.StaticGroup
 
   private gems!: Phaser.Physics.Arcade.StaticGroup
@@ -139,6 +140,7 @@ export class GameScene extends Phaser.Scene {
   private elementIcons: Phaser.GameObjects.Image[] = []
   private elementMarks: Phaser.GameObjects.Rectangle[] = []
   private elementHint!: Phaser.GameObjects.Text
+  private keyLegend: Phaser.GameObjects.Text | null = null
   private armorBarBack!: Phaser.GameObjects.Rectangle
   private armorBar!: Phaser.GameObjects.Rectangle
 
@@ -303,6 +305,7 @@ export class GameScene extends Phaser.Scene {
 
     this.chased = false
     this.platforms = this.physics.add.staticGroup()
+    this.pillars = this.physics.add.staticGroup()
     this.orbs = this.physics.add.staticGroup()
 
     const theme = this.level.bg ?? 'field'
@@ -346,6 +349,15 @@ export class GameScene extends Phaser.Scene {
     if (this.level.inn) {
       this.add.image(this.level.inn.x, this.level.inn.y - 80, 'inn').setDepth(-15)
     }
+
+    // 背景静物：破屋、矿山剪影，底边贴在地面线上，不参与碰撞
+    ;(this.level.decor ?? []).forEach((def) => {
+      this.add
+        .image(def.x, def.y, def.key)
+        .setOrigin(0.5, 1)
+        .setScale(def.scale ?? 1)
+        .setDepth(-15)
+    })
 
     this.gems = this.physics.add.staticGroup()
     this.blessings = this.physics.add.staticGroup()
@@ -397,7 +409,9 @@ export class GameScene extends Phaser.Scene {
     platformDefs.forEach((def) => {
       const platform = this.platforms.create(def.x, def.y, 'pixel') as Phaser.Physics.Arcade.Sprite
       platform.setDisplaySize(def.width, def.height)
-      platform.setTint(def.crumble ? palette.crumble : def.oneWay ? palette.oneWay : palette.ground)
+      platform.setTint(
+        def.tint ?? (def.crumble ? palette.crumble : def.oneWay ? palette.oneWay : palette.ground)
+      )
       platform.refreshBody()
 
       if (def.oneWay) {
@@ -409,6 +423,29 @@ export class GameScene extends Phaser.Scene {
 
       if (def.crumble) {
         platform.setData('crumble', true)
+      }
+
+      // 浅水 / 草地只是叠在地形顶面上的一层贴图，不参与碰撞，也不改地形本身的颜色
+      const top = def.y - def.height / 2
+
+      if (def.water) {
+        this.add.tileSprite(def.x, top + 5, def.width, 10, 'water-top').setDepth(1).setAlpha(0.85)
+      }
+
+      if (def.grass) {
+        this.add.tileSprite(def.x, top - 2, def.width, 7, 'grass-top').setDepth(1)
+      }
+
+      if (def.brick) {
+        this.add
+          .tileSprite(def.x, def.y, def.width, def.height, 'ruin-brick')
+          .setDepth(2)
+      }
+
+      if (def.plank) {
+        this.add
+          .tileSprite(def.x, def.y, def.width, def.height, 'wood-plank')
+          .setDepth(2)
       }
     })
 
@@ -563,6 +600,11 @@ export class GameScene extends Phaser.Scene {
       this.breakSpike(spike as Phaser.Physics.Arcade.Sprite)
     })
 
+    // 岩柱挡得住岩刺，但不在 platforms 组里：玩家可以穿过去，压力板也照样认它
+    this.physics.add.collider(this.spikes, this.pillars, (spike) => {
+      this.breakSpike(spike as Phaser.Physics.Arcade.Sprite)
+    })
+
     this.physics.add.overlap(this.spikes, this.slime, (_slime, spike) => {
       const shot = spike as Phaser.Physics.Arcade.Sprite
 
@@ -666,9 +708,9 @@ export class GameScene extends Phaser.Scene {
     this.doorList = []
 
     ;(this.level.doors ?? []).forEach((def) => {
-      const sprite = this.gates.create(def.x, def.y, 'gate') as Phaser.Physics.Arcade.Sprite
+      const sprite = this.gates.create(def.x, def.y, def.texture ?? 'gate') as Phaser.Physics.Arcade.Sprite
       sprite.setDisplaySize(def.width, def.height)
-      sprite.setTint(0x8f7bd6)
+      sprite.setTint(def.tint ?? 0xffffff)
       sprite.refreshBody()
 
       this.doorList.push({
@@ -799,6 +841,20 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(0, 0.5)
       .setScrollFactor(0)
 
+    // 电脑端：左下角常驻一份键位说明（那一块在手机上是虚拟按键，两边各显示各的）
+    this.keyLegend = this.touchMode
+      ? null
+      : this.add
+          .text(10, 250, '', {
+            fontFamily: 'sans-serif',
+            fontSize: '10px',
+            color: '#8fa3b8',
+            lineSpacing: 4,
+          })
+          .setOrigin(0, 1)
+          .setScrollFactor(0)
+          .setAlpha(0.7)
+
         this.promptBox = this.add
       .rectangle(0, 0, 80, 18, 0x1e1e30)
       .setStrokeStyle(2, 0xffd54f)
@@ -924,9 +980,9 @@ export class GameScene extends Phaser.Scene {
   // 关卡提示统一长这样：一块深色底 + 一行浅字，和交互提示、独白是同一套配色
   // 操作类提示按类别只出现一次：「按空格可跳跃」这类教操作的，同一类之后的关卡不再显示；
   // 「前面有座神像」这种纯地标提示不归类，永远都在
-  // 交互提示的「[F] 」前缀同样只带一次，学会之后只留动作名（触屏下本来就没有前缀）
+  // 交互提示：电脑端一直标着要按的键；触屏没有 F 键，点提示条本身就是交互，所以不带键名
   private interactPrefix() {
-    return hasSeenHint('interact') ? '' : '[F] '
+    return this.touchMode ? '' : '[F] '
   }
 
   private hintCategory(text: string): string | null {
@@ -1076,6 +1132,9 @@ export class GameScene extends Phaser.Scene {
 
     this.touchButtons = []
 
+    // 虚拟按键统一放大：贴图不重画，直接按这个倍数缩放（手指好按一点）
+    const TOUCH_SCALE = 1.4
+
     const button = (
       x: number,
       y: number,
@@ -1089,32 +1148,39 @@ export class GameScene extends Phaser.Scene {
         .setScrollFactor(0)
         .setDepth(100)
         .setAlpha(0.62)
+        .setScale(TOUCH_SCALE)
         .setFlipX(flip)
         .setInteractive({ useHandCursor: true })
 
       const release = () => {
-        image.setScale(1)
+        image.setScale(TOUCH_SCALE)
         onUp?.()
       }
 
       image.on('pointerdown', () => {
         // 按下只缩小，透明度交给「别遮住史莱姆」那套统一控制
-        image.setScale(0.92)
+        image.setScale(TOUCH_SCALE * 0.92)
         onDown()
       })
 
       image.on('pointerup', release)
       image.on('pointerout', release)
 
-      this.touchButtons.push({ image, x, y, r: image.width / 2, base: 0.62 })
+      this.touchButtons.push({
+        image,
+        x,
+        y,
+        r: (image.width * TOUCH_SCALE) / 2,
+        base: 0.62,
+      })
 
       return image
     }
 
     // 左下：只有左右两个圆盘，左箭头（贴图朝右，靠翻转）往左、右箭头往右
     button(
-      28,
-      232,
+      30,
+      236,
       'touch-arrow',
       () => {
         this.touchLeft = true
@@ -1126,8 +1192,8 @@ export class GameScene extends Phaser.Scene {
     )
 
     button(
-      92,
-      232,
+      98,
+      236,
       'touch-arrow',
       () => {
         this.touchRight = true
@@ -1139,8 +1205,8 @@ export class GameScene extends Phaser.Scene {
 
     // 右下：最大的跳跃键
     button(
-      412,
-      214,
+      424,
+      204,
       'touch-jump',
       () => {
         this.touchJump = true
@@ -1153,8 +1219,8 @@ export class GameScene extends Phaser.Scene {
 
     // 跳跃键左下角：岩柱（小一号）。没解锁岩元素时整个藏起来
     this.touchPillarButton = button(
-      368,
-      246,
+      358,
+      236,
       'touch-pillar',
       () => {
         this.touchPillarJust = true
@@ -1166,20 +1232,22 @@ export class GameScene extends Phaser.Scene {
 
     // 岩柱左边：岩化（图标更大一点）。
     // 底下压一张灰版，亮的那张用 setCrop 从下往上露出，就是冷却回充的样子
-    const armorX = 322
-    const armorY = 246
+    const armorX = 304
+    const armorY = 236
 
     const armorDim = this.add
       .image(armorX, armorY, 'touch-armor-dim')
       .setScrollFactor(0)
       .setDepth(100)
       .setAlpha(0.62)
+      .setScale(TOUCH_SCALE)
 
     const armorFill = this.add
       .image(armorX, armorY, 'touch-armor')
       .setScrollFactor(0)
       .setDepth(101)
       .setAlpha(0.62)
+      .setScale(TOUCH_SCALE)
 
     this.touchArmorDim = armorDim
     this.touchArmorFill = armorFill
@@ -1187,13 +1255,13 @@ export class GameScene extends Phaser.Scene {
     armorDim.setInteractive({ useHandCursor: true })
 
     const armorRelease = () => {
-      armorDim.setScale(1)
-      armorFill.setScale(1)
+      armorDim.setScale(TOUCH_SCALE)
+      armorFill.setScale(TOUCH_SCALE)
     }
 
     armorDim.on('pointerdown', () => {
-      armorDim.setScale(0.92)
-      armorFill.setScale(0.92)
+      armorDim.setScale(TOUCH_SCALE * 0.92)
+      armorFill.setScale(TOUCH_SCALE * 0.92)
       this.touchArmorJust = true
     })
 
@@ -1204,7 +1272,7 @@ export class GameScene extends Phaser.Scene {
       image: armorDim,
       x: armorX,
       y: armorY,
-      r: 18,
+      r: 18 * TOUCH_SCALE,
       base: 0.62,
     })
 
@@ -1212,7 +1280,7 @@ export class GameScene extends Phaser.Scene {
       image: armorFill,
       x: armorX,
       y: armorY,
-      r: 18,
+      r: 18 * TOUCH_SCALE,
       base: 0.62,
     })
   }
@@ -1248,6 +1316,26 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.elementHint.setPosition(14 + unlocked.length * 20, 40)
+
+    // 键位说明跟着本关能用的能力走：解锁岩了才写 X / C，风系在场才写长按空格
+    if (this.keyLegend) {
+      const rows = ['← → 移动　空格 跳跃　F 交互　Esc 设置']
+      const skills: string[] = []
+
+      if (this.rockAvailable) {
+        skills.push('X 岩化　C 岩柱')
+      }
+
+      if (unlocked.some((key) => ELEMENTS[key].canHover)) {
+        skills.push('长按空格 悬浮')
+      }
+
+      if (skills.length > 0) {
+        rows.push(skills.join('　'))
+      }
+
+      this.keyLegend.setText(rows.join('\n'))
+    }
 
     const element = ELEMENTS[this.element]
 
@@ -1635,7 +1723,9 @@ export class GameScene extends Phaser.Scene {
   private spawnRockPillar(x: number, landTop: number, spawnBottom: number) {
     this.rockPillar?.destroy()
 
-    const pillar = this.platforms.create(x, 0, 'rock-pillar') as Phaser.Physics.Arcade.Sprite
+    // 只进 pillars 组：柱子不进 platforms，玩家就能直接穿过去，只有岩刺会被它挡住
+    const pillar = this.pillars.create(x, 0, 'rock-pillar') as Phaser.Physics.Arcade.Sprite
+    pillar.setDepth(3)
     const restY = landTop - pillar.displayHeight / 2
     const spawnY = spawnBottom - pillar.displayHeight / 2
     const fall = Math.abs(restY - spawnY)
@@ -1811,20 +1901,6 @@ export class GameScene extends Phaser.Scene {
         return
       }
 
-      // 岩柱挡得住：柱子在的话就对一下位置
-      if (!this.rockPillar) {
-        return
-      }
-
-      const hit =
-        spike.x + 5 > this.rockPillar.x - 10 &&
-        spike.x - 5 < this.rockPillar.x + 10 &&
-        spike.y + 8 > this.rockPillar.y - 36 &&
-        spike.y - 8 < this.rockPillar.y + 36
-
-      if (hit) {
-        this.breakSpike(spike)
-      }
     })
   }
 

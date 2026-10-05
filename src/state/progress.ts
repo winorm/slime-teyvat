@@ -3,7 +3,7 @@ import { ELEMENT_ORDER } from '../data/elements'
 
 // 开发者模式：改成 true 就能解锁全部关卡，用于测试
 // 这个值在打包时会被写死，发布版本必须是 false
-export const DEV_MODE = true
+export const DEV_MODE = false
 
 // 开发用开关：改成 true 就是「每次启动都清档」，测试时不受旧存档干扰
 export const DEV_RESET_SAVE = false

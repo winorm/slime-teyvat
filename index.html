@@ -15,10 +15,126 @@
       canvas{
         display: block;
       }
+      /* 竖屏提示：手机上竖着拿时盖住画面，横过来自动消失 */
+      #rotate{
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: #1a1a2e;
+        color: #e8eef6;
+        font-family: sans-serif;
+        text-align: center;
+        z-index: 10;
+      }
+      #rotate .card{
+        padding: 20px;
+      }
+      #rotate .title{
+        font-size: 18px;
+        color: #ffd54f;
+        margin-bottom: 10px;
+      }
+      #rotate .note{
+        font-size: 12px;
+        line-height: 1.9;
+        color: #8fa3b8;
+        margin-bottom: 16px;
+      }
+      #rotate button{
+        display: block;
+        width: 210px;
+        margin: 8px auto;
+        padding: 11px 0;
+        font-size: 14px;
+        font-family: inherit;
+        color: #ffffff;
+        background: #2c2c44;
+        border: 1px solid #4a4a6a;
+        border-radius: 6px;
+      }
+      #rotate #rotate-go{
+        background: #6b4d16;
+        border-color: #ffd54f;
+        color: #ffe9a8;
+      }
       </style>
   </head>
   <body>
     <div id="game"></div>
+
+    <div id="rotate">
+      <div class="card">
+        <div class="title">把手机横过来玩</div>
+        <div class="note">
+          这个游戏是按横屏做的。<br />
+          点下面的按钮会试着锁定横屏；<br />
+          如果你的浏览器本身不支持转屏，也可以先竖着玩。
+        </div>
+        <button id="rotate-go">转成横屏</button>
+        <button id="rotate-skip">先这样玩</button>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.ts"></script>
+    <script>
+      // 手机竖屏时提示横过来；「转成横屏」= 请求全屏 + 尝试锁定方向。
+      // 网页本身没权限自己转屏，所以锁不上时只是提示，不拦着玩。
+      ;(function () {
+        var box = document.getElementById('rotate')
+        var go = document.getElementById('rotate-go')
+        var skip = document.getElementById('rotate-skip')
+        var touch = navigator.maxTouchPoints > 0 || 'ontouchstart' in window
+        var skipped = false
+
+        function isPortrait() {
+          return window.matchMedia('(orientation: portrait)').matches
+        }
+
+        function refresh() {
+          box.style.display = touch && isPortrait() && !skipped ? 'flex' : 'none'
+        }
+
+        function tryLock() {
+          try {
+            var root = document.documentElement
+            var request = root.requestFullscreen || root.webkitRequestFullscreen
+            var full = request ? request.call(root) : null
+
+            var lock = function () {
+              try {
+                if (screen.orientation && screen.orientation.lock) {
+                  screen.orientation.lock('landscape').catch(function () {})
+                }
+              } catch (error) {}
+            }
+
+            if (full && full.then) {
+              full.then(lock).catch(function () {})
+            } else {
+              lock()
+            }
+          } catch (error) {}
+        }
+
+        go.addEventListener('click', function () {
+          tryLock()
+          window.setTimeout(refresh, 400)
+        })
+
+        skip.addEventListener('click', function () {
+          skipped = true
+          refresh()
+        })
+
+        window.addEventListener('resize', refresh)
+        window.addEventListener('orientationchange', refresh)
+        refresh()
+      })()
+    </script>
   </body>
 </html>
