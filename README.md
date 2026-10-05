@@ -2,7 +2,7 @@
 
 **▶ 在线试玩：<https://winorm.github.io/slime-teyvat/>**（手机浏览器也能玩，竖屏时会提示横过来）
 
-**⤓ 单文件版下载：<https://winorm.github.io/slime-teyvat/game.html>**（3.5MB，保存下来双击就能玩，也能直接发给别人）
+**⤓ 单文件版：<https://winorm.github.io/slime-teyvat/game.html>**（3.5MB，点开就直接开玩；想存成文件发给别人，按 Ctrl+S 另存为就行）
 
 [![部署状态](https://github.com/winorm/slime-teyvat/actions/workflows/deploy-pages.yml/badge.svg?branch=main)](https://github.com/winorm/slime-teyvat/actions/workflows/deploy-pages.yml)
 
