@@ -3,6 +3,7 @@ import { LEVELS } from '../data/levels'
 import { SLOT_COUNT, SAVE_HINT, deleteSlot, getSlotSummary, loadSlot, newGame } from '../state/progress'
 import { ACHIEVEMENTS } from '../state/achievements'
 import { playMusic } from '../state/audio'
+import { touchMode } from '../state/touch'
 
 const formatTime = (stamp: number) => {
   if (stamp <= 0) {
@@ -88,7 +89,9 @@ export class SaveScene extends Phaser.Scene {
         52,
         y + 4,
         summary.empty
-          ? '按 空格 在这里开始新游戏'
+          ? touchMode()
+            ? '开始新游戏'
+            : '按 空格 在这里开始新游戏'
           : levelText +
             ' · 原石 ' +
             summary.gems +
@@ -117,7 +120,7 @@ export class SaveScene extends Phaser.Scene {
     }
 
     this.add
-      .text(240, 250, SAVE_HINT, {
+      .text(240, 250, touchMode() ? '选择存档格' : SAVE_HINT, {
         fontFamily: 'sans-serif',
         fontSize: '12px',
         color: '#8fa3b8',

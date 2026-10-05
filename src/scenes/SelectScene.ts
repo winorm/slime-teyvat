@@ -3,6 +3,7 @@ import { LEVELS } from '../data/levels'
 import { progress, saveProgress, DEV_MODE } from '../state/progress'
 import { ELEMENTS } from '../data/elements'
 import { playMusic } from '../state/audio'
+import { touchMode } from '../state/touch'
 
 const COLS = 5
 const CELL_W = 84
@@ -33,13 +34,17 @@ export class SelectScene extends Phaser.Scene {
       this.makeCell(index, FIRST_X + col * CELL_W, FIRST_Y + row * CELL_H)
     }
 
-    this.add
-      .text(240, 252, '按 Esc 回到标题', {
+    // 触屏上没有 Esc，这行提示本身可点，点了就回标题
+    const back = this.add
+      .text(240, 252, touchMode() ? '返回标题' : '按 Esc 回到标题', {
         fontFamily: 'sans-serif',
         fontSize: '14px',
         color: '#8fa3b8',
       })
       .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+
+    back.on('pointerdown', () => this.scene.start('menu'))
 
     this.input.keyboard!.once('keydown-ESC', () => {
       this.scene.start('menu')

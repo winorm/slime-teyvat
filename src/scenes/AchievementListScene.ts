@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { ACHIEVEMENTS, isAchieved } from '../state/achievements'
 import { playMusic } from '../state/audio'
+import { touchMode } from '../state/touch'
 
 export class AchievementListScene extends Phaser.Scene {
   constructor() {
@@ -50,13 +51,17 @@ export class AchievementListScene extends Phaser.Scene {
       })
     })
 
-    this.add
-      .text(240, 250, '按 Esc 返回', {
+    // 触屏上没有 Esc，这行提示本身可点，点了就回主菜单
+    const back = this.add
+      .text(240, 250, touchMode() ? '返回' : '按 Esc 返回', {
         fontFamily: 'sans-serif',
         fontSize: '12px',
         color: '#8fa3b8',
       })
       .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+
+    back.on('pointerdown', () => this.scene.start('menu'))
 
     this.input.keyboard!.once('keydown-ESC', () => {
       this.scene.start('menu')

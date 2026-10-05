@@ -110,6 +110,11 @@ export class BootScene extends Phaser.Scene {
     this.makeSpikeLauncher()
     this.makeRockSpike()
 
+    this.makeTouchArrow()
+    this.makeTouchJump()
+    this.makeTouchPillar()
+    this.makeTouchArmor()
+
     this.makeEyeGlow()
 
     this.makeEye()
@@ -129,32 +134,9 @@ export class BootScene extends Phaser.Scene {
     goalGfx.generateTexture('goal', 24, 24)
     goalGfx.destroy()
     
-    const statueGfx = this.add.graphics()
-    statueGfx.fillStyle(0xffffff, 1)
-
-    statueGfx.fillRect(2, 82, 44, 10)
-    statueGfx.fillRect(7, 76, 34, 6)
-    statueGfx.fillRect(18, 42, 12, 34)
-
-    statueGfx.fillRoundedRect(14, 26, 20, 18, 6)
-    statueGfx.fillCircle(24, 19, 8)
-
-    statueGfx.fillTriangle(15, 32, 1, 20, 15, 15)
-    statueGfx.fillTriangle(33, 32, 47, 20, 33, 15)
-
-    // 右侧压暗一层做出体积。用灰色叠加，染色时会被乘暗，不会破坏元素色
-    statueGfx.fillStyle(0x6a6a6a, 0.45)
-    statueGfx.fillRect(24, 42, 6, 34)
-    statueGfx.fillRect(24, 26, 10, 18)
-    statueGfx.fillCircle(30, 20, 5)
-    statueGfx.fillTriangle(33, 16, 47, 20, 33, 31)
-    statueGfx.fillRect(24, 76, 10, 6)
-
-    statueGfx.fillStyle(0x6a6a6a, 0.25)
-    statueGfx.fillRect(2, 82, 44, 3)
-
-    statueGfx.generateTexture('statue', 48, 92)
-    statueGfx.destroy()
+    this.makeStatueBase()
+    this.makeStatueWind()
+    this.makeStatueRock()
 
     const chestGfx = this.add.graphics()
     chestGfx.fillStyle(0xc79a3a, 1)
@@ -175,6 +157,8 @@ export class BootScene extends Phaser.Scene {
     chestOpenGfx.fillRect(4, 15, 24, 5)
     chestOpenGfx.generateTexture('chest-open', 32, 28)
     chestOpenGfx.destroy()
+
+
 
     this.makeIcon('icon-none', ICON_NONE)
     this.makeIcon('icon-wind', ICON_WIND)
@@ -737,6 +721,217 @@ export class BootScene extends Phaser.Scene {
     gfx.destroy()
   }
 
+  // 触屏按键：点阵画的小圆环，用来给箭头之类的按键加一圈纹饰
+  private pixelRing(
+    gfx: Phaser.GameObjects.Graphics,
+    cx: number,
+    cy: number,
+    radius: number,
+    color: number,
+    alpha = 1
+  ) {
+    gfx.fillStyle(color, alpha)
+
+    for (let index = 0; index < 28; index++) {
+      const angle = (index / 28) * Math.PI * 2
+
+      gfx.fillRect(
+        Math.round(cx + Math.cos(angle) * radius),
+        Math.round(cy + Math.sin(angle) * radius),
+        1,
+        1
+      )
+    }
+  }
+
+  // 触屏的方向箭头：石头质感的圆环 + 四角纹饰 + 一个亮色箭头（朝右，左键靠 flipX）
+  private makeTouchArrow() {
+    const gfx = this.add.graphics()
+    const center = 14
+
+    gfx.fillStyle(0x1c1c28, 0.55)
+    gfx.fillCircle(center, center, 13)
+
+    this.pixelRing(gfx, center, center, 12, 0x8a7f6a, 0.85)
+    this.pixelRing(gfx, center, center, 10, 0x5c688c, 0.5)
+
+    // 四个斜角的菱形纹饰
+    gfx.fillStyle(0xd9c9a8, 0.7)
+
+    ;[
+      [center - 8, center - 8],
+      [center + 8, center - 8],
+      [center - 8, center + 8],
+      [center + 8, center + 8],
+    ].forEach(([x, y]) => {
+      gfx.fillTriangle(x, y - 2, x + 2, y, x, y + 2)
+      gfx.fillTriangle(x, y - 2, x - 2, y, x, y + 2)
+    })
+
+    // 箭头本体：深色描边 + 亮面（整体围着圆环中心摆正，不偏左）
+    gfx.fillStyle(0x1c1c28, 1)
+    gfx.fillTriangle(8, 5, 23, 14, 8, 23)
+    gfx.fillRect(5, 11, 4, 6)
+
+    gfx.fillStyle(0xf0e2c0, 1)
+    gfx.fillTriangle(9, 7, 21, 14, 9, 21)
+    gfx.fillRect(6, 12, 4, 4)
+
+    gfx.generateTexture('touch-arrow', 28, 28)
+    gfx.destroy()
+  }
+
+  // 跳跃键：一颗无元素史莱姆往右上方跃起，身后拖几根细线表示风
+  private makeTouchJump() {
+    const gfx = this.add.graphics()
+    const cx = 26
+    const cy = 26
+
+    // 底盘的圆
+    gfx.fillStyle(0x1c1c28, 0.55)
+    gfx.fillCircle(cx, cy, 24)
+
+    this.pixelRing(gfx, cx, cy, 23, 0x8a7f6a, 0.85)
+
+    // 身后的风线：史莱姆往右上跳，风就斜着往左下拖（每根都是往左下走的一串小台阶）
+    gfx.fillStyle(0xa8e8d4, 0.75)
+
+    ;[
+      [30, 24, 7],
+      [28, 30, 6],
+      [24, 36, 5],
+    ].forEach(([x, y, length]) => {
+      for (let step = 0; step < length; step++) {
+        gfx.fillRect(x - step, y + step, 2, 1)
+      }
+    })
+
+    // 史莱姆本体：压在按钮的右上角，刚蹬离地面的样子
+    gfx.fillStyle(0x14141f, 1)
+    gfx.fillEllipse(34, 20, 22, 15)
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillEllipse(34, 20, 20, 13)
+
+    ;[
+      [18, 11, 0.35],
+      [16, 9, 0.5],
+      [13, 7, 0.6],
+      [10, 6, 0.7],
+      [7, 4, 0.8],
+      [4, 3, 0.9],
+    ].forEach(([w, h, alpha]) => {
+      gfx.fillStyle(0x55556a, alpha)
+      gfx.fillEllipse(34, 20, w, h)
+    })
+
+    // 蹬地那一下：右下角带出一小块
+    gfx.fillStyle(0x55556a, 0.9)
+    gfx.fillTriangle(24, 26, 30, 24, 26, 31)
+
+    // 眼睛
+    gfx.fillStyle(0x20202a, 1)
+    gfx.fillRect(31, 17, 2, 3)
+    gfx.fillRect(37, 17, 2, 3)
+
+    gfx.generateTexture('touch-jump', 52, 52)
+    gfx.destroy()
+  }
+
+  // 岩柱键：把关卡里那根岩柱（20x72）等比缩小了画进来，整个都在圆盘里面，不超出底盘
+  private makeTouchPillar() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0x1c1c28, 0.5)
+    gfx.fillCircle(15, 15, 14)
+
+    // 上下石箍（比柱身宽）
+    gfx.fillStyle(0x4a3f2c, 1)
+    gfx.fillRect(11, 3, 8, 4)
+    gfx.fillRect(11, 23, 8, 4)
+
+    gfx.fillStyle(0x5c4d33, 1)
+    gfx.fillRect(11, 3, 8, 1)
+    gfx.fillRect(11, 23, 8, 1)
+
+    // 柱身：左亮右暗
+    gfx.fillStyle(0x5c4d33, 1)
+    gfx.fillRect(12, 6, 6, 18)
+    gfx.fillStyle(0x866631, 1)
+    gfx.fillRect(12, 6, 2, 18)
+    gfx.fillStyle(0x4a3f2c, 1)
+    gfx.fillRect(17, 6, 1, 18)
+
+    // 上下金箍线
+    gfx.fillStyle(0xffd54f, 1)
+    gfx.fillRect(11, 7, 8, 1)
+    gfx.fillRect(11, 22, 8, 1)
+
+    // 柱身上盘着的那条龙线
+    gfx.fillStyle(0xd9a441, 1)
+
+    for (let y = 9; y <= 20; y++) {
+      const x = 15 + Math.round(1.2 * Math.sin(y / 2.4))
+
+      gfx.fillRect(x - 1, y, 2, 1)
+    }
+
+    // 两头的一点金：代表岩元素标识
+    gfx.fillStyle(0xffd54f, 1)
+    gfx.fillRect(14, 4, 2, 1)
+    gfx.fillRect(14, 25, 2, 1)
+
+    gfx.generateTexture('touch-pillar', 30, 30)
+    gfx.destroy()
+  }
+
+  // 岩化键：岩元素色的底盘 + 岩元素图标（亮的一张 + 冷却时用的灰版一张）
+  private makeTouchArmor() {
+    const draw = (
+      gfx: Phaser.GameObjects.Graphics,
+      outer: number,
+      mid: number,
+      inner: number,
+      ring: number,
+      icon: number
+    ) => {
+      const center = 18
+
+      gfx.fillStyle(0x1c1c28, 0.55)
+      gfx.fillCircle(center, center, 17)
+
+      // 抛过光的底盘：外深内亮
+      gfx.fillStyle(outer, 1)
+      gfx.fillCircle(center, center, 16)
+      gfx.fillStyle(mid, 1)
+      gfx.fillCircle(center, center, 13)
+      gfx.fillStyle(inner, 1)
+      gfx.fillCircle(center, center, 10)
+
+      this.pixelRing(gfx, center, center, 15, ring, 0.6)
+
+      // 岩元素图标，正中间
+      gfx.fillStyle(icon, 1)
+
+      ICON_ROCK.forEach((row, y) => {
+        for (let x = 0; x < row.length; x++) {
+          if (row[x] === '#') {
+            gfx.fillRect(center - 8 + x, center - 8 + y, 1, 1)
+          }
+        }
+      })
+    }
+
+    const lit = this.add.graphics()
+    draw(lit, 0x8a6a2c, 0xd9a441, 0xb0873a, 0xffd54f, 0xfff3d0)
+    lit.generateTexture('touch-armor', 36, 36)
+    lit.destroy()
+
+    // 岩化用完变灰的那一版（冷却时用它当底，亮的那张从下往上盖回来）
+    const dim = this.add.graphics()
+    draw(dim, 0x3a3a44, 0x55555f, 0x46464f, 0x8a8a94, 0x9a9aa4)
+    dim.generateTexture('touch-armor-dim', 36, 36)
+    dim.destroy()
+  }
   // 岩刺造物：背后一层贴在建筑上的岩壳，前面收成锥口，口上一点金。
   // 贴图画的是「朝下」，贴天花板直接用，贴左墙 / 右墙靠旋转
   private makeSpikeLauncher() {
@@ -1713,6 +1908,388 @@ export class BootScene extends Phaser.Scene {
     gfx.fillCircle(11, 11, 3)
 
     gfx.generateTexture('blessing', 22, 22)
+    gfx.destroy()
+  }
+  // 神像共用的底座：自上而下是小圆台、圆柱、大圆台三层，抛光的石砖质感。
+  // 底座 48x78 = 史莱姆的 1.5 倍宽、3 倍高。
+  // 三层从上到下依次是小圆台、圆柱、大圆台，顶面 34 宽，够造像的底部站上去
+  // 配色是烤死的，不参与元素染色（神像本体才染色）
+  private makeStatueBase() {
+    const gfx = this.add.graphics()
+
+    const stone = 0x8f8878
+    const light = 0xb8b09e
+    const dark = 0x5f5a4e
+
+    // 最底下的大圆台：矮矮一层（13 像素 = 史莱姆的一半高）
+    gfx.fillStyle(stone, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(0, 77),
+        new Phaser.Math.Vector2(48, 77),
+        new Phaser.Math.Vector2(45, 64),
+        new Phaser.Math.Vector2(3, 64),
+      ],
+      true
+    )
+    gfx.fillStyle(light, 1)
+    gfx.fillRect(3, 64, 42, 2)
+    gfx.fillStyle(dark, 0.5)
+    gfx.fillRect(0, 75, 48, 3)
+
+    // 中层圆柱：宽 26（= 史莱姆的 0.8 倍），又高又瘦，左边一条亮面、右边压暗
+    gfx.fillStyle(stone, 1)
+    gfx.fillRect(11, 14, 26, 52)
+    gfx.fillStyle(light, 1)
+    gfx.fillRect(11, 14, 5, 52)
+    gfx.fillStyle(dark, 0.35)
+    gfx.fillRect(32, 14, 5, 52)
+    gfx.fillStyle(light, 1)
+    gfx.fillRect(10, 12, 28, 3)
+
+    // 上层小圆台
+    gfx.fillStyle(stone, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(11, 14),
+        new Phaser.Math.Vector2(37, 14),
+        new Phaser.Math.Vector2(35, 1),
+        new Phaser.Math.Vector2(13, 1),
+      ],
+      true
+    )
+    gfx.fillStyle(light, 1)
+    gfx.fillRect(14, 1, 20, 3)
+
+    // 抛光的反光：几道竖直亮线
+    gfx.fillStyle(0xffffff, 0.28)
+    gfx.fillRect(18, 3, 2, 9)
+    gfx.fillRect(14, 16, 2, 32)
+    gfx.fillRect(6, 66, 4, 8)
+
+    // 石砖的杂质点
+    gfx.fillStyle(dark, 0.5)
+
+    ;[
+      [16, 24],
+      [33, 30],
+      [24, 44],
+      [40, 68],
+      [7, 70],
+    ].forEach(([x, y]) => {
+      gfx.fillRect(x, y, 1, 1)
+    })
+
+    gfx.generateTexture('statue-base', 48, 78)
+    gfx.destroy()
+  }
+
+  // 风神像：带翅膀的女性站着，双手在胸前捧一颗水晶球（元素力从球里出来）。
+  // 贴图 48x52 = 史莱姆的 1.5 倍宽、2 倍高；翅膀另外用 wing 贴图摆，不占这张图。
+  // 本体是白 + 灰的明暗，靠染色成元素色；球画亮一点，染色后是元素色的浅色
+  private makeStatueWind() {
+    const gfx = this.add.graphics()
+    const shade = 0x6a6a6a
+
+    // 翅膀不画在这张图里：用风史莱姆那张 wing 贴图放大来摆（见 GameScene），
+    // 这样两边翅膀的形状、羽线、角度天然和风史莱姆一致
+
+    // 长袍：上窄下宽，裙摆垂到脚底
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(18, 13),
+        new Phaser.Math.Vector2(30, 13),
+        new Phaser.Math.Vector2(32, 25),
+        new Phaser.Math.Vector2(35, 49),
+        new Phaser.Math.Vector2(13, 49),
+        new Phaser.Math.Vector2(15, 25),
+      ],
+      true
+    )
+
+    // 收腰和裙褶
+    gfx.fillStyle(shade, 0.3)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(18, 13),
+        new Phaser.Math.Vector2(24, 13),
+        new Phaser.Math.Vector2(24, 49),
+        new Phaser.Math.Vector2(13, 49),
+        new Phaser.Math.Vector2(15, 25),
+      ],
+      true
+    )
+    gfx.fillStyle(shade, 0.45)
+    gfx.fillRect(17, 28, 14, 1)
+    gfx.fillRect(15, 37, 17, 1)
+    gfx.fillRect(14, 44, 18, 1)
+
+    // 手臂：从两肩往里收，托住水晶球
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(16, 15),
+        new Phaser.Math.Vector2(20, 14),
+        new Phaser.Math.Vector2(23, 24),
+        new Phaser.Math.Vector2(18, 25),
+      ],
+      true
+    )
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(32, 15),
+        new Phaser.Math.Vector2(28, 14),
+        new Phaser.Math.Vector2(25, 24),
+        new Phaser.Math.Vector2(30, 25),
+      ],
+      true
+    )
+
+    // 头、发、脖子
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillCircle(24, 5, 5)
+    gfx.fillRect(23, 9, 3, 3)
+    gfx.fillStyle(shade, 0.35)
+    gfx.fillRect(27, 2, 3, 5)
+
+    // 水晶球：外面一圈深色，里面留白；左上一道反光弧 + 一个亮点，
+    // 右下再点一颗小星芒，看着像一颗玻璃球
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillCircle(24, 23, 6)
+    gfx.fillStyle(shade, 0.55)
+    gfx.fillCircle(24, 23, 6)
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillCircle(24, 23, 5)
+
+    // 反光弧：贴着左上边缘的一串亮像素
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillRect(21, 18, 4, 1)
+    gfx.fillRect(19, 20, 2, 1)
+    gfx.fillRect(19, 21, 1, 2)
+    gfx.fillRect(20, 20, 1, 4)
+
+    // 亮点
+    gfx.fillCircle(21, 21, 1)
+
+    // 右下的星芒
+    gfx.fillStyle(0xffffff, 0.85)
+    gfx.fillRect(28, 26, 1, 3)
+    gfx.fillRect(27, 27, 3, 1)
+
+    // 底部一点压暗，球才不是一块白饼
+    gfx.fillStyle(shade, 0.35)
+    gfx.fillRect(23, 27, 4, 1)
+    gfx.fillRect(26, 26, 3, 1)
+
+    gfx.generateTexture('statue-wind', 48, 52)
+    gfx.destroy()
+  }
+
+  // 岩神像：男性，翘着二郎腿坐在带靠背的岩石座位上，手里捧一颗岩元素立方体。
+  // 贴图 48x52 = 史莱姆的 1.5 倍宽、2 倍高；座椅本身就是造像的底部，正好压在底座顶面上
+  private makeStatueRock() {
+    const gfx = this.add.graphics()
+    const shade = 0x5f5a52
+
+    // 座椅的靠背：先画，人物压在它前面，只在右肩外露出一截
+    gfx.fillStyle(0x7d7666, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(28, 40),
+        new Phaser.Math.Vector2(42, 38),
+        new Phaser.Math.Vector2(43, 14),
+        new Phaser.Math.Vector2(30, 12),
+      ],
+      true
+    )
+    gfx.fillStyle(0xa8a08e, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(30, 12),
+        new Phaser.Math.Vector2(43, 14),
+        new Phaser.Math.Vector2(39, 16),
+        new Phaser.Math.Vector2(30, 14),
+      ],
+      true
+    )
+    gfx.fillStyle(0x4a453c, 0.4)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(37, 14),
+        new Phaser.Math.Vector2(43, 14),
+        new Phaser.Math.Vector2(42, 38),
+        new Phaser.Math.Vector2(37, 38),
+      ],
+      true
+    )
+
+    // 岩石座位
+    gfx.fillStyle(0x8f8878, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(11, 49),
+        new Phaser.Math.Vector2(37, 49),
+        new Phaser.Math.Vector2(35, 40),
+        new Phaser.Math.Vector2(29, 36),
+        new Phaser.Math.Vector2(18, 38),
+        new Phaser.Math.Vector2(12, 43),
+      ],
+      true
+    )
+    gfx.fillStyle(0xb8b09e, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(18, 38),
+        new Phaser.Math.Vector2(31, 37),
+        new Phaser.Math.Vector2(35, 40),
+        new Phaser.Math.Vector2(19, 41),
+      ],
+      true
+    )
+    gfx.fillStyle(0x5f5a4e, 0.45)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(28, 37),
+        new Phaser.Math.Vector2(37, 49),
+        new Phaser.Math.Vector2(28, 49),
+      ],
+      true
+    )
+
+    // 下摆：端坐着，长袍从腰垂到座面上，把腿脚都盖住（只留左臂搭在膝上）
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(17, 34),
+        new Phaser.Math.Vector2(31, 34),
+        new Phaser.Math.Vector2(35, 49),
+        new Phaser.Math.Vector2(13, 49),
+      ],
+      true
+    )
+    gfx.fillStyle(shade, 0.3)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(17, 34),
+        new Phaser.Math.Vector2(24, 34),
+        new Phaser.Math.Vector2(24, 49),
+        new Phaser.Math.Vector2(13, 49),
+      ],
+      true
+    )
+    // 裙褶
+    gfx.fillStyle(shade, 0.45)
+    gfx.fillRect(15, 40, 19, 1)
+    gfx.fillRect(14, 45, 21, 1)
+    gfx.fillStyle(shade, 0.55)
+    gfx.fillRect(13, 48, 22, 1)
+
+    // 上身：端端正正地坐着，肩腰都竖直
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(16, 20),
+        new Phaser.Math.Vector2(32, 20),
+        new Phaser.Math.Vector2(31, 37),
+        new Phaser.Math.Vector2(17, 37),
+      ],
+      true
+    )
+    gfx.fillStyle(shade, 0.3)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(26, 20),
+        new Phaser.Math.Vector2(32, 20),
+        new Phaser.Math.Vector2(31, 37),
+        new Phaser.Math.Vector2(26, 37),
+      ],
+      true
+    )
+
+    // 右手（画面左边）抬到胸前举着立方体；左手搭在膝盖上
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(16, 23),
+        new Phaser.Math.Vector2(21, 22),
+        new Phaser.Math.Vector2(18, 28),
+        new Phaser.Math.Vector2(13, 28),
+      ],
+      true
+    )
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(32, 23),
+        new Phaser.Math.Vector2(27, 22),
+        new Phaser.Math.Vector2(28, 36),
+        new Phaser.Math.Vector2(33, 37),
+      ],
+      true
+    )
+
+    // 头 + 发髻 + 胡须
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillCircle(24, 11, 7)
+    gfx.fillRect(21, 17, 6, 3)
+    gfx.fillStyle(shade, 0.4)
+    gfx.fillRect(27, 5, 6, 9)
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(20, 18),
+        new Phaser.Math.Vector2(28, 18),
+        new Phaser.Math.Vector2(24, 25),
+      ],
+      true
+    )
+    gfx.fillStyle(shade, 0.5)
+    gfx.fillRect(18, 3, 13, 3)
+
+    // 右手举在胸前的岩元素立方体：三个面三种明暗，左上沿反光 + 右下星芒
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(11, 19),
+        new Phaser.Math.Vector2(16, 21),
+        new Phaser.Math.Vector2(11, 23),
+        new Phaser.Math.Vector2(6, 21),
+      ],
+      true
+    )
+    gfx.fillStyle(0xb0b0b0, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(6, 21),
+        new Phaser.Math.Vector2(11, 23),
+        new Phaser.Math.Vector2(11, 28),
+        new Phaser.Math.Vector2(6, 26),
+      ],
+      true
+    )
+    gfx.fillStyle(0x8a8a8a, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(11, 23),
+        new Phaser.Math.Vector2(16, 21),
+        new Phaser.Math.Vector2(16, 26),
+        new Phaser.Math.Vector2(11, 28),
+      ],
+      true
+    )
+
+    // 反光：顶面上沿的亮边 + 顶点亮点
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillRect(8, 20, 2, 1)
+    gfx.fillRect(10, 19, 3, 1)
+    gfx.fillRect(13, 20, 2, 1)
+
+    // 右下角星芒
+    gfx.fillStyle(0xffffff, 0.85)
+    gfx.fillRect(14, 25, 1, 2)
+    gfx.fillRect(13, 26, 3, 1)
+
+    gfx.generateTexture('statue-rock', 48, 52)
     gfx.destroy()
   }
 }

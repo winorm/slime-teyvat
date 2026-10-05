@@ -161,21 +161,23 @@ export const LEVELS: LevelDef[] = [
     startElement: 'none',
     spawn: { x: 40, y: 233 },
     bg: 'beach',
-    goal: { x: 1230, y: 112, kind: 'chest', prompt: '打开', after: 'statue' },
-    statue: { x: 1330, y: 80, grants: 'wind', prompt: '触摸' },
+    // 终点这块台子原来顶面在 126，神像加高到 130 以后会顶出画面，所以整块往下挪 32
+    goal: { x: 1230, y: 144, kind: 'chest', prompt: '打开', after: 'statue' },
+    // y 是底座底面那条线（站的地面顶面），贴图变高也不用再改这里
+    statue: { x: 1330, y: 158, grants: 'wind', prompt: '触摸' },
     platforms: [
       { x: 150, y: 258, width: 300, height: 24 },
       { x: 495, y: 258, width: 250, height: 24 },
       { x: 720, y: 222, width: 100, height: 12 },
       { x: 870, y: 192, width: 100, height: 12 },
       { x: 1020, y: 162, width: 100, height: 12 },
-      { x: 1260, y: 198, width: 280, height: 144 },
+      { x: 1260, y: 230, width: 280, height: 144 },
     ],
     orbs: [],
     gems: [
       { x: 335, y: 180 },
       { x: 870, y: 179 },
-      { x: 1160, y: 119 },
+      { x: 1160, y: 151 },
     ],
     blessings: [],
     hazards: [],
@@ -447,7 +449,7 @@ export const LEVELS: LevelDef[] = [
     bg: 'liyue',
     inn: { x: 1860, y: 480 },
     // 神像在关卡开头：这一关开局没有岩元素，得先摸神像拿到，后面的岩刺/板子/石壁才用得上
-    statue: { x: 520, y: 434, grants: 'rock', prompt: '触摸' },
+    statue: { x: 520, y: 480, grants: 'rock', prompt: '触摸' },
     goal: { x: 1770, y: 466, kind: 'chest', prompt: '打开', after: 'statue' },
     platforms: [
       // 荻花洲的长堤：从岸边一直铺到望舒客栈前，顶上 480

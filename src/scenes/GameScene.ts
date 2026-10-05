@@ -7,9 +7,18 @@ import {
   type DomeDef,
   type PlatformDef,
 } from '../data/levels'
-import { progress, unlockElement, cycleElement, recordClear, saveProgress } from '../state/progress'
+import {
+  progress,
+  unlockElement,
+  cycleElement,
+  recordClear,
+  saveProgress,
+  hasSeenHint,
+  markHintSeen,
+} from '../state/progress'
 import { playMusic, playSfx, setLoop, stopAllLoops } from '../state/audio'
 import { queueAchievementToast } from '../state/achievements'
+import { touchMode, touchText } from '../state/touch'
 
 const HOVER = {
   riseSpeed: 70,
@@ -26,6 +35,10 @@ const PILLAR_TIME = 30
 
 // 岩化的冷却：技能结束后要等这么久才能再按 X（时间到、被打碎、换元素都算结束）
 const ARMOR_COOLDOWN = 8
+
+// 造像往下压多少像素：压在底座顶面上，
+// 看起来是"下面的圆台把上面的造像托住"，而不是造像悬在半空
+const STATUE_SEAT = 5
 
 // 岩化时的跳跃加成：速度 ×1.12，实际跳高从 48 涨到约 60 像素
 const ARMOR_JUMP = 1.12
@@ -182,8 +195,31 @@ export class GameScene extends Phaser.Scene {
   private lockedElement: ElementKey | null = null
   // 神像演出期间把操作全锁住：移动、跳跃、技能、交互
   private inputLocked = false
+
+  // 触屏按键的状态（和键盘是两套，最后在 update 里合并；Just 结尾的是本帧刚按下/刚抬起）
+  private touchMode = false
+  private touchLeft = false
+  private touchRight = false
+  private touchJump = false
+  private touchJumpJust = false
+  private touchArmorJust = false
+  private touchPillarJust = false
+  private touchPillarUp = false
+  // 触屏按键的引用：跟着「有没有岩元素」显示/隐藏，并随岩化冷却做回充
+  private rockAvailable = false
+  private touchButtons: Array<{
+    image: Phaser.GameObjects.Image
+    x: number
+    y: number
+    r: number
+    base: number
+  }> = []
+  private touchPillarButton: Phaser.GameObjects.Image | null = null
+  private touchArmorDim: Phaser.GameObjects.Image | null = null
+  private touchArmorFill: Phaser.GameObjects.Image | null = null
   private promptBox!: Phaser.GameObjects.Rectangle
   private promptText!: Phaser.GameObjects.Text
+  private promptAction: (() => void) | null = null
 
   private monuments!: Phaser.Physics.Arcade.StaticGroup
   private monumentList: MonumentRef[] = []
@@ -220,6 +256,8 @@ export class GameScene extends Phaser.Scene {
 
   create() {
     this.level = LEVELS[progress.levelIndex]
+
+    this.touchMode = touchMode()
     this.finished = false
     this.stamina = STAMINA_MAX
     this.blinkScale = 1
@@ -248,6 +286,15 @@ export class GameScene extends Phaser.Scene {
     this.inputLocked = false
     this.pillarPressed = false
     this.pillarCharging = false
+
+    // 触屏按键的状态也一并复位（场景实例复用）
+    this.clearTouchInput()
+
+    // 暂停期间手指抬起是收不到 pointerup 的，恢复时再清一遍，
+    // 否则回来之后角色会一直往一个方向跑、技能也会被那一下误触发
+    this.events.off(Phaser.Scenes.Events.RESUME)
+    this.events.on(Phaser.Scenes.Events.RESUME, () => this.clearTouchInput())
+
     this.pillarGhost = null
     this.pillarMark = null
     this.physics.world.resume()
@@ -440,10 +487,43 @@ export class GameScene extends Phaser.Scene {
 
     if (this.level.statue) {
       const statue = this.level.statue
+      const wanted = 'statue-' + statue.grants
+      const figureKey = this.textures.exists(wanted) ? wanted : 'statue-wind'
+      const tint = ELEMENTS[statue.grants].color
 
-      this.statueSprite = this.add
-        .image(statue.x, statue.y, 'statue')
-        .setTint(ELEMENTS[statue.grants].color)
+      // statue.y 是「底座底面所在的那条线」，也就是脚下的地面顶面
+      const base = this.add.image(statue.x, statue.y, 'statue-base').setDepth(-1)
+      // 底座：底面对齐地面线 → 中心 = 地面线 − 半高，顶面 = 地面线 − 全高
+      const baseTop = statue.y - base.displayHeight
+
+      base.setY(statue.y - base.displayHeight / 2)
+
+      // 风神像的翅膀直接用风史莱姆那张 wing 贴图放大来摆，
+      // 形状、羽线、角度和史莱姆完全一致，只是大号版
+      if (statue.grants === 'wind') {
+        const wings = [
+          { offset: -7, originX: 1, angle: -45, flip: true },
+          { offset: 7, originX: 0, angle: 45, flip: false },
+        ]
+
+        wings.forEach((wing) => {
+          this.add
+            .image(statue.x + wing.offset, baseTop + STATUE_SEAT - 38, 'wing')
+            .setOrigin(wing.originX, 0.5)
+            .setFlipX(wing.flip)
+            .setAngle(wing.angle)
+            .setScale(1.2)
+            .setTint(tint)
+            .setDepth(-2)
+        })
+      }
+
+      // 本体站在底座上（底座在后面，所以台面会从袍子/裙摆两侧露出来）
+      this.statueSprite = this.add.image(statue.x, statue.y, figureKey).setTint(tint)
+      // 造像：底面压在底座顶面下面一点（压 5 像素），做出"下托上"的坐实感
+      this.statueSprite.setY(
+        baseTop + STATUE_SEAT - this.statueSprite.displayHeight / 2
+      )
     }
 
     this.slime = this.physics.add.sprite(this.level.spawn.x, this.level.spawn.y, 'slime-none')
@@ -672,6 +752,7 @@ export class GameScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true })
 
     settingsIcon.on('pointerdown', () => {
+      this.clearTouchInput()
       this.scene.pause()
       this.scene.launch('pause')
     })
@@ -685,12 +766,32 @@ export class GameScene extends Phaser.Scene {
         .setVisible(false)
     )
 
-    this.elementIcons = ELEMENT_ORDER.map((_key, index) =>
-      this.add.image(18 + index * 20, 40, 'icon-none').setScrollFactor(0).setVisible(false)
-    )
+    // 图标可以点：手机上直接点元素图标就切过去（等于按 Q / E），
+    // 没解锁的位置是隐藏的，Phaser 不会给隐藏对象派发点击，所以点不到
+    this.elementIcons = ELEMENT_ORDER.map((_key, index) => {
+      const icon = this.add
+        .image(18 + index * 20, 40, 'icon-none')
+        .setScrollFactor(0)
+        .setVisible(false)
+
+      icon.setInteractive(
+        new Phaser.Geom.Rectangle(-2, -2, 20, 20),
+        Phaser.Geom.Rectangle.Contains
+      )
+
+      icon.on('pointerdown', () => {
+        const key = this.availableElements()[index]
+
+        if (key) {
+          this.switchElement(key)
+        }
+      })
+
+      return icon
+    })
 
     this.elementHint = this.add
-      .text(34, 40, 'Q / E 切换元素', {
+      .text(34, 40, this.touchMode ? '切换元素' : 'Q / E 切换元素', {
         fontFamily: 'sans-serif',
         fontSize: '10px',
         color: '#8fa3b8',
@@ -713,6 +814,18 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(21)
       .setVisible(false)
+
+    // 提示条本身可点：触屏设备上等于按 F（提示条不可见时 Phaser 不会派发点击）
+    this.promptBox.setInteractive({ useHandCursor: true })
+
+    this.promptBox.on('pointerdown', () => {
+      if (this.inputLocked || !this.promptAction) {
+        return
+      }
+
+      playSfx(this, 'sfx-interact', 0.3)
+      this.promptAction()
+    })
 
     this.staminaGlowOuter = this.add
       .rectangle(10, 60, 70, 16, 0x6b5210)
@@ -757,6 +870,11 @@ export class GameScene extends Phaser.Scene {
     this.interactKey = this.input.keyboard!.addKey('F')
     this.armorKey = this.input.keyboard!.addKey('X')
     this.rockKey = this.input.keyboard!.addKey('C')
+
+    // 触屏设备（或 ?touch=1）才铺虚拟按键，桌面浏览器上不占画面
+    if (this.touchMode) {
+      this.makeTouchControls()
+    }
 
     this.armored = false
     this.armoredTimer = 0
@@ -804,9 +922,59 @@ export class GameScene extends Phaser.Scene {
   }
 
   // 关卡提示统一长这样：一块深色底 + 一行浅字，和交互提示、独白是同一套配色
+  // 操作类提示按类别只出现一次：「按空格可跳跃」这类教操作的，同一类之后的关卡不再显示；
+  // 「前面有座神像」这种纯地标提示不归类，永远都在
+  // 交互提示的「[F] 」前缀同样只带一次，学会之后只留动作名（触屏下本来就没有前缀）
+  private interactPrefix() {
+    return hasSeenHint('interact') ? '' : '[F] '
+  }
+
+  private hintCategory(text: string): string | null {
+    if (/长按空格/.test(text)) {
+      return 'hover'
+    }
+
+    if (/松开空格/.test(text)) {
+      return 'glide'
+    }
+
+    if (/空格/.test(text)) {
+      return 'jump'
+    }
+
+    if (/按 X/.test(text)) {
+      return 'armor'
+    }
+
+    if (/按 C/.test(text)) {
+      return 'pillar'
+    }
+
+    if (/按 F|\[F\]/.test(text)) {
+      return 'interact'
+    }
+
+    if (/← →/.test(text)) {
+      return 'move'
+    }
+
+    return null
+  }
+
   private makeHint(x: number, y: number, text: string) {
+    const category = this.hintCategory(text)
+
+    // 这一类操作已经提示过了，就不再出现
+    if (category && hasSeenHint(category)) {
+      return
+    }
+
+    if (category) {
+      markHintSeen(category)
+    }
+
     const label = this.add
-      .text(x, y, text, {
+      .text(x, y, touchText(text), {
         fontFamily: 'sans-serif',
         fontSize: '12px',
         color: '#a8b6c8',
@@ -855,6 +1023,16 @@ export class GameScene extends Phaser.Scene {
   // 各关自带元素 + 前面各关神像授予的元素（本关神像要摸到才算），
   // 最后再和存档里的解锁表取交集。所以哪怕存档里已经有岩元素，
   // 回到第一关也切不出来，得按关卡顺序重新把神像摸一遍
+  private switchElement(key: ElementKey) {
+    if (this.inputLocked || key === this.element || !this.availableElements().includes(key)) {
+      return
+    }
+
+    progress.current = key
+    this.applyElement(key)
+    playSfx(this, 'sfx-interact', 0.25)
+  }
+
   private availableElements(): ElementKey[] {
     const list: ElementKey[] = []
 
@@ -880,8 +1058,174 @@ export class GameScene extends Phaser.Scene {
     return ELEMENT_ORDER.filter((key) => list.includes(key) && progress.unlocked.includes(key))
   }
 
+  // 触屏按键：左下角是左右移动（箭头 + 中圈），右下角是跳跃 + 岩柱 + 岩化。
+  // 位置直接按逻辑分辨率 480x270 写，缩放交给 Phaser 的 Scale.FIT
+  private clearTouchInput() {
+    this.touchLeft = false
+    this.touchRight = false
+    this.touchJump = false
+    this.touchJumpJust = false
+    this.touchArmorJust = false
+    this.touchPillarJust = false
+    this.touchPillarUp = false
+  }
+
+  private makeTouchControls() {
+    // 允许三指同时按：左手压方向、右手点跳跃和技能
+    this.input.addPointer(2)
+
+    this.touchButtons = []
+
+    const button = (
+      x: number,
+      y: number,
+      key: string,
+      onDown: () => void,
+      onUp?: () => void,
+      flip = false
+    ) => {
+      const image = this.add
+        .image(x, y, key)
+        .setScrollFactor(0)
+        .setDepth(100)
+        .setAlpha(0.62)
+        .setFlipX(flip)
+        .setInteractive({ useHandCursor: true })
+
+      const release = () => {
+        image.setScale(1)
+        onUp?.()
+      }
+
+      image.on('pointerdown', () => {
+        // 按下只缩小，透明度交给「别遮住史莱姆」那套统一控制
+        image.setScale(0.92)
+        onDown()
+      })
+
+      image.on('pointerup', release)
+      image.on('pointerout', release)
+
+      this.touchButtons.push({ image, x, y, r: image.width / 2, base: 0.62 })
+
+      return image
+    }
+
+    // 左下：只有左右两个圆盘，左箭头（贴图朝右，靠翻转）往左、右箭头往右
+    button(
+      28,
+      232,
+      'touch-arrow',
+      () => {
+        this.touchLeft = true
+      },
+      () => {
+        this.touchLeft = false
+      },
+      true
+    )
+
+    button(
+      92,
+      232,
+      'touch-arrow',
+      () => {
+        this.touchRight = true
+      },
+      () => {
+        this.touchRight = false
+      }
+    )
+
+    // 右下：最大的跳跃键
+    button(
+      412,
+      214,
+      'touch-jump',
+      () => {
+        this.touchJump = true
+        this.touchJumpJust = true
+      },
+      () => {
+        this.touchJump = false
+      }
+    )
+
+    // 跳跃键左下角：岩柱（小一号）。没解锁岩元素时整个藏起来
+    this.touchPillarButton = button(
+      368,
+      246,
+      'touch-pillar',
+      () => {
+        this.touchPillarJust = true
+      },
+      () => {
+        this.touchPillarUp = true
+      }
+    )
+
+    // 岩柱左边：岩化（图标更大一点）。
+    // 底下压一张灰版，亮的那张用 setCrop 从下往上露出，就是冷却回充的样子
+    const armorX = 322
+    const armorY = 246
+
+    const armorDim = this.add
+      .image(armorX, armorY, 'touch-armor-dim')
+      .setScrollFactor(0)
+      .setDepth(100)
+      .setAlpha(0.62)
+
+    const armorFill = this.add
+      .image(armorX, armorY, 'touch-armor')
+      .setScrollFactor(0)
+      .setDepth(101)
+      .setAlpha(0.62)
+
+    this.touchArmorDim = armorDim
+    this.touchArmorFill = armorFill
+
+    armorDim.setInteractive({ useHandCursor: true })
+
+    const armorRelease = () => {
+      armorDim.setScale(1)
+      armorFill.setScale(1)
+    }
+
+    armorDim.on('pointerdown', () => {
+      armorDim.setScale(0.92)
+      armorFill.setScale(0.92)
+      this.touchArmorJust = true
+    })
+
+    armorDim.on('pointerup', armorRelease)
+    armorDim.on('pointerout', armorRelease)
+
+    this.touchButtons.push({
+      image: armorDim,
+      x: armorX,
+      y: armorY,
+      r: 18,
+      base: 0.62,
+    })
+
+    this.touchButtons.push({
+      image: armorFill,
+      x: armorX,
+      y: armorY,
+      r: 18,
+      base: 0.62,
+    })
+  }
+
   private refreshHud() {
     const unlocked = this.availableElements()
+
+    // 没解锁岩元素就不显示岩柱 / 岩化两个键（键盘的 C / X 本来也不会响应）
+    this.rockAvailable = unlocked.includes('rock')
+
+    this.touchPillarButton?.setVisible(this.rockAvailable)
+    this.touchArmorDim?.setVisible(this.rockAvailable)
+    this.touchArmorFill?.setVisible(this.rockAvailable)
 
     unlocked.forEach((key, index) => {
       const icon = this.elementIcons[index]
@@ -962,6 +1306,12 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
+  // 元素力从神像手里的东西里冒出来：风是水晶球（贴图里在正中间偏上），
+  // 岩是右手举在胸前的立方体（偏左）。偏移 = 持物中心 − 本体中心
+  private statueHeldOffset(granted: ElementKey) {
+    return granted === 'rock' ? { x: -13, y: -3 } : { x: 0, y: -3 }
+  }
+
   private playStatueScene(granted: ElementKey) {
     unlockElement(granted)
 
@@ -979,18 +1329,21 @@ export class GameScene extends Phaser.Scene {
 
     // 演出以神像为中心：没有独立神像时（旧数据）退回用终点
     const source = this.statueSprite ?? this.goalSprite
+    const held = this.statueHeldOffset(granted)
+    const heldX = source.x + held.x
+    const heldY = source.y + held.y
 
     this.cameras.main.stopFollow()
     this.cameras.main.pan(
       (this.slime.x + source.x) / 2,
-      this.slime.y - 30,
+      (this.slime.y + source.y) / 2,
       600,
       'Sine.easeInOut'
     )
     this.cameras.main.zoomTo(1.8, 600, 'Sine.easeInOut')
 
     const orb = this.add
-      .image(source.x, source.y - 46, 'icon-' + granted)
+      .image(heldX, heldY, 'icon-' + granted)
       .setTint(ELEMENTS[granted].color)
       .setDepth(30)
       .setScale(0)
@@ -1684,7 +2037,7 @@ export class GameScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
     const tip = this.add
-      .text(240, 232, '按 空格 继续', {
+      .text(240, 232, this.touchMode ? '轻点屏幕继续' : '按 空格 继续', {
         fontFamily: 'sans-serif',
         fontSize: '12px',
         color: '#8fa3b8',
@@ -1694,6 +2047,22 @@ export class GameScene extends Phaser.Scene {
     layer.add([shade, body, tip])
 
     this.introLayer = layer
+
+    // 手机上没有空格键，点一下屏幕也能继续（同样延迟一帧再挂，避免被同一次点击吃掉）
+    this.time.delayedCall(0, () => {
+      this.input.once('pointerdown', () => this.closeIntro())
+    })
+  }
+
+  private closeIntro() {
+    if (!this.introShowing) {
+      return
+    }
+
+    this.introLayer?.destroy()
+    this.introLayer = null
+    this.introShowing = false
+    this.physics.world.resume()
   }
 
   private lightMonument(monument: MonumentRef) {
@@ -1923,7 +2292,7 @@ export class GameScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
     const tip = this.add
-      .text(240, 244, '按 F 收起', {
+      .text(240, 244, this.touchMode ? '轻点屏幕收起' : '按 F 收起', {
         fontFamily: 'sans-serif',
         fontSize: '12px',
         color: '#8fa3b8',
@@ -1933,14 +2302,29 @@ export class GameScene extends Phaser.Scene {
     layer.add([shade, panel, title, body, tip])
 
     this.paperLayer = layer
+
+    // 手机上没有 F 键，点一下屏幕就收起。
+    // 延迟一帧再挂监听：这一次点击正是"点提示条打开纸条"的那一下，
+    // 同一帧里挂上去会被这次点击立刻关掉（就是之前点了没反应的原因）
+    this.time.delayedCall(0, () => {
+      this.input.once('pointerdown', () => this.closePaper())
+    })
+  }
+
+  private closePaper() {
+    if (!this.paperShowing) {
+      return
+    }
+
+    this.paperLayer?.destroy()
+    this.paperLayer = null
+    this.paperShowing = false
+    this.physics.world.resume()
   }
 
   private updatePaper() {
     if (Phaser.Input.Keyboard.JustDown(this.interactKey)) {
-      this.paperLayer?.destroy()
-      this.paperLayer = null
-      this.paperShowing = false
-      this.physics.world.resume()
+      this.closePaper()
     }
   }
 
@@ -2147,10 +2531,7 @@ export class GameScene extends Phaser.Scene {
 
   private updateIntro() {
     if (Phaser.Input.Keyboard.JustDown(this.cursors.space)) {
-      this.introLayer?.destroy()
-      this.introLayer = null
-      this.introShowing = false
-      this.physics.world.resume()
+      this.closeIntro()
     }
   }
 
@@ -2194,13 +2575,27 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
+    // 键盘 + 触屏的输入边沿都在这里各读一次（JustDown/JustUp 读一次就把标记清掉，
+    // 所以不能在别处再读第二遍），触屏那几个 Just 标记读完立刻清零
+    const prevJust = Phaser.Input.Keyboard.JustDown(this.prevKey)
+    const nextJust = Phaser.Input.Keyboard.JustDown(this.nextKey)
+    const armorJust = Phaser.Input.Keyboard.JustDown(this.armorKey) || this.touchArmorJust
+    const rockJustDown = Phaser.Input.Keyboard.JustDown(this.rockKey) || this.touchPillarJust
+    const rockJustUp = Phaser.Input.Keyboard.JustUp(this.rockKey) || this.touchPillarUp
+    const jumpJust = Phaser.Input.Keyboard.JustDown(this.cursors.space) || this.touchJumpJust
+
+    this.touchArmorJust = false
+    this.touchPillarJust = false
+    this.touchPillarUp = false
+    this.touchJumpJust = false
+
     if (!this.inputLocked) {
-      if (Phaser.Input.Keyboard.JustDown(this.prevKey)) {
+      if (prevJust) {
         cycleElement(-1, this.availableElements())
         this.applyElement(progress.current)
       }
 
-      if (Phaser.Input.Keyboard.JustDown(this.nextKey)) {
+      if (nextJust) {
         cycleElement(1, this.availableElements())
         this.applyElement(progress.current)
       }
@@ -2222,11 +2617,7 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    if (
-      !this.inputLocked &&
-      Phaser.Input.Keyboard.JustDown(this.armorKey) &&
-      this.element === 'rock'
-    ) {
+    if (!this.inputLocked && armorJust && this.element === 'rock') {
       // 只能开：岩化中按不掉，冷却中按不了
       if (!this.armored && this.armorCooldown <= 0) {
         this.setArmored(true)
@@ -2238,7 +2629,7 @@ export class GameScene extends Phaser.Scene {
     if (this.inputLocked) {
       this.pillarPressed = false
     } else if (this.element === 'rock') {
-      if (Phaser.Input.Keyboard.JustDown(this.rockKey)) {
+      if (rockJustDown) {
         if (this.pillarCharging) {
           // 预览状态里再点一次 = 放置；放不下就留在预览里继续找位置
           if (this.castPillar()) {
@@ -2260,7 +2651,7 @@ export class GameScene extends Phaser.Scene {
         }
       }
 
-      if (Phaser.Input.Keyboard.JustUp(this.rockKey) && this.pillarPressed) {
+      if (rockJustUp && this.pillarPressed) {
         // 短按：直接放
         this.pillarPressed = false
         this.castPillar()
@@ -2303,10 +2694,10 @@ export class GameScene extends Phaser.Scene {
     if (this.inputLocked) {
       // 神像演出期间原地不动
       this.slime.setVelocityX(0)
-    } else if (this.cursors.left.isDown) {
+    } else if (this.cursors.left.isDown || this.touchLeft) {
       this.slime.setVelocityX(-speed)
       this.slime.setFlipX(true)
-    } else if (this.cursors.right.isDown) {
+    } else if (this.cursors.right.isDown || this.touchRight) {
       this.slime.setVelocityX(speed)
       this.slime.setFlipX(false)
     } else {
@@ -2346,7 +2737,7 @@ export class GameScene extends Phaser.Scene {
       const monument = target
 
       if (this.element === monument.element) {
-        prompt = '[F] 点亮'
+        prompt = this.interactPrefix() + '点亮'
         action = () => this.touchMonument(monument)
       } else {
         prompt = '需要' + ELEMENTS[monument.element].label + '元素'
@@ -2365,7 +2756,7 @@ export class GameScene extends Phaser.Scene {
         if (distance < 52) {
           const text = note.text
 
-          prompt = '[F] ' + note.prompt
+          prompt = this.interactPrefix() + note.prompt
           action = () => this.showPaper(text)
           break
         }
@@ -2381,7 +2772,7 @@ export class GameScene extends Phaser.Scene {
       )
 
       if (cageDistance < 56) {
-        prompt = '[F] ' + this.level.cage.prompt
+        prompt = this.interactPrefix() + this.level.cage.prompt
         action = () => this.playCageScene()
       }
     }
@@ -2396,7 +2787,7 @@ export class GameScene extends Phaser.Scene {
       )
 
       if (statueDistance < 64) {
-        prompt = '[F] ' + statue.prompt
+        prompt = this.interactPrefix() + statue.prompt
         action = () => {
           this.statueUsed = true
           this.playStatueScene(statue.grants)
@@ -2415,7 +2806,7 @@ export class GameScene extends Phaser.Scene {
         ) < 48
 
       if (nearGoal) {
-        prompt = '[F] ' + this.level.goal.prompt
+        prompt = this.interactPrefix() + this.level.goal.prompt
         action = () => this.win()
       }
     }
@@ -2423,10 +2814,19 @@ export class GameScene extends Phaser.Scene {
     this.promptBox.setVisible(prompt !== null)
     this.promptText.setVisible(prompt !== null)
 
+    // 手机上没有 F 键：当前这条提示能做的话，点提示条本身就等于按 F
+    this.promptAction = this.inputLocked ? null : action
+
     if (prompt) {
       this.promptBox.setPosition(this.slime.x, this.slime.y - 34)
       this.promptText.setPosition(this.slime.x, this.slime.y - 34)
-      this.promptText.setText(prompt)
+      // 触屏下把「[F] 阅读」这类提示里的按键字样去掉
+      this.promptText.setText(touchText(prompt))
+
+      // 第一次显示带 [F] 的交互提示之后，后面的提示就不再带前缀了
+      if (action) {
+        markHintSeen('interact')
+      }
 
       if (!this.inputLocked && action && Phaser.Input.Keyboard.JustDown(this.interactKey)) {
         playSfx(this, 'sfx-interact', 0.3)
@@ -2462,7 +2862,7 @@ export class GameScene extends Phaser.Scene {
       this.stamina = Math.min(STAMINA_MAX, this.stamina + HOVER.regenPerSecond * dt)
     }
 
-    if (!this.inputLocked && Phaser.Input.Keyboard.JustDown(this.cursors.space) && onGround) {
+    if (!this.inputLocked && jumpJust && onGround) {
       // 岩化时身体更结实，跳得也略高一点
       this.slime.setVelocityY(this.jumpPower * (this.armored ? ARMOR_JUMP : 1))
       playSfx(this, 'sfx-jump', 0.16)
@@ -2471,7 +2871,7 @@ export class GameScene extends Phaser.Scene {
     const wantHover =
       !this.inputLocked &&
       element.canHover &&
-      this.cursors.space.isDown &&
+      (this.cursors.space.isDown || this.touchJump) &&
       !onGround &&
       this.stamina > 0
 
@@ -2591,6 +2991,49 @@ export class GameScene extends Phaser.Scene {
     } else {
       this.armorBar.setFillStyle(0x6b5a3a)
       this.armorBar.setScale(Math.max(0, 1 - this.armorCooldown / ARMOR_COOLDOWN), 1)
+    }
+
+    this.updateTouchVisuals()
+  }
+
+  // 触屏按键的显示：岩化冷却时灰版打底、亮版从下往上长回来；
+  // 史莱姆跑到按键底下时整体淡下去，保证不挡视野
+  private updateTouchVisuals() {
+    if (this.touchButtons.length === 0) {
+      return
+    }
+
+    if (this.touchArmorFill) {
+      const ready = this.armorCooldown <= 0
+      const ratio = ready ? 1 : Math.max(0, 1 - this.armorCooldown / ARMOR_COOLDOWN)
+      const show = this.rockAvailable && ratio > 0.002
+
+      if (show) {
+        // setCrop 的原点在贴图左上角：裁出下面这一块，就是自下而上回充
+        this.touchArmorFill.setCrop(0, 36 * (1 - ratio), 36, 36 * ratio)
+      }
+
+      this.touchArmorFill.setVisible(show)
+    }
+
+    const camera = this.cameras.main
+    const screenX = this.slime.x - camera.scrollX
+    const screenY = this.slime.y - camera.scrollY
+
+    this.touchButtons.forEach((button) => {
+      if (button.image === this.touchArmorFill) {
+        return
+      }
+
+      const near =
+        Math.abs(screenX - button.x) < button.r + 22 &&
+        Math.abs(screenY - button.y) < button.r + 22
+
+      button.image.setAlpha(near ? button.base * 0.3 : button.base)
+    })
+
+    if (this.touchArmorFill) {
+      this.touchArmorFill.setAlpha(this.touchArmorDim?.alpha ?? 0.62)
     }
   }
 }

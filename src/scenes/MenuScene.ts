@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { ELEMENTS, type ElementKey } from '../data/elements'
 import { newGame } from '../state/progress'
 import { playMusic } from '../state/audio'
+import { touchMode, touchText } from '../state/touch'
 
 const MENU_OPTIONS = ['新游戏', '继续游戏', '成就']
 
@@ -62,7 +63,7 @@ export class MenuScene extends Phaser.Scene {
     this.cursorIcon = this.add.image(0, 0, 'gem').setTint(0xffd54f)
 
     this.add
-      .text(240, 258, '↑ ↓ 选择 · 空格 确认', {
+      .text(240, 258, touchText(touchMode() ? '选一项开始' : '↑ ↓ 选择 · 空格 确认'), {
         fontFamily: 'sans-serif',
         fontSize: '12px',
         color: '#8fa3b8',

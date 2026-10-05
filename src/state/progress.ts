@@ -26,6 +26,8 @@ export type SaveData = {
   levelGems: number[][]
   gemStorySeen: boolean
   achievements: string[]
+  // 已经提示过的「操作说明」类别：同一类只在第一次遇到时出现
+  seenHints: string[]
 }
 
 function emptySave(slotIndex: number): SaveData {
@@ -40,6 +42,7 @@ function emptySave(slotIndex: number): SaveData {
     levelGems: [],
     gemStorySeen: false,
     achievements: [],
+    seenHints: [],
   }
 }
 
@@ -50,6 +53,7 @@ function cloneSlot(data: SaveData): SaveData {
     unlocked: [...data.unlocked],
     levelGems: data.levelGems.map((list) => [...list]),
     achievements: [...data.achievements],
+    seenHints: [...data.seenHints],
   }
 }
 
@@ -91,6 +95,10 @@ function readSlot(raw: unknown, slotIndex: number): SaveData {
 
   if (Array.isArray(data.achievements)) {
     save.achievements = data.achievements.filter((key) => typeof key === 'string')
+  }
+
+  if (Array.isArray(data.seenHints)) {
+    save.seenHints = data.seenHints.filter((key) => typeof key === 'string')
   }
 
   save.gemStorySeen = data.gemStorySeen === true
@@ -228,6 +236,20 @@ export function cycleElement(step: number, allowed?: ElementKey[]) {
   const next = index < 0 ? 0 : (index + step + list.length) % list.length
 
   progress.current = list[next]
+}
+
+// 操作提示只提示一次：记下哪些类别已经提示过了（存在存档里，换关、重开都算）
+export function hasSeenHint(key: string) {
+  return progress.seenHints.includes(key)
+}
+
+export function markHintSeen(key: string) {
+  if (progress.seenHints.includes(key)) {
+    return
+  }
+
+  progress.seenHints.push(key)
+  saveProgress()
 }
 
 export function recordClear(levelIndex: number, indices: number[]) {
