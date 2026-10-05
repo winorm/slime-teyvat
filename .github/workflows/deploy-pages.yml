@@ -34,10 +34,10 @@ jobs:
       - name: 类型检查 + 构建
         run: npm run build
 
-      - name: 打开 Pages（没开过就自动开）
+      # 首次使用时要在仓库 Settings → Pages → Source 选「GitHub Actions」，
+      # 这一步只是读取 Pages 的配置（工作流的令牌没有权限替仓库打开 Pages）
+      - name: 读取 Pages 配置
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: 上传 dist
         uses: actions/upload-pages-artifact@v3
