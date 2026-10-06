@@ -237,6 +237,8 @@ export class GameScene extends Phaser.Scene {
   private stickKnob: Phaser.GameObjects.Image | null = null
   private stickPointer = -1
   private stickOrigin = { x: 0, y: 0 }
+  private moveImages: Phaser.GameObjects.Image[] = []
+  private stickHandlers: Array<{ event: string; fn: (pointer: Phaser.Input.Pointer) => void }> = []
   private promptBox!: Phaser.GameObjects.Rectangle
   private promptText!: Phaser.GameObjects.Text
   private promptAction: (() => void) | null = null
@@ -313,7 +315,11 @@ export class GameScene extends Phaser.Scene {
     // 暂停期间手指抬起是收不到 pointerup 的，恢复时再清一遍，
     // 否则回来之后角色会一直往一个方向跑、技能也会被那一下误触发
     this.events.off(Phaser.Scenes.Events.RESUME)
-    this.events.on(Phaser.Scenes.Events.RESUME, () => this.clearTouchInput())
+    this.events.on(Phaser.Scenes.Events.RESUME, () => {
+      this.clearTouchInput()
+      // 设置菜单里可能刚切了「移动方式」，回到关卡立刻按新模式重建控件
+      this.applyMoveMode()
+    })
 
     this.pillarGhost = null
     this.pillarMark = null
@@ -1221,36 +1227,8 @@ export class GameScene extends Phaser.Scene {
       return image
     }
 
-    // 左下角两种操作方式二选一：左右箭头键，或者浮动摇杆（设置里切，存在本地）
-    if (getMoveMode() === 'stick') {
-      this.makeMoveStick()
-    } else {
-      // 左箭头（贴图朝右，靠翻转）往左、右箭头往右
-      button(
-        30,
-        236,
-        'touch-arrow',
-        () => {
-          this.touchLeft = true
-        },
-        () => {
-          this.touchLeft = false
-        },
-        true
-      )
-
-      button(
-        98,
-        236,
-        'touch-arrow',
-        () => {
-          this.touchRight = true
-        },
-        () => {
-          this.touchRight = false
-        }
-      )
-    }
+    // 左下角两种操作方式二选一：左右箭头键，或者浮动摇杆（设置里切）
+    this.buildMoveControls()
 
     // 右下：最大的跳跃键
     button(
@@ -1334,6 +1312,78 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
+  // 按当前的「移动方式」铺控件：左右箭头键 / 浮动摇杆
+  private buildMoveControls() {
+    if (getMoveMode() === 'stick') {
+      this.makeMoveStick()
+      return
+    }
+
+    const arrow = (x: number, flip: boolean, on: () => void, off: () => void) => {
+      const image = this.add
+        .image(x, 236, 'touch-arrow')
+        .setScrollFactor(0)
+        .setDepth(100)
+        .setAlpha(0.75)
+        .setFlipX(flip)
+        .setInteractive({ useHandCursor: true })
+
+      image.on('pointerdown', () => {
+        image.setScale(0.92)
+        on()
+      })
+
+      const release = () => {
+        image.setScale(1)
+        off()
+      }
+
+      image.on('pointerup', release)
+      image.on('pointerout', release)
+
+      this.moveImages.push(image)
+      this.touchButtons.push({ image, x, y: 236, r: image.width / 2, base: 0.75 })
+    }
+
+    // 左箭头（贴图朝右，靠翻转）往左、右箭头往右
+    arrow(30, true, () => { this.touchLeft = true }, () => { this.touchLeft = false })
+    arrow(98, false, () => { this.touchRight = true }, () => { this.touchRight = false })
+  }
+
+  // 把当前这套移动控件整个收掉（切模式、或者退到别的场景之前）
+  private clearMoveControls() {
+    const removed = new Set(this.moveImages)
+
+    this.moveImages.forEach((image) => image.destroy())
+    this.moveImages = []
+
+    // touchButtons 里还留着箭头键的条目，不清掉的话「靠近变淡」那套会去操作已销毁的对象
+    this.touchButtons = this.touchButtons.filter((item) => !removed.has(item.image))
+
+    // 摇杆的监听挂在 scene 的 input 上，切走之前必须摘干净，不然每切一次就多挂一层
+    this.stickHandlers.forEach(({ event, fn }) => this.input.off(event, fn))
+    this.stickHandlers = []
+
+    this.stickBase?.destroy()
+    this.stickKnob?.destroy()
+    this.stickBase = null
+    this.stickKnob = null
+    this.stickPointer = -1
+  }
+
+  // 设置里切换移动方式后立刻生效：收掉旧的，按新的重建（不用重进关卡）
+  private applyMoveMode() {
+    this.clearMoveControls()
+    this.touchLeft = false
+    this.touchRight = false
+
+    if (!this.touchMode) {
+      return
+    }
+
+    this.buildMoveControls()
+  }
+
   // 浮动摇杆：手指按到哪，底盘就出现在哪（限制在左下区域、且留在屏幕里），
   // 拖动时摇杆头跟着手指走，横向超过死区就当作按了左/右
   private makeMoveStick() {
@@ -1352,7 +1402,7 @@ export class GameScene extends Phaser.Scene {
     this.stickBase = base
     this.stickKnob = knob
 
-    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+    const onDown = (pointer: Phaser.Input.Pointer) => {
       // 已经有手指在操控摇杆了，或者按的地方不在这块区域，就不管
       if (this.stickPointer >= 0 || pointer.x > STICK.zoneRight || pointer.y < STICK.zoneTop) {
         return
@@ -1364,9 +1414,9 @@ export class GameScene extends Phaser.Scene {
 
       base.setPosition(this.stickOrigin.x, this.stickOrigin.y).setAlpha(0.75)
       knob.setPosition(this.stickOrigin.x, this.stickOrigin.y).setAlpha(0.95)
-    })
+    }
 
-    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+    const onMove = (pointer: Phaser.Input.Pointer) => {
       if (pointer.id !== this.stickPointer) {
         return
       }
@@ -1377,7 +1427,7 @@ export class GameScene extends Phaser.Scene {
       knob.setPosition(this.stickOrigin.x + dx, this.stickOrigin.y + dy)
       this.touchLeft = dx < -STICK.deadZone
       this.touchRight = dx > STICK.deadZone
-    })
+    }
 
     const release = (pointer: Phaser.Input.Pointer) => {
       if (pointer.id !== this.stickPointer) {
@@ -1392,8 +1442,17 @@ export class GameScene extends Phaser.Scene {
       knob.setPosition(STICK.idleX, STICK.idleY).setAlpha(0.85)
     }
 
+    this.input.on('pointerdown', onDown)
+    this.input.on('pointermove', onMove)
     this.input.on('pointerup', release)
     this.input.on('pointerupoutside', release)
+
+    this.stickHandlers.push(
+      { event: 'pointerdown', fn: onDown },
+      { event: 'pointermove', fn: onMove },
+      { event: 'pointerup', fn: release },
+      { event: 'pointerupoutside', fn: release }
+    )
   }
 
   private refreshHud() {
