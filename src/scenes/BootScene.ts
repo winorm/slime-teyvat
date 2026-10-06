@@ -114,6 +114,7 @@ export class BootScene extends Phaser.Scene {
     this.makeRockSpike()
 
     this.makeTouchArrow()
+    this.makeTouchStick()
     this.makeTouchJump()
     this.makeTouchPillar()
     this.makeTouchArmor()
@@ -1214,6 +1215,43 @@ export class BootScene extends Phaser.Scene {
 
     gfx.generateTexture('touch-arrow', 28, 28)
     gfx.destroy()
+  }
+
+  // 浮动摇杆的两张图：外圈底盘（能拖动的那一圈）和中间的摇杆头。
+  // 配色和箭头键一致（深底 + 石头色圆环），这样两套操作看起来是一家的
+  private makeTouchStick() {
+    const base = this.add.graphics()
+    const center = 36
+
+    base.fillStyle(0x1c1c28, 0.45)
+    base.fillCircle(center, center, 34)
+
+    this.pixelRing(base, center, center, 32, 0x8a7f6a, 0.8)
+    this.pixelRing(base, center, center, 21, 0x5c688c, 0.35)
+
+    // 四个方向的小刻度，让人一眼看出这是个方向盘
+    base.fillStyle(0xd9c9a8, 0.55)
+    base.fillRect(center - 2, 5, 4, 2)
+    base.fillRect(center - 2, 65, 4, 2)
+    base.fillRect(5, center - 2, 2, 4)
+    base.fillRect(65, center - 2, 2, 4)
+
+    base.generateTexture('touch-stick-base', 72, 72)
+    base.destroy()
+
+    const knob = this.add.graphics()
+    const knobCenter = 15
+
+    knob.fillStyle(0x1c1c28, 0.6)
+    knob.fillCircle(knobCenter, knobCenter, 14)
+
+    this.pixelRing(knob, knobCenter, knobCenter, 13, 0xd9c9a8, 0.9)
+
+    knob.fillStyle(0xd9c9a8, 0.8)
+    knob.fillCircle(knobCenter, knobCenter, 5)
+
+    knob.generateTexture('touch-stick-knob', 30, 30)
+    knob.destroy()
   }
 
   // 跳跃键：一颗无元素史莱姆往右上方跃起，身后拖几根细线表示风

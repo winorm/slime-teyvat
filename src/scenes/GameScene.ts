@@ -19,6 +19,7 @@ import {
 import { playMusic, playSfx, setLoop, stopAllLoops } from '../state/audio'
 import { queueAchievementToast } from '../state/achievements'
 import { touchMode, touchText } from '../state/touch'
+import { getMoveMode } from '../state/settings'
 
 const HOVER = {
   riseSpeed: 70,
@@ -70,6 +71,17 @@ const ARMOR_GROW = 1.15
 const HAZARD = {
   width: 24,
   gapHeight: 70,
+}
+
+// 浮动摇杆：平时静静躺在左下角；手指在左下这块区域按下就跳到那里，
+// 横向拖过 deadZone 才算「往左 / 往右」
+const STICK = {
+  idleX: 66,
+  idleY: 214,
+  radius: 26,       // 摇杆头能离开底盘中心的最大距离
+  deadZone: 10,     // 横向超过这个距离才判定移动
+  zoneRight: 210,   // 这块区域里按下才会唤起摇杆，避免和右下角技能键打架
+  zoneTop: 130,
 }
 
 const CHASE = {
@@ -221,6 +233,10 @@ export class GameScene extends Phaser.Scene {
   private touchPillarButton: Phaser.GameObjects.Image | null = null
   private touchArmorDim: Phaser.GameObjects.Image | null = null
   private touchArmorFill: Phaser.GameObjects.Image | null = null
+  private stickBase: Phaser.GameObjects.Image | null = null
+  private stickKnob: Phaser.GameObjects.Image | null = null
+  private stickPointer = -1
+  private stickOrigin = { x: 0, y: 0 }
   private promptBox!: Phaser.GameObjects.Rectangle
   private promptText!: Phaser.GameObjects.Text
   private promptAction: (() => void) | null = null
@@ -1143,6 +1159,14 @@ export class GameScene extends Phaser.Scene {
     this.touchArmorJust = false
     this.touchPillarJust = false
     this.touchPillarUp = false
+
+    // 摇杆也要松手：暂停/恢复时手指的 pointerup 收不到，不归位会一直往一个方向跑
+    this.stickPointer = -1
+
+    if (this.stickBase && this.stickKnob) {
+      this.stickBase.setPosition(STICK.idleX, STICK.idleY).setAlpha(0.5)
+      this.stickKnob.setPosition(STICK.idleX, STICK.idleY).setAlpha(0.7)
+    }
   }
 
   private makeTouchControls() {
@@ -1196,31 +1220,36 @@ export class GameScene extends Phaser.Scene {
       return image
     }
 
-    // 左下：只有左右两个圆盘，左箭头（贴图朝右，靠翻转）往左、右箭头往右
-    button(
-      30,
-      236,
-      'touch-arrow',
-      () => {
-        this.touchLeft = true
-      },
-      () => {
-        this.touchLeft = false
-      },
-      true
-    )
+    // 左下角两种操作方式二选一：左右箭头键，或者浮动摇杆（设置里切，存在本地）
+    if (getMoveMode() === 'stick') {
+      this.makeMoveStick()
+    } else {
+      // 左箭头（贴图朝右，靠翻转）往左、右箭头往右
+      button(
+        30,
+        236,
+        'touch-arrow',
+        () => {
+          this.touchLeft = true
+        },
+        () => {
+          this.touchLeft = false
+        },
+        true
+      )
 
-    button(
-      98,
-      236,
-      'touch-arrow',
-      () => {
-        this.touchRight = true
-      },
-      () => {
-        this.touchRight = false
-      }
-    )
+      button(
+        98,
+        236,
+        'touch-arrow',
+        () => {
+          this.touchRight = true
+        },
+        () => {
+          this.touchRight = false
+        }
+      )
+    }
 
     // 右下：最大的跳跃键
     button(
@@ -1302,6 +1331,68 @@ export class GameScene extends Phaser.Scene {
       r: 18 * TOUCH_SCALE,
       base: 0.62,
     })
+  }
+
+  // 浮动摇杆：手指按到哪，底盘就出现在哪（限制在左下区域、且留在屏幕里），
+  // 拖动时摇杆头跟着手指走，横向超过死区就当作按了左/右
+  private makeMoveStick() {
+    const base = this.add
+      .image(STICK.idleX, STICK.idleY, 'touch-stick-base')
+      .setScrollFactor(0)
+      .setDepth(100)
+      .setAlpha(0.5)
+
+    const knob = this.add
+      .image(STICK.idleX, STICK.idleY, 'touch-stick-knob')
+      .setScrollFactor(0)
+      .setDepth(101)
+      .setAlpha(0.7)
+
+    this.stickBase = base
+    this.stickKnob = knob
+
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      // 已经有手指在操控摇杆了，或者按的地方不在这块区域，就不管
+      if (this.stickPointer >= 0 || pointer.x > STICK.zoneRight || pointer.y < STICK.zoneTop) {
+        return
+      }
+
+      this.stickPointer = pointer.id
+      this.stickOrigin.x = Phaser.Math.Clamp(pointer.x, 40, STICK.zoneRight)
+      this.stickOrigin.y = Phaser.Math.Clamp(pointer.y, STICK.zoneTop + 40, 236)
+
+      base.setPosition(this.stickOrigin.x, this.stickOrigin.y).setAlpha(0.62)
+      knob.setPosition(this.stickOrigin.x, this.stickOrigin.y).setAlpha(0.85)
+    })
+
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (pointer.id !== this.stickPointer) {
+        return
+      }
+
+      const dx = Phaser.Math.Clamp(pointer.x - this.stickOrigin.x, -STICK.radius, STICK.radius)
+      const dy = Phaser.Math.Clamp(pointer.y - this.stickOrigin.y, -STICK.radius, STICK.radius)
+
+      knob.setPosition(this.stickOrigin.x + dx, this.stickOrigin.y + dy)
+      this.touchLeft = dx < -STICK.deadZone
+      this.touchRight = dx > STICK.deadZone
+    })
+
+    const release = (pointer: Phaser.Input.Pointer) => {
+      if (pointer.id !== this.stickPointer) {
+        return
+      }
+
+      this.stickPointer = -1
+      this.touchLeft = false
+      this.touchRight = false
+
+      base.setPosition(STICK.idleX, STICK.idleY).setAlpha(0.5)
+      knob.setPosition(STICK.idleX, STICK.idleY).setAlpha(0.7)
+    }
+
+    this.input.on('pointerup', release)
+    this.input.on('pointerupoutside', release)
   }
 
   private refreshHud() {

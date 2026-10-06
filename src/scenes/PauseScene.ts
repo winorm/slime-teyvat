@@ -2,6 +2,8 @@ import Phaser from 'phaser'
 import { LEVELS } from '../data/levels'
 import { progress, deleteSlot } from '../state/progress'
 import { audio, toggleMute } from '../state/audio'
+import { touchMode } from '../state/touch'
+import { getMoveMode, toggleMoveMode } from '../state/settings'
 
 export class PauseScene extends Phaser.Scene {
   constructor() {
@@ -38,19 +40,34 @@ export class PauseScene extends Phaser.Scene {
         .setTint(slot < gems.length ? 0x6ec6ff : 0x33333f)
     }
 
-    this.makeButton(112, '继续游戏', () => this.resumeGame())
-    this.makeButton(144, '重开本关', () => {
+    this.makeButton(106, '继续游戏', () => this.resumeGame())
+    this.makeButton(134, '重开本关', () => {
       this.scene.stop('game')
       this.scene.start('game')
     })
-    this.makeButton(176, '回到选择界面', () => {
+    this.makeButton(162, '回到选择界面', () => {
       this.scene.stop('game')
       this.scene.start('select')
     })
 
+    // 触屏才有「移动方式」这一行：左右箭头键 / 浮动摇杆，选完记在本地
+    if (touchMode()) {
+      const moveText = this.makeButton(
+        190,
+        getMoveMode() === 'stick' ? '移动方式：摇杆' : '移动方式：左右键',
+        () => {
+          const mode = toggleMoveMode()
+
+          moveText.setText(mode === 'stick' ? '移动方式：摇杆' : '移动方式：左右键')
+        }
+      )
+
+      moveText.setColor('#a8e8d4')
+    }
+
     let clearArmed = false
 
-    const clearText = this.makeButton(208, '清除本档存档', () => {
+    const clearText = this.makeButton(218, '清除本档存档', () => {
       if (!clearArmed) {
         clearArmed = true
         clearText.setText('再点一次确认清除')
@@ -70,7 +87,7 @@ export class PauseScene extends Phaser.Scene {
       this.scene.start('menu')
     })
 
-    const muteText = this.makeButton(240, audio.muted ? '声音：关' : '声音：开', () => {
+    const muteText = this.makeButton(246, audio.muted ? '声音：关' : '声音：开', () => {
       const muted = toggleMute()
 
       muteText.setText(muted ? '声音：关' : '声音：开')
