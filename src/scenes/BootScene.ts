@@ -195,6 +195,10 @@ export class BootScene extends Phaser.Scene {
     this.makeDragonling()
     this.makeWing()
     this.makeRevealBlob()
+    this.makeLantern()
+    this.makeBarrel()
+    this.makeTreeRoot()
+    this.makeTreeBranch()
   }
 
   private makeSpire() {
@@ -483,6 +487,120 @@ export class BootScene extends Phaser.Scene {
 
   // 木桥的板材：横铺的一根板子，可平铺。上沿受光、下沿压暗，
   // 中间几道木纹，两头各一颗钉子
+  // 望舒客栈的琉璃灯笼：暖黄灯身 + 深红上下箍 + 顶端一截挂绳
+  // 古树的树根段：上面接主杆（约 120 宽），往下越铺越宽，底部 300 宽并分出几块根盘。
+  // 只作为一整张贴图用（不能平铺），所以做成一张图，靠 y 对齐主杆的底端
+  private makeTreeRoot() {
+    const width = 300
+    const height = 200
+    const gfx = this.add.graphics()
+
+    // 逐行画：从顶部的主杆宽度，线性张开到底部的全宽
+    for (let y = 0; y < height; y++) {
+      const t = y / (height - 1)
+      const halfWidth = 60 + 90 * t * t          // 顶 60 → 底 150
+      const shade = 1 - (1 - t) * 0.15
+
+      gfx.fillStyle(
+        Phaser.Display.Color.GetColor(
+          Math.round(0x7a * shade),
+          Math.round(0x5a * shade),
+          Math.round(0x38 * shade)
+        ),
+        1
+      )
+      gfx.fillRect(width / 2 - halfWidth, y, halfWidth * 2, 1)
+    }
+
+    // 中间亮、两边暗的圆柱感
+    for (let x = 0; x < width; x++) {
+      const t = Math.abs(x / (width - 1) - 0.5) * 2
+
+      gfx.fillStyle(0x2a1c10, t * t * 0.28)
+      gfx.fillRect(x, 0, 1, height)
+    }
+
+    // 几块根盘：底部往两侧伸出的斜块
+    gfx.fillStyle(0x6a4c2e, 1)
+    gfx.fillTriangle(150, height, 18, height, 54, height - 46)
+    gfx.fillTriangle(150, height, 282, height, 246, height - 46)
+    gfx.fillStyle(0x3f2c1c, 1)
+    gfx.fillTriangle(150, height, 40, height, 70, height - 30)
+    gfx.fillTriangle(150, height, 260, height, 230, height - 30)
+
+    gfx.generateTexture('tree-root', width, height)
+    gfx.destroy()
+  }
+
+  // 斜枝：左边粗、右边细的一条枝干，横着画；用的时候 setAngle 转成斜的
+  private makeTreeBranch() {
+    const width = 140
+    const height = 24
+    const gfx = this.add.graphics()
+
+    for (let x = 0; x < width; x++) {
+      const t = x / (width - 1)
+      const halfHeight = 11 * (1 - t * 0.75)      // 根 22 粗 → 梢 5 粗
+
+      gfx.fillStyle(0x6a4c2e, 1)
+      gfx.fillRect(x, height / 2 - halfHeight, 1, halfHeight * 2)
+      gfx.fillStyle(0x7a5a38, 1)
+      gfx.fillRect(x, height / 2 - halfHeight, 1, 3)
+      gfx.fillStyle(0x3f2c1c, 1)
+      gfx.fillRect(x, height / 2 + halfHeight - 3, 1, 3)
+    }
+
+    // 几道树皮纹
+    gfx.fillStyle(0x4a3320, 0.5)
+    gfx.fillRect(26, height / 2 - 4, 40, 2)
+    gfx.fillRect(74, height / 2 + 1, 30, 2)
+
+    gfx.generateTexture('tree-branch', width, height)
+    gfx.destroy()
+  }
+
+  // 望舒客栈的琉璃灯笼：暖黄灯身 + 深红上下箍 + 顶端一截挂绳
+  private makeLantern() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0x5f4224, 1)          // 挂绳
+    gfx.fillRect(4, 0, 2, 3)
+
+    gfx.fillStyle(0x8c2f2f, 1)          // 上下箍
+    gfx.fillRect(1, 3, 8, 2)
+    gfx.fillRect(1, 11, 8, 2)
+
+    gfx.fillStyle(0xffb347, 1)          // 灯身
+    gfx.fillRect(1, 5, 8, 6)
+
+    gfx.fillStyle(0xffe08a, 1)          // 灯芯：中间更亮的一道
+    gfx.fillRect(3, 6, 4, 4)
+
+    gfx.generateTexture('lantern', 10, 14)
+    gfx.destroy()
+  }
+
+  // 木桶：桶身 + 顶面亮圈 + 两道深箍 + 左侧压暗
+  private makeBarrel() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0x8a6034, 1)
+    gfx.fillRect(0, 2, 12, 12)
+
+    gfx.fillStyle(0xa8794a, 1)          // 顶面（俯视那一圈亮色）
+    gfx.fillRect(1, 1, 10, 3)
+
+    gfx.fillStyle(0x5f4224, 1)          // 两道深箍
+    gfx.fillRect(0, 5, 12, 2)
+    gfx.fillRect(0, 10, 12, 2)
+
+    gfx.fillStyle(0x74512c, 1)          // 左侧压暗，做出圆柱感
+    gfx.fillRect(0, 2, 2, 12)
+
+    gfx.generateTexture('barrel', 12, 14)
+    gfx.destroy()
+  }
+
   // 「透视圈」用的椭圆贴图：横着长一点（贴着史莱姆的身形），
   // 从中心到边缘一层层叠 alpha，边缘几乎为 0 —— 所以擦出来是带渐变的透过，不是硬边。
   // 以后做「洞内没有光源」的视野限制也能直接用这张

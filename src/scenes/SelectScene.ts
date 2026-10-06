@@ -7,9 +7,9 @@ import { touchMode } from '../state/touch'
 
 const COLS = 5
 const CELL_W = 84
-const CELL_H = 60
+const CELL_H = 66
 const FIRST_X = 72
-const FIRST_Y = 80
+const FIRST_Y = 72
 
 export class SelectScene extends Phaser.Scene {
   constructor() {
@@ -65,7 +65,7 @@ export class SelectScene extends Phaser.Scene {
     const level = LEVELS[index]
     const isPlayable = level !== undefined && (DEV_MODE || index <= progress.maxLevel)
 
-    this.add.rectangle(x, y, 76, 52, 0x1e1e30).setStrokeStyle(2, 0x3a3a5a)
+    this.add.rectangle(x, y, 76, 62, 0x1e1e30).setStrokeStyle(2, 0x3a3a5a)   // 52 → 62
 
     if (!level) {
       this.add.image(x, y - 8, 'slime-none').setTint(0x2a2a3e)
@@ -75,13 +75,13 @@ export class SelectScene extends Phaser.Scene {
 
     const element = ELEMENTS[level.startElement]
 
-    // 岩史莱姆的岩脊挂在身体背后，所以要先画、再画本体（和标题页那边的画法一致）
+    const bodyY = y - 2        // 身体中心的 y，以后想整体挪只改这一个数
+
     if (level.startElement === 'rock') {
-      // 格子只有 52 高：岩脊按原尺寸摆会顶出格子，所以缩小到 0.75、位置也往下收一点
-      this.add.image(x, y - 13, 'rock-crown').setScale(0.75)
+      this.add.image(x, bodyY - 10, 'rock-crown').setScale(1)     // 岩脊：身体中心往上 10
     }
 
-    const slime = this.add.image(x, y - 8, 'slime-' + level.startElement)
+    const slime = this.add.image(x, bodyY, 'slime-' + level.startElement)
 
     if (element.wing) {
       const wings: [number, number, number][] = [
@@ -91,7 +91,8 @@ export class SelectScene extends Phaser.Scene {
 
       wings.forEach(([offset, originX, angle]) => {
         const wing = this.add
-          .image(x + offset, y - 17, 'wing')
+          .image(x + offset, bodyY - 9, 'wing')                  // 翅膀：身体中心往上 9
+
           .setOrigin(originX, 0.5)
           .setAngle(angle)
           .setScale(0.8)
@@ -105,8 +106,8 @@ export class SelectScene extends Phaser.Scene {
 
     const eyeTint = isPlayable ? element.eyeColor : 0x2a2a3a
 
-    this.add.image(x - 5, y - 10, 'eye').setTint(eyeTint)
-    this.add.image(x + 5, y - 10, 'eye').setTint(eyeTint)
+    this.add.image(x - 5, bodyY - 2, 'eye').setTint(eyeTint)     // 眼睛：身体中心往上 2
+    this.add.image(x + 5, bodyY - 2, 'eye').setTint(eyeTint)
 
     if (!isPlayable) {
       slime.setTint(0x3a3a4e)
@@ -117,7 +118,8 @@ export class SelectScene extends Phaser.Scene {
     for (let slot = 0; slot < 3; slot++) {
       const lit = slot < gems.length
 
-      this.add.image(x - 16 + slot * 16, y + 16, 'gem').setTint(lit ? 0x6ec6ff : 0x33333f)
+      this.add.image(x - 16 + slot * 16, y + 23, 'gem').setTint(lit ? 0x6ec6ff : 0x33333f)
+      
     }
 
     if (isPlayable) {

@@ -6,6 +6,8 @@ import {
   type LevelDef,
   type DomeDef,
   type PlatformDef,
+  type PickupDef,
+  type RepairDef,
 } from '../data/levels'
 import {
   progress,
@@ -306,6 +308,12 @@ export class GameScene extends Phaser.Scene {
   private spikes!: Phaser.Physics.Arcade.Group
   private launchers: LauncherRef[] = []
   private noteList: NoteRef[] = []
+  private pickupList: (PickupDef & { parts: Phaser.GameObjects.Image[]; taken: boolean })[] = []
+  private repairList: { mark: Phaser.GameObjects.Image; def: RepairDef; done: boolean }[] = []
+  private stairGfx: Phaser.GameObjects.Graphics[] = []
+  private repaired: string[] = []
+  private woods = 0
+
   private paperShowing = false
   private paperLayer: Phaser.GameObjects.Container | null = null
   
@@ -347,6 +355,10 @@ export class GameScene extends Phaser.Scene {
     this.trunkRT = null
     this.trunkDrawn = { x: -99999, y: -99999, layer: '' }
     this.gateFired = []
+    // 存档只记「永久成果」（元素 / 原石 / 成就 / 关卡推进）。
+    // 木材和修好的楼梯属于关卡内的机关，每进一次关卡都从头来（见开发笔记「开发约定」）
+    this.woods = 0
+    this.repaired = []
     this.collectedIndices = []
     this.blessed = false
     this.dying = false
@@ -536,27 +548,167 @@ export class GameScene extends Phaser.Scene {
       const top = def.y - def.height / 2
 
       if (def.water) {
-        this.add.tileSprite(def.x, top + 5, def.width, 10, 'water-top').setDepth(1).setAlpha(0.85)
+        this.add
+          .tileSprite(def.x, top + 5, def.width, 10, 'water-top')
+          .setDepth((def.depth ?? 0) + 0.1)
+          .setAlpha(0.85)
       }
 
       if (def.grass) {
-        this.add.tileSprite(def.x, top - 2, def.width, 7, 'grass-top').setDepth(1)
+        this.add
+          .tileSprite(def.x, top - 2, def.width, 7, 'grass-top')
+          .setDepth((def.depth ?? 0) + 0.1)
       }
 
       if (def.brick) {
         this.add
           .tileSprite(def.x, def.y, def.width, def.height, 'ruin-brick')
-          .setDepth(2)
+          .setDepth((def.depth ?? 0) + 0.1)
       }
 
       if (def.plank) {
         this.add
           .tileSprite(def.x, def.y, def.width, def.height, 'wood-plank')
-          .setDepth(2)
+          .setDepth((def.depth ?? 0) + 0.1)
+      }
+
+      // 平台护栏：高度和楼梯护栏一样是「踏面往上 26」，所以平台边上这一头正好接上
+      // 那一跑楼梯护栏的收尾。护栏横木只做画面；**悬空那一端**再加一块实体挡板，
+      // 防止玩家不小心走掉下去（接楼梯那头必须留出来走人）
+      const railLeftEdge = def.x - def.width / 2
+      const railRightEdge = def.x + def.width / 2
+      let stairAtLeft = false
+      let stairAtRight = false
+
+      ;(this.level.stairs ?? []).forEach((stair) => {
+        if (
+          Math.abs(stair.from.x - railLeftEdge) < 2 ||
+          Math.abs(stair.to.x - railLeftEdge) < 2
+        ) {
+          stairAtLeft = true
+        }
+
+        if (
+          Math.abs(stair.from.x - railRightEdge) < 2 ||
+          Math.abs(stair.to.x - railRightEdge) < 2
+        ) {
+          stairAtRight = true
+        }
+      })
+
+      if (def.rail || stairAtLeft || stairAtRight) {
+        const railY = top - 26
+        const railLeft = railLeftEdge
+        const railGfx = this.add.graphics().setDepth((def.depth ?? 0) + 0.1)
+
+        railGfx.fillStyle(0x7a4c28, 1)
+        railGfx.fillRect(railLeft, railY, def.width, 4)
+
+        railGfx.fillStyle(0x6f4423, 1)
+
+        for (let postX = railLeft + 2; postX <= railLeft + def.width - 3; postX += 40) {
+          railGfx.fillRect(postX, railY, 3, 26)
+        }
+
+        railGfx.fillRect(railLeft + def.width - 5, railY, 3, 26)
+
+        // 护栏的端头挡板（实体）：1/2 层平台的外端是悬空的，没东西挡着人会一头栽下去。
+        // 挡板只有 26 高（和护栏一样），走不过去但跳得过去 —— 只防"不小心走掉下去"，
+        // 不封死路线。它不进 this.stairs，所以不会被自动上台阶抬上去
+        const endBar = this.platforms.create(
+          stairAtRight ? railLeftEdge + 2 : railRightEdge - 2,
+          railY + 13,
+          'pixel'
+        ) as Phaser.Physics.Arcade.Sprite
+
+        endBar.setDisplaySize(4, 26)
+        endBar.setVisible(false)
+        endBar.refreshBody()
+
+        // 挑檐：在**没有楼梯那一端**往外挑一小块斜面瓦片，外缘略起翘 ——
+        // 一眼看出这是「楼」而不是一块平台。深 3.2，压在楼板上、盖不住玩家
+        const eaveSide = stairAtRight ? -1 : 1
+        const eaveX = eaveSide > 0 ? railRightEdge : railLeftEdge
+        const eaveGfx = this.add.graphics().setDepth((def.depth ?? 0) + 0.2)
+
+        eaveGfx.fillStyle(0x4a5568, 1)
+        eaveGfx.fillTriangle(
+          eaveX,
+          railY - 2,
+          eaveX + eaveSide * 16,
+          railY + 4,
+          eaveX,
+          top
+        )
+
+        // 檐口线：贴着楼板面那道暖木色
+        eaveGfx.fillStyle(0x6f4423, 1)
+        eaveGfx.fillRect(Math.min(eaveX, eaveX + eaveSide * 16), top - 2, 16, 2)
+
+        // 灯笼：挂在挑檐下沿，每块楼板一盏（纯画面，不参与碰撞）
+        this.add
+          .image(eaveX + eaveSide * 8, railY + 12, 'lantern')
+          .setDepth((def.depth ?? 0) + 0.3)
+
+        // 木桶：只摆在树左边那几块比较宽的楼层平台上（楼梯在右端的那种），
+        // 底边贴住楼板面，避开楼梯口和换层判定区
+        if (stairAtRight) {
+          this.add
+            .image(railLeftEdge + 26, top, 'barrel')
+            .setOrigin(0.5, 1)
+            .setDepth((def.depth ?? 0) + 0.3)
+
+          this.add
+            .image(railLeftEdge + 118, top, 'barrel')
+            .setOrigin(0.5, 1)
+            .setDepth((def.depth ?? 0) + 0.35)
+        }
+      }
+
+      // 楼板下面的立柱：从楼板底面往下撑到「下一块 x 范围有重叠的楼板」的顶面，
+      // 找不到就往下伸 60 像素。柱子放在树干(2)之前、楼板和楼梯(3)之后，
+      // 所以楼梯会挡在柱子前面 —— 看起来就是「楼梯在外侧、柱子在楼里侧」
+      if (def.pillars) {
+        const postLeft = def.x - def.width / 2
+        const postTop = def.y + def.height / 2
+        const postGfx = this.add.graphics().setDepth(2.6)
+
+        postGfx.fillStyle(0x5a3c22, 1)
+
+        for (let i = 0; i < def.pillars; i++) {
+          const postX = postLeft + (def.width * (i + 1)) / (def.pillars + 1)
+          let footY = postTop + 60
+          let nearest = Number.POSITIVE_INFINITY
+
+          for (const other of this.level.platforms) {
+            if (other === def) {
+              continue
+            }
+
+            const otherTop = other.y - other.height / 2
+            const otherLeft = other.x - other.width / 2
+            const otherRight = other.x + other.width / 2
+
+            if (otherTop <= postTop + 1 || postX < otherLeft || postX > otherRight) {
+              continue
+            }
+
+            if (otherTop < nearest) {
+              nearest = otherTop
+              footY = otherTop
+            }
+          }
+
+          postGfx.fillRect(postX - 2, postTop, 4, Math.max(6, footY - postTop))
+        }
       }
     })
 
     this.buildStairs()
+
+    this.buildInnFrame()
+
+    this.buildInnWalls()
 
     if (this.level.dome) {
       const dome = this.level.dome
@@ -859,11 +1011,44 @@ export class GameScene extends Phaser.Scene {
     })
 
     this.noteList = []
+    this.pickupList = []
+    this.repairList = []
+    this.stairGfx = []
 
     ;(this.level.notes ?? []).forEach((def) => {
       const sprite = this.add.image(def.x, def.y, 'paper').setDepth(5)
 
       this.noteList.push({ sprite, prompt: def.prompt, text: def.text })
+    })
+
+    ;(this.level.pickups ?? []).forEach((def) => {
+      // 木材堆：两块木板。def.y 是「它下面那条线」（也就是平台顶面），
+      // 用 origin(0.5, 1) 让木板的**底边**落在 def.y 上，所以是躺在地上的，不会浮空；
+      // 上面那块压在下面前半段上，看起来就是一摞
+      const lower = this.add
+        .image(def.x, def.y, def.key ?? 'wood-plank')
+        .setDisplaySize(22, 6)
+        .setOrigin(0.5, 1)
+        .setDepth(5)
+
+      const upper = this.add
+        .image(def.x + 3, def.y - 5, def.key ?? 'wood-plank')
+        .setDisplaySize(18, 5)
+        .setOrigin(0.5, 1)
+        .setDepth(5.1)
+
+      this.pickupList.push({ ...def, parts: [lower, upper], taken: false })
+    })
+
+    ;(this.level.repairs ?? []).forEach((def) => {
+      if (this.isRepaired(def)) {
+        return                      // 存档里已经修好了：断茬也不画
+      }
+
+      // 断茬：两块斜的碎木板，修好之后销毁
+      const mark = this.add.image(def.x, def.y, 'wood-plank').setDepth(6).setAngle(-30)
+
+      this.repairList.push({ mark, def, done: false })
     })
 
     this.level.hazards.forEach((def) => {
@@ -2257,7 +2442,7 @@ export class GameScene extends Phaser.Scene {
   // 木楼梯：一级一级木踏板（三角形切面）+ 底下斜撑的木梁 + 斜扶栏和立柱。
   // 画面全都画在 Graphics 上；挡人的只有每级踏面顶上那条 run×rise 的碰撞盒。
   // 碰撞盒收进 this.stairs，往前走的时候 tryAutoStep() 会把人一级级抬上去，不用跳。
-  private buildStairs() {
+  private buildStairs(only?: number) {
     const woodFace = 0x8a6034
     const woodTop = 0xa8794a
     const woodDark = 0x5f4224
@@ -2265,9 +2450,17 @@ export class GameScene extends Phaser.Scene {
     const railWood = 0x7a4c28
     const railHeight = 26
 
-    this.stairs = []
+    if (only === undefined) {
+      this.stairs = []
+      this.stairGfx = []
+    }
 
-    ;(this.level.stairs ?? []).forEach((def) => {
+    ;(this.level.stairs ?? []).forEach((def, stairIndex) => {
+      // 修复某一跑时只重建那一跑（only 有值就跳过别的）
+      if (only !== undefined && only !== stairIndex) {
+        return
+      }
+
       const from = def.from
       const to = def.to
       const dir = to.x >= from.x ? 1 : -1
@@ -2278,6 +2471,7 @@ export class GameScene extends Phaser.Scene {
       const layer = def.layer ?? 'front'
       // 树后面的那一跑画在树干（depth 2）之后，玩家走上去时会被树挡住
       const gfx = this.add.graphics().setDepth(def.depth ?? (layer === 'back' ? 1 : 3))
+      this.stairGfx[stairIndex] = gfx
 
       // 楼梯走向的单位向量；法线取「朝下」的那一侧，木梁和扶栏都往这边长出厚度
       const length = Phaser.Math.Distance.Between(from.x, from.y, to.x, to.y)
@@ -2301,6 +2495,11 @@ export class GameScene extends Phaser.Scene {
       gfx.fillTriangle(beam[0].x, beam[0].y, beam[2].x, beam[2].y, beam[3].x, beam[3].y)
 
       for (let i = 0; i < count; i++) {
+        // 断口：这一级的图形和碰撞都不生成
+        if (this.isBrokenStep(stairIndex, i)) {
+          continue
+        }
+
         const near = from.x + dir * run * i          // 这一级靠下的一头
         const top = from.y - rise * (i + 1)          // 这一级踏面的高度
         const left = dir > 0 ? near : near - run
@@ -2324,6 +2523,7 @@ export class GameScene extends Phaser.Scene {
         step.refreshBody()
         step.setData('stair', true)
         step.setData('layer', layer)
+        step.setData('flight', stairIndex)
         this.stairs.push(step)
       }
 
@@ -2353,6 +2553,22 @@ export class GameScene extends Phaser.Scene {
   }
 
   // 走进/走出树的图层：踩到判定区就把人切到那一层
+  // 这一跑的这级是不是断的（repairs 里点了名、而且还没修）
+  private isBrokenStep(stairIndex: number, step: number) {
+    if (this.repaired.includes(`${stairIndex}:${step}`)) {
+      return false
+    }
+
+    return (this.level.repairs ?? []).some(
+      (repair) => repair.stair === stairIndex && repair.steps.includes(step)
+    )
+  }
+
+  // 这处断口是不是已经在存档里修好了
+  private isRepaired(def: RepairDef) {
+    return def.steps.every((step) => this.repaired.includes(`${def.stair}:${step}`))
+  }
+
   private updateDepthGates(body: Phaser.Physics.Arcade.Body) {
     const gates = this.level.depthGates
 
@@ -2381,6 +2597,10 @@ export class GameScene extends Phaser.Scene {
   // 切换「树前面 / 树后面」：画面层级跟着换。
   // 走到树后面时整个人画在树干（depth 2）之后，同时把树干调淡 —— 透视，能看见人和楼梯
   private setPlayerLayer(layer: 'front' | 'back') {
+    if (this.playerLayer === layer) {
+      return
+    }
+
     this.playerLayer = layer
 
     const back = layer === 'back'
@@ -2429,6 +2649,123 @@ export class GameScene extends Phaser.Scene {
     rt.render()
 
     this.trunkDrawn = { x: px, y: py, layer: this.playerLayer }
+  }
+
+  // 客栈的墙板 + 格子窗：每一层的楼板往下、到下面那层楼板之间，靠外那一侧补一块木墙，
+  // 中间开一扇璃月式格子窗 ——「平台」这才变成「房间」。
+  // 深度 2.3（在立柱 2.5 之前、树干 2 之后），纯画面
+  private buildInnWalls() {
+    // 同上：只处理室外绕树那一段（宽 < 500 且 y ≥ 1100），楼内楼板不参与
+    const platforms = this.level.platforms.filter(
+      (item) => item.width < 500 && item.y - item.height / 2 >= 1100
+    )
+
+    if (platforms.length < 3) {
+      return
+    }
+
+    const left = Math.min(...platforms.map((item) => item.x - item.width / 2))
+    const right = Math.max(...platforms.map((item) => item.x + item.width / 2))
+    const middle = (left + right) / 2
+    const groundTop = Math.max(...platforms.map((item) => item.y - item.height / 2))
+
+    const gfx = this.add.graphics().setDepth(2.3)
+    const wallColor = 0x6b4a2c
+    const glassColor = 0x1a1a2e
+    const latticeColor = 0x8a6034
+
+    const leftList = platforms.filter((item) => item.x < middle).sort((a, b) => b.y - a.y)
+    const rightList = platforms.filter((item) => item.x >= middle).sort((a, b) => b.y - a.y)
+
+    const sides = [
+      {
+        list: leftList,
+        x1: left,
+        x2: leftList.length > 0
+          ? Math.max(...leftList.map((item) => item.x + item.width / 2))
+          : left,
+      },
+      {
+        list: rightList,
+        x1: rightList.length > 0
+          ? Math.min(...rightList.map((item) => item.x - item.width / 2))
+          : right,
+        x2: right,
+      },
+    ]
+
+    sides.forEach(({ list, x1, x2 }) => {
+      let belowTop = groundTop
+
+      list.forEach((item) => {
+        const top = item.y - item.height / 2
+        const wallTop = top + 4
+        const wallHeight = belowTop - wallTop
+
+        if (wallHeight >= 40) {
+          gfx.fillStyle(wallColor, 1)
+          gfx.fillRect(x1, wallTop, x2 - x1, wallHeight)
+
+          // 格子窗：黑底 + 3×3 的木格
+          const winW = 26
+          const winH = 20
+          const winCx = (x1 + x2) / 2
+          const winCy = wallTop + wallHeight / 2
+
+          gfx.fillStyle(glassColor, 1)
+          gfx.fillRect(winCx - winW / 2, winCy - winH / 2, winW, winH)
+
+          gfx.fillStyle(latticeColor, 1)
+
+          for (let k = 1; k < 4; k++) {
+            gfx.fillRect(winCx - winW / 2, winCy - winH / 2 + (winH * k) / 4, winW, 1)
+            gfx.fillRect(winCx - winW / 2 + (winW * k) / 4, winCy - winH / 2, 1, winH)
+          }
+        }
+
+        belowTop = top
+      })
+    })
+  }
+
+  // 客栈的「楼」骨架：最外沿两根通高立柱 + 每层外端一对斜撑。
+  // 全部画在玩家身后（depth 2.5），所以玩家永远走在前景；纯画面、不参与碰撞
+  private buildInnFrame() {
+    // 只给「室外绕树那一段」画骨架：整层楼板（宽 ≥ 500）和楼内的平台都排除掉，
+    // 否则它们会被当成「某一侧的平台」，算出来的立柱和斜撑会横跨整个关卡
+    const platforms = this.level.platforms.filter(
+      (item) => item.width < 500 && item.y - item.height / 2 >= 1100
+    )
+
+    if (platforms.length === 0) {
+      return
+    }
+
+    const left = Math.min(...platforms.map((item) => item.x - item.width / 2))
+    const right = Math.max(...platforms.map((item) => item.x + item.width / 2))
+    const top = Math.min(...platforms.map((item) => item.y - item.height / 2))
+    const groundTop = Math.max(...platforms.map((item) => item.y - item.height / 2))
+
+    const gfx = this.add.graphics().setDepth(2.5)
+    const columnWidth = 5
+    const headroom = 14
+
+    // 两根通高立柱：从一楼地面通到顶，往上再多出一小截
+    gfx.fillStyle(0x66452a, 1)
+    gfx.fillRect(left - 1, top - headroom, columnWidth, groundTop - top + headroom)
+    gfx.fillRect(right - columnWidth + 1, top - headroom, columnWidth, groundTop - top + headroom)
+
+    // 每块楼板的外端：柱子内侧一对「八字撑」（直角三角形），撑住挑出来的楼板
+    gfx.fillStyle(0x5a3c22, 1)
+
+    platforms.forEach((item) => {
+      const slabBottom = item.y + item.height / 2
+      const isLeft = item.x < (left + right) / 2
+      const braceX = isLeft ? item.x - item.width / 2 : item.x + item.width / 2
+      const dir = isLeft ? 1 : -1
+
+      gfx.fillTriangle(braceX, slabBottom, braceX + dir * 24, slabBottom, braceX, slabBottom + 24)
+    })
   }
 
   // 楼梯的自动上台阶：往楼梯里走的时候，前面那一级只高出一点点（不超过 AUTO_STEP），
@@ -2618,6 +2955,80 @@ export class GameScene extends Phaser.Scene {
     this.staminaGlowOuter.setVisible(false)
     this.staminaGlow.setVisible(false)
     this.showMessage('愿风神护佑你')
+  }
+
+  // 捡木材：一趟一根，数量进存档
+  private takePickup(pickup: (typeof this.pickupList)[number]) {
+    pickup.taken = true
+    pickup.parts.forEach((part) => part.destroy())
+
+    this.woods += 1
+
+    playSfx(this, 'sfx-gem', 0.5)
+    this.showMessage('拿到木材 ×1（拿去修楼梯）')
+  }
+
+  // 修楼梯：木板飞入 + 落地音 + 震屏，动画结束把这一跑重建（断口就补回来了）
+  private startRepair(repair: (typeof this.repairList)[number]) {
+    if (this.woods <= 0 || repair.done) {
+      return
+    }
+
+    const def = repair.def
+
+    this.woods -= 1
+
+    // 动画期间锁操作（和神像那段一个做法）
+    this.inputLocked = true
+
+    for (const offset of [-18, 18]) {
+      const plank = this.add.image(def.x + offset * 3, def.y - 96, 'wood-plank').setDepth(7)
+
+      this.tweens.add({
+        targets: plank,
+        x: def.x + offset,
+        y: def.y,
+        angle: offset > 0 ? 8 : -8,
+        duration: 320,
+        ease: 'Quad.easeIn',
+        onComplete: () => {
+          playSfx(this, 'sfx-land', 0.18)
+          this.cameras.main.shake(160, 0.004)
+          plank.destroy()
+        },
+      })
+    }
+
+    this.time.delayedCall(420, () => {
+      repair.done = true
+      repair.mark.destroy()
+
+      for (const step of def.steps) {
+        this.repaired.push(`${def.stair}:${step}`)
+      }
+
+      // 这一跑整段重建：断掉的踏步长回来
+      this.stairGfx[def.stair]?.destroy()
+      this.stairs
+        .filter((s) => s.getData('flight') === def.stair)
+        .forEach((s) => s.destroy())
+      this.stairs = this.stairs.filter((s) => s.getData('flight') !== def.stair)
+      this.buildStairs(def.stair)
+
+      this.inputLocked = false
+
+      // 「修好了几处」要看存档里的状态，不能数这一局修过几处 ——
+      // 上一局已经修好的那处在重开后不会再进 repairList（被 isRepaired 跳过了）
+      const allRepairs = this.level.repairs ?? []
+      const done = allRepairs.filter((item) => this.isRepaired(item)).length
+
+      this.showMessage(`楼梯修好了（${done}/${allRepairs.length}）`)
+
+      // 两处都修好 → 塔顶的宝箱出现
+      if (done >= allRepairs.length) {
+        this.revealGoal()
+      }
+    })
   }
 
   private showMessage(text: string) {
@@ -3152,6 +3563,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private revealGoal() {
+    if (this.goalReady) {
+      return
+    }
+
     this.goalReady = true
     this.goalSprite.setVisible(true).setScale(0)
 
@@ -3223,6 +3638,19 @@ export class GameScene extends Phaser.Scene {
 
     // 第七关「绕树而上」：踩到判定区就在树前/树后之间切换
     this.updateDepthGates(body)
+
+    // 保险：站在**一楼地面**上就强制回到前台 —— 从顶层跳下来会带着「树后面」那一层，
+    // 落回一楼后如果还是 back，往右走会穿过前台的楼梯爬不上去。一楼地面上没有任何
+    // 「树后那一跑」的落点（它们的底端都在 1/2 层平台上），所以站在地上一定是前台。
+    // 一楼 = 所有楼板里「顶面最低」的那一块
+    const groundTop = this.level.platforms.reduce(
+      (lowest, item) => Math.max(lowest, item.y - item.height / 2),
+      Number.NEGATIVE_INFINITY
+    )
+
+    if (body.blocked.down && Math.abs(body.bottom - groundTop) < 2) {
+      this.setPlayerLayer('front')
+    }
     // 树干上的透视圈跟着玩家走
     this.updateTrunk()
 
@@ -3477,6 +3905,45 @@ export class GameScene extends Phaser.Scene {
         action = () => {
           this.statueUsed = true
           this.playStatueScene(statue.grants)
+        }
+      }
+    }
+
+    // 木材堆：一堆只能拿一根（拿完这一堆就没了），手里空着才能拿 —— 一趟一根
+    if (!prompt && this.woods === 0) {
+      for (const pickup of this.pickupList) {
+        if (pickup.taken) {
+          continue
+        }
+
+        if (
+          Phaser.Math.Distance.Between(
+            this.slime.x, this.slime.y,
+            pickup.x, pickup.y
+          ) < 44
+        ) {
+          prompt = this.interactPrefix() + pickup.prompt
+          action = () => this.takePickup(pickup)
+          break
+        }
+      }
+    }
+
+    if (!prompt && this.woods > 0) {
+      for (const repair of this.repairList) {
+        if (repair.done) {
+          continue
+        }
+
+        if (
+          Phaser.Math.Distance.Between(
+            this.slime.x, this.slime.y,
+            repair.def.x, repair.def.y
+          ) < 64
+        ) {
+          prompt = this.interactPrefix() + repair.def.prompt
+          action = () => this.startRepair(repair)
+          break
         }
       }
     }
