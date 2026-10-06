@@ -1303,11 +1303,11 @@ export class GameScene extends Phaser.Scene {
     armorDim.on('pointerup', armorRelease)
     armorDim.on('pointerout', armorRelease)
 
-   this.touchButtons.push({
+    this.touchButtons.push({
       image: armorDim,
       x: armorX,
       y: armorY,
-      r: 18 * TOUCH_SCALE,
+      r: (armorDim.width * TOUCH_SCALE) / 2,
       base: 0.75,
     })
 
@@ -1315,7 +1315,7 @@ export class GameScene extends Phaser.Scene {
       image: armorFill,
       x: armorX,
       y: armorY,
-      r: 18 * TOUCH_SCALE,
+      r: (armorFill.width * TOUCH_SCALE) / 2,
       base: 0.75,
     })
   }
@@ -3287,8 +3287,11 @@ export class GameScene extends Phaser.Scene {
       const show = this.rockAvailable && ratio > 0.002
 
       if (show) {
-        // setCrop 的原点在贴图左上角：裁出下面这一块，就是自下而上回充
-        this.touchArmorFill.setCrop(0, 36 * (1 - ratio), 36, 36 * ratio)
+        // setCrop 的原点在贴图左上角：裁出下面这一块，就是自下而上回充。
+        // 尺寸直接读贴图本身，别再写死数字——贴图从 36 加大到 50 的时候这里漏改过一次
+        const size = this.touchArmorFill.height
+
+        this.touchArmorFill.setCrop(0, size * (1 - ratio), size, size * ratio)
       }
 
       this.touchArmorFill.setVisible(show)
