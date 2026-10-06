@@ -182,6 +182,7 @@ export class BootScene extends Phaser.Scene {
     this.makeIronGate()
     this.makeRuinBrick()
     this.makeWoodPlank()
+    this.makeTreeTrunk()
     this.makeRuinHouse()
     this.makeRuinHouseBroken()
     this.makeMineHill()
@@ -503,6 +504,57 @@ export class BootScene extends Phaser.Scene {
     gfx.destroy()
   }
 
+  // 古树主干的一段树皮：140 宽、160 高，可以竖着平铺。
+  // 横向做「两边暗、中间亮」的渐变，柱子才有体积感；再撒几道树皮纹、两个树瘤和苔藓
+  private makeTreeTrunk() {
+    const gfx = this.add.graphics()
+    const width = 140
+    const height = 160
+
+    // 圆柱明暗：中间亮、两边压暗
+    for (let x = 0; x < width; x++) {
+      const t = (x / (width - 1) - 0.5) * 2      // -1 ~ 1
+      const shade = 1 - t * t * 0.45             // 中间 1，两边 0.55
+
+      gfx.fillStyle(
+        Phaser.Display.Color.GetColor(
+          Math.round(0x7a * shade),
+          Math.round(0x5a * shade),
+          Math.round(0x38 * shade)
+        ),
+        1
+      )
+      gfx.fillRect(x, 0, 1, height)
+    }
+
+    // 树皮纹：短竖纹，错开分布（都不跨 y=0 / y=160，平铺起来没接缝）
+    gfx.fillStyle(0x3f2c1c, 0.45)
+
+    for (let index = 0; index < 22; index++) {
+      const x = 6 + ((index * 37) % (width - 12))
+      const y = (index * 53) % (height - 24)
+
+      gfx.fillRect(x, y, 2, 10 + (index % 3) * 6)
+    }
+
+    // 两处树瘤
+    gfx.fillStyle(0x4a3320, 0.9)
+    gfx.fillEllipse(38, 46, 18, 26)
+    gfx.fillStyle(0x3a2718, 1)
+    gfx.fillEllipse(38, 46, 10, 16)
+    gfx.fillStyle(0x4a3320, 0.9)
+    gfx.fillEllipse(104, 118, 14, 20)
+
+    // 苔藓
+    gfx.fillStyle(0x5f7a3c, 0.7)
+    gfx.fillRect(96, 20, 26, 6)
+    gfx.fillRect(14, 118, 30, 5)
+    gfx.fillRect(58, 86, 20, 4)
+
+    gfx.generateTexture('tree-trunk', width, height)
+    gfx.destroy()
+  }
+  
   // 村里的破屋：石基 + 木板墙，屋顶塌了一半，门洞黑着，墙根长苔
   private makeRuinHouse() {
     const gfx = this.add.graphics()

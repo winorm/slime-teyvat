@@ -122,7 +122,8 @@ type MonumentRef = {
 }
 
 type DoorRef = {
-  sprite: Phaser.Physics.Arcade.Sprite
+  sprite: Phaser.Physics.Arcade.Sprite   // 左半扇
+  right: Phaser.Physics.Arcade.Sprite    // 右半扇
   needs: string[]
   ordered: boolean
   progress: string[]
@@ -192,6 +193,7 @@ export class GameScene extends Phaser.Scene {
   private bgMid!: Phaser.GameObjects.TileSprite
   private bgFarY = 0.2
   private bgMidY = 0.45
+  private bgSpin = 0
   private windmillBlades: Phaser.GameObjects.Image | null = null
 
   private blessings!: Phaser.Physics.Arcade.StaticGroup
@@ -362,6 +364,8 @@ export class GameScene extends Phaser.Scene {
 
     this.bgFarY = worldLocked ? 1 : 0
     this.bgMidY = worldLocked ? 1 : 0
+    // 「环树」系数：这关往上爬的时候，背景横向也一起流，做出绕着树转的感觉
+    this.bgSpin = this.level.bgSpin ?? 0
 
     this.bgFar = this.add
       .tileSprite(0, 0, 480, 270, 'bg-' + theme + '-far')
@@ -402,6 +406,15 @@ export class GameScene extends Phaser.Scene {
         .setScale(def.scale ?? 1)
         .setDepth(-15)
     })
+
+    // 古树主干：一条竖着平铺的树皮带，画在前后两层楼梯中间（默认 depth 2）
+    if (this.level.trunk) {
+      const trunk = this.level.trunk
+
+      this.add
+        .tileSprite(trunk.x, trunk.y, trunk.width, trunk.height, 'tree-trunk')
+        .setDepth(trunk.depth ?? 2)
+    }
 
     this.gems = this.physics.add.staticGroup()
     this.blessings = this.physics.add.staticGroup()
@@ -457,6 +470,8 @@ export class GameScene extends Phaser.Scene {
         def.tint ?? (def.crumble ? palette.crumble : def.oneWay ? palette.oneWay : palette.ground)
       )
       platform.refreshBody()
+      // 分层：古树的后层楼梯给 1（会被树干挡住），前层给 3；不写就是原来的 0
+      platform.setDepth(def.depth ?? 0)
 
       if (def.oneWay) {
         const body = platform.body as Phaser.Physics.Arcade.StaticBody
@@ -752,13 +767,22 @@ export class GameScene extends Phaser.Scene {
     this.doorList = []
 
     ;(this.level.doors ?? []).forEach((def) => {
-      const sprite = this.gates.create(def.x, def.y, def.texture ?? 'gate') as Phaser.Physics.Arcade.Sprite
-      sprite.setDisplaySize(def.width, def.height)
-      sprite.setTint(def.tint ?? 0xffffff)
-      sprite.refreshBody()
+      const texture = def.texture ?? 'gate'
+
+      // 一扇门拆成左右两半扇，开门时各往一边滑开
+      const left = this.gates.create(def.x - def.width / 4, def.y, texture) as Phaser.Physics.Arcade.Sprite
+      left.setDisplaySize(def.width / 2, def.height)
+      left.setTint(def.tint ?? 0xffffff)
+      left.refreshBody()
+
+      const right = this.gates.create(def.x + def.width / 4, def.y, texture) as Phaser.Physics.Arcade.Sprite
+      right.setDisplaySize(def.width / 2, def.height)
+      right.setTint(def.tint ?? 0xffffff)
+      right.refreshBody()
 
       this.doorList.push({
-        sprite,
+        sprite: left,
+        right,
         needs: def.needs,
         ordered: def.ordered === true,
         progress: [],
@@ -979,6 +1003,16 @@ export class GameScene extends Phaser.Scene {
     this.gemIcons = this.level.gems.map((_spot, index) =>
       this.add.image(gemStartX + index * 18, 18, 'gem').setScrollFactor(0).setTint(0x33333f)
     )
+
+    // 右上角：原石左边标一下这是第几关（关卡名取「第一关 · 你好，提瓦特」的前半段）
+    this.add
+      .text(gemStartX - 12, 18, this.level.name.split(' · ')[0], {
+        fontFamily: 'sans-serif',
+        fontSize: '10px',
+        color: '#8fa3b8',
+      })
+      .setOrigin(1, 0.5)
+      .setScrollFactor(0)
 
     this.cursors = this.input.keyboard!.createCursorKeys()
     this.restartKey = this.input.keyboard!.addKey('R')
@@ -2515,25 +2549,27 @@ export class GameScene extends Phaser.Scene {
 
     door.opened = true
 
-    const body = door.sprite.body as Phaser.Physics.Arcade.StaticBody
-    body.enable = false
+    // 两半扇都不再挡人、也不再挡岩刺
+    ;(door.sprite.body as Phaser.Physics.Arcade.StaticBody).enable = false
+    ;(door.right.body as Phaser.Physics.Arcade.StaticBody).enable = false
 
     this.showMessage('门开了。')
 
-    const doorScaleY = door.sprite.scaleY * 0.12
+    // 各往左右滑开半扇的宽度，滑完停在两边——门口的位置就留在那儿
+    const slide = door.sprite.displayWidth / 2 + 2
 
-    this.tweens.add({
-      targets: door.sprite,
-      alpha: 0,
-      scaleY: doorScaleY,
-      duration: 420,
-      ease: 'Sine.easeIn',
-      onComplete: () => {
-        door.sprite.destroy()
-      },
-    })
+    const tween = (target: Phaser.Physics.Arcade.Sprite, x: number) =>
+      this.tweens.add({
+        targets: target,
+        x,
+        duration: 420,
+        ease: 'Sine.easeOut',
+      })
+
+    tween(door.sprite, door.sprite.x - slide)
+    tween(door.right, door.right.x + slide)
   }
-
+  
   private showPaper(text: string) {
     if (this.paperShowing) {
       return
@@ -2825,12 +2861,13 @@ export class GameScene extends Phaser.Scene {
 
     const camera = this.cameras.main
 
+    // 横向视差：除了相机 x，再加上"爬得越高背景转得越多"（环树感，bgSpin 由关卡数据给）
     this.bgFar.setTilePosition(
-      Math.floor(camera.scrollX * 0.15),
+      Math.floor(camera.scrollX * 0.15 + camera.scrollY * this.bgSpin),
       Math.floor(camera.scrollY * this.bgFarY)
     )
     this.bgMid.setTilePosition(
-      Math.floor(camera.scrollX * 0.35),
+      Math.floor(camera.scrollX * 0.35 + camera.scrollY * this.bgSpin * 1.6),
       Math.floor(camera.scrollY * this.bgMidY)
     )
 

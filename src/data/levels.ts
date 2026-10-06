@@ -12,7 +12,8 @@ export type PlatformDef = {
   brick?: boolean   // 表面盖一层砖石（村庄断墙用，同样只做画面）
   plank?: boolean   // 表面盖一层木板（木桥用，同样只做画面）
   tint?: number     // 覆盖主题配色：村庄断墙、矿洞岩壁这类要单独上色的块
-}
+  depth?: number    // 画在哪一层：古树的后层楼梯给 1（会被树干挡住），前层给 3
+  }
 
 // 背景静物：房子、山体这类只做画面、不参与碰撞的东西
 export type DecorDef = {
@@ -126,6 +127,9 @@ export type LevelDef = {
   windmill?: { x: number; y: number }
   inn?: { x: number; y: number }          // 望舒客栈：画在背景里的地标，不参与碰撞
   decor?: DecorDef[]                      // 背景静物：破屋、矿山剪影
+  trunk?: { x: number; y: number; width: number; height: number; depth?: number }
+                                          // 古树主干：竖着平铺树皮带，x/y 是中心点
+  bgSpin?: number                         // 背景横向"环树"系数：往上爬时背景往一侧流
   statue?: StatueDef
   plates?: PlateDef[]
   launchers?: LauncherDef[]
@@ -557,6 +561,54 @@ export const LEVELS: LevelDef[] = [
       { x: 2760, y: 440, text: '岩刺会扎人：按 X 岩化能挡一下' },
       { x: 3300, y: 286, text: '望舒客栈就在前面' },
     ],
+  },
+
+  {
+    name: '第七关 · 修复望舒客栈',
+    intro:
+      '望舒客栈最近似乎遭到了魔物的攻击。\n老板娘找到我说，只要愿意帮忙修复楼梯断开的那几处，就免费提供食宿。\n既然如此，那就顺手帮个忙吧。',
+
+    width: 720,
+    height: 1200,
+    startElement: 'rock',
+    spawn: { x: 140, y: 1147 },
+    bg: 'liyue',
+    // 爬得越高，背景越往一侧流 —— 「绕着古树盘旋而上」的感觉
+    bgSpin: 0.25,
+    // 古树主干：竖着平铺的树皮带，夹在前后两层楼梯之间（depth 2）
+    trunk: { x: 360, y: 600, width: 140, height: 1200 },
+    goal: { x: 240, y: 486, kind: 'chest', prompt: '打开' },
+    platforms: [
+      // 客栈一楼：出生点
+      { x: 360, y: 1180, width: 720, height: 40 },
+
+      // 盘旋楼梯：一圈三段 —— 左右两段在前面（depth 3），
+      // 中间那段在树干后面（depth 1、压暗），楼梯看起来就是绕到树后面去的
+      { x: 175, y: 1110, width: 230, height: 20, depth: 3 },
+      { x: 360, y: 1110, width: 140, height: 20, depth: 1, tint: 0x74593d },
+      { x: 545, y: 1110, width: 230, height: 20, depth: 3 },
+
+      { x: 175, y: 960, width: 230, height: 20, depth: 3 },
+      { x: 360, y: 960, width: 140, height: 20, depth: 1, tint: 0x74593d },
+      { x: 545, y: 960, width: 230, height: 20, depth: 3 },
+
+      { x: 175, y: 810, width: 230, height: 20, depth: 3 },
+      { x: 360, y: 810, width: 140, height: 20, depth: 1, tint: 0x74593d },
+      { x: 545, y: 810, width: 230, height: 20, depth: 3 },
+
+      { x: 175, y: 660, width: 230, height: 20, depth: 3 },
+      { x: 360, y: 660, width: 140, height: 20, depth: 1, tint: 0x74593d },
+      { x: 545, y: 660, width: 230, height: 20, depth: 3 },
+
+      // 树顶平台：先放个宝箱当临时终点，阳台和隐藏动画以后再接
+      { x: 360, y: 510, width: 600, height: 20, depth: 3 },
+    ],
+    orbs: [],
+    gems: [],
+    blessings: [],
+    hazards: [],
+    monuments: [],
+    hints: [],
   },
 
 ]

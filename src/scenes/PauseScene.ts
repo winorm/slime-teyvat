@@ -15,83 +15,119 @@ export class PauseScene extends Phaser.Scene {
     const gems = progress.levelGems[progress.levelIndex] ?? []
 
     this.add.rectangle(0, 0, 480, 270, 0x000000).setOrigin(0, 0).setAlpha(0.7)
-    this.add.rectangle(240, 135, 300, 250, 0x1e1e30).setStrokeStyle(2, 0x5a5a82)
+    this.add.rectangle(240, 135, 380, 250, 0x1e1e30).setStrokeStyle(2, 0x5a5a82)
 
     this.add
-      .text(240, 40, '设置', {
+      .text(240, 34, '设置', {
         fontFamily: 'sans-serif',
-        fontSize: '24px',
+        fontSize: '20px',
         color: '#ffd54f',
       })
       .setOrigin(0.5)
 
     this.add
-      .text(240, 64, level.name, {
+      .text(240, 58, level.name, {
         fontFamily: 'sans-serif',
-        fontSize: '14px',
+        fontSize: '13px',
         color: '#ffffff',
       })
       .setOrigin(0.5)
 
     for (let slot = 0; slot < 3; slot++) {
       this.add
-        .image(240 - 32 + slot * 32, 90, 'gem')
+        .image(240 - 32 + slot * 32, 78, 'gem')
         .setScale(2)
         .setTint(slot < gems.length ? 0x6ec6ff : 0x33333f)
     }
 
-    this.makeButton(106, '继续游戏', () => this.resumeGame())
-    this.makeButton(134, '重开本关', () => {
+    // —— 四行按钮：整行宽 320（x 80~400），高 32，行距 38；对分的两列各 156 ——
+    const ROW = [112, 150, 188, 226]
+    const COL = { left: 158, right: 322, half: 156, full: 320 }
+
+    // 第 1 行：主操作
+    this.makeButton(240, ROW[0], COL.full, '继续游戏', () => this.resumeGame(), 16)
+
+    // 第 2 行：重开 / 回选关
+    this.makeButton(COL.left, ROW[1], COL.half, '重开本关', () => {
       this.scene.stop('game')
       this.scene.start('game')
     })
-    this.makeButton(162, '回到选择界面', () => {
+
+    this.makeButton(COL.right, ROW[1], COL.half, '回到选择界面', () => {
       this.scene.stop('game')
       this.scene.start('select')
     })
 
-    // 触屏才有「移动方式」这一行：左右箭头键 / 浮动摇杆，选完记在本地
-    if (touchMode()) {
+    // 第 3 行：设置项。触屏时「移动方式」在左、「声音」在右；桌面只有声音，就占满整行
+    const touch = touchMode()
+
+    if (touch) {
       const moveText = this.makeButton(
-        190,
+        COL.left,
+        ROW[2],
+        COL.half,
         getMoveMode() === 'stick' ? '移动方式：摇杆' : '移动方式：左右键',
         () => {
           const mode = toggleMoveMode()
 
           moveText.setText(mode === 'stick' ? '移动方式：摇杆' : '移动方式：左右键')
-        }
+        },
+        13
       )
 
       moveText.setColor('#a8e8d4')
     }
 
+    const muteText = this.makeButton(
+      touch ? COL.right : 240,
+      ROW[2],
+      touch ? COL.half : COL.full,
+      audio.muted ? '声音：关' : '声音：开',
+      () => {
+        const muted = toggleMute()
+
+        muteText.setText(muted ? '声音：关' : '声音：开')
+      },
+      13
+    )
+
+    // 第 4 行：危险操作，整行
     let clearArmed = false
 
-    const clearText = this.makeButton(218, '清除本档存档', () => {
-      if (!clearArmed) {
-        clearArmed = true
-        clearText.setText('再点一次确认清除')
-        clearText.setColor('#ff8a8a')
+    const clearText = this.makeButton(
+      240,
+      ROW[3],
+      COL.full,
+      '清除本档存档',
+      () => {
+        if (!clearArmed) {
+          clearArmed = true
+          clearText.setText('再点一次确认清除')
+          clearText.setColor('#ff8a8a')
 
-        this.time.delayedCall(3000, () => {
-          clearArmed = false
-          clearText.setText('清除本档存档')
-          clearText.setColor('#ffffff')
-        })
+          this.time.delayedCall(3000, () => {
+            clearArmed = false
+            clearText.setText('清除本档存档')
+            clearText.setColor('#ffffff')
+          })
 
-        return
-      }
+          return
+        }
 
-      deleteSlot()
-      this.scene.stop('game')
-      this.scene.start('menu')
-    })
+        deleteSlot()
+        this.scene.stop('game')
+        this.scene.start('menu')
+      },
+      13
+    )
 
-    const muteText = this.makeButton(246, audio.muted ? '声音：关' : '声音：开', () => {
-      const muted = toggleMute()
-
-      muteText.setText(muted ? '声音：关' : '声音：开')
-    })
+    this.add
+      .text(240, 250, touch ? '点「继续游戏」返回' : '按 Esc 继续游戏', {
+        fontFamily: 'sans-serif',
+        fontSize: '11px',
+        color: '#6a7a8e',
+      })
+      .setOrigin(0.5)
 
     this.input.keyboard!.on('keydown-ESC', () => {
       this.resumeGame()
@@ -103,12 +139,19 @@ export class PauseScene extends Phaser.Scene {
     this.scene.stop()
   }
 
-  private makeButton(y: number, label: string, onClick: () => void) {
-    const rect = this.add.rectangle(240, y, 180, 26, 0x2c2c44).setStrokeStyle(2, 0x4a4a6a)
+  private makeButton(
+    x: number,
+    y: number,
+    width: number,
+    label: string,
+    onClick: () => void,
+    fontSize = 14
+  ) {
+    const rect = this.add.rectangle(x, y, width, 32, 0x2c2c44).setStrokeStyle(2, 0x4a4a6a)
     const text = this.add
-      .text(240, y, label, {
+      .text(x, y, label, {
         fontFamily: 'sans-serif',
-        fontSize: '15px',
+        fontSize: fontSize + 'px',
         color: '#ffffff',
       })
       .setOrigin(0.5)
@@ -129,4 +172,5 @@ export class PauseScene extends Phaser.Scene {
 
     return text
   }
+
 }
