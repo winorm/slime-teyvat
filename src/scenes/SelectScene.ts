@@ -75,20 +75,25 @@ export class SelectScene extends Phaser.Scene {
 
     const element = ELEMENTS[level.startElement]
 
+    // 岩史莱姆的岩脊挂在身体背后，所以要先画、再画本体（和标题页那边的画法一致）
+    if (level.startElement === 'rock') {
+      this.add.image(x, y - 16, 'rock-crown')
+    }
+
     const slime = this.add.image(x, y - 8, 'slime-' + level.startElement)
 
     if (element.wing) {
       const wings: [number, number, number][] = [
-        [-8, 1, -45],
-        [8, 0, 45],
+        [-12, 1, -58],
+        [12, 0, 58],
       ]
 
       wings.forEach(([offset, originX, angle]) => {
         const wing = this.add
-          .image(x + offset, y - 14, 'wing')
+          .image(x + offset, y - 17, 'wing')
           .setOrigin(originX, 0.5)
           .setAngle(angle)
-          .setScale(0.75)
+          .setScale(0.8)
           .setTint(isPlayable ? element.color : 0x3a3a4e)
 
         if (originX === 1) {
