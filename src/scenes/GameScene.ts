@@ -2422,7 +2422,7 @@ export class GameScene extends Phaser.Scene {
     rt.repeat('tree-trunk', undefined, 0, 0, width, height)
 
     if (back) {
-      rt.erase('reveal-circle', px - (trunk.x - width / 2), py - (trunk.y - height / 2))
+      rt.erase('reveal-blob', px - (trunk.x - width / 2), py - (trunk.y - height / 2))
     }
 
     // RenderTexture 是先往缓冲里记命令，必须再 render() 一次才会真正画进去

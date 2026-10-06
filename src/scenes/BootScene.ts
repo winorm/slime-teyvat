@@ -194,7 +194,7 @@ export class BootScene extends Phaser.Scene {
     this.makeEgg()
     this.makeDragonling()
     this.makeWing()
-    this.makeRevealCircle()
+    this.makeRevealBlob()
   }
 
   private makeSpire() {
@@ -483,19 +483,25 @@ export class BootScene extends Phaser.Scene {
 
   // 木桥的板材：横铺的一根板子，可平铺。上沿受光、下沿压暗，
   // 中间几道木纹，两头各一颗钉子
-  // 「透视圈」用的圆形贴图：中间实、边缘化开一点，擦树干时用。
+  // 「透视圈」用的椭圆贴图：横着长一点（贴着史莱姆的身形），
+  // 从中心到边缘一层层叠 alpha，边缘几乎为 0 —— 所以擦出来是带渐变的透过，不是硬边。
   // 以后做「洞内没有光源」的视野限制也能直接用这张
-  private makeRevealCircle() {
-    const size = 160
-    const half = size / 2
+  private makeRevealBlob() {
+    const width = 200
+    const height = 168
+    const steps = 24
+    const maxErase = 0.8
     const gfx = this.add.graphics()
 
-    for (let i = 0; i < 16; i++) {
-      gfx.fillStyle(0xffffff, i === 0 ? 0.75 : 0.05)
-      gfx.fillCircle(half, half, half * (1 - i / 16))
+    // 由外向内一层层画：每层只叠一点点，越靠中心叠得越多
+    for (let i = steps; i >= 1; i--) {
+      const t = i / steps
+
+      gfx.fillStyle(0xffffff, maxErase / steps)
+      gfx.fillEllipse(width / 2, height / 2, width * t, height * t)
     }
 
-    gfx.generateTexture('reveal-circle', size, size)
+    gfx.generateTexture('reveal-blob', width, height)
     gfx.destroy()
   }
 
