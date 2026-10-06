@@ -1164,8 +1164,8 @@ export class GameScene extends Phaser.Scene {
     this.stickPointer = -1
 
     if (this.stickBase && this.stickKnob) {
-      this.stickBase.setPosition(STICK.idleX, STICK.idleY).setAlpha(0.5)
-      this.stickKnob.setPosition(STICK.idleX, STICK.idleY).setAlpha(0.7)
+      this.stickBase.setPosition(STICK.idleX, STICK.idleY).setAlpha(0.6)
+      this.stickKnob.setPosition(STICK.idleX, STICK.idleY).setAlpha(0.85)
     }
   }
 
@@ -1175,8 +1175,9 @@ export class GameScene extends Phaser.Scene {
 
     this.touchButtons = []
 
-    // 虚拟按键统一放大：贴图不重画，直接按这个倍数缩放（手指好按一点）
-    const TOUCH_SCALE = 1.4
+    // 按键贴图已经按放大后的尺寸画好了（40/72/42/50），这里不再做缩放——
+    // 之前用 setScale(1.4) 拉 1 像素的环线，会被重采样成 1~2 像素，看着发糊
+    const TOUCH_SCALE = 1
 
     const button = (
       x: number,
@@ -1190,7 +1191,7 @@ export class GameScene extends Phaser.Scene {
         .image(x, y, key)
         .setScrollFactor(0)
         .setDepth(100)
-        .setAlpha(0.62)
+        .setAlpha(0.75)
         .setScale(TOUCH_SCALE)
         .setFlipX(flip)
         .setInteractive({ useHandCursor: true })
@@ -1214,7 +1215,7 @@ export class GameScene extends Phaser.Scene {
         x,
         y,
         r: (image.width * TOUCH_SCALE) / 2,
-        base: 0.62,
+        base: 0.75,
       })
 
       return image
@@ -1287,14 +1288,14 @@ export class GameScene extends Phaser.Scene {
       .image(armorX, armorY, 'touch-armor-dim')
       .setScrollFactor(0)
       .setDepth(100)
-      .setAlpha(0.62)
+      .setAlpha(0.75)
       .setScale(TOUCH_SCALE)
 
     const armorFill = this.add
       .image(armorX, armorY, 'touch-armor')
       .setScrollFactor(0)
       .setDepth(101)
-      .setAlpha(0.62)
+      .setAlpha(0.75)
       .setScale(TOUCH_SCALE)
 
     this.touchArmorDim = armorDim
@@ -1316,12 +1317,12 @@ export class GameScene extends Phaser.Scene {
     armorDim.on('pointerup', armorRelease)
     armorDim.on('pointerout', armorRelease)
 
-    this.touchButtons.push({
+   this.touchButtons.push({
       image: armorDim,
       x: armorX,
       y: armorY,
       r: 18 * TOUCH_SCALE,
-      base: 0.62,
+      base: 0.75,
     })
 
     this.touchButtons.push({
@@ -1329,7 +1330,7 @@ export class GameScene extends Phaser.Scene {
       x: armorX,
       y: armorY,
       r: 18 * TOUCH_SCALE,
-      base: 0.62,
+      base: 0.75,
     })
   }
 
@@ -1340,13 +1341,13 @@ export class GameScene extends Phaser.Scene {
       .image(STICK.idleX, STICK.idleY, 'touch-stick-base')
       .setScrollFactor(0)
       .setDepth(100)
-      .setAlpha(0.5)
+      .setAlpha(0.6)
 
     const knob = this.add
       .image(STICK.idleX, STICK.idleY, 'touch-stick-knob')
       .setScrollFactor(0)
       .setDepth(101)
-      .setAlpha(0.7)
+      .setAlpha(0.85)
 
     this.stickBase = base
     this.stickKnob = knob
@@ -1361,8 +1362,8 @@ export class GameScene extends Phaser.Scene {
       this.stickOrigin.x = Phaser.Math.Clamp(pointer.x, 40, STICK.zoneRight)
       this.stickOrigin.y = Phaser.Math.Clamp(pointer.y, STICK.zoneTop + 40, 236)
 
-      base.setPosition(this.stickOrigin.x, this.stickOrigin.y).setAlpha(0.62)
-      knob.setPosition(this.stickOrigin.x, this.stickOrigin.y).setAlpha(0.85)
+      base.setPosition(this.stickOrigin.x, this.stickOrigin.y).setAlpha(0.75)
+      knob.setPosition(this.stickOrigin.x, this.stickOrigin.y).setAlpha(0.95)
     })
 
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
@@ -1387,8 +1388,8 @@ export class GameScene extends Phaser.Scene {
       this.touchLeft = false
       this.touchRight = false
 
-      base.setPosition(STICK.idleX, STICK.idleY).setAlpha(0.5)
-      knob.setPosition(STICK.idleX, STICK.idleY).setAlpha(0.7)
+      base.setPosition(STICK.idleX, STICK.idleY).setAlpha(0.6)
+      knob.setPosition(STICK.idleX, STICK.idleY).setAlpha(0.85)
     }
 
     this.input.on('pointerup', release)
@@ -3234,7 +3235,8 @@ export class GameScene extends Phaser.Scene {
         Math.abs(screenX - button.x) < button.r + 22 &&
         Math.abs(screenY - button.y) < button.r + 22
 
-      button.image.setAlpha(near ? button.base * 0.3 : button.base)
+      // 靠近史莱姆时淡一点，但别淡到看不见（原来 ×0.3 太虚了）
+      button.image.setAlpha(near ? button.base * 0.45 : button.base)
     })
 
     if (this.touchArmorFill) {

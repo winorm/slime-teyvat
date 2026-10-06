@@ -1164,18 +1164,22 @@ export class BootScene extends Phaser.Scene {
     cy: number,
     radius: number,
     color: number,
-    alpha = 1
+    alpha = 1,
+    thickness = 1
   ) {
     gfx.fillStyle(color, alpha)
 
-    for (let index = 0; index < 28; index++) {
-      const angle = (index / 28) * Math.PI * 2
+    // 半径越大点数越多，不然大圆盘会画成一圈稀稀拉拉的虚线
+    const steps = Math.max(28, Math.round(radius * 2.2))
+
+    for (let index = 0; index < steps; index++) {
+      const angle = (index / steps) * Math.PI * 2
 
       gfx.fillRect(
         Math.round(cx + Math.cos(angle) * radius),
         Math.round(cy + Math.sin(angle) * radius),
-        1,
-        1
+        thickness,
+        thickness
       )
     }
   }
@@ -1183,37 +1187,38 @@ export class BootScene extends Phaser.Scene {
   // 触屏的方向箭头：石头质感的圆环 + 四角纹饰 + 一个亮色箭头（朝右，左键靠 flipX）
   private makeTouchArrow() {
     const gfx = this.add.graphics()
-    const center = 14
+    const center = 20
 
     gfx.fillStyle(0x1c1c28, 0.55)
-    gfx.fillCircle(center, center, 13)
+    gfx.fillCircle(center, center, 19)
 
-    this.pixelRing(gfx, center, center, 12, 0x8a7f6a, 0.85)
-    this.pixelRing(gfx, center, center, 10, 0x5c688c, 0.5)
+    // 贴图按最终显示尺寸画（40x40），不做缩放，所以环线可以画成 2 像素宽
+    this.pixelRing(gfx, center, center, 18, 0x8a7f6a, 0.85, 2)
+    this.pixelRing(gfx, center, center, 14, 0x5c688c, 0.5)
 
     // 四个斜角的菱形纹饰
     gfx.fillStyle(0xd9c9a8, 0.7)
 
     ;[
-      [center - 8, center - 8],
-      [center + 8, center - 8],
-      [center - 8, center + 8],
-      [center + 8, center + 8],
+      [center - 12, center - 12],
+      [center + 12, center - 12],
+      [center - 12, center + 12],
+      [center + 12, center + 12],
     ].forEach(([x, y]) => {
-      gfx.fillTriangle(x, y - 2, x + 2, y, x, y + 2)
-      gfx.fillTriangle(x, y - 2, x - 2, y, x, y + 2)
+      gfx.fillTriangle(x, y - 3, x + 3, y, x, y + 3)
+      gfx.fillTriangle(x, y - 3, x - 3, y, x, y + 3)
     })
 
     // 箭头本体：深色描边 + 亮面（整体围着圆环中心摆正，不偏左）
     gfx.fillStyle(0x1c1c28, 1)
-    gfx.fillTriangle(8, 5, 23, 14, 8, 23)
-    gfx.fillRect(5, 11, 4, 6)
+    gfx.fillTriangle(11, 6, 33, 20, 11, 34)
+    gfx.fillRect(6, 16, 6, 8)
 
     gfx.fillStyle(0xf0e2c0, 1)
-    gfx.fillTriangle(9, 7, 21, 14, 9, 21)
-    gfx.fillRect(6, 12, 4, 4)
+    gfx.fillTriangle(14, 10, 29, 20, 14, 30)
+    gfx.fillRect(9, 17, 5, 6)
 
-    gfx.generateTexture('touch-arrow', 28, 28)
+    gfx.generateTexture('touch-arrow', 40, 40)
     gfx.destroy()
   }
 
@@ -1226,8 +1231,8 @@ export class BootScene extends Phaser.Scene {
     base.fillStyle(0x1c1c28, 0.45)
     base.fillCircle(center, center, 34)
 
-    this.pixelRing(base, center, center, 32, 0x8a7f6a, 0.8)
-    this.pixelRing(base, center, center, 21, 0x5c688c, 0.35)
+    this.pixelRing(base, center, center, 32, 0x8a7f6a, 0.8, 2)
+    this.pixelRing(base, center, center, 21, 0x5c688c, 0.35, 2)
 
     // 四个方向的小刻度，让人一眼看出这是个方向盘
     base.fillStyle(0xd9c9a8, 0.55)
@@ -1245,10 +1250,10 @@ export class BootScene extends Phaser.Scene {
     knob.fillStyle(0x1c1c28, 0.6)
     knob.fillCircle(knobCenter, knobCenter, 14)
 
-    this.pixelRing(knob, knobCenter, knobCenter, 13, 0xd9c9a8, 0.9)
+    this.pixelRing(knob, knobCenter, knobCenter, 13, 0xd9c9a8, 0.9, 2)
 
     knob.fillStyle(0xd9c9a8, 0.8)
-    knob.fillCircle(knobCenter, knobCenter, 5)
+    knob.fillCircle(knobCenter, knobCenter, 6)
 
     knob.generateTexture('touch-stick-knob', 30, 30)
     knob.destroy()
@@ -1257,56 +1262,56 @@ export class BootScene extends Phaser.Scene {
   // 跳跃键：一颗无元素史莱姆往右上方跃起，身后拖几根细线表示风
   private makeTouchJump() {
     const gfx = this.add.graphics()
-    const cx = 26
-    const cy = 26
+    const cx = 36
+    const cy = 36
 
     // 底盘的圆
     gfx.fillStyle(0x1c1c28, 0.55)
-    gfx.fillCircle(cx, cy, 24)
+    gfx.fillCircle(cx, cy, 34)
 
-    this.pixelRing(gfx, cx, cy, 23, 0x8a7f6a, 0.85)
+    this.pixelRing(gfx, cx, cy, 33, 0x8a7f6a, 0.85, 2)
 
     // 身后的风线：史莱姆往右上跳，风就斜着往左下拖（每根都是往左下走的一串小台阶）
     gfx.fillStyle(0xa8e8d4, 0.75)
 
     ;[
-      [30, 24, 7],
-      [28, 30, 6],
-      [24, 36, 5],
+      [44, 34, 9],
+      [41, 43, 8],
+      [35, 52, 6],
     ].forEach(([x, y, length]) => {
       for (let step = 0; step < length; step++) {
-        gfx.fillRect(x - step, y + step, 2, 1)
+        gfx.fillRect(x - step * 2, y + step * 3, 3, 2)
       }
     })
 
     // 史莱姆本体：压在按钮的右上角，刚蹬离地面的样子
     gfx.fillStyle(0x14141f, 1)
-    gfx.fillEllipse(34, 20, 22, 15)
+    gfx.fillEllipse(48, 27, 31, 21)
     gfx.fillStyle(0xffffff, 1)
-    gfx.fillEllipse(34, 20, 20, 13)
+    gfx.fillEllipse(48, 27, 28, 18)
 
     ;[
-      [18, 11, 0.35],
-      [16, 9, 0.5],
-      [13, 7, 0.6],
-      [10, 6, 0.7],
-      [7, 4, 0.8],
-      [4, 3, 0.9],
+      [25, 15, 0.35],
+      [22, 13, 0.5],
+      [18, 10, 0.6],
+      [14, 8, 0.7],
+      [10, 6, 0.8],
+      [6, 4, 0.9],
     ].forEach(([w, h, alpha]) => {
       gfx.fillStyle(0x55556a, alpha)
-      gfx.fillEllipse(34, 20, w, h)
+      gfx.fillEllipse(48, 27, w, h)
     })
 
     // 蹬地那一下：右下角带出一小块
     gfx.fillStyle(0x55556a, 0.9)
-    gfx.fillTriangle(24, 26, 30, 24, 26, 31)
+    gfx.fillTriangle(33, 36, 42, 32, 36, 44)
 
     // 眼睛
     gfx.fillStyle(0x20202a, 1)
-    gfx.fillRect(31, 17, 2, 3)
-    gfx.fillRect(37, 17, 2, 3)
+    gfx.fillRect(43, 23, 3, 4)
+    gfx.fillRect(52, 23, 3, 4)
 
-    gfx.generateTexture('touch-jump', 52, 52)
+    gfx.generateTexture('touch-jump', 72, 72)
     gfx.destroy()
   }
 
@@ -1315,45 +1320,45 @@ export class BootScene extends Phaser.Scene {
     const gfx = this.add.graphics()
 
     gfx.fillStyle(0x1c1c28, 0.5)
-    gfx.fillCircle(15, 15, 14)
+    gfx.fillCircle(21, 21, 19)
 
     // 上下石箍（比柱身宽）
     gfx.fillStyle(0x4a3f2c, 1)
-    gfx.fillRect(11, 3, 8, 4)
-    gfx.fillRect(11, 23, 8, 4)
+    gfx.fillRect(15, 4, 12, 6)
+    gfx.fillRect(15, 32, 12, 6)
 
     gfx.fillStyle(0x5c4d33, 1)
-    gfx.fillRect(11, 3, 8, 1)
-    gfx.fillRect(11, 23, 8, 1)
+    gfx.fillRect(15, 4, 12, 2)
+    gfx.fillRect(15, 32, 12, 2)
 
     // 柱身：左亮右暗
     gfx.fillStyle(0x5c4d33, 1)
-    gfx.fillRect(12, 6, 6, 18)
+    gfx.fillRect(17, 8, 8, 26)
     gfx.fillStyle(0x866631, 1)
-    gfx.fillRect(12, 6, 2, 18)
+    gfx.fillRect(17, 8, 3, 26)
     gfx.fillStyle(0x4a3f2c, 1)
-    gfx.fillRect(17, 6, 1, 18)
+    gfx.fillRect(24, 8, 1, 26)
 
     // 上下金箍线
     gfx.fillStyle(0xffd54f, 1)
-    gfx.fillRect(11, 7, 8, 1)
-    gfx.fillRect(11, 22, 8, 1)
+    gfx.fillRect(15, 10, 12, 2)
+    gfx.fillRect(15, 31, 12, 2)
 
     // 柱身上盘着的那条龙线
     gfx.fillStyle(0xd9a441, 1)
 
-    for (let y = 9; y <= 20; y++) {
-      const x = 15 + Math.round(1.2 * Math.sin(y / 2.4))
+    for (let y = 13; y <= 29; y++) {
+      const x = 21 + Math.round(1.7 * Math.sin(y / 2.6))
 
-      gfx.fillRect(x - 1, y, 2, 1)
+      gfx.fillRect(x - 1, y, 3, 1)
     }
 
     // 两头的一点金：代表岩元素标识
     gfx.fillStyle(0xffd54f, 1)
-    gfx.fillRect(14, 4, 2, 1)
-    gfx.fillRect(14, 25, 2, 1)
+    gfx.fillRect(19, 6, 4, 2)
+    gfx.fillRect(19, 34, 4, 2)
 
-    gfx.generateTexture('touch-pillar', 30, 30)
+    gfx.generateTexture('touch-pillar', 42, 42)
     gfx.destroy()
   }
 
@@ -1363,46 +1368,43 @@ export class BootScene extends Phaser.Scene {
       gfx: Phaser.GameObjects.Graphics,
       outer: number,
       mid: number,
-      inner: number,
       ring: number,
       icon: number
     ) => {
-      const center = 18
+      const center = 25
 
       gfx.fillStyle(0x1c1c28, 0.55)
-      gfx.fillCircle(center, center, 17)
+      gfx.fillCircle(center, center, 24)
 
       // 抛过光的底盘：外深内亮
       gfx.fillStyle(outer, 1)
-      gfx.fillCircle(center, center, 16)
+      gfx.fillCircle(center, center, 22)
       gfx.fillStyle(mid, 1)
-      gfx.fillCircle(center, center, 13)
-      gfx.fillStyle(inner, 1)
-      gfx.fillCircle(center, center, 10)
+      gfx.fillCircle(center, center, 18)
 
-      this.pixelRing(gfx, center, center, 15, ring, 0.6)
+      this.pixelRing(gfx, center, center, 21, ring, 0.6, 2)
 
-      // 岩元素图标，正中间
+      // 岩元素图标，正中间（每个像素画成 2x2，比原来大一倍但依然是硬边）
       gfx.fillStyle(icon, 1)
 
       ICON_ROCK.forEach((row, y) => {
         for (let x = 0; x < row.length; x++) {
           if (row[x] === '#') {
-            gfx.fillRect(center - 8 + x, center - 8 + y, 1, 1)
+            gfx.fillRect(center - 16 + x * 2, center - 16 + y * 2, 2, 2)
           }
         }
       })
     }
 
     const lit = this.add.graphics()
-    draw(lit, 0x8a6a2c, 0xd9a441, 0xb0873a, 0xffd54f, 0xfff3d0)
-    lit.generateTexture('touch-armor', 36, 36)
+    draw(lit, 0x8a6a2c, 0xd9a441, 0xffd54f, 0xfff3d0)
+    lit.generateTexture('touch-armor', 50, 50)
     lit.destroy()
 
     // 岩化用完变灰的那一版（冷却时用它当底，亮的那张从下往上盖回来）
     const dim = this.add.graphics()
-    draw(dim, 0x3a3a44, 0x55555f, 0x46464f, 0x8a8a94, 0x9a9aa4)
-    dim.generateTexture('touch-armor-dim', 36, 36)
+    draw(dim, 0x3a3a44, 0x55555f, 0x8a8a94, 0x9a9aa4)
+    dim.generateTexture('touch-armor-dim', 50, 50)
     dim.destroy()
   }
   // 岩刺造物：背后一层贴在建筑上的岩壳，前面收成锥口，口上一点金。
