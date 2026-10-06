@@ -58,6 +58,10 @@ new Phaser.Game({
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
+  render: {
+    // 手机上尽量要性能档（双 GPU 的机器会挑大核）
+    powerPreference: 'high-performance',
+  },
   physics: {
     default: 'arcade',
     arcade: {

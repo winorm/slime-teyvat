@@ -141,6 +141,8 @@ export class GameScene extends Phaser.Scene {
   private elementMarks: Phaser.GameObjects.Rectangle[] = []
   private elementHint!: Phaser.GameObjects.Text
   private keyLegend: Phaser.GameObjects.Text | null = null
+  private perfText: Phaser.GameObjects.Text | null = null
+  private perfTimer = 0
   private armorBarBack!: Phaser.GameObjects.Rectangle
   private armorBar!: Phaser.GameObjects.Rectangle
 
@@ -747,17 +749,20 @@ export class GameScene extends Phaser.Scene {
     upper.setTint(palette.hazard)
     upper.refreshBody()
 
+    // 手机上不跑呼吸动画：只是视觉点缀，但要在手机端省掉 20 个无限 tween
     const upperSpark = this.add
       .tileSprite(def.x, gapTop / 2, 10, gapTop, 'hazard-spark')
-      .setAlpha(0.3)
+      .setAlpha(this.touchMode ? 0.22 : 0.3)
 
-    this.tweens.add({
-      targets: upperSpark,
-      alpha: 0.12,
-      duration: 420,
-      yoyo: true,
-      repeat: -1,
-    })
+    if (!this.touchMode) {
+      this.tweens.add({
+        targets: upperSpark,
+        alpha: 0.12,
+        duration: 420,
+        yoyo: true,
+        repeat: -1,
+      })
+    }
 
     const lower = this.hazards.create(
         def.x,
@@ -770,15 +775,17 @@ export class GameScene extends Phaser.Scene {
 
       const lowerSpark = this.add
         .tileSprite(def.x, gapBottom + bottomHeight / 2, 10, bottomHeight, 'hazard-spark')
-        .setAlpha(0.3)
+        .setAlpha(this.touchMode ? 0.22 : 0.3)
 
-      this.tweens.add({
-        targets: lowerSpark,
-        alpha: 0.12,
-        duration: 420,
-        yoyo: true,
-        repeat: -1,
-      })
+      if (!this.touchMode) {
+        this.tweens.add({
+          targets: lowerSpark,
+          alpha: 0.12,
+          duration: 420,
+          yoyo: true,
+          repeat: -1,
+        })
+      }
     })
 
     this.physics.add.overlap(this.slime, this.hazards, () => {
@@ -854,6 +861,18 @@ export class GameScene extends Phaser.Scene {
           .setOrigin(0, 1)
           .setScrollFactor(0)
           .setAlpha(0.7)
+
+    // 网址后面加 ?fps=1 就在左上角显示帧率、帧时、对象数和 tween 数（排查卡顿用）
+    if (new URLSearchParams(location.search).has('fps')) {
+      this.perfText = this.add
+        .text(6, 6, '', {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#7bff9a',
+        })
+        .setScrollFactor(0)
+        .setDepth(300)
+    }
 
         this.promptBox = this.add
       .rectangle(0, 0, 80, 18, 0x1e1e30)
@@ -2645,6 +2664,25 @@ export class GameScene extends Phaser.Scene {
     const body = this.slime.body as Phaser.Physics.Arcade.Body
     const speed = ELEMENTS[this.element].speed
     const dt = delta / 1000
+
+    if (this.perfText) {
+      this.perfTimer -= dt
+
+      if (this.perfTimer <= 0) {
+        this.perfTimer = 0.5
+        this.perfText.setText(
+          'FPS ' +
+            Math.round(this.game.loop.actualFps) +
+            '  帧 ' +
+            this.game.loop.delta.toFixed(1) +
+            'ms' +
+            '  对象 ' +
+            this.children.list.length +
+            '  tween ' +
+            this.tweens.getTweens().length
+        )
+      }
+    }
 
     if (Phaser.Input.Keyboard.JustDown(this.restartKey)) {
       this.scene.restart()
