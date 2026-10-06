@@ -77,7 +77,8 @@ export class SelectScene extends Phaser.Scene {
 
     // 岩史莱姆的岩脊挂在身体背后，所以要先画、再画本体（和标题页那边的画法一致）
     if (level.startElement === 'rock') {
-      this.add.image(x, y - 16, 'rock-crown')
+      // 格子只有 52 高：岩脊按原尺寸摆会顶出格子，所以缩小到 0.75、位置也往下收一点
+      this.add.image(x, y - 13, 'rock-crown').setScale(0.75)
     }
 
     const slime = this.add.image(x, y - 8, 'slime-' + level.startElement)

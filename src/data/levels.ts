@@ -131,6 +131,7 @@ export type LevelDef = {
                                           // 古树主干：竖着平铺树皮带，x/y 是中心点
   bgSpin?: number                         // 背景横向"环树"系数：往上爬时背景往一侧流
   statue?: StatueDef
+  unlocks?: ElementKey[]                  // 本关开局就解锁的元素（没有神像但想给某个元素时用）
   plates?: PlateDef[]
   launchers?: LauncherDef[]
   chase?: boolean
@@ -571,6 +572,8 @@ export const LEVELS: LevelDef[] = [
     width: 720,
     height: 1200,
     startElement: 'rock',
+    // 开局就给风：这关没有神像，不给的话从选关直接进来的玩家切不出风来（也爬不上去看观感）
+    unlocks: ['wind'],
     spawn: { x: 140, y: 1147 },
     bg: 'liyue',
     // 爬得越高，背景越往一侧流 —— 「绕着古树盘旋而上」的感觉

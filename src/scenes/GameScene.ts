@@ -1036,6 +1036,15 @@ export class GameScene extends Phaser.Scene {
     // 关卡自带的元素也要登记进解锁表：不然它不在表里，Q/E 一转就把它丢了
     unlockElement(this.level.startElement)
 
+    // 没有神像、但本关想开局就给的元素（例如第七关想给风，好让玩家能飞上去看观感）
+    ;(this.level.unlocks ?? []).forEach((key) => unlockElement(key))
+
+    // 注意：unlockElement() 会把「当前元素」也改成刚解锁的那个，
+    // 所以带了 unlocks 的关卡要把开局元素拨回 startElement（第七关：给风，但仍以岩开局）
+    if (this.level.unlocks) {
+      progress.current = this.level.startElement
+    }
+
     // 本关神像授予的元素，在摸到神像之前先锁着：存档里解锁过也不算数，
     // 只锁这一关，不动存档，别的关照样能用。锁的是本关自己出场的元素
     this.lockedElement =
