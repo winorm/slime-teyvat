@@ -582,28 +582,58 @@ export const LEVELS: LevelDef[] = [
     trunk: { x: 360, y: 600, width: 140, height: 1200 },
     goal: { x: 240, y: 486, kind: 'chest', prompt: '打开' },
     platforms: [
-      // 客栈一楼：出生点
+      // 客栈一楼：出生点（顶面 1160）
       { x: 360, y: 1180, width: 720, height: 40 },
 
-      // 盘旋楼梯：一圈三段 —— 左右两段在前面（depth 3），
-      // 中间那段在树干后面（depth 1、压暗），楼梯看起来就是绕到树后面去的
-      { x: 175, y: 1110, width: 230, height: 20, depth: 3 },
-      { x: 360, y: 1110, width: 140, height: 20, depth: 1, tint: 0x74593d },
-      { x: 545, y: 1110, width: 230, height: 20, depth: 3 },
+      // 盘旋楼梯的每一圈都拆成三段：左右两段画在树干前面（depth 3），
+      // 中间那段画在树干后面（depth 1 且压暗）——楼梯看起来就是绕到树后面去了。
+      // 圈与圈之间用「贴着树干外侧的短扶梯」连起来（每级 30~34 像素，岩石一跳就上去）
 
+      // 第 1 圈：顶面 1120（比一楼高 40，跳得上去）
+      { x: 175, y: 1130, width: 230, height: 20, depth: 3 },
+      { x: 360, y: 1130, width: 140, height: 20, depth: 1, tint: 0x74593d },
+      { x: 545, y: 1130, width: 230, height: 20, depth: 3 },
+
+      // 右侧扶梯：从第 1 圈右端往左上，接第 2 圈（4 级，每级 34）
+      { x: 632, y: 1096, width: 58, height: 20, depth: 3 },
+      { x: 574, y: 1062, width: 58, height: 20, depth: 3 },
+      { x: 516, y: 1028, width: 58, height: 20, depth: 3 },
+      { x: 458, y: 994, width: 58, height: 20, depth: 3 },
+
+      // 第 2 圈：顶面 950
       { x: 175, y: 960, width: 230, height: 20, depth: 3 },
       { x: 360, y: 960, width: 140, height: 20, depth: 1, tint: 0x74593d },
       { x: 545, y: 960, width: 230, height: 20, depth: 3 },
 
+      // 左侧扶梯：从第 2 圈左端往右上，接第 3 圈
+      { x: 88, y: 930, width: 58, height: 20, depth: 3 },
+      { x: 146, y: 900, width: 58, height: 20, depth: 3 },
+      { x: 204, y: 870, width: 58, height: 20, depth: 3 },
+      { x: 262, y: 840, width: 58, height: 20, depth: 3 },
+
+      // 第 3 圈：顶面 800
       { x: 175, y: 810, width: 230, height: 20, depth: 3 },
       { x: 360, y: 810, width: 140, height: 20, depth: 1, tint: 0x74593d },
       { x: 545, y: 810, width: 230, height: 20, depth: 3 },
 
+      // 右侧扶梯：接第 4 圈
+      { x: 632, y: 780, width: 58, height: 20, depth: 3 },
+      { x: 574, y: 750, width: 58, height: 20, depth: 3 },
+      { x: 516, y: 720, width: 58, height: 20, depth: 3 },
+      { x: 458, y: 690, width: 58, height: 20, depth: 3 },
+
+      // 第 4 圈：顶面 650
       { x: 175, y: 660, width: 230, height: 20, depth: 3 },
       { x: 360, y: 660, width: 140, height: 20, depth: 1, tint: 0x74593d },
       { x: 545, y: 660, width: 230, height: 20, depth: 3 },
 
-      // 树顶平台：先放个宝箱当临时终点，阳台和隐藏动画以后再接
+      // 左侧扶梯：接树顶平台
+      { x: 88, y: 630, width: 58, height: 20, depth: 3 },
+      { x: 146, y: 600, width: 58, height: 20, depth: 3 },
+      { x: 204, y: 570, width: 58, height: 20, depth: 3 },
+      { x: 262, y: 540, width: 58, height: 20, depth: 3 },
+
+      // 树顶平台：顶面 500（宝箱在左边 x=240；阳台和隐藏动画以后再接）
       { x: 360, y: 510, width: 600, height: 20, depth: 3 },
     ],
     orbs: [],
