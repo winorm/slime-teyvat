@@ -181,7 +181,8 @@ export class GameScene extends Phaser.Scene {
   private stairs: Phaser.Physics.Arcade.Sprite[] = []
   // 玩家现在是在树前面还是树后面（第七关「绕树而上」用）
   private playerLayer: 'front' | 'back' = 'front'
-  private trunkSprite: Phaser.GameObjects.TileSprite | null = null
+  private trunkRT: Phaser.GameObjects.RenderTexture | null = null
+  private trunkDrawn = { x: -99999, y: -99999, layer: '' as string }
   private gateFired: boolean[] = []
   private pillars!: Phaser.Physics.Arcade.StaticGroup
   private orbs!: Phaser.Physics.Arcade.StaticGroup
@@ -343,7 +344,8 @@ export class GameScene extends Phaser.Scene {
     this.stepTop = 0
     this.stairCamTime = 0
     this.playerLayer = 'front'
-    this.trunkSprite = null
+    this.trunkRT = null
+    this.trunkDrawn = { x: -99999, y: -99999, layer: '' }
     this.gateFired = []
     this.collectedIndices = []
     this.blessed = false
@@ -446,9 +448,19 @@ export class GameScene extends Phaser.Scene {
     // 古树主干：一条竖着平铺的树皮带，画在前后两层楼梯中间（默认 depth 2）
     if (this.level.trunk) {
       const trunk = this.level.trunk
+      const width = trunk.width
+      const height = trunk.height
+      const left = trunk.x - width / 2
+      const top = trunk.y - height / 2
 
-      this.trunkSprite = this.add
-        .tileSprite(trunk.x, trunk.y, trunk.width, trunk.height, 'tree-trunk')
+      // 树干画在一张 RenderTexture 上：每帧重新平铺一遍树皮，再在玩家位置擦出一个圆。
+      // 于是只有史莱姆周围和树重叠的那一块是透的，别处树还是实的。
+      // 用 repeat() 平铺贴图、erase() 擦洞，全程不碰 Game Object
+      // （往 RT 里 draw 一个 Game Object 在这版 Phaser 4 上不可靠：隐身的画不进去、
+      //   可见的会把渲染搞黑）
+      this.trunkRT = this.add
+        .renderTexture(left, top, width, height)
+        .setOrigin(0, 0)
         .setDepth(trunk.depth ?? 2)
     }
 
@@ -2381,7 +2393,42 @@ export class GameScene extends Phaser.Scene {
     this.windTrails.forEach((trail) => trail.setDepth(back ? 1.1 : 9))
     this.eyes.forEach((eye) => eye.setDepth(back ? 1.3 : 11))
 
-    this.trunkSprite?.setAlpha(back ? 0.32 : 1)
+    this.updateTrunk()
+  }
+
+  // 重画树干：树皮平铺一层，玩家在树后面时在玩家位置擦出一个圆（透视圈）。
+  // 只在「图层变了」或者「人动了」的时候重画，站着不动就跳过，省性能
+  private updateTrunk() {
+    const rt = this.trunkRT
+    const trunk = this.level.trunk
+
+    if (!rt || !trunk) {
+      return
+    }
+
+    const back = this.playerLayer === 'back'
+    const px = this.slime.x
+    const py = this.slime.y
+    const last = this.trunkDrawn
+
+    if (last.layer === this.playerLayer && Math.abs(px - last.x) < 1 && Math.abs(py - last.y) < 1) {
+      return
+    }
+
+    const width = trunk.width
+    const height = trunk.height
+
+    rt.clear()
+    rt.repeat('tree-trunk', undefined, 0, 0, width, height)
+
+    if (back) {
+      rt.erase('reveal-circle', px - (trunk.x - width / 2), py - (trunk.y - height / 2))
+    }
+
+    // RenderTexture 是先往缓冲里记命令，必须再 render() 一次才会真正画进去
+    rt.render()
+
+    this.trunkDrawn = { x: px, y: py, layer: this.playerLayer }
   }
 
   // 楼梯的自动上台阶：往楼梯里走的时候，前面那一级只高出一点点（不超过 AUTO_STEP），
@@ -3176,6 +3223,8 @@ export class GameScene extends Phaser.Scene {
 
     // 第七关「绕树而上」：踩到判定区就在树前/树后之间切换
     this.updateDepthGates(body)
+    // 树干上的透视圈跟着玩家走
+    this.updateTrunk()
 
     if (this.perfText) {
       this.perfTimer -= dt

@@ -194,6 +194,7 @@ export class BootScene extends Phaser.Scene {
     this.makeEgg()
     this.makeDragonling()
     this.makeWing()
+    this.makeRevealCircle()
   }
 
   private makeSpire() {
@@ -482,6 +483,22 @@ export class BootScene extends Phaser.Scene {
 
   // 木桥的板材：横铺的一根板子，可平铺。上沿受光、下沿压暗，
   // 中间几道木纹，两头各一颗钉子
+  // 「透视圈」用的圆形贴图：中间实、边缘化开一点，擦树干时用。
+  // 以后做「洞内没有光源」的视野限制也能直接用这张
+  private makeRevealCircle() {
+    const size = 160
+    const half = size / 2
+    const gfx = this.add.graphics()
+
+    for (let i = 0; i < 16; i++) {
+      gfx.fillStyle(0xffffff, i === 0 ? 0.75 : 0.05)
+      gfx.fillCircle(half, half, half * (1 - i / 16))
+    }
+
+    gfx.generateTexture('reveal-circle', size, size)
+    gfx.destroy()
+  }
+
   private makeWoodPlank() {
     const gfx = this.add.graphics()
 
