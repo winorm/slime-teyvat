@@ -22,10 +22,13 @@ import { touchMode, touchText } from '../state/touch'
 import { getMoveMode } from '../state/settings'
 
 const HOVER = {
-  riseSpeed: 70,
+  // 风元素削过一轮（用户按玩家反馈选了 B 档）：升得慢一点、耗得快一点、回得也慢一点
+  riseSpeed: 55,
   fallSpeed: 35,
-  drainPerSecond: 30,
-  regenPerSecond: 80,
+  drainPerSecond: 40,
+  // 缓降不再白嫖：滑翔期间也慢慢扣体力，扣干了就变自由落体
+  glideDrainPerSecond: 5,
+  regenPerSecond: 50,
 }
 
 const STAMINA_MAX = 100
@@ -3140,6 +3143,9 @@ export class GameScene extends Phaser.Scene {
       !onGround &&
       this.stamina > 0
 
+    // 滑翔：风元素、没按着上升、人还在空中、而且还有体力
+    const gliding = !wantHover && element.canHover && !onGround && this.stamina > 0
+
     if (wantHover) {
       if (body.velocity.y > -HOVER.riseSpeed) {
         this.slime.setVelocityY(-HOVER.riseSpeed)
@@ -3148,17 +3154,18 @@ export class GameScene extends Phaser.Scene {
       this.stamina = this.blessed
         ? STAMINA_MAX
         : Math.max(0, this.stamina - HOVER.drainPerSecond * dt)
-    } else if (element.canHover && body.velocity.y > HOVER.fallSpeed) {
-      this.slime.setVelocityY(HOVER.fallSpeed)
+    } else if (gliding) {
+      if (body.velocity.y > HOVER.fallSpeed) {
+        this.slime.setVelocityY(HOVER.fallSpeed)
+      }
+
+      this.stamina = this.blessed
+        ? STAMINA_MAX
+        : Math.max(0, this.stamina - HOVER.glideDrainPerSecond * dt)
     }
 
     setLoop(this, 'sfx-fly', wantHover, 0.12)
-    setLoop(
-      this,
-      'sfx-glide',
-      !wantHover && element.canHover && !onGround && body.velocity.y > 0,
-      0.1
-    )
+    setLoop(this, 'sfx-glide', gliding && body.velocity.y > 0, 0.1)
 
     if (onGround && !this.wasOnGround) {
       this.landSquash = 1

@@ -22,7 +22,8 @@ export type ElementDef = {
 
 export const ELEMENTS: Record<ElementKey, ElementDef> = {
   none: { label: '无', color: 0x55556a, eyeColor: 0x20202a, jump: -260, speed: 100, wing: false, canHover: false, squash: 1 },
-  wind: { label: '风', color: 0x74d0b0, eyeColor: 0x1f4a3e, jump: -260, speed: 120, wing: true, canHover: true, squash: 1 },
+  // 移速 120 → 110：玩家反馈风史莱姆太超模，配合悬浮耗体力一起削
+  wind: { label: '风', color: 0x74d0b0, eyeColor: 0x1f4a3e, jump: -260, speed: 110, wing: true, canHover: true, squash: 1 },
   rock: { label: '岩', color: 0xd9a441, eyeColor: 0x5a3d12, jump: -240, speed: 90, wing: false, canHover: false, squash: 0.45 },
   thunder: { label: '雷', color: 0xb388ff, eyeColor: 0x3c2266, jump: -260, speed: 100, wing: false, canHover: false, squash: 1 },
   grass: { label: '草', color: 0x7bc86c, eyeColor: 0x28461f, jump: -260, speed: 100, wing: false, canHover: false, squash: 1 },
