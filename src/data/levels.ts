@@ -270,7 +270,6 @@ export const LEVELS: LevelDef[] = [
     music: 'music-chase',
     hints: [
       { x: 260, y: 430, text: '长按空格飞出坑口（耗体力）' },
-      { x: 840, y: 330, text: '松开空格可以缓降（也耗体力）' },
     ],
   },
 
