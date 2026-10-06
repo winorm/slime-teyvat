@@ -90,6 +90,16 @@ const STICK = {
   deadZone: 10,     // 横向超过这个距离才判定移动
   zoneRight: 210,   // 这块区域里按下才会唤起摇杆，避免和右下角技能键打架
   zoneTop: 130,
+  hitRadius: 36,    // 底盘贴图 72x72 的一半，用来算「史莱姆靠近就变淡」
+}
+
+// 摇杆的透明度：待机和按住时不一样，再乘上「靠近变淡」的系数
+const STICK_ALPHA = {
+  base: 0.6,
+  knob: 0.85,
+  baseActive: 0.75,
+  knobActive: 0.95,
+  fade: 0.45,
 }
 
 const CHASE = {
@@ -245,6 +255,8 @@ export class GameScene extends Phaser.Scene {
   private stickKnob: Phaser.GameObjects.Image | null = null
   private stickPointer = -1
   private stickOrigin = { x: 0, y: 0 }
+  // 摇杆当前的"基准"透明度（待机 / 按住各一套），「靠近变淡」在它上面再打折扣
+  private stickAlpha = { base: STICK_ALPHA.base, knob: STICK_ALPHA.knob }
   private moveImages: Phaser.GameObjects.Image[] = []
   private stickHandlers: Array<{ event: string; fn: (pointer: Phaser.Input.Pointer) => void }> = []
   private promptBox!: Phaser.GameObjects.Rectangle
@@ -1176,10 +1188,12 @@ export class GameScene extends Phaser.Scene {
 
     // 摇杆也要松手：暂停/恢复时手指的 pointerup 收不到，不归位会一直往一个方向跑
     this.stickPointer = -1
+    this.stickAlpha.base = STICK_ALPHA.base
+    this.stickAlpha.knob = STICK_ALPHA.knob
 
     if (this.stickBase && this.stickKnob) {
-      this.stickBase.setPosition(STICK.idleX, STICK.idleY).setAlpha(0.6)
-      this.stickKnob.setPosition(STICK.idleX, STICK.idleY).setAlpha(0.85)
+      this.stickBase.setPosition(STICK.idleX, STICK.idleY).setAlpha(STICK_ALPHA.base)
+      this.stickKnob.setPosition(STICK.idleX, STICK.idleY).setAlpha(STICK_ALPHA.knob)
     }
   }
 
@@ -1399,13 +1413,13 @@ export class GameScene extends Phaser.Scene {
       .image(STICK.idleX, STICK.idleY, 'touch-stick-base')
       .setScrollFactor(0)
       .setDepth(100)
-      .setAlpha(0.6)
+      .setAlpha(STICK_ALPHA.base)
 
     const knob = this.add
       .image(STICK.idleX, STICK.idleY, 'touch-stick-knob')
       .setScrollFactor(0)
       .setDepth(101)
-      .setAlpha(0.85)
+      .setAlpha(STICK_ALPHA.knob)
 
     this.stickBase = base
     this.stickKnob = knob
@@ -1420,8 +1434,10 @@ export class GameScene extends Phaser.Scene {
       this.stickOrigin.x = Phaser.Math.Clamp(pointer.x, 40, STICK.zoneRight)
       this.stickOrigin.y = Phaser.Math.Clamp(pointer.y, STICK.zoneTop + 40, 236)
 
-      base.setPosition(this.stickOrigin.x, this.stickOrigin.y).setAlpha(0.75)
-      knob.setPosition(this.stickOrigin.x, this.stickOrigin.y).setAlpha(0.95)
+      this.stickAlpha.base = STICK_ALPHA.baseActive
+      this.stickAlpha.knob = STICK_ALPHA.knobActive
+      base.setPosition(this.stickOrigin.x, this.stickOrigin.y).setAlpha(STICK_ALPHA.baseActive)
+      knob.setPosition(this.stickOrigin.x, this.stickOrigin.y).setAlpha(STICK_ALPHA.knobActive)
     }
 
     const onMove = (pointer: Phaser.Input.Pointer) => {
@@ -1446,8 +1462,10 @@ export class GameScene extends Phaser.Scene {
       this.touchLeft = false
       this.touchRight = false
 
-      base.setPosition(STICK.idleX, STICK.idleY).setAlpha(0.6)
-      knob.setPosition(STICK.idleX, STICK.idleY).setAlpha(0.85)
+      this.stickAlpha.base = STICK_ALPHA.base
+      this.stickAlpha.knob = STICK_ALPHA.knob
+      base.setPosition(STICK.idleX, STICK.idleY).setAlpha(STICK_ALPHA.base)
+      knob.setPosition(STICK.idleX, STICK.idleY).setAlpha(STICK_ALPHA.knob)
     }
 
     this.input.on('pointerdown', onDown)
@@ -3300,6 +3318,18 @@ export class GameScene extends Phaser.Scene {
     const camera = this.cameras.main
     const screenX = this.slime.x - camera.scrollX
     const screenY = this.slime.y - camera.scrollY
+
+    // 摇杆也吃这套「靠近变淡」：它的位置会跟着手指跑，所以按它当前位置算，
+    // 倍率乘在"待机/按住"那套基准透明度上，两边不会互相盖掉
+    if (this.stickBase && this.stickKnob) {
+      const nearStick =
+        Math.abs(screenX - this.stickBase.x) < STICK.hitRadius + 22 &&
+        Math.abs(screenY - this.stickBase.y) < STICK.hitRadius + 22
+      const factor = nearStick ? STICK_ALPHA.fade : 1
+
+      this.stickBase.setAlpha(this.stickAlpha.base * factor)
+      this.stickKnob.setAlpha(this.stickAlpha.knob * factor)
+    }
 
     this.touchButtons.forEach((button) => {
       if (button.image === this.touchArmorFill) {
