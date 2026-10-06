@@ -81,6 +81,22 @@ const HAZARD = {
   gapHeight: 70,
 }
 
+// 木楼梯：每级踏板的宽度（0.5 个史莱姆宽 = 16）。
+// 踏板是三角形切面，一级比一级高一点点；AUTO_STEP 是「不用跳、走上去就自动抬起来」的最大高度
+const STAIR_TREAD = 16
+const AUTO_STEP = 14
+// 自动上台阶时往上抬的速度（像素/秒）。一级 8~12 像素，摊到三四帧里抬完：
+// 瞬移的话镜头慢半拍，人在屏幕上先弹上去、镜头再慢慢追回来，看着就是抖
+const STAIR_CLIMB_SPEED = 150
+// 上台阶的这几帧把镜头的纵向跟随临时调紧。
+// 平时 0.12 是为了让跳跃看着飘一点，但爬楼梯时人是一级一级往上抬的，
+// 镜头跟不上就会看到「人弹上去、镜头再慢慢沉回来」——那就是抖
+const STAIR_CAM_LERP = 0.75
+// 上台阶结束后镜头还要继续「收紧」这么久，把剩下的一点偏差收干净再回到平时的跟随
+const STAIR_CAM_HOLD = 0.25
+// 平时镜头的纵向跟随
+const CAM_LERP_Y = 0.12
+
 // 屏幕 UI（HUD）的统一层级：必须盖在所有游戏内物件之上。
 // 以前这些对象都是默认 0，史莱姆（10）、造物（4~6）、提示条（20/21）走到角落时会把它们压住
 const HUD_DEPTH = 110
@@ -162,6 +178,11 @@ export class GameScene extends Phaser.Scene {
   private level!: LevelDef
   private slime!: Phaser.Physics.Arcade.Sprite
   private platforms!: Phaser.Physics.Arcade.StaticGroup
+  private stairs: Phaser.Physics.Arcade.Sprite[] = []
+  // 玩家现在是在树前面还是树后面（第七关「绕树而上」用）
+  private playerLayer: 'front' | 'back' = 'front'
+  private trunkSprite: Phaser.GameObjects.TileSprite | null = null
+  private gateFired: boolean[] = []
   private pillars!: Phaser.Physics.Arcade.StaticGroup
   private orbs!: Phaser.Physics.Arcade.StaticGroup
 
@@ -190,6 +211,9 @@ export class GameScene extends Phaser.Scene {
   private landSquash = 0
   private stepTimer = 0
   private wasOnGround = false
+  private stepRise = 0
+  private stepTop = 0
+  private stairCamTime = 0
 
   private element: ElementKey = 'none'
   private jumpPower = -260
@@ -315,6 +339,12 @@ export class GameScene extends Phaser.Scene {
     this.landSquash = 0
     this.stepTimer = 0
     this.wasOnGround = false
+    this.stepRise = 0
+    this.stepTop = 0
+    this.stairCamTime = 0
+    this.playerLayer = 'front'
+    this.trunkSprite = null
+    this.gateFired = []
     this.collectedIndices = []
     this.blessed = false
     this.dying = false
@@ -417,7 +447,7 @@ export class GameScene extends Phaser.Scene {
     if (this.level.trunk) {
       const trunk = this.level.trunk
 
-      this.add
+      this.trunkSprite = this.add
         .tileSprite(trunk.x, trunk.y, trunk.width, trunk.height, 'tree-trunk')
         .setDepth(trunk.depth ?? 2)
     }
@@ -513,6 +543,8 @@ export class GameScene extends Phaser.Scene {
           .setDepth(2)
       }
     })
+
+    this.buildStairs()
 
     if (this.level.dome) {
       const dome = this.level.dome
@@ -690,6 +722,17 @@ export class GameScene extends Phaser.Scene {
       this.time.delayedCall(CRUMBLE_DELAY, () => {
         sprite.destroy()
       })
+    }, (_slime, platform) => {
+      const sprite = platform as Phaser.Physics.Arcade.Sprite
+
+      if (!sprite.getData('stair')) {
+        return true
+      }
+
+      // 楼梯踏步只认玩家所在的那一层：另一层藏在树后面，不参与碰撞。
+      // 不然从 1/2 层平台往折返方向走，会正面撞上那一跑的第 3 级（高 37 像素），
+      // 超过自动上台阶的 14，人就被钉在平台上了
+      return sprite.getData('layer') === this.playerLayer
     })
 
     this.physics.add.overlap(this.slime, this.orbs, (_slime, orb) => {
@@ -2199,6 +2242,224 @@ export class GameScene extends Phaser.Scene {
     spike.destroy()
   }
 
+  // 木楼梯：一级一级木踏板（三角形切面）+ 底下斜撑的木梁 + 斜扶栏和立柱。
+  // 画面全都画在 Graphics 上；挡人的只有每级踏面顶上那条 run×rise 的碰撞盒。
+  // 碰撞盒收进 this.stairs，往前走的时候 tryAutoStep() 会把人一级级抬上去，不用跳。
+  private buildStairs() {
+    const woodFace = 0x8a6034
+    const woodTop = 0xa8794a
+    const woodDark = 0x5f4224
+    const beamWood = 0x6f4423
+    const railWood = 0x7a4c28
+    const railHeight = 26
+
+    this.stairs = []
+
+    ;(this.level.stairs ?? []).forEach((def) => {
+      const from = def.from
+      const to = def.to
+      const dir = to.x >= from.x ? 1 : -1
+      const count = Math.max(1, Math.round(Math.abs(to.x - from.x) / STAIR_TREAD))
+      const run = Math.abs(to.x - from.x) / count
+      const rise = (from.y - to.y) / count
+
+      const layer = def.layer ?? 'front'
+      // 树后面的那一跑画在树干（depth 2）之后，玩家走上去时会被树挡住
+      const gfx = this.add.graphics().setDepth(def.depth ?? (layer === 'back' ? 1 : 3))
+
+      // 楼梯走向的单位向量；法线取「朝下」的那一侧，木梁和扶栏都往这边长出厚度
+      const length = Phaser.Math.Distance.Between(from.x, from.y, to.x, to.y)
+      const ux = (to.x - from.x) / length
+      const uy = (to.y - from.y) / length
+      const flip = ux >= 0 ? 1 : -1
+      const nx = -uy * flip
+      const ny = ux * flip
+
+      // 底下的斜梁：平行四边形，下端贴着下层地面，上端接上层地面
+      const beamThickness = 10
+      const beam = [
+        { x: from.x, y: from.y },
+        { x: to.x, y: to.y },
+        { x: to.x + nx * beamThickness, y: to.y + ny * beamThickness },
+        { x: from.x + nx * beamThickness, y: from.y + ny * beamThickness },
+      ]
+
+      gfx.fillStyle(beamWood, 1)
+      gfx.fillTriangle(beam[0].x, beam[0].y, beam[1].x, beam[1].y, beam[2].x, beam[2].y)
+      gfx.fillTriangle(beam[0].x, beam[0].y, beam[2].x, beam[2].y, beam[3].x, beam[3].y)
+
+      for (let i = 0; i < count; i++) {
+        const near = from.x + dir * run * i          // 这一级靠下的一头
+        const top = from.y - rise * (i + 1)          // 这一级踏面的高度
+        const left = dir > 0 ? near : near - run
+
+        gfx.fillStyle(woodFace, 1)
+        gfx.fillTriangle(near, top, near + dir * run, top, near, top + rise)
+
+        gfx.fillStyle(woodTop, 1)
+        gfx.fillRect(left, top, run, 2)
+        gfx.fillStyle(woodDark, 1)
+        gfx.fillRect(left, top + 2, run, 1)
+
+        const step = this.platforms.create(
+          near + (dir * run) / 2,
+          top + rise / 2,
+          'pixel'
+        ) as Phaser.Physics.Arcade.Sprite
+
+        step.setDisplaySize(run, rise)
+        step.setVisible(false)
+        step.refreshBody()
+        step.setData('stair', true)
+        step.setData('layer', layer)
+        this.stairs.push(step)
+      }
+
+      // 斜扶栏：和台阶平行，架在踏面上方 railHeight 那么高
+      const railThickness = 4
+      const rail = [
+        { x: from.x, y: from.y - railHeight },
+        { x: to.x, y: to.y - railHeight },
+        { x: to.x + nx * railThickness, y: to.y - railHeight + ny * railThickness },
+        { x: from.x + nx * railThickness, y: from.y - railHeight + ny * railThickness },
+      ]
+
+      gfx.fillStyle(railWood, 1)
+      gfx.fillTriangle(rail[0].x, rail[0].y, rail[1].x, rail[1].y, rail[2].x, rail[2].y)
+      gfx.fillTriangle(rail[0].x, rail[0].y, rail[2].x, rail[2].y, rail[3].x, rail[3].y)
+
+      // 立柱：每 4 级一根，把扶栏和底下的斜梁连起来
+      gfx.fillStyle(beamWood, 1)
+
+      for (let i = 0; i <= count; i += 4) {
+        const postX = from.x + dir * run * i
+        const t = (postX - from.x) / (to.x - from.x)
+
+        gfx.fillRect(postX - 1.5, from.y - railHeight + (to.y - from.y) * t, 3, railHeight)
+      }
+    })
+  }
+
+  // 走进/走出树的图层：踩到判定区就把人切到那一层
+  private updateDepthGates(body: Phaser.Physics.Arcade.Body) {
+    const gates = this.level.depthGates
+
+    if (!gates) {
+      return
+    }
+
+    for (let index = 0; index < gates.length; index++) {
+      const gate = gates[index]
+      const inside =
+        body.right > gate.x - gate.width / 2 &&
+        body.left < gate.x + gate.width / 2 &&
+        body.bottom > gate.y - gate.height / 2 &&
+        body.top < gate.y + gate.height / 2
+
+      // 一次停留只翻一层：在判定区里朝 dir 方向走一下就换层，走出去再进来才会再翻
+      if (inside && Math.sign(body.velocity.x) === (gate.dir ?? 1) && !this.gateFired[index]) {
+        this.gateFired[index] = true
+        this.setPlayerLayer(this.playerLayer === 'back' ? 'front' : 'back')
+      } else if (!inside) {
+        this.gateFired[index] = false
+      }
+    }
+  }
+
+  // 切换「树前面 / 树后面」：画面层级跟着换。
+  // 走到树后面时整个人画在树干（depth 2）之后，同时把树干调淡 —— 透视，能看见人和楼梯
+  private setPlayerLayer(layer: 'front' | 'back') {
+    this.playerLayer = layer
+
+    const back = layer === 'back'
+
+    this.slimeArt.setDepth(back ? 1.2 : 10)
+    this.wingLeft.setDepth(back ? 1.1 : 9)
+    this.wingRight.setDepth(back ? 1.1 : 9)
+    this.rockCrown.setDepth(back ? 1.1 : 9)
+    this.armorPlate.setDepth(back ? 1.15 : 9)
+    this.windTrails.forEach((trail) => trail.setDepth(back ? 1.1 : 9))
+    this.eyes.forEach((eye) => eye.setDepth(back ? 1.3 : 11))
+
+    this.trunkSprite?.setAlpha(back ? 0.32 : 1)
+  }
+
+  // 楼梯的自动上台阶：往楼梯里走的时候，前面那一级只高出一点点（不超过 AUTO_STEP），
+  // 就把整个人抬上去，不用跳。只认打了 stair 标记的踏板，其它地方照旧挡人。
+  private tryAutoStep(onGround: boolean, dt: number) {
+    if (this.inputLocked) {
+      return
+    }
+
+    // 还没抬完：把剩下这一小段匀成几帧抬完。
+    // 一次瞬移到位的话，镜头慢半拍，人在屏幕上会「先弹上去、再被镜头拉回来」，看着就是抖
+    if (this.stepRise > 0) {
+      const body = this.slime.body as Phaser.Physics.Arcade.Body
+      const nextY = Math.max(this.stepTop, body.center.y - STAIR_CLIMB_SPEED * dt)
+
+      // 用 reset 直接把人放到新高度：它会把物理体和位置记录一起同步好，
+      // 物理不会再把这一帧的位移重复叠加；同时也绕开碰撞，
+      // 头顶不会顶到上面的楼板被卡住（楼梯是从楼板底下钻上去的）
+      body.reset(body.center.x, nextY)
+
+      if (nextY <= this.stepTop) {
+        this.stepRise = 0
+      }
+
+      return
+    }
+
+    if (!onGround || this.stairs.length === 0) {
+      return
+    }
+
+    const body = this.slime.body as Phaser.Physics.Arcade.Body
+    const walkingLeft = this.cursors.left.isDown || this.touchLeft
+    const walkingRight = this.cursors.right.isDown || this.touchRight
+
+    if (walkingLeft === walkingRight) {
+      return
+    }
+
+    const dir = walkingLeft ? -1 : 1
+
+    if (dir < 0 ? !body.blocked.left : !body.blocked.right) {
+      return
+    }
+
+    const footY = body.bottom
+    const probeX = this.slime.x + dir * (body.halfWidth + 2)
+    let best = 0
+    let target = 0
+
+    for (const step of this.stairs) {
+      // 自动上台阶也只认玩家所在那一层的台阶
+      if (step.getData('layer') !== this.playerLayer) {
+        continue
+      }
+
+      const stepBody = step.body as Phaser.Physics.Arcade.StaticBody
+
+      if (probeX < stepBody.left || probeX > stepBody.right) {
+        continue
+      }
+
+      const gap = footY - stepBody.top
+
+      if (gap > 0.5 && gap <= AUTO_STEP && gap > best) {
+        best = gap
+        // 目标高度直接按踏面算，不从当前脚底推：脚底可能差了一帧，推出来会多抬一点点
+        target = stepBody.top - body.height / 2
+      }
+    }
+
+    if (best > 0) {
+      this.stepRise = best
+      this.stepTop = target
+      this.stairCamTime = STAIR_CAM_HOLD
+    }
+  }
+
   private syncVisual(sx: number, sy: number) {
     // 岩化时整体放大一圈，像个石墩。放大是绕贴图中心做的，所以贴图要往上提一点，
     // 脚底才不会陷进地面
@@ -2913,6 +3174,9 @@ export class GameScene extends Phaser.Scene {
     const speed = ELEMENTS[this.element].speed
     const dt = delta / 1000
 
+    // 第七关「绕树而上」：踩到判定区就在树前/树后之间切换
+    this.updateDepthGates(body)
+
     if (this.perfText) {
       this.perfTimer -= dt
 
@@ -3067,7 +3331,18 @@ export class GameScene extends Phaser.Scene {
     }
 
     const element = ELEMENTS[this.element]
-    const onGround = body.blocked.down
+    // 自动上台阶的那几帧人在空中，但动画和音效要按「还在走路」算，
+    // 不然每上一级都会当成一次落地：压缩一下、放一声落地音，比抖还难看
+    const onGround = body.blocked.down || this.stepRise > 0
+
+    this.tryAutoStep(onGround, dt)
+    // 正在自动上台阶：把镜头的纵向跟随临时调紧，人就不会在屏幕上弹一下再沉回来。
+    // 抬完还多保持 STAIR_CAM_HOLD 秒，把剩下那点偏差收干净
+    if (this.stairCamTime > 0) {
+      this.stairCamTime -= dt
+    }
+
+    camera.setLerp(0.12, this.stairCamTime > 0 ? STAIR_CAM_LERP : CAM_LERP_Y)
 
     let prompt: string | null = null
     let action: (() => void) | null = null

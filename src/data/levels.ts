@@ -13,7 +13,29 @@ export type PlatformDef = {
   plank?: boolean   // 表面盖一层木板（木桥用，同样只做画面）
   tint?: number     // 覆盖主题配色：村庄断墙、矿洞岩壁这类要单独上色的块
   depth?: number    // 画在哪一层：古树的后层楼梯给 1（会被树干挡住），前层给 3
-  }
+}
+
+// 木楼梯：从下层地面一级一级走到上层地面。
+// from 是最下面一级搭脚的地方（贴下层地面的顶面），to 是楼梯顶端踩到的上层地面顶面。
+export type StairDef = {
+  from: { x: number; y: number }
+  to: { x: number; y: number }
+  depth?: number    // 不写就是 3（画在树干前面）
+  layer?: 'front' | 'back'   // 画在树干前面（front，默认）还是树干后面（back）
+}
+
+// 进出「树的图层」的判定区：玩家踩进去就把自己的图层切成 layer。
+// 前半段楼梯在树前面走，走到 1/2 层平台最右端（树右边那一个史莱姆宽的地方）切到 back，
+// 人就到树后面去了；绕到树左边、踩上下一层平台时再切回 front。
+export type DepthGateDef = {
+  x: number
+  y: number
+  width: number
+  height: number
+  // 在判定区里朝这个方向走的时候，把「树前/树后」翻一层（-1 往左、1 往右，默认 1）。
+  // 上楼和下楼在同一块平台上走的方向不一样，靠这个分开
+  dir?: -1 | 1
+}
 
 // 背景静物：房子、山体这类只做画面、不参与碰撞的东西
 export type DecorDef = {
@@ -111,6 +133,8 @@ export type LevelDef = {
   spawn: { x: number; y: number }
   goal: GoalDef
   platforms: PlatformDef[]
+  stairs?: StairDef[]
+  depthGates?: DepthGateDef[]
   orbs: OrbDef[]
   gems: { x: number; y: number }[]
   blessings: { x: number; y: number }[]
@@ -574,67 +598,70 @@ export const LEVELS: LevelDef[] = [
     startElement: 'rock',
     // 开局就给风：这关没有神像，不给的话从选关直接进来的玩家切不出风来（也爬不上去看观感）
     unlocks: ['wind'],
-    spawn: { x: 140, y: 1147 },
+    spawn: { x: 60, y: 1147 },
     bg: 'liyue',
     // 爬得越高，背景越往一侧流 —— 「绕着古树盘旋而上」的感觉
     bgSpin: 0.25,
-    // 古树主干：竖着平铺的树皮带，夹在前后两层楼梯之间（depth 2）
-    trunk: { x: 360, y: 600, width: 140, height: 1200 },
-    goal: { x: 240, y: 486, kind: 'chest', prompt: '打开' },
+    // 古树主干：加宽到 150，正好罩住「一跑楼梯 + 半层平台」——
+    // 往前那一跑画在树前面，往回那一跑画在树后面，看起来就是绕着树往上盘
+    trunk: { x: 375, y: 600, width: 150, height: 1200 },
+    goal: { x: 225, y: 546, kind: 'chest', prompt: '打开' },
     platforms: [
       // 客栈一楼：出生点（顶面 1160）
       { x: 360, y: 1180, width: 720, height: 40 },
 
-      // 盘旋楼梯的每一圈都拆成三段：左右两段画在树干前面（depth 3），
-      // 中间那段画在树干后面（depth 1 且压暗）——楼梯看起来就是绕到树后面去了。
-      // 圈与圈之间用「贴着树干外侧的短扶梯」连起来（每级 30~34 像素，岩石一跳就上去）
+      // 每跑楼梯的顶端接一块平台（6 厚）。1/2 层平台架在树身上、最右端留 32 宽露在树的右边，
+      // 那里就是「走出树前面、绕到树后面」的入口
 
-      // 第 1 圈：顶面 1120（比一楼高 40，跳得上去）
-      { x: 175, y: 1130, width: 230, height: 20, depth: 3 },
-      { x: 360, y: 1130, width: 140, height: 20, depth: 1, tint: 0x74593d },
-      { x: 545, y: 1130, width: 230, height: 20, depth: 3 },
+      // 1/2 层平台：顶面 1085
+      { x: 439, y: 1088, width: 86, height: 6, depth: 3 },
+      // 二楼平台：顶面 1010
+      { x: 225, y: 1013, width: 150, height: 6, depth: 3 },
+      // 3/2 层平台：顶面 935
+      { x: 439, y: 938, width: 86, height: 6, depth: 3 },
+      // 三楼平台：顶面 860
+      { x: 225, y: 863, width: 150, height: 6, depth: 3 },
+      // 5/2 层平台：顶面 785
+      { x: 439, y: 788, width: 86, height: 6, depth: 3 },
+      // 四楼平台：顶面 710
+      { x: 225, y: 713, width: 150, height: 6, depth: 3 },
+      // 7/2 层平台：顶面 635
+      { x: 439, y: 638, width: 86, height: 6, depth: 3 },
+      // 树顶平台：顶面 560（宝箱在 x=225；阳台和隐藏动画以后再接）
+      { x: 225, y: 563, width: 150, height: 6, depth: 3 },
+    ],
 
-      // 右侧扶梯：从第 1 圈右端往左上，接第 2 圈（4 级，每级 34）
-      { x: 632, y: 1096, width: 58, height: 20, depth: 3 },
-      { x: 574, y: 1062, width: 58, height: 20, depth: 3 },
-      { x: 516, y: 1028, width: 58, height: 20, depth: 3 },
-      { x: 458, y: 994, width: 58, height: 20, depth: 3 },
+    // 木楼梯：每半层一跑。前一半在树前面往右走，走到 1/2 层平台最右端进树的图层；
+    // 后一半在树后面往左走，绕回树左边、上到下一层
+    stairs: [
+      { from: { x: 300, y: 1160 }, to: { x: 396, y: 1085 }, layer: 'front' },
+      { from: { x: 450, y: 1085 }, to: { x: 300, y: 1010 }, layer: 'back' },
+      { from: { x: 300, y: 1010 }, to: { x: 396, y: 935 }, layer: 'front' },
+      { from: { x: 450, y: 935 }, to: { x: 300, y: 860 }, layer: 'back' },
+      { from: { x: 300, y: 860 }, to: { x: 396, y: 785 }, layer: 'front' },
+      { from: { x: 450, y: 785 }, to: { x: 300, y: 710 }, layer: 'back' },
+      { from: { x: 300, y: 710 }, to: { x: 396, y: 635 }, layer: 'front' },
+      { from: { x: 450, y: 635 }, to: { x: 300, y: 560 }, layer: 'back' },
+    ],
 
-      // 第 2 圈：顶面 950
-      { x: 175, y: 960, width: 230, height: 20, depth: 3 },
-      { x: 360, y: 960, width: 140, height: 20, depth: 1, tint: 0x74593d },
-      { x: 545, y: 960, width: 230, height: 20, depth: 3 },
-
-      // 左侧扶梯：从第 2 圈左端往右上，接第 3 圈
-      { x: 88, y: 930, width: 58, height: 20, depth: 3 },
-      { x: 146, y: 900, width: 58, height: 20, depth: 3 },
-      { x: 204, y: 870, width: 58, height: 20, depth: 3 },
-      { x: 262, y: 840, width: 58, height: 20, depth: 3 },
-
-      // 第 3 圈：顶面 800
-      { x: 175, y: 810, width: 230, height: 20, depth: 3 },
-      { x: 360, y: 810, width: 140, height: 20, depth: 1, tint: 0x74593d },
-      { x: 545, y: 810, width: 230, height: 20, depth: 3 },
-
-      // 右侧扶梯：接第 4 圈
-      { x: 632, y: 780, width: 58, height: 20, depth: 3 },
-      { x: 574, y: 750, width: 58, height: 20, depth: 3 },
-      { x: 516, y: 720, width: 58, height: 20, depth: 3 },
-      { x: 458, y: 690, width: 58, height: 20, depth: 3 },
-
-      // 第 4 圈：顶面 650
-      { x: 175, y: 660, width: 230, height: 20, depth: 3 },
-      { x: 360, y: 660, width: 140, height: 20, depth: 1, tint: 0x74593d },
-      { x: 545, y: 660, width: 230, height: 20, depth: 3 },
-
-      // 左侧扶梯：接树顶平台
-      { x: 88, y: 630, width: 58, height: 20, depth: 3 },
-      { x: 146, y: 600, width: 58, height: 20, depth: 3 },
-      { x: 204, y: 570, width: 58, height: 20, depth: 3 },
-      { x: 262, y: 540, width: 58, height: 20, depth: 3 },
-
-      // 树顶平台：顶面 500（宝箱在左边 x=240；阳台和隐藏动画以后再接）
-      { x: 360, y: 510, width: 600, height: 20, depth: 3 },
+    // 进出树的图层：
+    // 1/2 层平台最右端（树右边那 32 宽）踩进去 → 绕到树后面，再往左就是「树后那一跑」
+    // 每一层平台的**左端**踩进去 → 回到树前面（想上楼就先走到平台左端再折回来，
+    // 直接在右端往右走就变成原路下楼 —— 这样"上"和"下"靠走的路线分开了）
+    // 每块平台的右端一个「换层」判定区：在里头朝着 dir 方向走，就把树前/树后翻一层。
+    // 上楼、下楼在同一块平台上走的路线正好相反，所以翻出来的层也正好对
+    depthGates: [
+      // 1/2 层平台的右端（树右边那一块）
+      { x: 466, y: 1069, width: 32, height: 40 },
+      // 楼层平台的右端
+      { x: 290, y: 994, width: 32, height: 40 },
+      { x: 466, y: 919, width: 32, height: 40 },
+      { x: 290, y: 844, width: 32, height: 40 },
+      { x: 466, y: 769, width: 32, height: 40 },
+      { x: 290, y: 694, width: 32, height: 40 },
+      { x: 466, y: 619, width: 32, height: 40 },
+      // 顶层（树顶）不放判定区：上来时人在树后的那一层，回头往下走要顺着原路回去，
+      // 这里再翻一次层的话，回去的那跑楼梯就不在玩家这一层，人会直接掉下去
     ],
     orbs: [],
     gems: [],
