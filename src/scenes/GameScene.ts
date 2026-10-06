@@ -81,6 +81,12 @@ const HAZARD = {
   gapHeight: 70,
 }
 
+// 屏幕 UI（HUD）的统一层级：必须盖在所有游戏内物件之上。
+// 以前这些对象都是默认 0，史莱姆（10）、造物（4~6）、提示条（20/21）走到角落时会把它们压住
+const HUD_DEPTH = 110
+// 屏幕中下方的消息条比 HUD 再高一层，免得被虚拟按键盖住
+const HUD_MESSAGE_DEPTH = 130
+
 // 浮动摇杆：平时静静躺在左下角；手指在左下这块区域按下就跳到那里，
 // 横向拖过 deadZone 才算「往左 / 往右」
 const STICK = {
@@ -863,6 +869,7 @@ export class GameScene extends Phaser.Scene {
     const settingsIcon = this.add
       .image(18, 16, 'gear')
       .setScrollFactor(0)
+      .setDepth(HUD_DEPTH)
       .setTint(0x8fa3b8)
       .setInteractive({ useHandCursor: true })
 
@@ -878,6 +885,7 @@ export class GameScene extends Phaser.Scene {
         .rectangle(18 + index * 20, 40, 18, 18, 0x1e1e30, 0.9)
         .setStrokeStyle(1, 0xffd54f)
         .setScrollFactor(0)
+        .setDepth(HUD_DEPTH)
         .setVisible(false)
     )
 
@@ -887,6 +895,7 @@ export class GameScene extends Phaser.Scene {
       const icon = this.add
         .image(18 + index * 20, 40, 'icon-none')
         .setScrollFactor(0)
+        .setDepth(HUD_DEPTH)
         .setVisible(false)
 
       icon.setInteractive(
@@ -913,6 +922,7 @@ export class GameScene extends Phaser.Scene {
       })
       .setOrigin(0, 0.5)
       .setScrollFactor(0)
+      .setDepth(HUD_DEPTH)
 
     // 电脑端：左下角常驻一份键位说明（那一块在手机上是虚拟按键，两边各显示各的）
     this.keyLegend = this.touchMode
@@ -926,6 +936,7 @@ export class GameScene extends Phaser.Scene {
           })
           .setOrigin(0, 1)
           .setScrollFactor(0)
+          .setDepth(HUD_DEPTH)
           .setAlpha(0.7)
 
     // 网址后面加 ?fps=1 就在左上角显示帧率、帧时、对象数和 tween 数（排查卡顿用）
@@ -972,36 +983,45 @@ export class GameScene extends Phaser.Scene {
       .rectangle(10, 60, 70, 16, 0x6b5210)
       .setOrigin(0, 0.5)
       .setScrollFactor(0)
+      .setDepth(HUD_DEPTH)
       .setVisible(false)
 
     this.staminaGlow = this.add
       .rectangle(10, 60, 68, 14, 0xffd54f)
       .setOrigin(0, 0.5)
       .setScrollFactor(0)
+      .setDepth(HUD_DEPTH)
       .setVisible(false)
 
     this.staminaBar = this.add
       .rectangle(10, 60, 60, 6, 0x74d0b0)
       .setOrigin(0, 0.5)
       .setScrollFactor(0)
+      .setDepth(HUD_DEPTH)
 
     this.armorBarBack = this.add
       .rectangle(10, 51, 70, 5, 0x2a2118)
       .setOrigin(0, 0.5)
       .setScrollFactor(0)
+      .setDepth(HUD_DEPTH)
       .setVisible(false)
 
     this.armorBar = this.add
       .rectangle(10, 51, 70, 3, 0xd9a441)
       .setOrigin(0, 0.5)
       .setScrollFactor(0)
+      .setDepth(HUD_DEPTH)
       .setVisible(false)
 
     const gemTotal = this.level.gems.length
     const gemStartX = 480 - 20 - (gemTotal - 1) * 18
 
     this.gemIcons = this.level.gems.map((_spot, index) =>
-      this.add.image(gemStartX + index * 18, 18, 'gem').setScrollFactor(0).setTint(0x33333f)
+      this.add
+        .image(gemStartX + index * 18, 18, 'gem')
+        .setScrollFactor(0)
+        .setDepth(HUD_DEPTH)
+        .setTint(0x33333f)
     )
 
     // 右上角：原石左边标一下这是第几关（关卡名取「第一关 · 你好，提瓦特」的前半段）
@@ -1013,6 +1033,7 @@ export class GameScene extends Phaser.Scene {
       })
       .setOrigin(1, 0.5)
       .setScrollFactor(0)
+      .setDepth(HUD_DEPTH)
 
     this.cursors = this.input.keyboard!.createCursorKeys()
     this.restartKey = this.input.keyboard!.addKey('R')
@@ -1527,12 +1548,15 @@ export class GameScene extends Phaser.Scene {
   private refreshHud() {
     const unlocked = this.availableElements()
 
-    // 没解锁岩元素就不显示岩柱 / 岩化两个键（键盘的 C / X 本来也不会响应）
+    // 岩元素解锁了、而且「当前就是岩史莱姆」，才显示岩柱 / 岩化两个键
+    // （键盘的 C / X 本来也只在岩形态下才响应，按钮跟着一致）
     this.rockAvailable = unlocked.includes('rock')
 
-    this.touchPillarButton?.setVisible(this.rockAvailable)
-    this.touchArmorDim?.setVisible(this.rockAvailable)
-    this.touchArmorFill?.setVisible(this.rockAvailable)
+    const showRockSkills = this.rockAvailable && this.element === 'rock'
+
+    this.touchPillarButton?.setVisible(showRockSkills)
+    this.touchArmorDim?.setVisible(showRockSkills)
+    this.touchArmorFill?.setVisible(showRockSkills)
 
     unlocked.forEach((key, index) => {
       const icon = this.elementIcons[index]
@@ -1556,12 +1580,12 @@ export class GameScene extends Phaser.Scene {
 
     this.elementHint.setPosition(14 + unlocked.length * 20, 40)
 
-    // 键位说明跟着本关能用的能力走：解锁岩了才写 X / C，风系在场才写长按空格
+    // 键位说明跟着当前能力走：当自己是岩史莱姆时才写 X / C，场上有风系才写长按空格
     if (this.keyLegend) {
       const rows = ['← → 移动　空格 跳跃　F 交互　Esc 设置']
       const skills: string[] = []
 
-      if (this.rockAvailable) {
+      if (showRockSkills) {
         skills.push('X 岩化　C 岩柱')
       }
 
@@ -2299,7 +2323,7 @@ export class GameScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setScrollFactor(0)
-      .setDepth(50)
+      .setDepth(HUD_MESSAGE_DEPTH)
       .setAlpha(0)
 
     this.tweens.add({
@@ -3348,7 +3372,8 @@ export class GameScene extends Phaser.Scene {
     if (this.touchArmorFill) {
       const ready = this.armorCooldown <= 0
       const ratio = ready ? 1 : Math.max(0, 1 - this.armorCooldown / ARMOR_COOLDOWN)
-      const show = this.rockAvailable && ratio > 0.002
+      // 只有当前是岩史莱姆时，才在按键上画冷却回充
+      const show = this.rockAvailable && this.element === 'rock' && ratio > 0.002
 
       if (show) {
         // setCrop 的原点在贴图左上角：裁出下面这一块，就是自下而上回充。
