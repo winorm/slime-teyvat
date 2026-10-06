@@ -33,6 +33,11 @@ const HOVER = {
 
 const STAMINA_MAX = 100
 
+// 碎裂平台：踩上去之后多久塌掉。
+// 风史莱姆削成 B 档之后（升速 70→55、耗体力 30→40/秒），第三关那两颗掉在坑里的
+// 原石变得拿不到了——玩家从碎裂平台跳下去捡、再飞回来需要更多时间，所以从 800 提到 1200
+const CRUMBLE_DELAY = 1200
+
 // 技能持续时间（秒）
 const ARMOR_TIME = 10
 const PILLAR_TIME = 30
@@ -649,7 +654,7 @@ export class GameScene extends Phaser.Scene {
       sprite.setData('crumbling', true)
       sprite.setTint(0x8a5a5a)
 
-      this.time.delayedCall(800, () => {
+      this.time.delayedCall(CRUMBLE_DELAY, () => {
         sprite.destroy()
       })
     })
