@@ -1500,7 +1500,8 @@ export class GameScene extends Phaser.Scene {
       }
 
       if (unlocked.some((key) => ELEMENTS[key].canHover)) {
-        skills.push('长按空格 悬浮')
+        // 悬浮和缓降都吃体力，键位说明里要写出来，不然玩家以为能无限飘
+        skills.push('长按空格 悬浮／缓降（耗体力）')
       }
 
       if (skills.length > 0) {

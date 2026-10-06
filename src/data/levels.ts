@@ -231,8 +231,8 @@ export const LEVELS: LevelDef[] = [
     hazards: [],
     monuments: [],
     hints: [
-      { x: 330, y: 440, text: '长按空格漂浮' },
-      { x: 1190, y: 465, text: '风史莱姆可以缓降' },
+      { x: 330, y: 440, text: '长按空格漂浮（耗体力）' },
+      { x: 1190, y: 465, text: '风史莱姆可以缓降（也耗体力）' },
     ],
   },
 
@@ -269,8 +269,8 @@ export const LEVELS: LevelDef[] = [
     chase: true,
     music: 'music-chase',
     hints: [
-      { x: 260, y: 430, text: '长按空格飞出坑口' },
-      { x: 840, y: 330, text: '松开空格可以缓降' },
+      { x: 260, y: 430, text: '长按空格飞出坑口（耗体力）' },
+      { x: 840, y: 330, text: '松开空格可以缓降（也耗体力）' },
     ],
   },
 
