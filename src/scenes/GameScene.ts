@@ -2829,7 +2829,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     rt.clear()
-    rt.stamp('tree-root', undefined, 0, 0)
+    // stamp 的 originX/originY 默认是 0.5（贴图中心），这里要按左上角贴，得显式指定
+    rt.stamp('tree-root', undefined, 0, 0, { originX: 0, originY: 0 })
 
     if (this.playerLayer === 'back') {
       // 贴图是按 scaleX 横向缩放画的，擦洞的坐标要先除回去
@@ -2867,7 +2868,11 @@ export class GameScene extends Phaser.Scene {
     const bark = this.textures.get('tree-trunk').getSourceImage()
 
     for (let y = 0; y < spindle.height; y += bark.height) {
-      rt.stamp('tree-trunk', undefined, -(bark.width - spindle.width) / 2, y)
+      // 同上：显式按左上角贴，横向挪到树皮中间那一条，只留中间偏亮的部分
+      rt.stamp('tree-trunk', undefined, -(bark.width - spindle.width) / 2, y, {
+        originX: 0,
+        originY: 0,
+      })
     }
 
     if (this.playerLayer === 'back') {
