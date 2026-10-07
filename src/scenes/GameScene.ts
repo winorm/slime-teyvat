@@ -309,7 +309,8 @@ export class GameScene extends Phaser.Scene {
   private dialogueName: Phaser.GameObjects.Text | null = null
   private dialogueTip: Phaser.GameObjects.Text | null = null
   private dialogueSpeaker = ''
-  private dialogueLines: string[] = []
+  // 对话框的"页"：一句太长会按字数折行、再切成几页，玩家按 F 一页页翻
+  private dialoguePages: { text: string; mine: boolean }[] = []
   private dialogueIndex = 0
   private dialogueDone: (() => void) | null = null
   // 支线的三样原料（第七关专用，位置是照着客栈地图定的，所以直接写在这儿，不动 levels.ts）
@@ -489,7 +490,7 @@ export class GameScene extends Phaser.Scene {
     this.dialogueName = null
     this.dialogueSpeaker = ''
     this.dialogueTip = null
-    this.dialogueLines = []
+    this.dialoguePages = []
     this.dialogueIndex = 0
     this.dialogueDone = null
     this.ingredients = []
@@ -4089,7 +4090,7 @@ export class GameScene extends Phaser.Scene {
 
   private showMessage(text: string) {
     const message = this.add
-      .text(240, 232, text, {
+      .text(240, 232, this.wrapCjk(text, 24).join('\n'), {
         fontFamily: 'sans-serif',
         fontSize: '16px',
         color: '#ffe9a8',
@@ -4143,7 +4144,7 @@ export class GameScene extends Phaser.Scene {
 
     const shade = this.add.rectangle(0, 0, 480, 270, 0x0a0a14).setOrigin(0, 0)
     const body = this.add
-      .text(240, 118, text, {
+      .text(240, 118, this.wrapCjk(text, 26).join('\n'), {
         fontFamily: 'sans-serif',
         fontSize: '16px',
         color: '#ffffff',
@@ -4406,7 +4407,7 @@ export class GameScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
     const body = this.add
-      .text(240, 130, text, {
+      .text(240, 130, this.wrapCjk(text, 22).join('\n'), {
         fontFamily: 'sans-serif',
         fontSize: '14px',
         color: '#e8e2d0',
@@ -4453,13 +4454,67 @@ export class GameScene extends Phaser.Scene {
   }
 
   // 老板娘 / 仙人说话的对话板：黑底金框的一条，一句一句翻
+  // 一段中文按"每行最多 max 个字"折行。
+  // Phaser 自带的 wordWrap 是按空格断的，中文整句没有空格，根本不会断 —— 所以自己按字数断，
+  // 顺带不让句读跑到行首（「，。、！？；：）」」这些宁可留在上一行末尾）
+  private wrapCjk(text: string, max: number): string[] {
+    const tailPunctuation = '，。、！？；：）”』…'
+    const lines: string[] = []
+    let line = ''
+
+    for (const char of text) {
+      if (char === '\n') {
+        lines.push(line)
+        line = ''
+        continue
+      }
+
+      if (line.length >= max && !tailPunctuation.includes(char)) {
+        lines.push(line)
+        line = ''
+      }
+
+      line += char
+    }
+
+    if (line.length > 0) {
+      lines.push(line)
+    }
+
+    return lines
+  }
+
+  // 对话框一屏最多 3 行、每行最多 26 个字。一整句放不下就切成两页（用户要的"分两次说"）
+  private paginateDialogue(lines: string[]): { text: string; mine: boolean }[] {
+    const pages: { text: string; mine: boolean }[] = []
+
+    lines.forEach((line) => {
+      // 以「（」开头的是玩家自己的回话：名字牌换成"我"、去掉外层括号
+      const mine = line.startsWith('（')
+      const raw = mine ? line.replace(/^（|）$/g, '') : line
+      const wrapped = this.wrapCjk(raw, 26)
+
+      for (let start = 0; start < wrapped.length; start += 3) {
+        pages.push({ text: wrapped.slice(start, start + 3).join('\n'), mine })
+      }
+    })
+
+    return pages
+  }
+
   private showDialogue(speaker: string, lines: string[], onDone?: () => void) {
     if (this.dialogueShowing || lines.length === 0) {
       return
     }
 
+    const pages = this.paginateDialogue(lines)
+
+    if (pages.length === 0) {
+      return
+    }
+
     this.dialogueShowing = true
-    this.dialogueLines = lines
+    this.dialoguePages = pages
     this.dialogueIndex = 0
     this.dialogueDone = onDone ?? null
     this.dialogueSpeaker = speaker
@@ -4481,11 +4536,11 @@ export class GameScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
     const body = this.add
-      .text(240, 198, lines[0], {
+      .text(240, 198, '', {
         fontFamily: 'sans-serif',
         fontSize: '14px',
         color: '#e8e2d0',
-        align: 'left',
+        align: 'center',
         lineSpacing: 8,
         wordWrap: { width: 408 },
       })
@@ -4508,14 +4563,13 @@ export class GameScene extends Phaser.Scene {
     this.bindDialogueTap()
   }
 
-  // 刷新当前这一句：以「（」开头的是玩家自己的回话 —— 名字牌换成"我"，两头的括号去掉
+  // 刷新当前这一页：玩家自己的回话名字牌换成"我"
   private refreshDialogueLine() {
-    const line = this.dialogueLines[this.dialogueIndex] ?? ''
-    const mine = line.startsWith('（')
-    const last = this.dialogueIndex >= this.dialogueLines.length - 1
+    const page = this.dialoguePages[this.dialogueIndex]
+    const last = this.dialogueIndex >= this.dialoguePages.length - 1
 
-    this.dialogueName?.setText(mine ? '我' : this.dialogueSpeaker)
-    this.dialogueText?.setText(mine ? line.replace(/^（|）$/g, '') : line)
+    this.dialogueName?.setText(page?.mine ? '我' : this.dialogueSpeaker)
+    this.dialogueText?.setText(page?.text ?? '')
     this.dialogueTip?.setText(
       this.touchMode ? (last ? '轻点收起 ▶' : '轻点继续 ▶') : last ? '按 F 收起 ▶' : '按 F 继续 ▶'
     )
@@ -4535,7 +4589,7 @@ export class GameScene extends Phaser.Scene {
 
     this.dialogueIndex += 1
 
-    if (this.dialogueIndex >= this.dialogueLines.length) {
+    if (this.dialogueIndex >= this.dialoguePages.length) {
       this.closeDialogue()
       return
     }
