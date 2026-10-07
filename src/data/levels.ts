@@ -659,8 +659,12 @@ export const LEVELS: LevelDef[] = [
       { x: 650, y: 778, width: 120, height: 6, depth: 3, rail: true, plank: true },
       { x: 650, y: 528, width: 120, height: 6, depth: 3, rail: true, plank: true },
 
-      // 顶楼阳台（顶面 400）：最后一跑从 525 平台往上、往右接到这儿（左边就是楼梯井，
-      // 往回走一脚下楼），宝箱摆在阳台右端
+      // 顶楼（顶面 400）：最后一跑落在 x=430 的楼梯口上，430~510 是活板 ——
+      // 树前层是完整楼板（能一路走到阳台），树后层让开、露出楼梯井（往右走就下楼）；
+      // 阳台和宝箱（880,386）在最右端
+      { x: 215, y: 403, width: 430, height: 6, depth: 3, plank: true },
+      { x: 470, y: 403, width: 80,  height: 6, depth: 3, plank: true, layer: 'front' },
+      { x: 735, y: 403, width: 450, height: 6, depth: 3, plank: true },
       { x: 855, y: 403, width: 210, height: 6, depth: 3, rail: true, plank: true },
     ],
 
@@ -679,7 +683,7 @@ export const LEVELS: LevelDef[] = [
       { from: { x: 430, y: 900 },  to: { x: 590, y: 775 }, layer: 'front' },
       { from: { x: 590, y: 775 }, to: { x: 430, y: 650 }, layer: 'back' },
       { from: { x: 430, y: 650 },  to: { x: 590, y: 525 }, layer: 'front' },
-      { from: { x: 590, y: 525 }, to: { x: 750, y: 400 }, layer: 'back' },
+      { from: { x: 590, y: 525 }, to: { x: 430, y: 400 }, layer: 'back' },
     ],
 
     depthGates: [
@@ -694,12 +698,12 @@ export const LEVELS: LevelDef[] = [
       { x: 630, y: 969, width: 32, height: 40 },
       { x: 630, y: 759, width: 32, height: 40 },
       { x: 630, y: 509, width: 32, height: 40 },
-      // 525 平台例外：它的楼梯在左右两边（往右上楼、往左下楼），所以两个方向各放一个判定区
-      { x: 600, y: 509, width: 36, height: 40, dir: -1 },
 
-      { x: 280, y: 1094, width: 32, height: 40 },
-      { x: 380, y: 884, width: 32, height: 40 },
-      { x: 380, y: 634, width: 32, height: 40 },
+      { x: 362, y: 1094, width: 32, height: 40 },
+      { x: 430, y: 884,  width: 32, height: 40 },
+      { x: 430, y: 634,  width: 32, height: 40 },
+      // 顶楼（400 那层）的楼梯口也在 430，同上一行一个道理
+      { x: 430, y: 384,  width: 32, height: 40 },
     ],
     pickups: [
       { x: 300, y: 1810, prompt: '拾取木材' },
