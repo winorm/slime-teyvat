@@ -201,6 +201,7 @@ export class BootScene extends Phaser.Scene {
     this.makeTreeBranches()
     this.makeLiftCar()
     this.makeWaterWheel()
+    this.makeLiyueBackgroundTall()
   }
 
   private makeSpire() {
@@ -622,34 +623,47 @@ export class BootScene extends Phaser.Scene {
 
   // 水利电梯的水车：木轮 + 八根辐条 + 中心轴，转动时用来当"水力"的表现
   private makeWaterWheel() {
-    const size = 40
+    const size = 64
     const center = size / 2
     const gfx = this.add.graphics()
 
-    // 外圈
+    // 外圈（做成有轮叶的大水车）
     gfx.fillStyle(0x6f4423, 1)
     gfx.fillCircle(center, center, center - 1)
     gfx.fillStyle(0x8a6034, 1)
-    gfx.fillCircle(center, center, center - 4)
-    gfx.fillStyle(0x2f6f8f, 0.55)          // 中心透出一点"水"
-    gfx.fillCircle(center, center, center - 7)
+    gfx.fillCircle(center, center, center - 5)
+    gfx.fillStyle(0x2f6f8f, 0.5)           // 中心透出一点"水"
+    gfx.fillCircle(center, center, center - 11)
 
-    // 八根辐条
-    gfx.fillStyle(0x5f4224, 1)
-
+    // 八根辐条 + 轮叶（辐条末端那几片小桨）
     for (let i = 0; i < 8; i++) {
       const angle = (Math.PI * 2 * i) / 8
-      const x = center + Math.cos(angle) * (center - 6)
-      const y = center + Math.sin(angle) * (center - 6)
+      const x = center + Math.cos(angle) * (center - 9)
+      const y = center + Math.sin(angle) * (center - 9)
 
-      gfx.fillRect(Math.min(x, center) - 1, Math.min(y, center) - 1, Math.abs(x - center) + 2, Math.abs(y - center) + 2)
+      gfx.fillStyle(0x5f4224, 1)
+      gfx.fillRect(
+        Math.min(x, center) - 2,
+        Math.min(y, center) - 2,
+        Math.abs(x - center) + 4,
+        Math.abs(y - center) + 4
+      )
+
+      // 轮叶：贴着外圈的一小片深色桨
+      const px = center + Math.cos(angle) * (center - 2)
+      const py = center + Math.sin(angle) * (center - 2)
+
+      gfx.fillStyle(0x3f2c1c, 1)
+      gfx.fillRect(px - 4, py - 4, 8, 8)
+      gfx.fillStyle(0x9adcf0, 0.35)        // 桨面上挂着一线水光
+      gfx.fillRect(px - 4, py - 4, 8, 2)
     }
 
     // 中心轴
     gfx.fillStyle(0x3f2c1c, 1)
-    gfx.fillCircle(center, center, 4)
+    gfx.fillCircle(center, center, 7)
     gfx.fillStyle(0xa8794a, 1)
-    gfx.fillCircle(center, center, 2)
+    gfx.fillCircle(center, center, 3)
 
     gfx.generateTexture('water-wheel', size, size)
     gfx.destroy()
@@ -2642,6 +2656,75 @@ export class BootScene extends Phaser.Scene {
   // → 湖面 → 堤岸和芦苇，一层压一层，各占各的高度不互相盖掉。
   // 注意：户外的背景是钉在屏幕上的，而地面站在屏幕最下边（大约 y>210 那一带），
   // 所以有内容的东西都要画在 y≈205 以上，芦苇的顶也是从堤岸往上伸到这一段里
+  // 第七关（望舒客栈那棵古树）专用的竖版背景：480 × 2200，按世界坐标排布、跟世界 1:1 走。
+  // 从上到下：高空的天 → 云 → 晚霞/落日 → 远山 → 湖面 → 堤岸芦苇。
+  // 湖和芦苇只画在地面那一带（y≈2080 以下），所以爬高时它们会随世界退出画面，头顶只剩天空。
+  private makeLiyueBackgroundTall() {
+    const width = 480
+    const height = 2200
+    const horizon = 2080
+    const far = this.add.graphics()
+
+    // 天空：高空是深紫，越靠近地平线越暖
+    this.paintGradient(far, width, height, 0x3a3560, 0xf3b072)
+
+    // 高空的薄云
+    far.fillStyle(0xffffff, 0.12)
+    far.fillEllipse(120, 380, 220, 26)
+    far.fillEllipse(330, 640, 180, 22)
+    far.fillEllipse(90, 980, 200, 24)
+    far.fillEllipse(300, 1320, 160, 20)
+
+    // 落日 + 晚霞：都压在地平线附近
+    far.fillStyle(0xffe2ad, 0.9)
+    far.fillEllipse(352, horizon - 66, 150, 70)
+    far.fillStyle(0xffffff, 0.28)
+    far.fillEllipse(140, horizon - 120, 150, 24)
+    far.fillEllipse(320, horizon - 150, 110, 18)
+
+    // 远山：两层剪影，山脚埋进湖里（只露地平线以上的部分）
+    this.drawRidge(far, width, height, 0x8a7396, [2, 5], 20, horizon - 34, 0.9)
+    this.drawRidge(far, width, height, 0x5d5075, [1, 4], 26, horizon - 16)
+
+    far.generateTexture('bg-liyue-tall-far', width, height)
+    far.destroy()
+
+    const mid = this.add.graphics()
+
+    // 湖面：从地平线一直铺到最底下（上面整片是透明的，露出天空和远山）
+    mid.fillStyle(0x4f6f8a, 1)
+    mid.fillRect(0, horizon, width, height - horizon)
+    mid.fillStyle(0x6f8fa8, 1)
+    mid.fillRect(0, horizon, width, 3)
+
+    // 落日在水面上的反光
+    mid.fillStyle(0xffd9a0, 0.45)
+
+    for (let index = 0; index < 12; index++) {
+      const w = 38 - (index % 4) * 8
+
+      mid.fillRect(340 - w / 2 + ((index % 3) - 1) * 10, horizon + 6 + index * 6, w, 2)
+    }
+
+    // 堤岸 + 芦苇：贴着地面那一带（2140 起）
+    this.drawRidge(mid, width, height, 0x6b5a44, [3, 7], 6, 2140)
+    this.drawRidge(mid, width, height, 0x50442f, [4, 9], 4, 2158)
+
+    for (let index = 0; index < 26; index++) {
+      const x = 8 + index * 19 + ((index * 7) % 5)
+      const reedHeight = 26 + ((index * 11) % 16)
+      const y = 2140 - reedHeight
+
+      mid.fillStyle(0x6f6a3c, 1)
+      mid.fillRect(x, y, 1, reedHeight)
+      mid.fillStyle(0x9a945a, 1)
+      mid.fillRect(x - 1, y - 3, 2, 4)
+    }
+
+    mid.generateTexture('bg-liyue-tall-mid', width, height)
+    mid.destroy()
+  }
+
   private makeLiyueBackground() {
     const far = this.add.graphics()
 

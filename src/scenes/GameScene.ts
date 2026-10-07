@@ -451,8 +451,11 @@ export class GameScene extends Phaser.Scene {
 
     // 纵向视差：户外的天空/远山/湖面/芦苇是「远景」，纵向一律不跟着相机走，
     // 所以跳起来的时候整片背景不会上下滑动（横向的视差保留）。
-    // 塔内的墙反过来，要跟世界 1:1 地往上走，每层的窗户才对得上楼层
-    const worldLocked = theme === 'tower'
+    // 塔内的墙反过来，要跟世界 1:1 地往上走，每层的窗户才对得上楼层。
+    // 第七关（爬树）例外：它太高（2200），用竖版 liyue 背景 + 跟世界 1:1 走，
+    // 这样爬高时湖面/芦苇会随世界退出画面，头顶只剩天空
+    const tallLiyue = theme === 'liyue' && this.level.height > 800
+    const worldLocked = theme === 'tower' || tallLiyue
 
     this.bgFarY = worldLocked ? 1 : 0
     this.bgMidY = worldLocked ? 1 : 0
@@ -460,13 +463,13 @@ export class GameScene extends Phaser.Scene {
     this.bgSpin = this.level.bgSpin ?? 0
 
     this.bgFar = this.add
-      .tileSprite(0, 0, 480, 270, 'bg-' + theme + '-far')
+      .tileSprite(0, 0, 480, 270, tallLiyue ? 'bg-liyue-tall-far' : 'bg-' + theme + '-far')
       .setOrigin(0, 0)
       .setScrollFactor(0)
       .setDepth(-30)
 
     this.bgMid = this.add
-      .tileSprite(0, 0, 480, 270, 'bg-' + theme + '-mid')
+      .tileSprite(0, 0, 480, 270, tallLiyue ? 'bg-liyue-tall-mid' : 'bg-' + theme + '-mid')
       .setOrigin(0, 0)
       .setScrollFactor(0)
       .setDepth(-20)
@@ -2913,11 +2916,11 @@ export class GameScene extends Phaser.Scene {
 
     // 井道底部的立式水车 + 水槽：既是"水利"的表现，也让地面的电梯口一眼看得出来
     this.liftWheel = this.add
-      .image(lift.x - half - 26, bottomStop - 30, 'water-wheel')
+      .image(lift.x - half - 42, bottomStop - 34, 'water-wheel')
       .setDepth(2.3)
 
     this.add
-      .rectangle(lift.x - half - 26, bottomStop - 4, 46, 8, 0x2f6f8f)
+      .rectangle(lift.x - half - 42, bottomStop - 4, 70, 10, 0x2f6f8f)
       .setAlpha(0.5)
       .setDepth(2.31)
   }
