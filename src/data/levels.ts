@@ -639,22 +639,19 @@ export const LEVELS: LevelDef[] = [
       { x: 630, y: 1988, width: 120, height: 6, depth: 3, rail: true, plank: true, pillars: 3 },
       { x: 630, y: 1638, width: 120, height: 6, depth: 3, rail: true, plank: true, pillars: 3 },
       { x: 630, y: 1288, width: 120, height: 6, depth: 3, rail: true, plank: true, pillars: 3 },
-
-      // 楼内：每层楼板在楼梯口那儿断开 —— x 430~534 是楼梯井。
-      // 下楼那一跑就露在井里：玩家在「树后面」那层走到楼板右沿（x=430）会顺着它下去；
-      // 在「树前面」那层会被上楼的踏步挡一下、自动抬上去。上和下就是靠这个分开的。
-      // （以前楼板铺满 960，把下楼那一跑压在底下了，所以怎么走都下不去。）
-      // 井右边那截楼板留着，让「楼」看起来是一整层；平地上跳不过去，要用风飞过去。
-      { x: 215, y: 1113, width: 430, height: 6, depth: 3, plank: true },
-      { x: 747, y: 1113, width: 426, height: 6, depth: 3, plank: true },
+      
+      // 楼内：每层楼板在「上楼梯的上端」留一道隔断（活板）——
+      // 树前层时它是完整楼板（正常走过去），树后层时它消失、露出楼梯井（可以下楼）。
+      // 隔断宽度要盖住"整个人"（人 32 宽、头离脚 26、楼板 6 厚）：脚一踩到下一级就会和楼板重叠
+      { x: 181, y: 1113, width: 362, height: 6, depth: 3, plank: true },
+      { x: 410, y: 1113, width: 96,  height: 6, depth: 3, plank: true, layer: 'front' },
+      { x: 709, y: 1113, width: 502, height: 6, depth: 3, plank: true },
       { x: 215, y: 903,  width: 430, height: 6, depth: 3, plank: true },
+      { x: 482, y: 903,  width: 104, height: 6, depth: 3, plank: true, layer: 'front' },
       { x: 747, y: 903,  width: 426, height: 6, depth: 3, plank: true },
       { x: 215, y: 653,  width: 430, height: 6, depth: 3, plank: true },
+      { x: 482, y: 653,  width: 104, height: 6, depth: 3, plank: true, layer: 'front' },
       { x: 747, y: 653,  width: 426, height: 6, depth: 3, plank: true },
-      // 楼内：绕短木的半层平台（顶面 985 / 775 / 525）
-      { x: 650, y: 988, width: 120, height: 6, depth: 3, rail: true, plank: true },
-      { x: 650, y: 778, width: 120, height: 6, depth: 3, rail: true, plank: true },
-      { x: 650, y: 528, width: 120, height: 6, depth: 3, rail: true, plank: true },
 
       // 顶楼阳台（顶面 400）：最后一跑从 525 平台往上、往右接到这儿（左边就是楼梯井，
       // 往回走一脚下楼），宝箱摆在阳台右端
@@ -693,7 +690,7 @@ export const LEVELS: LevelDef[] = [
       { x: 630, y: 509, width: 32, height: 40 },
       // 525 平台例外：它的楼梯在左右两边（往右上楼、往左下楼），所以两个方向各放一个判定区
       { x: 600, y: 509, width: 36, height: 40, dir: -1 },
-      
+
       { x: 280, y: 1094, width: 32, height: 40 },
       { x: 380, y: 884, width: 32, height: 40 },
       { x: 380, y: 634, width: 32, height: 40 },

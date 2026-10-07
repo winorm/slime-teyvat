@@ -192,6 +192,10 @@ export class GameScene extends Phaser.Scene {
     layer: 'front' | 'back'
     objects: (Phaser.GameObjects.Sprite | Phaser.GameObjects.TileSprite)[]
   }[] = []
+  // 楼梯护栏单独一张 Graphics，depth 按「这一跑属于哪一层」定：
+  // 前台层的护栏给 12（压在史莱姆 10/11 上面 —— 栏杆在台阶外侧，人从栏杆后面走过），
+  // 后台层的护栏给 1.4（在树干 2 之前，走到树后面时仍然被树挡住）
+  private stairRails: (Phaser.GameObjects.Graphics | undefined)[] = []
   private pillars!: Phaser.Physics.Arcade.StaticGroup
   private orbs!: Phaser.Physics.Arcade.StaticGroup
 
@@ -630,7 +634,8 @@ export class GameScene extends Phaser.Scene {
       if (!def.layer && (def.rail || (narrowLanding && (stairAtLeft || stairAtRight)))) {
         const railY = top - 26
         const railLeft = railLeftEdge
-        const railGfx = this.add.graphics().setDepth((def.depth ?? 0) + 0.1)
+        // 平台护栏也画在人前面：它和楼梯护栏是接在一起的，depth 要一致
+        const railGfx = this.add.graphics().setDepth(12)
 
         railGfx.fillStyle(0x7a4c28, 1)
         railGfx.fillRect(railLeft, railY, def.width, 4)
@@ -2486,6 +2491,7 @@ export class GameScene extends Phaser.Scene {
     if (only === undefined) {
       this.stairs = []
       this.stairGfx = []
+      this.stairRails = []
     }
 
     ;(this.level.stairs ?? []).forEach((def, stairIndex) => {
@@ -2493,6 +2499,10 @@ export class GameScene extends Phaser.Scene {
       if (only !== undefined && only !== stairIndex) {
         return
       }
+
+      // 重建这一跑时先把旧的护栏丢掉（startRepair 那边也会 destroy 旧的 stairGfx）
+      this.stairRails[stairIndex]?.destroy()
+      this.stairRails[stairIndex] = undefined
 
       const from = def.from
       const to = def.to
@@ -2561,6 +2571,10 @@ export class GameScene extends Phaser.Scene {
       }
 
       // 斜扶栏：和台阶平行，架在踏面上方 railHeight 那么高
+      // 单独画一张 Graphics：depth 压在人上面（人从前台走过时，栏杆在台阶外侧）
+      const railGfx = this.add.graphics().setDepth(layer === 'back' ? 1.4 : 12)
+      this.stairRails[stairIndex] = railGfx
+
       const railThickness = 4
       const rail = [
         { x: from.x, y: from.y - railHeight },
@@ -2569,18 +2583,18 @@ export class GameScene extends Phaser.Scene {
         { x: from.x + nx * railThickness, y: from.y - railHeight + ny * railThickness },
       ]
 
-      gfx.fillStyle(railWood, 1)
-      gfx.fillTriangle(rail[0].x, rail[0].y, rail[1].x, rail[1].y, rail[2].x, rail[2].y)
-      gfx.fillTriangle(rail[0].x, rail[0].y, rail[2].x, rail[2].y, rail[3].x, rail[3].y)
+      railGfx.fillStyle(railWood, 1)
+      railGfx.fillTriangle(rail[0].x, rail[0].y, rail[1].x, rail[1].y, rail[2].x, rail[2].y)
+      railGfx.fillTriangle(rail[0].x, rail[0].y, rail[2].x, rail[2].y, rail[3].x, rail[3].y)
 
       // 立柱：每 4 级一根，把扶栏和底下的斜梁连起来
-      gfx.fillStyle(beamWood, 1)
+      railGfx.fillStyle(beamWood, 1)
 
       for (let i = 0; i <= count; i += 4) {
         const postX = from.x + dir * run * i
         const t = (postX - from.x) / (to.x - from.x)
 
-        gfx.fillRect(postX - 1.5, from.y - railHeight + (to.y - from.y) * t, 3, railHeight)
+        railGfx.fillRect(postX - 1.5, from.y - railHeight + (to.y - from.y) * t, 3, railHeight)
       }
     })
   }
