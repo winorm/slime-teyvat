@@ -289,15 +289,26 @@ export class GameScene extends Phaser.Scene {
   private xiaoWall: Phaser.Physics.Arcade.Sprite | null = null
   private xiaoSprite: Phaser.GameObjects.Image | null = null
   private xiaoAuraSeen = false
-  // 支线的进度：0 = 还没见过魈、1 = 见过（该去做杏仁豆腐了）、2 = 菜做好了、3 = 喂完了
-  private xiaoStage = 0
+  // 支线进度（四个标记，比单一个 stage 好读）：
+  //   stairsDone —— 两处楼梯都修好了（老板娘"太感谢了"那段要它）
+  //   metXiao    —— 上顶楼撞到过那股气息（没修楼梯也能撞上，两条路都能推进这条线）
+  //   dishMade   —— 杏仁豆腐做好了（端着它才能靠近仙人）
+  //   xiaoGone   —— 仙人已经走了（这条线走完，宝箱也出来了）
+  // 另外 ingredientHintSeen：老板娘已经把"三样食材在哪"说完过一遍了，之后只重复最后一句
+  private stairsDone = false
+  private metXiao = false
+  private dishMade = false
+  private xiaoGone = false
+  private ingredientHintSeen = false
   private innkeeper: Phaser.GameObjects.Image | null = null
 
   // 对话板（老板娘 / 仙人说话用）：一次显示一句，"按 F / 点屏幕"翻到下一句
   private dialogueShowing = false
   private dialogueLayer: Phaser.GameObjects.Container | null = null
   private dialogueText: Phaser.GameObjects.Text | null = null
+  private dialogueName: Phaser.GameObjects.Text | null = null
   private dialogueTip: Phaser.GameObjects.Text | null = null
+  private dialogueSpeaker = ''
   private dialogueLines: string[] = []
   private dialogueIndex = 0
   private dialogueDone: (() => void) | null = null
@@ -466,11 +477,17 @@ export class GameScene extends Phaser.Scene {
     this.xiaoWall = null
     this.xiaoSprite = null
     this.xiaoAuraSeen = false
-    this.xiaoStage = 0
+    this.stairsDone = false
+    this.metXiao = false
+    this.dishMade = false
+    this.xiaoGone = false
+    this.ingredientHintSeen = false
     this.innkeeper = null
     this.dialogueShowing = false
     this.dialogueLayer = null
     this.dialogueText = null
+    this.dialogueName = null
+    this.dialogueSpeaker = ''
     this.dialogueTip = null
     this.dialogueLines = []
     this.dialogueIndex = 0
@@ -4037,11 +4054,12 @@ export class GameScene extends Phaser.Scene {
       const allRepairs = this.level.repairs ?? []
       const done = allRepairs.filter((item) => this.isRepaired(item)).length
 
-      this.showMessage(
-        done >= allRepairs.length
-          ? '楼梯都修好了 —— 楼上有动静，上去看看'
-          : `楼梯修好了（${done}/${allRepairs.length}）`
-      )
+      if (done >= allRepairs.length) {
+        this.stairsDone = true
+        this.showMessage('上楼看看')
+      } else {
+        this.showMessage(`楼梯修好了（${done}/${allRepairs.length}）`)
+      }
 
       // 注意：宝箱不再"修完楼梯就出现"了 —— 第七关的收口改成"把杏仁豆腐端给顶楼那位仙人"，
       // revealGoal() 现在在 xiaoLeaves() 里调（见那句注释）
@@ -4161,8 +4179,8 @@ export class GameScene extends Phaser.Scene {
     this.introShowing = false
     this.physics.world.resume()
 
-    // 第七关开局：黑屏文字收掉之后提示一句该往哪走 —— 支线还没开始（xiaoStage 0）的时候才提示
-    if (this.innkeeper && this.xiaoStage === 0) {
+    // 第七关开局：黑屏文字收掉之后提示一句该往哪走 —— 还没修楼梯、也还没上过顶楼的时候才提示
+    if (this.innkeeper && !this.stairsDone && !this.metXiao) {
       this.time.delayedCall(600, () => {
         this.showMessage('乘电梯上楼，找老板娘问问')
       })
@@ -4444,6 +4462,7 @@ export class GameScene extends Phaser.Scene {
     this.dialogueLines = lines
     this.dialogueIndex = 0
     this.dialogueDone = onDone ?? null
+    this.dialogueSpeaker = speaker
     this.physics.world.pause()
     stopAllLoops()
 
@@ -4483,14 +4502,20 @@ export class GameScene extends Phaser.Scene {
 
     this.dialogueLayer = layer
     this.dialogueText = body
+    this.dialogueName = name
     this.dialogueTip = tip
-    this.refreshDialogueTip()
+    this.refreshDialogueLine()
     this.bindDialogueTap()
   }
 
-  private refreshDialogueTip() {
+  // 刷新当前这一句：以「（」开头的是玩家自己的回话 —— 名字牌换成"我"，两头的括号去掉
+  private refreshDialogueLine() {
+    const line = this.dialogueLines[this.dialogueIndex] ?? ''
+    const mine = line.startsWith('（')
     const last = this.dialogueIndex >= this.dialogueLines.length - 1
 
+    this.dialogueName?.setText(mine ? '我' : this.dialogueSpeaker)
+    this.dialogueText?.setText(mine ? line.replace(/^（|）$/g, '') : line)
     this.dialogueTip?.setText(
       this.touchMode ? (last ? '轻点收起 ▶' : '轻点继续 ▶') : last ? '按 F 收起 ▶' : '按 F 继续 ▶'
     )
@@ -4515,8 +4540,7 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
-    this.dialogueText?.setText(this.dialogueLines[this.dialogueIndex])
-    this.refreshDialogueTip()
+    this.refreshDialogueLine()
     this.bindDialogueTap()
   }
 
@@ -4568,11 +4592,11 @@ export class GameScene extends Phaser.Scene {
   // 支线收尾：把杏仁豆腐端给魈。菜先飘过去，他吃完留一句回家的提示，再化风离开 ——
   // 宝箱要等他走了才出现
   private playXiaoScene() {
-    if (this.xiaoStage !== 2) {
+    if (!this.dishMade || this.xiaoGone) {
       return
     }
 
-    this.xiaoStage = 3
+    this.xiaoGone = true
     this.inputLocked = true
     stopAllLoops()
 
@@ -4710,7 +4734,7 @@ export class GameScene extends Phaser.Scene {
 
   // 在灶台做杏仁豆腐：三样原料缺一不可。做好了那盘菜就端在史莱姆头上
   private cookAlmondTofu(stoveX: number, stoveTop: number) {
-    if (this.xiaoStage >= 2) {
+    if (this.dishMade) {
       this.showMessage('杏仁豆腐已经做好了')
       return
     }
@@ -4722,7 +4746,7 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
-    this.xiaoStage = 2
+    this.dishMade = true
     this.stoveSteam(stoveX, stoveTop)
     playSfx(this, 'sfx-interact', 0.4)
 
@@ -4750,33 +4774,59 @@ export class GameScene extends Phaser.Scene {
     )
   }
 
-  // 老板娘：按支线进度说不同的话。她的话就是整条支线的"指引"
+  // 老板娘：按支线进度说不同的话。她的话就是整条支线的"指引"。
+  // 对话里以「」括号包着的是玩家自己的回话（名字牌会换成"我"）
   private talkToInnkeeper() {
-    if (this.xiaoStage === 0) {
+    const allTaken = this.ingredients.every((one) => one.taken)
+    const last = '糖放在下面的桌子上了，杏仁在那棵桂花树下还有些许存货，豆腐在厨房的水缸里。祝你好运。'
+
+    // ① 仙人已经走了
+    if (this.xiaoGone) {
+      this.showDialogue('老板娘', ['请仙典仪在三天后开始，希望你早日回家。'])
+      return
+    }
+
+    // ② 菜做好了：催你端上去
+    if (this.dishMade) {
+      this.showDialogue('老板娘', ['手艺不错，快去顶楼找那位仙人吧。'])
+      return
+    }
+
+    // ③ 三样材料齐了：催你去做
+    if (allTaken) {
+      this.showDialogue('老板娘', ['看来你都找齐了，厨房就在楼上，快去做吧。'])
+      return
+    }
+
+    // ④ 中间那段（带玩家回话）：楼梯修好了就能开，**不要求见过魈**；
+    //    没修完但已经上过顶楼碰过气息的，也能从这儿问出来（只是省掉开头那两句道谢）
+    if (this.stairsDone || this.metXiao) {
+      if (this.ingredientHintSeen) {
+        this.showDialogue('老板娘', [last])
+        return
+      }
+
+      this.ingredientHintSeen = true
       this.showDialogue('老板娘', [
+        ...(this.stairsDone ? ['太感谢了。', '（没事，小菜一碟。）'] : []),
+        '对了，我听说你在找回家的方法。不瞒您说，咱客栈顶楼住着一位仙人，唤名「魈」。',
+        '你可以找他打听打听——只不过他一般不见人。',
+        '除非你做一盘他最喜欢吃的杏仁豆腐，兴许他会告诉你。',
+        '（那这些食材我要去哪里找？）',
+        last,
+      ])
+      return
+    }
+
+    // ⑤ 还没修楼梯：交代情况 + 优惠，说完提示下楼（两处断裂都在下面那几跑楼梯上）
+    this.showDialogue(
+      '老板娘',
+      [
         '可不是嘛，后山那窝魔物闹得凶，把楼梯掀断了两处。',
         '客官要是肯帮我把楼梯修好，食宿就免了。',
-      ])
-      return
-    }
-
-    if (this.xiaoStage === 1) {
-      this.showDialogue('老板娘', [
-        '你说顶楼那位？唉……他叫魈，是位仙人，平时不见人的。',
-        '不过，他要是闻到杏仁豆腐的味儿，兴许肯搭理你。那是他最喜欢的吃食。',
-        '糖、杏仁、豆腐，一样都不能少。',
-        '糖在一楼外头吃饭的桌上；杏仁嘛，去那棵金桂底下找找；豆腐在楼上厨房的水缸旁边。',
-        '东西凑齐了，到厨房的灶台边说一声就成。',
-      ])
-      return
-    }
-
-    if (this.xiaoStage === 2) {
-      this.showDialogue('老板娘', ['做好了？快趁热端上去吧，凉了就不是那个味儿了。'])
-      return
-    }
-
-    this.showDialogue('老板娘', ['那位仙人走了？……也好。谢谢你，客官。'])
+      ],
+      () => this.showMessage('下楼看看')
+    )
   }
 
   private playCageScene() {
@@ -5187,7 +5237,7 @@ export class GameScene extends Phaser.Scene {
     this.updatePetals(dt)
 
     // 顶楼的支线：气息的表现 → 端着菜走近时让路 → 端到跟前触发出场
-    if (this.xiaoStage > 0 || this.xiaoAura) {
+    if (this.xiaoAura || this.metXiao || this.dishMade) {
       const onTop = this.slime.x > 470 && this.slime.y < 450
       const away = Phaser.Math.Distance.Between(this.slime.x, this.slime.y, 650, 396)
 
@@ -5203,9 +5253,7 @@ export class GameScene extends Phaser.Scene {
         this.xiaoAuraSeen = true
 
         // 这一步就是支线的起点：见过他之后回前台，老板娘才会说杏仁豆腐那一套
-        if (this.xiaoStage === 0) {
-          this.xiaoStage = 1
-        }
+        this.metXiao = true
 
         this.showMessage('他身上有一股让人不敢靠近的气息')
 
@@ -5215,7 +5263,7 @@ export class GameScene extends Phaser.Scene {
         })
       }
 
-      if (onTop && this.xiaoStage === 2 && !this.inputLocked) {
+      if (onTop && this.dishMade && !this.xiaoGone && !this.inputLocked) {
         if (this.xiaoWall && away < 120) {
           // 端着菜走近，那股气息自己让开一条路
           this.xiaoCalm()
