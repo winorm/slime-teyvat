@@ -4160,6 +4160,13 @@ export class GameScene extends Phaser.Scene {
     this.introLayer = null
     this.introShowing = false
     this.physics.world.resume()
+
+    // 第七关开局：黑屏文字收掉之后提示一句该往哪走 —— 支线还没开始（xiaoStage 0）的时候才提示
+    if (this.innkeeper && this.xiaoStage === 0) {
+      this.time.delayedCall(600, () => {
+        this.showMessage('乘电梯上楼，找老板娘问问')
+      })
+    }
   }
 
   private lightMonument(monument: MonumentRef) {
@@ -4747,8 +4754,8 @@ export class GameScene extends Phaser.Scene {
   private talkToInnkeeper() {
     if (this.xiaoStage === 0) {
       this.showDialogue('老板娘', [
-        '客官是来住店的？',
-        '楼上的楼梯断了两处，你要是能帮我修好，食宿就免了。',
+        '可不是嘛，后山那窝魔物闹得凶，把楼梯掀断了两处。',
+        '客官要是肯帮我把楼梯修好，食宿就免了。',
       ])
       return
     }
