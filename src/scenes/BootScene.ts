@@ -494,31 +494,42 @@ export class BootScene extends Phaser.Scene {
     const width = 300
     const height = 220
     const topWidth = 220
+    const cx = width / 2
     const gfx = this.add.graphics()
 
-    // 主干往下张开的部分：逐行画，宽度从 220 平滑张到 300
+    // 一行一行画：宽度从 220 平滑张到 300。
+    // 每行切成 14 竖条，明暗用和树干完全一样的公式（按"这一行自己的宽度"算），
+    // 所以接上去是同一块材料；而且压暗只发生在木头上，形状外面不会留黑边
+    const rowHalfWidth = (y: number) =>
+      topWidth / 2 + (width / 2 - topWidth / 2) * Math.pow(y / (height - 1), 2)
+
     for (let y = 0; y < height; y++) {
-      const t = y / (height - 1)
-      const halfWidth = topWidth / 2 + (width / 2 - topWidth / 2) * t * t
-      const shade = 1 - t * 0.1
+      const halfWidth = rowHalfWidth(y)
+      const left = cx - halfWidth
+      const slices = 14
 
-      gfx.fillStyle(
-        Phaser.Display.Color.GetColor(
-          Math.round(0x7a * shade),
-          Math.round(0x5a * shade),
-          Math.round(0x38 * shade)
-        ),
-        1
-      )
-      gfx.fillRect(width / 2 - halfWidth, y, halfWidth * 2, 1)
-    }
+      for (let s = 0; s < slices; s++) {
+        const x0 = left + (halfWidth * 2 * s) / slices
+        const x1 = left + (halfWidth * 2 * (s + 1)) / slices
+        const n = (((x0 + x1) / 2 - left) / (halfWidth * 2) - 0.5) * 2
+        const shade = 1 - n * n * 0.4 + Math.sin(((x0 + x1) / 2) * 0.55) * 0.02
 
-    // 圆柱明暗：中间亮、两边压暗（和主杆一个调子）
-    for (let x = 0; x < width; x++) {
-      const t = Math.abs(x / (width - 1) - 0.5) * 2
+        gfx.fillStyle(
+          Phaser.Display.Color.GetColor(
+            Math.round(0x7a * shade),
+            Math.round(0x5a * shade),
+            Math.round(0x38 * shade)
+          ),
+          1
+        )
+        gfx.fillRect(x0, y, x1 - x0 + 1, 1)
+      }
 
-      gfx.fillStyle(0x2a1c10, t * t * 0.3)
-      gfx.fillRect(x, 0, 1, height)
+      // 受光面：和树干一样落在宽度的 30% 处，跟着形状往下走
+      gfx.fillStyle(0x9a7444, 0.3)
+      gfx.fillRect(left + halfWidth * 2 * 0.3, y, 8, 1)
+      gfx.fillStyle(0x9a7444, 0.15)
+      gfx.fillRect(left + halfWidth * 2 * 0.42, y, 5, 1)
     }
 
     // 三条根盘：从主干两侧斜着扎下去，越往根尖越细，右下方那条压在最后（近处那条）
@@ -546,24 +557,35 @@ export class BootScene extends Phaser.Scene {
       }
     })
 
-    // 根盘扎进土里的暗影
+    // 根盘扎进土里的暗影（只画在木头底下）
     gfx.fillStyle(0x2a1c10, 0.45)
-    gfx.fillRect(0, height - 8, width, 8)
+    gfx.fillRect(cx - rowHalfWidth(height - 1), height - 7, rowHalfWidth(height - 1) * 2, 7)
 
-    // 树皮裂纹 + 苔藓，和主杆一个调子
+    // 树皮裂纹 + 苔藓，和主杆一个调子；位置按"这一行的宽度"算，全都夹在木头里
     gfx.fillStyle(0x3f2c1c, 0.5)
 
-    for (let index = 0; index < 16; index++) {
-      const x = 24 + ((index * 47) % (width - 48))
-      const y = (index * 41) % (height - 60)
+    for (let index = 0; index < 22; index++) {
+      const y = 6 + ((index * 41) % (height - 40))
+      const half = rowHalfWidth(y)
+      const x = cx - half + 8 + ((index * 47) % Math.max(1, half * 2 - 16))
 
-      gfx.fillRect(x, y, 2, 12 + (index % 3) * 8)
+      gfx.fillRect(x, y, 2, 10 + (index % 3) * 8)
     }
 
     gfx.fillStyle(0x5f7a3c, 0.6)
-    gfx.fillRect(60, 150, 34, 5)
-    gfx.fillRect(212, 172, 30, 5)
-    gfx.fillRect(132, 196, 26, 4)
+
+    const moss = [
+      { y: 46, at: 0.16, w: 34 },
+      { y: 104, at: 0.74, w: 30 },
+      { y: 152, at: 0.3, w: 34 },
+      { y: 196, at: 0.6, w: 26 },
+    ]
+
+    moss.forEach((patch) => {
+      const half = rowHalfWidth(patch.y)
+
+      gfx.fillRect(cx - half + half * 2 * patch.at, patch.y, patch.w, 5)
+    })
 
     gfx.generateTexture('tree-root', width, height)
     gfx.destroy()

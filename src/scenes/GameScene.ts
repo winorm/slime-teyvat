@@ -185,6 +185,9 @@ export class GameScene extends Phaser.Scene {
   private playerLayer: 'front' | 'back' = 'front'
   private trunkRT: Phaser.GameObjects.RenderTexture | null = null
   private trunkDrawn = { x: -99999, y: -99999, layer: '' as string }
+  // 树根也做成 RenderTexture：史莱姆在树后层时同样擦透视洞
+  private rootRT: Phaser.GameObjects.RenderTexture | null = null
+  private rootDrawn = { x: -99999, y: -99999, layer: '' as string }
   // 楼内那根"短木"（第七关楼内几跑楼梯绕着它上）：和树干一样用 RenderTexture，
   // 史莱姆走到树后层时在它附近擦一个透视洞
   private spindleRT: Phaser.GameObjects.RenderTexture | null = null
@@ -377,6 +380,8 @@ export class GameScene extends Phaser.Scene {
     this.playerLayer = 'front'
     this.trunkRT = null
     this.trunkDrawn = { x: -99999, y: -99999, layer: '' }
+    this.rootRT = null
+    this.rootDrawn = { x: -99999, y: -99999, layer: '' }
     this.spindleRT = null
     this.spindleDrawn = { x: -99999, y: -99999, layer: '' }
     this.gateFired = []
@@ -502,7 +507,7 @@ export class GameScene extends Phaser.Scene {
         .setDepth(trunk.depth ?? 2)
 
       // 树根：接在主干底端，底边压在地面线（最低那块平台的顶面）上。
-      // 贴图顶端 220 宽（和主杆一样），底边 300 宽
+      // 和树干、短木一样画在 RenderTexture 上：史莱姆走到树后层时，在它上面也擦一个透视洞
       const groundTop = this.level.platforms.reduce(
         (lowest, item) => Math.max(lowest, item.y - item.height / 2),
         Number.NEGATIVE_INFINITY
@@ -510,10 +515,17 @@ export class GameScene extends Phaser.Scene {
 
       const rootTexture = this.textures.get('tree-root').getSourceImage()
 
-      this.add
-        .image(trunk.x, groundTop - rootTexture.height / 2, 'tree-root')
-        .setScale(width / 220, 1)
+      this.rootRT = this.add
+        .renderTexture(
+          trunk.x - rootTexture.width / 2,
+          groundTop - rootTexture.height,
+          rootTexture.width,
+          rootTexture.height
+        )
+        .setOrigin(0, 0)
         .setDepth(trunk.depth ?? 2)
+        // 树根贴图顶端 220 宽，按主杆宽度等比缩放，接口才对得上
+        .setScale(width / 220, 1)
 
       // 7 条斜枝：粗头插在树干里（贴图左端是粗头，左边那条翻过来用），
       // 四种形状混着摆，高低和角度都错开
@@ -2745,6 +2757,7 @@ export class GameScene extends Phaser.Scene {
     this.eyes.forEach((eye) => eye.setDepth(back ? 1.3 : 11))
 
     this.updateTrunk()
+    this.updateRoot()
     this.updateSpindle()
   }
 
@@ -2800,6 +2813,35 @@ export class GameScene extends Phaser.Scene {
   }
 
   // 重画短木：树皮平铺一层（只取贴图中间那片），玩家在树后层时擦透视洞
+  private updateRoot() {
+    const rt = this.rootRT
+
+    if (!rt) {
+      return
+    }
+
+    const px = this.slime.x
+    const py = this.slime.y
+    const last = this.rootDrawn
+
+    if (last.layer === this.playerLayer && Math.abs(px - last.x) < 1 && Math.abs(py - last.y) < 1) {
+      return
+    }
+
+    rt.clear()
+    rt.stamp('tree-root', undefined, 0, 0)
+
+    if (this.playerLayer === 'back') {
+      // 贴图是按 scaleX 横向缩放画的，擦洞的坐标要先除回去
+      rt.erase('reveal-blob', (px - rt.x) / rt.scaleX, py - rt.y)
+    }
+
+    // RenderTexture 是先往缓冲里记命令，必须再 render() 一次才会真正画进去
+    rt.render()
+
+    this.rootDrawn = { x: px, y: py, layer: this.playerLayer }
+  }
+
   private updateSpindle() {
     const rt = this.spindleRT
     const spindle = this.spindleDef
@@ -3759,6 +3801,8 @@ export class GameScene extends Phaser.Scene {
     }
     // 树干上的透视圈跟着玩家走
     this.updateTrunk()
+    // 树根上的透视圈
+    this.updateRoot()
     // 楼内短木上的透视圈
     this.updateSpindle()
     // 活板（层补片）上的透视圈：楼板一直画着，只擦史莱姆附近那一块
