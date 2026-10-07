@@ -2699,8 +2699,16 @@ export class GameScene extends Phaser.Scene {
       const nx = -uy * flip
       const ny = ux * flip
 
-      // 底下的斜梁：平行四边形，下端贴着下层地面，上端接上层地面
+      // 底下的斜梁：默认是平行四边形（下端贴着下层地面、上端接上层地面）。
+      // 但如果这一跑是"站在地面上起步"的，梁的底边要削平、直接贴在地面上 ——
+      // 那种情况画成三角形（斜边 = 楼梯底面，底边水平，右端竖直），
+      // 不然梁的下沿会一路翘到右端，看着像楼梯悬在半空
       const beamThickness = 10
+      const groundTop = this.level.platforms.reduce(
+        (lowest, item) => Math.max(lowest, item.y - item.height / 2),
+        Number.NEGATIVE_INFINITY
+      )
+      const flatFoot = Math.abs(from.y - groundTop) < 2
       const beam = [
         { x: from.x, y: from.y },
         { x: to.x, y: to.y },
@@ -2709,20 +2717,12 @@ export class GameScene extends Phaser.Scene {
       ]
 
       gfx.fillStyle(beamWood, 1)
-      gfx.fillTriangle(beam[0].x, beam[0].y, beam[1].x, beam[1].y, beam[2].x, beam[2].y)
-      gfx.fillTriangle(beam[0].x, beam[0].y, beam[2].x, beam[2].y, beam[3].x, beam[3].y)
-
-      // 第一跑如果是站在地面上起步的（from.y 就是最低那块楼板的顶面），把斜梁底下填平到地面：
-      // 不然斜梁下沿会一路翘到右端，看着像楼梯悬在半空
-      const groundTop = this.level.platforms.reduce(
-        (lowest, item) => Math.max(lowest, item.y - item.height / 2),
-        Number.NEGATIVE_INFINITY
-      )
-
-      if (Math.abs(from.y - groundTop) < 2) {
-        gfx.fillStyle(beamWood, 1)
-        gfx.fillTriangle(from.x, from.y, to.x, to.y, to.x, groundTop)
-        gfx.fillTriangle(from.x, from.y, to.x, groundTop, from.x, groundTop)
+      if (flatFoot) {
+        // 底边水平的三角梁
+        gfx.fillTriangle(from.x, from.y, to.x, to.y, to.x, from.y)
+      } else {
+        gfx.fillTriangle(beam[0].x, beam[0].y, beam[1].x, beam[1].y, beam[2].x, beam[2].y)
+        gfx.fillTriangle(beam[0].x, beam[0].y, beam[2].x, beam[2].y, beam[3].x, beam[3].y)
       }
 
       for (let i = 0; i < count; i++) {
