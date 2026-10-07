@@ -741,6 +741,10 @@ export class GameScene extends Phaser.Scene {
       // 进楼门口旁边挂一盏门灯
       put('lantern', 404, 1030, true)
 
+      // 隐藏动画的 NPC（风史莱姆「魈」）：先摆在一楼地面上给用户看，
+      // 出生点 (220) 往左走 70 像素就是，一进关就能看到
+      put('npc-xiao-slime', 150, 2160)
+
       // 顶楼阳台：一张小桌 + 一个蒲团（蒲团直接用圆凳代替）
       put('inn-table', 820, 400)
       put('inn-stool', 850, 400)

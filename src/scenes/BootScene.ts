@@ -210,6 +210,7 @@ export class BootScene extends Phaser.Scene {
     this.makeInnSign()
     this.makeInnAwning()
     this.makeInnScreen()
+    this.makeXiaoSlime()
     this.makeOsmanthusTree()
     this.makePetal()
   }
@@ -773,6 +774,129 @@ export class BootScene extends Phaser.Scene {
     gfx.fillRect(56, 42, 4, 4)
 
     gfx.generateTexture('inn-screen', 60, 46)
+    gfx.destroy()
+  }
+
+  // 隐藏动画里的 NPC：风元素史莱姆「魈」。
+  // 和主角的三处不同：① 全身是同一个色（主角是白底 + 六层同心椭圆渐变），而且更深；
+  // ② 身上带着不明显的黑色伤疤；③ 背后背一杆长枪、腰上挂一具罗刹面具。
+  // 画布 58x54，身体照旧按 32x25 的描边 + 30x23 的本体画，原点放在脚底（originY = 1）
+  private makeXiaoSlime() {
+    const gfx = this.add.graphics()
+
+    const outline = 0x14141f
+    const body = 0x3a8f77          // 深风绿：主角风史莱姆是 0x74d0b0
+    const scar = 0x1a3a31          // 伤疤：比身体深一档，不扎眼
+    const scarDark = 0x0f221c
+    const jade = 0x7fd8b4
+    const gold = 0xd9a441
+
+    // 画一根有厚度的斜木/斜杆（给长枪用）
+    const rod = (x1: number, y1: number, x2: number, y2: number, width: number, color: number) => {
+      const dx = x2 - x1
+      const dy = y2 - y1
+      const len = Math.hypot(dx, dy) || 1
+      const px = (-dy / len) * (width / 2)
+      const py = (dx / len) * (width / 2)
+
+      gfx.fillStyle(color, 1)
+      gfx.fillPoints(
+        [
+          new Phaser.Math.Vector2(x1 + px, y1 + py),
+          new Phaser.Math.Vector2(x2 + px, y2 + py),
+          new Phaser.Math.Vector2(x2 - px, y2 - py),
+          new Phaser.Math.Vector2(x1 - px, y1 - py),
+        ],
+        true
+      )
+    }
+
+    // ---- 背后的长枪：斜着别在身后，枪尾在左下、枪头在右上 ----
+    rod(8, 47, 50, 8, 5, outline)
+    rod(8, 47, 50, 8, 2.6, 0x4a4a58)
+    rod(9, 46, 15, 41, 2.6, 0x5e5e70)      // 枪杆上一小段高光
+
+    // 枪头：玉色的刃 + 一道金箍（刃的底边压在枪杆端头上）
+    gfx.fillStyle(outline, 1)
+    gfx.fillTriangle(46.6, 4.2, 58.5, 0.6, 53.2, 12.2)
+    gfx.fillStyle(jade, 1)
+    gfx.fillTriangle(47.6, 5.3, 57.2, 1.8, 52.4, 10.4)
+    gfx.fillStyle(0x3f8f70, 1)             // 刃的背光半边
+    gfx.fillTriangle(52.4, 10.4, 57.2, 1.8, 54.6, 8.6)
+    gfx.fillStyle(gold, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(46.2, 6.0),
+        new Phaser.Math.Vector2(52.0, 11.6),
+        new Phaser.Math.Vector2(50.6, 13.0),
+        new Phaser.Math.Vector2(44.8, 7.4),
+      ],
+      true
+    )
+
+    // ---- 身体：一圈黑描边 + 一个平色的本体（没有渐变） ----
+    gfx.fillStyle(outline, 1)
+    gfx.fillEllipse(29, 40, 32, 25)
+    gfx.fillStyle(body, 1)
+    gfx.fillEllipse(29, 40, 30, 23)
+
+    // ---- 伤疤：几道很淡的深色细痕，散在身上 ----
+    gfx.fillStyle(scar, 1)
+    gfx.fillRect(21, 33, 4, 1)
+    gfx.fillRect(23, 34, 2, 1)
+    gfx.fillRect(35, 30, 3, 1)
+    gfx.fillRect(36, 31, 1, 2)
+    gfx.fillRect(26, 45, 3, 1)
+    gfx.fillRect(18, 39, 2, 1)
+    gfx.fillRect(33, 43, 2, 2)
+
+    gfx.fillStyle(scarDark, 1)
+    gfx.fillRect(22, 33, 1, 1)
+    gfx.fillRect(30, 29, 2, 1)
+    gfx.fillRect(34, 43, 1, 1)
+    gfx.fillRect(19, 39, 1, 1)
+
+    // ---- 眼睛：比主角那两颗圆点更尖，黄绿眼芯 ----
+    const eye = (cx: number, flip: number) => {
+      gfx.fillStyle(outline, 1)
+      gfx.fillTriangle(cx - 3 * flip, 39.5, cx + 3 * flip, 36.6, cx + 3 * flip, 42.4)
+      gfx.fillStyle(0xd8e07a, 1)
+      gfx.fillTriangle(cx - 1.4 * flip, 39.5, cx + 2 * flip, 37.5, cx + 2 * flip, 41.5)
+    }
+
+    eye(24, -1)
+    eye(34, 1)
+
+    // 额头那点玉色的菱形印记
+    gfx.fillStyle(0x6fe0b8, 1)
+    gfx.fillTriangle(29, 30, 31, 32.4, 27, 32.4)
+    gfx.fillTriangle(29, 34, 31, 32.4, 27, 32.4)
+
+    // ---- 腰上的罗刹面具：颜色跟风相近，挂在身体左下侧 ----
+    gfx.fillStyle(outline, 1)
+    gfx.fillEllipse(13, 46, 13, 15)
+    gfx.fillStyle(0x4fa085, 1)
+    gfx.fillEllipse(13, 46, 11, 13)
+
+    gfx.fillStyle(outline, 1)              // 两只眼睛 + 咧嘴
+    gfx.fillRect(10, 44, 2, 1)
+    gfx.fillRect(15, 44, 2, 1)
+    gfx.fillRect(10, 48, 7, 2)
+
+    gfx.fillStyle(0xe8e0c8, 1)             // 獠牙
+    gfx.fillRect(10, 48, 1, 1)
+    gfx.fillRect(12, 48, 1, 2)
+    gfx.fillRect(14, 48, 1, 1)
+    gfx.fillRect(16, 48, 1, 2)
+
+    gfx.fillStyle(0xa04a4a, 1)             // 面具额上那一抹红
+    gfx.fillRect(11, 41, 4, 1)
+
+    gfx.fillStyle(0x2f6f58, 1)             // 面具两侧的角
+    gfx.fillTriangle(6, 42, 9, 40, 9, 43)
+    gfx.fillTriangle(20, 42, 17, 40, 17, 43)
+
+    gfx.generateTexture('npc-xiao-slime', 58, 54)
     gfx.destroy()
   }
 
