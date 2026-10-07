@@ -662,13 +662,14 @@ export class GameScene extends Phaser.Scene {
       // 一楼地面：楼下乘凉吃饭的地方（两桌四凳）。
       // 放在楼梯左边 —— 第一跑楼梯的起点（x=362）贴在地面上，右边只能从 1/2 平台跳下去，
       // 摆到右边玩家平时走不过去
-      put('inn-table', 90, 2160)
-      put('inn-stool', 66, 2160)
-      put('inn-stool', 114, 2160)
+      // 0~90 和 300~350 这两段是空的（中间被水车 94~190、井道 200~280 占着）
+      put('inn-table', 42, 2160)
+      put('inn-stool', 20, 2160)
+      put('inn-stool', 64, 2160)
 
-      put('inn-table', 250, 2160)
-      put('inn-stool', 226, 2160)
-      put('inn-stool', 274, 2160)
+      put('inn-table', 318, 2160)
+      put('inn-stool', 296, 2160)
+      put('inn-stool', 340, 2160)
 
       // 650 层：客房（床 + 木格柜当衣箱）
       put('inn-bed', 60, 650)
@@ -677,6 +678,9 @@ export class GameScene extends Phaser.Scene {
       // 顶楼阳台：一张小桌 + 一个蒲团（蒲团直接用圆凳代替）
       put('inn-table', 820, 400)
       put('inn-stool', 850, 400)
+
+      // 一楼楼梯右侧（只能从 1/2 平台跳下来的那块）：一棵荻花洲风格的观赏花树
+      put('blossom-tree', 700, 2160)
 
       // 树右侧那半截楼板玩家走不到，就当"后墙"用：平铺木墙 + 格子窗。
       // 深度 0.5 —— 比树后层的楼梯（1）还低：所以"往左走的那几跑楼梯"是画在房间里的，

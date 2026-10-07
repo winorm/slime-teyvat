@@ -206,6 +206,7 @@ export class BootScene extends Phaser.Scene {
     this.makeInnDining()
     this.makeInnWall()
     this.makeInnBed()
+    this.makeBlossomTree()
   }
 
   private makeSpire() {
@@ -631,6 +632,48 @@ export class BootScene extends Phaser.Scene {
   // 客栈的桌凳：方桌（桌面 + 四条腿 + 横撑）和圆凳
   // 客栈后墙：可平铺的木墙 + 一扇格子窗（120×120 一格，横着平铺就成一整面墙）
   // 客栈客房的床：床头板 + 褥子 + 枕头 + 被子
+  // 一楼楼梯右侧那棵观赏花树（荻花洲一带的花树）：弯曲树干 + 分枝 + 粉白花冠 + 小花苞
+  private makeBlossomTree() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0x6b4a2c, 1)              // 树干（稍偏右，微微弯）
+    gfx.fillRect(38, 40, 8, 36)
+    gfx.fillStyle(0x5a3c22, 1)
+    gfx.fillRect(38, 40, 3, 36)
+    gfx.fillStyle(0x6b4a2c, 1)              // 三根分枝
+    gfx.fillRect(24, 30, 20, 5)
+    gfx.fillRect(44, 26, 20, 5)
+    gfx.fillRect(30, 20, 26, 5)
+
+    const blobs: [number, number, number][] = [
+      [42, 16, 30],
+      [22, 26, 20],
+      [62, 24, 22],
+      [34, 8, 18],
+      [54, 10, 16],
+    ]
+
+    blobs.forEach(([x, y, r], index) => {
+      gfx.fillStyle(index % 2 === 0 ? 0xf1b8c8 : 0xf7d2dc, 1)
+      gfx.fillCircle(x, y, r)
+    })
+
+    gfx.fillStyle(0xfff0f4, 1)              // 花心更亮的几点
+
+    for (const [x, y] of [[38, 10], [26, 22], [58, 20], [46, 24]]) {
+      gfx.fillCircle(x, y, 4)
+    }
+
+    gfx.fillStyle(0xe8a3b6, 1)              // 没开的花苞
+
+    for (const [x, y] of [[16, 34], [66, 32], [50, 6]]) {
+      gfx.fillCircle(x, y, 3)
+    }
+
+    gfx.generateTexture('blossom-tree', 84, 76)
+    gfx.destroy()
+  }
+
   private makeInnBed() {
     const gfx = this.add.graphics()
 
