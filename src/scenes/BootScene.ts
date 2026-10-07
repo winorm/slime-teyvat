@@ -491,14 +491,15 @@ export class BootScene extends Phaser.Scene {
   // 古树的树根段：顶端和主杆一样宽（220），往下张开成三条根盘，底边压在地面线上。
   // 一整张贴图用（不平铺），靠 y 对齐主杆底端
   private makeTreeRoot() {
-    const width = 300
-    const height = 220
+    // 顶端 220（= 主杆宽），底部 550 —— 和最早那版画出来的实际大小一致
+    const width = 550
+    const height = 200
     const topWidth = 220
     const cx = width / 2
     const gfx = this.add.graphics()
 
-    // 一行一行画：宽度从 220 平滑张到 300。
-    // 每行切成 14 竖条，明暗用和树干完全一样的公式（按"这一行自己的宽度"算），
+    // 一行一行画：宽度从 220 平滑张到 550。
+    // 每行切成 20 竖条，明暗用和树干完全一样的公式（按"这一行自己的宽度"算），
     // 所以接上去是同一块材料；而且压暗只发生在木头上，形状外面不会留黑边
     const rowHalfWidth = (y: number) =>
       topWidth / 2 + (width / 2 - topWidth / 2) * Math.pow(y / (height - 1), 2)
@@ -506,7 +507,7 @@ export class BootScene extends Phaser.Scene {
     for (let y = 0; y < height; y++) {
       const halfWidth = rowHalfWidth(y)
       const left = cx - halfWidth
-      const slices = 14
+      const slices = 20
 
       for (let s = 0; s < slices; s++) {
         const x0 = left + (halfWidth * 2 * s) / slices
@@ -532,11 +533,11 @@ export class BootScene extends Phaser.Scene {
       gfx.fillRect(left + halfWidth * 2 * 0.42, y, 5, 1)
     }
 
-    // 三条根盘：从主干两侧斜着扎下去，越往根尖越细，右下方那条压在最后（近处那条）
+    // 三条根盘：从主干两侧斜着扎下去，越往根尖越细
     const roots = [
-      { fromX: 92, tipX: 20, tipW: 30, thickness: 17 },
-      { fromX: 214, tipX: 284, tipW: 26, thickness: 15 },
-      { fromX: 148, tipX: 116, tipW: 34, thickness: 19 },
+      { fromX: 168, tipX: 36, thickness: 28 },
+      { fromX: 392, tipX: 520, thickness: 25 },
+      { fromX: 272, tipX: 212, thickness: 32 },
     ]
 
     roots.forEach((root) => {
@@ -545,15 +546,15 @@ export class BootScene extends Phaser.Scene {
       for (let i = 0; i < steps; i++) {
         const t = i / (steps - 1)
         const x = root.fromX + (root.tipX - root.fromX) * t * t
-        const y = 120 + (height - 120) * t
+        const y = 108 + (height - 108) * t
         const thickness = root.thickness * (1 - t * 0.5)
 
         gfx.fillStyle(0x6a4c2e, 1)
-        gfx.fillRect(x - thickness / 2, y, thickness, 9)
+        gfx.fillRect(x - thickness / 2, y, thickness, 10)
         gfx.fillStyle(0x8a6a44, 1)
         gfx.fillRect(x - thickness / 2, y, thickness, 2)
         gfx.fillStyle(0x4a3320, 0.9)
-        gfx.fillRect(x - thickness / 2, y + 7, thickness, 3)
+        gfx.fillRect(x - thickness / 2, y + 8, thickness, 3)
       }
     })
 
@@ -575,10 +576,10 @@ export class BootScene extends Phaser.Scene {
     gfx.fillStyle(0x5f7a3c, 0.6)
 
     const moss = [
-      { y: 46, at: 0.16, w: 34 },
-      { y: 104, at: 0.74, w: 30 },
-      { y: 152, at: 0.3, w: 34 },
-      { y: 196, at: 0.6, w: 26 },
+      { y: 42, at: 0.16, w: 40 },
+      { y: 95, at: 0.74, w: 34 },
+      { y: 140, at: 0.3, w: 38 },
+      { y: 178, at: 0.6, w: 30 },
     ]
 
     moss.forEach((patch) => {
