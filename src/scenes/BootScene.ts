@@ -206,7 +206,7 @@ export class BootScene extends Phaser.Scene {
     this.makeInnDining()
     this.makeInnWall()
     this.makeInnBed()
-    this.makeBlossomTree()
+    this.makeOsmanthusTree()
     this.makePetal()
   }
 
@@ -633,50 +633,92 @@ export class BootScene extends Phaser.Scene {
   // 客栈的桌凳：方桌（桌面 + 四条腿 + 横撑）和圆凳
   // 客栈后墙：可平铺的木墙 + 一扇格子窗（120×120 一格，横着平铺就成一整面墙）
   // 客栈客房的床：床头板 + 褥子 + 枕头 + 被子
-  // 一楼楼梯右侧那棵观赏花树（荻花洲一带的花树）：弯曲树干 + 分枝 + 粉白花冠 + 小花苞
-  private makeBlossomTree() {
+  // 望舒客栈一楼右侧那棵景观树：不是樱花，是本地（璃月＝中国）的「金桂」。
+  // 深绿革质叶 + 一簇簇金黄小花，210×250（贴地那一栏的比例：约一层楼高）
+  private makeOsmanthusTree() {
     const gfx = this.add.graphics()
 
-    gfx.fillStyle(0x6b4a2c, 1)              // 树干（稍偏右，微微弯）
-    gfx.fillRect(38, 40, 8, 36)
+    // 树干：根盘外扩、往上收细，右边留一条暗面
+    gfx.fillStyle(0x6b4a2c, 1)
+    gfx.fillRect(96, 230, 30, 20)           // 根盘
+    gfx.fillRect(101, 170, 20, 66)          // 下段
+    gfx.fillRect(104, 118, 14, 56)          // 上段
     gfx.fillStyle(0x5a3c22, 1)
-    gfx.fillRect(38, 40, 3, 36)
-    gfx.fillStyle(0x6b4a2c, 1)              // 三根分枝
-    gfx.fillRect(24, 30, 20, 5)
-    gfx.fillRect(44, 26, 20, 5)
-    gfx.fillRect(30, 20, 26, 5)
+    gfx.fillRect(101, 170, 6, 66)
+    gfx.fillRect(104, 118, 4, 56)
 
-    const blobs: [number, number, number][] = [
-      [42, 16, 30],
-      [22, 26, 20],
-      [62, 24, 22],
-      [34, 8, 18],
-      [54, 10, 16],
+    // 四根主枝：从树干顶斜着伸进树冠
+    gfx.fillStyle(0x6b4a2c, 1)
+    gfx.fillTriangle(118, 142, 168, 104, 176, 120)
+    gfx.fillTriangle(104, 142, 52, 100, 44, 116)
+    gfx.fillTriangle(114, 122, 142, 88, 152, 102)
+    gfx.fillTriangle(110, 122, 78, 86, 68, 100)
+
+    // 树冠分三层压：深绿铺底 → 中绿 → 亮绿高光（往左上偏，当受光面）
+    const deep: [number, number, number][] = [
+      [110, 72, 58],
+      [60, 98, 42],
+      [160, 94, 44],
+      [84, 44, 40],
+      [142, 42, 38],
+      [32, 120, 30],
+      [186, 116, 30],
+      [110, 110, 46],
+    ]
+    const mid: [number, number, number][] = [
+      [104, 66, 46],
+      [56, 92, 32],
+      [156, 88, 34],
+      [86, 40, 30],
+      [138, 38, 28],
+      [36, 114, 22],
+      [182, 110, 24],
     ]
 
-    blobs.forEach(([x, y, r], index) => {
-      gfx.fillStyle(index % 2 === 0 ? 0xf1b8c8 : 0xf7d2dc, 1)
-      gfx.fillCircle(x, y, r)
-    })
+    gfx.fillStyle(0x33512c, 1)
+    deep.forEach(([x, y, r]) => gfx.fillCircle(x, y, r))
 
-    gfx.fillStyle(0xfff0f4, 1)              // 花心更亮的几点
+    gfx.fillStyle(0x466b35, 1)
+    mid.forEach(([x, y, r]) => gfx.fillCircle(x, y, r))
 
-    for (const [x, y] of [[38, 10], [26, 22], [58, 20], [46, 24]]) {
-      gfx.fillCircle(x, y, 4)
-    }
+    gfx.fillStyle(0x5c8a42, 1)
+    mid.forEach(([x, y, r]) => gfx.fillCircle(x - 6, y - 8, r * 0.55))
 
-    gfx.fillStyle(0xe8a3b6, 1)              // 没开的花苞
+    // 桂花：一簇一簇的小金点，每簇一颗亮的一颗暗的当体积感
+    const flowers: [number, number][] = [
+      [44, 78],
+      [70, 50],
+      [96, 30],
+      [124, 34],
+      [152, 52],
+      [178, 76],
+      [32, 108],
+      [58, 122],
+      [92, 100],
+      [122, 108],
+      [156, 116],
+      [184, 102],
+      [110, 74],
+      [76, 86],
+      [144, 80],
+      [108, 134],
+    ]
 
-    for (const [x, y] of [[16, 34], [66, 32], [50, 6]]) {
-      gfx.fillCircle(x, y, 3)
-    }
+    gfx.fillStyle(0xf2c14e, 1)
+    flowers.forEach(([x, y]) => gfx.fillCircle(x, y, 5))
 
-    gfx.generateTexture('blossom-tree', 84, 76)
+    gfx.fillStyle(0xffd97a, 1)
+    flowers.forEach(([x, y]) => gfx.fillCircle(x - 1, y - 2, 2))
+
+    gfx.fillStyle(0xd99a2b, 1)
+    flowers.forEach(([x, y]) => gfx.fillCircle(x + 4, y + 3, 2))
+
+    gfx.generateTexture('osmanthus-tree', 220, 250)
     gfx.destroy()
   }
 
-  // 花瓣：花树飘花用的小粉瓣。
-  // 画成白色的，运行时按 PETAL_COLORS setTint 出深浅不一的粉色
+  // 花瓣：飘花用的小瓣。
+  // 画成白色的，运行时按 PETAL_COLORS setTint 出深浅不一的金桂色
   private makePetal() {
     const gfx = this.add.graphics()
 

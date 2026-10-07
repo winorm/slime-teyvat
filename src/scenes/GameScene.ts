@@ -58,9 +58,9 @@ const ARMOR_JUMP = 1.12
 const PLATE_PRESS_TIME = 0.45
 const PLATE_SINK = 3
 
-// 花树飘花（第七关一楼那棵观赏花树）：隔多久飘一片花瓣、花瓣用哪几种粉
+// 金桂飘花（第七关一楼那棵景观树）：隔多久飘一片花瓣、花瓣用哪几种金
 const PETAL_INTERVAL = 0.2
-const PETAL_COLORS = [0xf1b8c8, 0xf7d2dc, 0xfff0f4, 0xe8a3b6]
+const PETAL_COLORS = [0xf2c14e, 0xffd97a, 0xffe9a8, 0xd99a2b]
 
 // 岩柱：贴图多大、从落点上方多高开始掉、蓄力多久、落点最远能低于脚底多少
 const PILLAR_SIZE = { width: 20, height: 72 }
@@ -703,8 +703,10 @@ export class GameScene extends Phaser.Scene {
       put('inn-table', 820, 400)
       put('inn-stool', 850, 400)
 
-      // 一楼楼梯右侧（只能从 1/2 平台跳下来的那块）：一棵荻花洲风格的观赏花树
-      put('blossom-tree', 700, 2160)
+      // 一楼楼梯右侧（只能从 1/2 平台跳下来的那块）：一棵金桂（220×250，约一层楼高）。
+      // 根盘摆在 x=770：树冠横跨 660~880，把右边那块空地盖掉大半个，
+      // 左边缘离压力板（x=620）还有 40 像素，不会把板子压在树底下
+      put('osmanthus-tree', 770, 2160)
 
       // 树右侧那半截楼板玩家走不到，就当"后墙"用：平铺木墙 + 格子窗。
       // 深度 0.5 —— 比树后层的楼梯（1）还低：所以"往左走的那几跑楼梯"是画在房间里的，
@@ -2669,7 +2671,7 @@ export class GameScene extends Phaser.Scene {
     return this.plateList.some((plate) => plate.id === id && plate.pressed)
   }
 
-  // 花树飘花：花冠上一直有花瓣被风卷下来，往左飘、左右摆、边飘边转，
+  // 金桂飘花：树冠上一直有花瓣被风卷下来，往左飘、左右摆、边飘边转，
   // 落到地面（y=2160 上下）就淡出回收。开了以后不关，压力板松掉照样飘。
   // 深度分两层撒：0.9 的落在树干后面（depth 2），11 的落在史莱姆前面，做出层次
   private updatePetals(dt: number) {
@@ -2700,8 +2702,8 @@ export class GameScene extends Phaser.Scene {
 
     this.petalTimer -= dt
 
-    // 同屏最多 24 片，飘得慢的时候不至于一直往上堆
-    if (this.petalTimer > 0 || this.petals.length > 24) {
+    // 同屏最多 28 片，飘得慢的时候不至于一直往上堆
+    if (this.petalTimer > 0 || this.petals.length > 28) {
       return
     }
 
@@ -2722,18 +2724,18 @@ export class GameScene extends Phaser.Scene {
       .setAngle(Phaser.Math.Between(0, 359))
       .setTint(PETAL_COLORS[Math.floor(Math.random() * PETAL_COLORS.length)])
 
-    // 从花冠里冒出来（花树贴在 x=700、贴地 2160，花冠大概 x 660~740 / y 2088~2124）
-    image.x = 700 + Phaser.Math.FloatBetween(-40, 38)
-    image.y = 2088 + Phaser.Math.FloatBetween(0, 18)
+    // 从树冠里冒出来（金桂贴在 x=770、贴地 2160，树冠大概 x 660~880 / y 1914~2030）
+    image.x = 770 + Phaser.Math.FloatBetween(-104, 104)
+    image.y = 1922 + Phaser.Math.FloatBetween(0, 78)
 
     this.petals.push({
       image,
-      vx: Phaser.Math.FloatBetween(-16, -6),          // 风往左吹
-      vy: Phaser.Math.FloatBetween(16, 26),
+      vx: Phaser.Math.FloatBetween(-18, -6),          // 风往左吹
+      vy: Phaser.Math.FloatBetween(45, 72),           // 树高了，落得也比原来快
       phase: Math.random() * Math.PI * 2,
-      sway: Phaser.Math.FloatBetween(6, 16),
+      sway: Phaser.Math.FloatBetween(8, 20),
       speed: Phaser.Math.FloatBetween(1.6, 3.2),
-      spin: Phaser.Math.FloatBetween(-70, 70),
+      spin: Phaser.Math.FloatBetween(-80, 80),
       life: 0,
       groundY: 2160 - Phaser.Math.FloatBetween(0, 4),
     })
