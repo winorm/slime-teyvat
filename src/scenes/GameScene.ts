@@ -2798,14 +2798,19 @@ export class GameScene extends Phaser.Scene {
         step.setData('layer', layer)
         step.setData('flight', stairIndex)
 
-        // 从地面上起步的那一跑：碰撞只留"上面"和"左边"。
-        // 右边/下面关掉之后，人才能贴着地面从右边穿到楼梯底下再去起点；
-        // 顶面还在（能踩、能自动上台阶），左边还在（往上走时靠它挡住并把人抬上去）
-        if (flatFoot) {
-          const stepBody = step.body as Phaser.Physics.Arcade.StaticBody
+        // 踏板只留两个面：顶面（能踩、能当自动上台阶的目标）+
+        // "上楼那一侧"的面（往上走时靠它挡住并把人抬上去）。
+        // 另外两个面（下面、以及背着楼梯那一侧）关掉 ——
+        // 这样人从楼梯背面贴着楼板/地面走，或者从 1/2 平台跳下来落到楼梯背面时，
+        // 能穿到楼梯底下再往上爬，不会卡在楼梯下面
+        const stepBody = step.body as Phaser.Physics.Arcade.StaticBody
 
-          stepBody.checkCollision.down = false
+        stepBody.checkCollision.down = false
+
+        if (dir > 0) {
           stepBody.checkCollision.right = false
+        } else {
+          stepBody.checkCollision.left = false
         }
 
         this.stairs.push(step)
