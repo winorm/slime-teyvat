@@ -203,6 +203,7 @@ export class BootScene extends Phaser.Scene {
     this.makeWaterWheel()
     this.makeInnFront()
     this.makeInnFurniture()
+    this.makeInnDining()
   }
 
   private makeSpire() {
@@ -625,6 +626,39 @@ export class BootScene extends Phaser.Scene {
   // 水利电梯的水车：木轮 + 八根辐条 + 中心轴，转动时用来当"水力"的表现
   // 望舒客栈的前台柜台：木台面 + 分格柜身 + 台面上一个小算盘
   // 望舒客栈的家具：木格柜、砖灶（带锅）、柴堆、吊锅
+  // 客栈的桌凳：方桌（桌面 + 四条腿 + 横撑）和圆凳
+  private makeInnDining() {
+    const table = this.add.graphics()
+
+    table.fillStyle(0x8a6034, 1)            // 桌面
+    table.fillRect(0, 4, 32, 5)
+    table.fillStyle(0xa8794a, 1)            // 桌面高光
+    table.fillRect(0, 4, 32, 2)
+    table.fillStyle(0x5f4224, 1)            // 四条腿
+    table.fillRect(2, 9, 3, 12)
+    table.fillRect(27, 9, 3, 12)
+    table.fillRect(9, 9, 3, 8)
+    table.fillRect(20, 9, 3, 8)
+    table.fillStyle(0x6a4c2e, 1)            // 腿间横撑
+    table.fillRect(5, 16, 22, 2)
+
+    table.generateTexture('inn-table', 32, 22)
+    table.destroy()
+
+    const stool = this.add.graphics()
+
+    stool.fillStyle(0x8a6034, 1)            // 凳面
+    stool.fillEllipse(7, 4, 14, 7)
+    stool.fillStyle(0xa8794a, 1)
+    stool.fillEllipse(7, 3, 10, 4)
+    stool.fillStyle(0x5f4224, 1)            // 凳腿
+    stool.fillRect(2, 6, 2, 5)
+    stool.fillRect(10, 6, 2, 5)
+
+    stool.generateTexture('inn-stool', 14, 11)
+    stool.destroy()
+  }
+
   private makeInnFurniture() {
     const cab = this.add.graphics()          // 木格柜：柜体 + 3×4 格子窗
 

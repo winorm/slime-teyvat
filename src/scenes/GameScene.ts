@@ -658,6 +658,19 @@ export class GameScene extends Phaser.Scene {
       put('inn-stove', 64, 900)
       put('inn-pot', 64, 898, true)
       put('inn-wood', 150, 900)
+
+      // 一楼地面：楼下乘凉吃饭的地方（两桌四凳）
+      put('inn-table', 700, 2160)
+      put('inn-stool', 676, 2160)
+      put('inn-stool', 724, 2160)
+
+      put('inn-table', 880, 2160)
+      put('inn-stool', 856, 2160)
+      put('inn-stool', 904, 2160)
+
+      // 顶楼阳台：一张小桌 + 一个蒲团（蒲团直接用圆凳代替）
+      put('inn-table', 820, 400)
+      put('inn-stool', 850, 400)
     }
 
     this.gems = this.physics.add.staticGroup()
