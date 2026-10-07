@@ -407,6 +407,9 @@ export class GameScene extends Phaser.Scene {
   // petals 是正在飘的，petalIdle 是回收下来重复利用的贴图（不在更新里 new 对象）
   private petalsOn = false
   private petalTimer = 0
+  // 隐藏成就「邀诸位共赏」：先踩过花树那块压力板（petalsOn），再到金桂树底下站够 5 秒
+  private blossomWatch = 0
+  private blossomGot = false
   private petals: {
     image: Phaser.GameObjects.Image
     vx: number
@@ -497,6 +500,8 @@ export class GameScene extends Phaser.Scene {
     this.carriedDish = null
     this.petalsOn = false
     this.petalTimer = 0
+    this.blossomWatch = 0
+    this.blossomGot = false
     this.petals = []
     this.petalIdle = []
     this.layerPieces = []
@@ -5290,6 +5295,19 @@ export class GameScene extends Phaser.Scene {
 
     // 飘花不吃输入锁：过场动画里也照飘
     this.updatePetals(dt)
+
+    // 隐藏成就「邀诸位共赏」：踩过花树那块压力板（花瓣飘起来了）之后，
+    // 再到金桂树底下（x 675~865 的地面）站够 5 秒 —— 走开就重新数
+    if (this.petalsOn && !this.blossomGot) {
+      const underTree = Math.abs(this.slime.x - 770) < 95 && this.slime.y > 2100
+
+      this.blossomWatch = underTree ? this.blossomWatch + dt : 0
+
+      if (this.blossomWatch >= 5) {
+        this.blossomGot = true
+        queueAchievementToast('blossom-view')
+      }
+    }
 
     // 顶楼的支线：气息的表现 → 端着菜走近时让路 → 端到跟前触发出场
     if (this.xiaoAura || this.metXiao || this.dishMade) {
