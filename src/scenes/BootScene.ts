@@ -491,15 +491,16 @@ export class BootScene extends Phaser.Scene {
   // 古树的树根段：顶端和主杆一样宽（220），往下张开成三条根盘，底边压在地面线上。
   // 一整张贴图用（不平铺），靠 y 对齐主杆底端
   private makeTreeRoot() {
-    // 顶端 220（= 主杆宽），底部 550 —— 和最早那版画出来的实际大小一致
-    const width = 550
-    const height = 200
+    // 高度 = 主杆底边(2000) 到 地面线(2160) 的那 160 像素；顶端 220 = 主杆宽；底部张开到 500
+    // （这样贴图按 1 倍画，顶端正好接上主杆、底边正好压在地面线上）
+    const width = 500
+    const height = 160
     const topWidth = 220
     const cx = width / 2
     const gfx = this.add.graphics()
 
-    // 一行一行画：宽度从 220 平滑张到 550。
-    // 每行切成 20 竖条，明暗用和树干完全一样的公式（按"这一行自己的宽度"算），
+    // 一行一行画：宽度从 220 平滑张到 500。
+    // 每行切成 18 竖条，明暗用和树干完全一样的公式（按"这一行自己的宽度"算），
     // 所以接上去是同一块材料；而且压暗只发生在木头上，形状外面不会留黑边
     const rowHalfWidth = (y: number) =>
       topWidth / 2 + (width / 2 - topWidth / 2) * Math.pow(y / (height - 1), 2)
@@ -507,7 +508,7 @@ export class BootScene extends Phaser.Scene {
     for (let y = 0; y < height; y++) {
       const halfWidth = rowHalfWidth(y)
       const left = cx - halfWidth
-      const slices = 20
+      const slices = 18
 
       for (let s = 0; s < slices; s++) {
         const x0 = left + (halfWidth * 2 * s) / slices
@@ -535,9 +536,9 @@ export class BootScene extends Phaser.Scene {
 
     // 三条根盘：从主干两侧斜着扎下去，越往根尖越细
     const roots = [
-      { fromX: 168, tipX: 36, thickness: 28 },
-      { fromX: 392, tipX: 520, thickness: 25 },
-      { fromX: 272, tipX: 212, thickness: 32 },
+      { fromX: 150, tipX: 34, thickness: 26 },
+      { fromX: 356, tipX: 470, thickness: 23 },
+      { fromX: 250, tipX: 188, thickness: 30 },
     ]
 
     roots.forEach((root) => {
@@ -546,7 +547,7 @@ export class BootScene extends Phaser.Scene {
       for (let i = 0; i < steps; i++) {
         const t = i / (steps - 1)
         const x = root.fromX + (root.tipX - root.fromX) * t * t
-        const y = 108 + (height - 108) * t
+        const y = 84 + (height - 84) * t
         const thickness = root.thickness * (1 - t * 0.5)
 
         gfx.fillStyle(0x6a4c2e, 1)
@@ -576,10 +577,10 @@ export class BootScene extends Phaser.Scene {
     gfx.fillStyle(0x5f7a3c, 0.6)
 
     const moss = [
-      { y: 42, at: 0.16, w: 40 },
-      { y: 95, at: 0.74, w: 34 },
-      { y: 140, at: 0.3, w: 38 },
-      { y: 178, at: 0.6, w: 30 },
+      { y: 34, at: 0.16, w: 38 },
+      { y: 76, at: 0.74, w: 32 },
+      { y: 112, at: 0.3, w: 36 },
+      { y: 142, at: 0.6, w: 28 },
     ]
 
     moss.forEach((patch) => {
