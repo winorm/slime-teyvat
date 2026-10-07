@@ -634,7 +634,8 @@ export class BootScene extends Phaser.Scene {
   // 客栈后墙：可平铺的木墙 + 一扇格子窗（120×120 一格，横着平铺就成一整面墙）
   // 客栈客房的床：床头板 + 褥子 + 枕头 + 被子
   // 望舒客栈一楼右侧那棵景观树：不是樱花，是本地（璃月＝中国）的「金桂」。
-  // 深绿革质叶 + 一簇簇金黄小花，210×250（贴地那一栏的比例：约一层楼高）
+  // 220×250（约一层楼高）。叶子是深绿革质、高光偏黄（有蜡质的油光）；
+  // 花是几颗一串簇生在枝上、被叶子遮掉一部分，远看是"绿丛里透出点点金"
   private makeOsmanthusTree() {
     const gfx = this.add.graphics()
 
@@ -681,37 +682,62 @@ export class BootScene extends Phaser.Scene {
     gfx.fillStyle(0x466b35, 1)
     mid.forEach(([x, y, r]) => gfx.fillCircle(x, y, r))
 
-    gfx.fillStyle(0x5c8a42, 1)
+    // 亮绿高光：往左上偏一点，但颜色要偏黄不能偏冷 ——
+    // 金桂是革质叶、表面有层蜡，晒到是"黄绿的油光"
+    gfx.fillStyle(0x6f9440, 1)
     mid.forEach(([x, y, r]) => gfx.fillCircle(x - 6, y - 8, r * 0.55))
 
-    // 桂花：一簇一簇的小金点，每簇一颗亮的一颗暗的当体积感
-    const flowers: [number, number][] = [
-      [44, 78],
-      [70, 50],
-      [96, 30],
-      [124, 34],
-      [152, 52],
-      [178, 76],
-      [32, 108],
-      [58, 122],
-      [92, 100],
-      [122, 108],
-      [156, 116],
-      [184, 102],
-      [110, 74],
-      [76, 86],
-      [144, 80],
-      [108, 134],
+    // 桂花：不是均匀撒点，是几颗一串地簇生在枝上（顺着枝条方向排成小串）
+    const sprays: [number, number, number, number, number][] = [
+      // x, y, 每串几颗, 横向步长, 纵向步长
+      [44, 84, 4, 7, -3],
+      [92, 32, 3, 8, 2],
+      [148, 56, 4, 7, 3],
+      [174, 92, 3, 6, 4],
+      [36, 116, 3, 8, 1],
+      [108, 106, 4, 8, 2],
+      [156, 122, 3, 7, 3],
+      [76, 92, 3, 7, 3],
     ]
 
     gfx.fillStyle(0xf2c14e, 1)
-    flowers.forEach(([x, y]) => gfx.fillCircle(x, y, 5))
+    sprays.forEach(([x, y, n, dx, dy]) => {
+      for (let i = 0; i < n; i++) gfx.fillCircle(x + dx * i, y + dy * i, 4)
+    })
 
     gfx.fillStyle(0xffd97a, 1)
-    flowers.forEach(([x, y]) => gfx.fillCircle(x - 1, y - 2, 2))
+    sprays.forEach(([x, y, n, dx, dy]) => {
+      for (let i = 0; i < n; i++) gfx.fillCircle(x + dx * i - 1, y + dy * i - 2, 2)
+    })
 
     gfx.fillStyle(0xd99a2b, 1)
-    flowers.forEach(([x, y]) => gfx.fillCircle(x + 4, y + 3, 2))
+    sprays.forEach(([x, y, n, dx, dy]) => {
+      for (let i = 0; i < n; i++) gfx.fillCircle(x + dx * i + 3, y + dy * i + 3, 2)
+    })
+
+    // 再压几片叶子回来：每串花只盖掉头一两颗，剩下的从叶缝里透出来
+    const cover: [number, number, number][] = [
+      [40, 78, 13],
+      [86, 22, 14],
+      [142, 48, 14],
+      [168, 86, 12],
+      [32, 112, 12],
+      [102, 100, 13],
+      [150, 116, 12],
+      [70, 86, 12],
+    ]
+
+    gfx.fillStyle(0x3f6234, 1)
+    cover.forEach(([x, y, r]) => gfx.fillCircle(x, y, r))
+    gfx.fillStyle(0x527a3a, 1)
+    cover.forEach(([x, y, r]) => gfx.fillCircle(x - 4, y - 5, r * 0.5))
+
+    // 叶面的蜡质反光：几个小亮点，别铺满
+    gfx.fillStyle(0x8fb055, 1)
+
+    for (const [x, y] of [[52, 22], [104, 14], [152, 28], [32, 76], [178, 66], [90, 62]]) {
+      gfx.fillCircle(x, y, 3)
+    }
 
     gfx.generateTexture('osmanthus-tree', 220, 250)
     gfx.destroy()
@@ -1859,18 +1885,37 @@ export class BootScene extends Phaser.Scene {
     gfx.destroy()
   }
 
-  // 压力板：灰阶贴图，靠 setTint 变色（没踩住=石头色，踩住=金色）
+  // 压力板：灰阶贴图，靠 setTint 变色（没踩住=石头色，踩住=金色）。
+  // 画成一块坐在石座上的面板：四周黑描边、面板上沿提亮、下沿压暗，中间一道凹槽。
+  // 判定用的细条不在贴图里，见 GameScene 的 PLATE_BODY
   private makePlate() {
     const gfx = this.add.graphics()
 
-    gfx.fillStyle(0x8a8a8a, 1)
-    gfx.fillRect(0, 4, 28, 4)
-    gfx.fillStyle(0xffffff, 1)
-    gfx.fillRect(1, 1, 26, 4)
-    gfx.fillStyle(0xb0b0b0, 1)
-    gfx.fillRect(1, 1, 26, 1)
+    // 石座：比面板大一圈，底下那圈就是"坐在地面上的框"
+    gfx.fillStyle(0x24242a, 1)
+    gfx.fillRect(0, 0, 46, 20)              // 整块的外描边
+    gfx.fillStyle(0x8f8f8f, 1)
+    gfx.fillRect(1, 1, 44, 18)              // 石座本体
+    gfx.fillStyle(0xc4c4c4, 1)
+    gfx.fillRect(1, 1, 44, 3)               // 石座受光的上沿
 
-    gfx.generateTexture('plate', 28, 8)
+    // 面板：踩下去的就是这一块
+    gfx.fillStyle(0x24242a, 1)
+    gfx.fillRect(4, 4, 38, 13)              // 面板描边
+    gfx.fillStyle(0xf4f4f4, 1)
+    gfx.fillRect(5, 5, 36, 11)
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillRect(5, 5, 36, 3)               // 面板上沿更亮
+    gfx.fillStyle(0xbfbfbf, 1)
+    gfx.fillRect(5, 13, 36, 3)              // 面板下沿压暗
+
+    // 中间一道凹槽：一眼看出"这儿是拿来踩/压的"
+    gfx.fillStyle(0x6e6e6e, 1)
+    gfx.fillRect(15, 9, 16, 3)
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillRect(15, 12, 16, 1)
+
+    gfx.generateTexture('plate', 46, 20)
     gfx.destroy()
   }
 

@@ -58,6 +58,15 @@ const ARMOR_JUMP = 1.12
 const PLATE_PRESS_TIME = 0.45
 const PLATE_SINK = 3
 
+// 压力板分两件：一件看不见的"判定条"，一件看得见的"板子"。
+// 判定条故意比画面窄一圈 —— 第六关矿洞口那两块板板心相距 70，
+// 判定条 34 + 史莱姆 32 = 66 < 70，所以一个人跨不住两块（岩柱 20 更不可能）
+const PLATE_BODY = { width: 34, height: 8 }
+
+// 板子的画面深度跟客栈家具一套：树前层压在树根（depth 2）前面，树后层沉到史莱姆后面
+// （沉下去以后靠树根那圈"透视洞"露出来，跟家具在树后是一样的道理）
+const PLATE_DEPTH = { front: 2.9, back: 1.05 }
+
 // 金桂飘花（第七关一楼那棵景观树）：隔多久飘一片花瓣、花瓣用哪几种金
 const PETAL_INTERVAL = 0.2
 const PETAL_COLORS = [0xf2c14e, 0xffd97a, 0xffe9a8, 0xd99a2b]
@@ -166,6 +175,7 @@ type NoteRef = {
 
 type PlateRef = {
   sprite: Phaser.Physics.Arcade.Sprite
+  art: Phaser.GameObjects.Image
   id: string
   baseY: number
   press: number       // 0 = 完全抬起，1 = 压到底
@@ -731,11 +741,28 @@ export class GameScene extends Phaser.Scene {
     ;(this.level.plates ?? []).forEach((def) => {
       const plate = this.plates.create(def.x, def.y, 'plate') as Phaser.Physics.Arcade.Sprite
 
-      plate.setDisplaySize(def.width ?? 28, 8)
-      plate.setTint(0x8a7f6a)
+      // 判定条：贴地那一条，位置和以前一模一样，只是看不见
+      plate.setVisible(false)
+      plate.setDisplaySize(def.width ?? PLATE_BODY.width, PLATE_BODY.height)
       plate.refreshBody()
 
-      this.plateList.push({ sprite: plate, id: def.id, baseY: def.y, press: 0, pressed: false })
+      // 画面上的板子：46×20，底边压在判定条的下沿（也就是地面）上，比判定条宽一圈。
+      // 深度见 PLATE_DEPTH：以前是 0（跟地面同层又比地面先建），第七关那半块板子
+      // 一直被地面和树根盖着，所以在地面上几乎看不见
+      const art = this.add
+        .image(def.x, def.y + PLATE_BODY.height / 2, 'plate')
+        .setOrigin(0.5, 1)
+        .setDepth(PLATE_DEPTH.front)
+        .setTint(0x8a7f6a)
+
+      this.plateList.push({
+        sprite: plate,
+        art,
+        id: def.id,
+        baseY: def.y,
+        press: 0,
+        pressed: false,
+      })
     })
 
     // 岩刺造物：贴在建筑上的发射器 + 它吐出来的岩刺。
@@ -2631,6 +2658,7 @@ export class GameScene extends Phaser.Scene {
       plate.press = Phaser.Math.Clamp(plate.press + (weight ? step : -step), 0, 1)
       // 只动画面、不动刚体：判定范围固定在抬起时的位置，不会跟着往下跑
       plate.sprite.setY(plate.baseY + plate.press * PLATE_SINK)
+      plate.art.setY(plate.baseY + PLATE_BODY.height / 2 + plate.press * PLATE_SINK)
 
       // 压到底才算数：跑过去踩一下（不到 0.45 秒）是压不动的
       const pressed = plate.press >= 1
@@ -2640,7 +2668,7 @@ export class GameScene extends Phaser.Scene {
       }
 
       plate.pressed = pressed
-      plate.sprite.setTint(pressed ? 0xffd54f : 0x8a7f6a)
+      plate.art.setTint(pressed ? 0xffd54f : 0x8a7f6a)
       playSfx(this, pressed ? 'sfx-interact' : 'sfx-step', 0.3)
 
       // 花树那块板（id=blossom）压住一次就把飘花打开，之后一直飘，松手也不停
@@ -3029,6 +3057,11 @@ export class GameScene extends Phaser.Scene {
 
     // 客栈家具跟着换：树后层整组沉到史莱姆后面
     this.innDecor.forEach((item) => item.image.setDepth(back ? item.back : item.front))
+
+    // 压力板也换：树后层要把板子沉到史莱姆后面，否则人站在板子上会被板子盖住脚
+    this.plateList.forEach((item) =>
+      item.art.setDepth(back ? PLATE_DEPTH.back : PLATE_DEPTH.front)
+    )
 
     this.updateTrunk()
     this.updateRoot()
