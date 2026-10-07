@@ -212,6 +212,7 @@ export class BootScene extends Phaser.Scene {
     this.makeInnScreen()
     this.makeXiaoSlime()
     this.makeInnkeeper()
+    this.makeIngredientItems()
     this.makeOsmanthusTree()
     this.makePetal()
   }
@@ -1203,6 +1204,74 @@ export class BootScene extends Phaser.Scene {
 
     gfx.generateTexture('npc-innkeeper', 34, 30)
     gfx.destroy()
+  }
+
+  // 支线要凑的三样原料：糖（一小碗）、杏仁（三颗）、豆腐（一块，垫在叶子上）。
+  // 都是 16 像素上下的小物件，躺在地上 / 摆在桌上，按 F 拾取
+  private makeIngredientItems() {
+    const outline = 0x14141f
+
+    // 糖：青白小瓷碗 + 一碗堆起来的白糖
+    const sugar = this.add.graphics()
+
+    sugar.fillStyle(outline, 1)
+    sugar.fillEllipse(8, 9, 15, 10)
+    sugar.fillStyle(0xc8d4de, 1)
+    sugar.fillEllipse(8, 9, 13, 8)
+    sugar.fillStyle(outline, 1)
+    sugar.fillEllipse(8, 7, 12, 7)
+    sugar.fillStyle(0xffffff, 1)
+    sugar.fillEllipse(8, 6.6, 10, 5.6)
+    sugar.fillStyle(0xe4ecf2, 1)
+    sugar.fillEllipse(8, 5, 7, 3)
+    sugar.fillStyle(0xa8b4c0, 1)
+    sugar.fillRect(3, 11, 10, 1)
+    sugar.generateTexture('item-sugar', 16, 14)
+    sugar.destroy()
+
+    // 杏仁：三颗带尖的果仁
+    const almond = this.add.graphics()
+
+    almond.fillStyle(outline, 1)
+    almond.fillEllipse(5, 9, 9, 9)
+    almond.fillEllipse(11, 9.5, 9, 9)
+    almond.fillEllipse(8, 4.5, 8, 8)
+    almond.fillStyle(0xd8b483, 1)
+    almond.fillEllipse(5, 9, 7, 7)
+    almond.fillEllipse(11, 9.5, 7, 7)
+    almond.fillEllipse(8, 4.5, 6, 6)
+    almond.fillStyle(0xb08a56, 1)
+    almond.fillRect(4, 8, 3, 1)
+    almond.fillRect(10, 8.5, 3, 1)
+    almond.fillRect(7, 3.5, 2, 1)
+    almond.fillStyle(0xf0dcb4, 1)
+    almond.fillRect(4, 7, 2, 1)
+    almond.fillRect(10, 7.5, 2, 1)
+    almond.generateTexture('item-almond', 16, 14)
+    almond.destroy()
+
+    // 豆腐：一块方方正正的白豆腐，垫在一片叶子上
+    const tofu = this.add.graphics()
+
+    tofu.fillStyle(0x2f5a35, 1)              // 叶子
+    tofu.fillEllipse(8, 13, 15, 6)
+    tofu.fillStyle(0x4a7a4a, 1)
+    tofu.fillEllipse(8, 12.6, 13, 4.6)
+    tofu.fillStyle(0x8fbf7a, 1)
+    tofu.fillRect(3, 12, 10, 1)
+
+    tofu.fillStyle(outline, 1)               // 豆腐块
+    tofu.fillRect(2.6, 2.6, 11, 10)
+    tofu.fillStyle(0xf4f2e8, 1)
+    tofu.fillRect(3.4, 3.4, 9.4, 8.4)
+    tofu.fillStyle(0xffffff, 1)
+    tofu.fillRect(3.4, 3.4, 9.4, 2)
+    tofu.fillStyle(0xd6d3c4, 1)
+    tofu.fillRect(3.4, 10, 9.4, 1.8)
+    tofu.fillStyle(0xc4c1b2, 1)
+    tofu.fillRect(8, 5.4, 1, 4.6)
+    tofu.generateTexture('item-tofu', 16, 16)
+    tofu.destroy()
   }
 
   // 望舒客栈一楼右侧那棵景观树：不是樱花，是本地（璃月＝中国）的「金桂」。

@@ -299,6 +299,12 @@ export class GameScene extends Phaser.Scene {
   private dialogueTip: Phaser.GameObjects.Text | null = null
   private dialogueLines: string[] = []
   private dialogueIndex = 0
+  // 支线的三样原料（第七关专用，位置是照着客栈地图定的，所以直接写在这儿，不动 levels.ts）
+  private ingredients: {
+    sprite: Phaser.GameObjects.Image
+    label: string
+    taken: boolean
+  }[] = []
   private bgFarY = 0.2
   private bgMidY = 0.45
   private bgNearY = 0.75
@@ -463,6 +469,7 @@ export class GameScene extends Phaser.Scene {
     this.dialogueTip = null
     this.dialogueLines = []
     this.dialogueIndex = 0
+    this.ingredients = []
     this.petalsOn = false
     this.petalTimer = 0
     this.petals = []
@@ -809,6 +816,26 @@ export class GameScene extends Phaser.Scene {
       auraWall.refreshBody()
 
       this.xiaoWall = auraWall
+
+      // 三样原料（老板娘说的那三处）：糖在一楼外头那张桌上、杏仁在金桂树下、
+      // 豆腐在 900 层厨房水缸（酒桶）旁边。depth 3.5：压在地面/楼板（0~3）和家具（2.8）之上，
+      // 又在玩家（9/10）之下
+      const items: { key: string; label: string; x: number; y: number }[] = [
+        { key: 'item-sugar', label: '糖', x: 318, y: 2138 },
+        { key: 'item-almond', label: '杏仁', x: 690, y: 2160 },
+        { key: 'item-tofu', label: '豆腐', x: 630, y: 900 },
+      ]
+
+      items.forEach((item) => {
+        this.ingredients.push({
+          sprite: this.add
+            .image(item.x, item.y, item.key)
+            .setOrigin(0.5, 1)
+            .setDepth(3.5),
+          label: item.label,
+          taken: false,
+        })
+      })
 
       // 顶楼阳台：一张小桌 + 一个蒲团（蒲团直接用圆凳代替）
       put('inn-table', 820, 400)
@@ -4488,6 +4515,21 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  // 拾取一样原料：拿掉贴图、报一下进度，三样齐了就提醒去厨房
+  private takeIngredient(item: (typeof this.ingredients)[number]) {
+    item.taken = true
+    item.sprite.destroy()
+    playSfx(this, 'sfx-interact', 0.3)
+
+    const got = this.ingredients.filter((one) => one.taken).length
+
+    this.showMessage(
+      got >= this.ingredients.length
+        ? `拿到${item.label}（${got}/${this.ingredients.length}）—— 三样齐了，去厨房的灶台`
+        : `拿到${item.label}（${got}/${this.ingredients.length}）`
+    )
+  }
+
   // 老板娘：按支线进度说不同的话。她的话就是整条支线的"指引"
   private talkToInnkeeper() {
     if (this.xiaoStage === 0) {
@@ -5092,6 +5134,28 @@ export class GameScene extends Phaser.Scene {
       if (distance < 60) {
         prompt = this.interactPrefix() + '和老板娘说话'
         action = () => this.talkToInnkeeper()
+      }
+    }
+
+    // 支线原料：糖 / 杏仁 / 豆腐，各一处，拾完就没了
+    if (!prompt) {
+      for (const item of this.ingredients) {
+        if (item.taken) {
+          continue
+        }
+
+        const distance = Phaser.Math.Distance.Between(
+          this.slime.x,
+          this.slime.y,
+          item.sprite.x,
+          item.sprite.y
+        )
+
+        if (distance < 46) {
+          prompt = this.interactPrefix() + '拾取' + item.label
+          action = () => this.takeIngredient(item)
+          break
+        }
       }
     }
 
