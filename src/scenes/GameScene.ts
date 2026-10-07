@@ -2691,6 +2691,13 @@ export class GameScene extends Phaser.Scene {
       const gfx = this.add.graphics().setDepth(def.depth ?? (layer === 'back' ? 1 : 3))
       this.stairGfx[stairIndex] = gfx
 
+      // 这一跑是不是"站在地面上起步"的（起点就在最低那块楼板的顶面上）
+      const groundTop = this.level.platforms.reduce(
+        (lowest, item) => Math.max(lowest, item.y - item.height / 2),
+        Number.NEGATIVE_INFINITY
+      )
+      const flatFoot = Math.abs(from.y - groundTop) < 2
+
       // 楼梯走向的单位向量；法线取「朝下」的那一侧，木梁和扶栏都往这边长出厚度
       const length = Phaser.Math.Distance.Between(from.x, from.y, to.x, to.y)
       const ux = (to.x - from.x) / length
@@ -2704,11 +2711,6 @@ export class GameScene extends Phaser.Scene {
       // 那种情况画成三角形（斜边 = 楼梯底面，底边水平，右端竖直），
       // 不然梁的下沿会一路翘到右端，看着像楼梯悬在半空
       const beamThickness = 10
-      const groundTop = this.level.platforms.reduce(
-        (lowest, item) => Math.max(lowest, item.y - item.height / 2),
-        Number.NEGATIVE_INFINITY
-      )
-      const flatFoot = Math.abs(from.y - groundTop) < 2
       const beam = [
         { x: from.x, y: from.y },
         { x: to.x, y: to.y },
@@ -2755,6 +2757,17 @@ export class GameScene extends Phaser.Scene {
         step.setData('stair', true)
         step.setData('layer', layer)
         step.setData('flight', stairIndex)
+
+        // 从地面上起步的那一跑：碰撞只留"上面"和"左边"。
+        // 右边/下面关掉之后，人才能贴着地面从右边穿到楼梯底下再去起点；
+        // 顶面还在（能踩、能自动上台阶），左边还在（往上走时靠它挡住并把人抬上去）
+        if (flatFoot) {
+          const stepBody = step.body as Phaser.Physics.Arcade.StaticBody
+
+          stepBody.checkCollision.down = false
+          stepBody.checkCollision.right = false
+        }
+
         this.stairs.push(step)
       }
 
