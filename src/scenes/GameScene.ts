@@ -596,7 +596,12 @@ export class GameScene extends Phaser.Scene {
         }
       })
 
-      if (def.rail || stairAtLeft || stairAtRight) {
+      // 自动补护栏只认「窄平台」（1/2 层平台、阳台这类 width ≤ 220 的）。
+      // 整层楼板（430 / 466 / 960 宽）不算：它的楼梯口在板子中间，
+      // 照这套逻辑会在屋里横一道栏杆，看着像凭空多了排栅栏
+      const narrowLanding = def.width <= 220
+
+      if (def.rail || (narrowLanding && (stairAtLeft || stairAtRight))) {
         const railY = top - 26
         const railLeft = railLeftEdge
         const railGfx = this.add.graphics().setDepth((def.depth ?? 0) + 0.1)
@@ -705,10 +710,6 @@ export class GameScene extends Phaser.Scene {
     })
 
     this.buildStairs()
-
-    this.buildInnFrame()
-
-    this.buildInnWalls()
 
     if (this.level.dome) {
       const dome = this.level.dome
@@ -2651,123 +2652,6 @@ export class GameScene extends Phaser.Scene {
     this.trunkDrawn = { x: px, y: py, layer: this.playerLayer }
   }
 
-  // 客栈的墙板 + 格子窗：每一层的楼板往下、到下面那层楼板之间，靠外那一侧补一块木墙，
-  // 中间开一扇璃月式格子窗 ——「平台」这才变成「房间」。
-  // 深度 2.3（在立柱 2.5 之前、树干 2 之后），纯画面
-  private buildInnWalls() {
-    // 同上：只处理室外绕树那一段（宽 < 500 且 y ≥ 1100），楼内楼板不参与
-    const platforms = this.level.platforms.filter(
-      (item) => item.width < 500 && item.y - item.height / 2 >= 1100
-    )
-
-    if (platforms.length < 3) {
-      return
-    }
-
-    const left = Math.min(...platforms.map((item) => item.x - item.width / 2))
-    const right = Math.max(...platforms.map((item) => item.x + item.width / 2))
-    const middle = (left + right) / 2
-    const groundTop = Math.max(...platforms.map((item) => item.y - item.height / 2))
-
-    const gfx = this.add.graphics().setDepth(2.3)
-    const wallColor = 0x6b4a2c
-    const glassColor = 0x1a1a2e
-    const latticeColor = 0x8a6034
-
-    const leftList = platforms.filter((item) => item.x < middle).sort((a, b) => b.y - a.y)
-    const rightList = platforms.filter((item) => item.x >= middle).sort((a, b) => b.y - a.y)
-
-    const sides = [
-      {
-        list: leftList,
-        x1: left,
-        x2: leftList.length > 0
-          ? Math.max(...leftList.map((item) => item.x + item.width / 2))
-          : left,
-      },
-      {
-        list: rightList,
-        x1: rightList.length > 0
-          ? Math.min(...rightList.map((item) => item.x - item.width / 2))
-          : right,
-        x2: right,
-      },
-    ]
-
-    sides.forEach(({ list, x1, x2 }) => {
-      let belowTop = groundTop
-
-      list.forEach((item) => {
-        const top = item.y - item.height / 2
-        const wallTop = top + 4
-        const wallHeight = belowTop - wallTop
-
-        if (wallHeight >= 40) {
-          gfx.fillStyle(wallColor, 1)
-          gfx.fillRect(x1, wallTop, x2 - x1, wallHeight)
-
-          // 格子窗：黑底 + 3×3 的木格
-          const winW = 26
-          const winH = 20
-          const winCx = (x1 + x2) / 2
-          const winCy = wallTop + wallHeight / 2
-
-          gfx.fillStyle(glassColor, 1)
-          gfx.fillRect(winCx - winW / 2, winCy - winH / 2, winW, winH)
-
-          gfx.fillStyle(latticeColor, 1)
-
-          for (let k = 1; k < 4; k++) {
-            gfx.fillRect(winCx - winW / 2, winCy - winH / 2 + (winH * k) / 4, winW, 1)
-            gfx.fillRect(winCx - winW / 2 + (winW * k) / 4, winCy - winH / 2, 1, winH)
-          }
-        }
-
-        belowTop = top
-      })
-    })
-  }
-
-  // 客栈的「楼」骨架：最外沿两根通高立柱 + 每层外端一对斜撑。
-  // 全部画在玩家身后（depth 2.5），所以玩家永远走在前景；纯画面、不参与碰撞
-  private buildInnFrame() {
-    // 只给「室外绕树那一段」画骨架：整层楼板（宽 ≥ 500）和楼内的平台都排除掉，
-    // 否则它们会被当成「某一侧的平台」，算出来的立柱和斜撑会横跨整个关卡
-    const platforms = this.level.platforms.filter(
-      (item) => item.width < 500 && item.y - item.height / 2 >= 1100
-    )
-
-    if (platforms.length === 0) {
-      return
-    }
-
-    const left = Math.min(...platforms.map((item) => item.x - item.width / 2))
-    const right = Math.max(...platforms.map((item) => item.x + item.width / 2))
-    const top = Math.min(...platforms.map((item) => item.y - item.height / 2))
-    const groundTop = Math.max(...platforms.map((item) => item.y - item.height / 2))
-
-    const gfx = this.add.graphics().setDepth(2.5)
-    const columnWidth = 5
-    const headroom = 14
-
-    // 两根通高立柱：从一楼地面通到顶，往上再多出一小截
-    gfx.fillStyle(0x66452a, 1)
-    gfx.fillRect(left - 1, top - headroom, columnWidth, groundTop - top + headroom)
-    gfx.fillRect(right - columnWidth + 1, top - headroom, columnWidth, groundTop - top + headroom)
-
-    // 每块楼板的外端：柱子内侧一对「八字撑」（直角三角形），撑住挑出来的楼板
-    gfx.fillStyle(0x5a3c22, 1)
-
-    platforms.forEach((item) => {
-      const slabBottom = item.y + item.height / 2
-      const isLeft = item.x < (left + right) / 2
-      const braceX = isLeft ? item.x - item.width / 2 : item.x + item.width / 2
-      const dir = isLeft ? 1 : -1
-
-      gfx.fillTriangle(braceX, slabBottom, braceX + dir * 24, slabBottom, braceX, slabBottom + 24)
-    })
-  }
-
   // 楼梯的自动上台阶：往楼梯里走的时候，前面那一级只高出一点点（不超过 AUTO_STEP），
   // 就把整个人抬上去，不用跳。只认打了 stair 标记的踏板，其它地方照旧挡人。
   private tryAutoStep(onGround: boolean, dt: number) {
@@ -2934,11 +2818,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   private refreshGemHud() {
-    const saved = progress.levelGems[progress.levelIndex] ?? []
+    const collected = new Set([
+      ...(progress.levelGems[progress.levelIndex] ?? []),
+      ...this.collectedIndices,
+    ])
 
     this.gemIcons.forEach((icon, index) => {
-      const lit = saved.includes(index) || this.collectedIndices.includes(index)
-      icon.setTint(lit ? 0x6ec6ff : 0x33333f)
+      // 按「已经收集到的数量」从左往右依次点亮：跳着捡也不会出现"第 1 个灭、第 2 个亮"
+      icon.setTint(index < collected.size ? 0x6ec6ff : 0x33333f)
     })
   }
 

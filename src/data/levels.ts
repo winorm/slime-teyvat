@@ -638,18 +638,25 @@ export const LEVELS: LevelDef[] = [
       { x: 630, y: 1638, width: 120, height: 6, depth: 3, rail: true, plank: true, pillars: 3 },
       { x: 630, y: 1288, width: 120, height: 6, depth: 3, rail: true, plank: true, pillars: 3 },
 
-      // 楼内：整层楼板（顶面 1110 / 900 / 650 / 400）
-      { x: 480, y: 1113, width: 960, height: 6, depth: 3, plank: true },
-      { x: 480, y: 903,  width: 960, height: 6, depth: 3, plank: true },
-      { x: 480, y: 653,  width: 960, height: 6, depth: 3, plank: true },
-      { x: 480, y: 403,  width: 960, height: 6, depth: 3, plank: true },
+      // 楼内：每层楼板在楼梯口那儿断开 —— x 430~534 是楼梯井。
+      // 下楼那一跑就露在井里：玩家在「树后面」那层走到楼板右沿（x=430）会顺着它下去；
+      // 在「树前面」那层会被上楼的踏步挡一下、自动抬上去。上和下就是靠这个分开的。
+      // （以前楼板铺满 960，把下楼那一跑压在底下了，所以怎么走都下不去。）
+      // 井右边那截楼板留着，让「楼」看起来是一整层；平地上跳不过去，要用风飞过去。
+      { x: 215, y: 1113, width: 430, height: 6, depth: 3, plank: true },
+      { x: 747, y: 1113, width: 426, height: 6, depth: 3, plank: true },
+      { x: 215, y: 903,  width: 430, height: 6, depth: 3, plank: true },
+      { x: 747, y: 903,  width: 426, height: 6, depth: 3, plank: true },
+      { x: 215, y: 653,  width: 430, height: 6, depth: 3, plank: true },
+      { x: 747, y: 653,  width: 426, height: 6, depth: 3, plank: true },
       // 楼内：绕短木的半层平台（顶面 985 / 775 / 525）
       { x: 650, y: 988, width: 120, height: 6, depth: 3, rail: true, plank: true },
       { x: 650, y: 778, width: 120, height: 6, depth: 3, rail: true, plank: true },
       { x: 650, y: 528, width: 120, height: 6, depth: 3, rail: true, plank: true },
 
-      // 顶楼阳台
-      { x: 880, y: 403, width: 160, height: 6, depth: 3, rail: true, plank: true },
+      // 顶楼阳台（顶面 400）：最后一跑从 525 平台往上、往右接到这儿（左边就是楼梯井，
+      // 往回走一脚下楼），宝箱摆在阳台右端
+      { x: 855, y: 403, width: 210, height: 6, depth: 3, rail: true, plank: true },
     ],
 
     stairs: [
@@ -667,7 +674,7 @@ export const LEVELS: LevelDef[] = [
       { from: { x: 430, y: 900 },  to: { x: 590, y: 775 }, layer: 'front' },
       { from: { x: 590, y: 775 }, to: { x: 430, y: 650 }, layer: 'back' },
       { from: { x: 430, y: 650 },  to: { x: 590, y: 525 }, layer: 'front' },
-      { from: { x: 590, y: 525 }, to: { x: 430, y: 400 }, layer: 'back' },
+      { from: { x: 590, y: 525 }, to: { x: 750, y: 400 }, layer: 'back' },
     ],
 
     depthGates: [
@@ -677,14 +684,21 @@ export const LEVELS: LevelDef[] = [
       { x: 610, y: 1619, width: 32, height: 40 },
       { x: 280, y: 1444, width: 32, height: 40 },
       { x: 610, y: 1269, width: 32, height: 40 },
-      { x: 280, y: 1094, width: 32, height: 40 },
 
-      // 楼内：1/2 层平台往右、整层往左
+      // 楼内：1/2 层平台往右（上楼下楼的人都是从左边走进来的，进来时往右走一下正好换层）
       { x: 630, y: 969, width: 32, height: 40 },
-      { x: 380, y: 884, width: 32, height: 40 },
       { x: 630, y: 759, width: 32, height: 40 },
-      { x: 380, y: 634, width: 32, height: 40 },
       { x: 630, y: 509, width: 32, height: 40 },
+      // 525 平台例外：它的楼梯在左右两边（往右上楼、往左下楼），所以两个方向各放一个判定区
+      { x: 600, y: 509, width: 36, height: 40, dir: -1 },
+
+      // 楼内：整层楼板的判定区压在楼梯口（x≈430）上。
+      // 以前放在 x=380，玩家上到楼层往往直接掉头，走不到判定区，就以为「上不去」；
+      // 压在楼梯口上就一定触发：上楼的人翻到「树前面」接着往上，
+      // 下楼的人翻到「树后面」，再从楼板右沿走进楼梯井
+      { x: 420, y: 1100, width: 76, height: 40 },
+      { x: 420, y: 884, width: 56, height: 40 },
+      { x: 420, y: 634, width: 56, height: 40 },
     ],
     pickups: [
       { x: 300, y: 1810, prompt: '拾取木材' },
