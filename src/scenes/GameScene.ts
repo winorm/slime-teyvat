@@ -208,6 +208,16 @@ export class GameScene extends Phaser.Scene {
     tint: number
     drawn: { x: number; y: number; layer: string }
   }[] = []
+  // 木制水利电梯（第七关）：井道里一台轿厢，在每层楼板处停靠。
+  // 数据是 LevelDef.lift（可选）：{ x: 井道中心, width: 井道宽, stops: [每层楼板顶面 y, 从高到低] }
+  private liftCar: Phaser.Physics.Arcade.Sprite | null = null
+  private liftCarArt: Phaser.GameObjects.TileSprite | null = null
+  private liftRope: Phaser.GameObjects.Rectangle | null = null
+  private liftGates: Phaser.Physics.Arcade.Sprite[] = []
+  private liftBars: Phaser.GameObjects.Rectangle[] = []
+  private liftIndex = 0
+  private liftMoving = false
+  private liftState = { y: 0 }
   // 楼梯护栏单独一张 Graphics，depth 按「这一跑属于哪一层」定：
   // 前台层的护栏给 12（压在史莱姆 10/11 上面 —— 栏杆在台阶外侧，人从栏杆后面走过），
   // 后台层的护栏给 1.4（在树干 2 之前，走到树后面时仍然被树挡住）
@@ -567,6 +577,8 @@ export class GameScene extends Phaser.Scene {
         .setOrigin(0, 0)
         .setDepth(spindle.depth ?? 2)
     }
+
+    this.buildLift()
 
     this.gems = this.physics.add.staticGroup()
     this.blessings = this.physics.add.staticGroup()
@@ -2812,6 +2824,192 @@ export class GameScene extends Phaser.Scene {
     ).spindle
   }
 
+  // 水利电梯的数据（可选字段，没写就不建）
+  private get liftDef() {
+    return (
+      this.level as {
+        lift?: { x: number; width: number; stops: number[] }
+      }
+    ).lift
+  }
+
+  // 建井道、轿厢、每层井口的挡板。轿厢初始停在第 0 站（stops[0]）
+  private buildLift() {
+    const lift = this.liftDef
+
+    this.liftCar = null
+    this.liftCarArt = null
+    this.liftRope = null
+    this.liftGates = []
+    this.liftBars = []
+    this.liftIndex = 0
+    this.liftMoving = false
+
+    if (!lift || lift.stops.length < 2) {
+      return
+    }
+
+    const half = lift.width / 2
+    const topStop = Math.min(...lift.stops)
+    const bottomStop = Math.max(...lift.stops)
+    const carH = 8
+
+    // 井道两侧的立柱（画在楼板之后、树干之前）
+    ;[lift.x - half - 2, lift.x + half + 2].forEach((railX) => {
+      this.add
+        .rectangle(railX, (topStop + bottomStop) / 2, 3, bottomStop - topStop + 24, 0x5a3c22)
+        .setDepth(2.4)
+    })
+
+    // 轿厢：挡住玩家的那块（静态体，靠 refreshBody 跟着走）
+    const car = this.platforms.create(lift.x, lift.stops[0] + carH / 2, 'pixel') as Phaser.Physics.Arcade.Sprite
+
+    car.setDisplaySize(lift.width, carH)
+    car.setVisible(false)
+    car.refreshBody()
+    car.setData('liftCar', true)
+    this.liftCar = car
+
+    // 轿厢的样子 + 上面吊着的绳子
+    this.liftCarArt = this.add
+      .tileSprite(lift.x, lift.stops[0] + carH / 2, lift.width, carH, 'wood-plank')
+      .setDepth(2.5)
+
+    this.liftRope = this.add
+      .rectangle(lift.x, topStop - 12, 2, 10, 0x6f4423)
+      .setOrigin(0.5, 0)
+      .setDepth(2.45)
+
+    this.liftState.y = lift.stops[0]
+
+    // 每层井口一块挡板 + 一根横杆：轿厢不在这一层时挡住，免得掉进井道
+    lift.stops.forEach((stop) => {
+      const gate = this.platforms.create(lift.x, stop - 13, 'pixel') as Phaser.Physics.Arcade.Sprite
+
+      gate.setDisplaySize(lift.width + 8, 26)
+      gate.setVisible(false)
+      gate.refreshBody()
+      gate.setData('liftGate', true)
+      this.liftGates.push(gate)
+
+      const bar = this.add
+        .rectangle(lift.x, stop - 3, lift.width + 8, 6, 0x6f4423)
+        .setDepth(2.6)
+
+      this.liftBars.push(bar)
+    })
+
+    this.syncLiftGates()
+  }
+
+  // 每层井口的挡板 / 横杆：只有轿厢停着的那一层是开的
+  private syncLiftGates() {
+    this.liftGates.forEach((gate, index) => {
+      ;(gate.body as Phaser.Physics.Arcade.StaticBody).enable = index !== this.liftIndex
+    })
+
+    this.liftBars.forEach((bar, index) => {
+      bar.setVisible(index !== this.liftIndex)
+    })
+  }
+
+  // 每帧：把轿厢、吊绳挪到当前高度；玩家站在轿厢上就跟着一起走
+  private updateLift() {
+    const lift = this.liftDef
+    const car = this.liftCar
+
+    if (!lift || !car) {
+      return
+    }
+
+    const y = this.liftState.y
+    const topStop = Math.min(...lift.stops)
+
+    car.setPosition(lift.x, y + 4)
+    car.refreshBody()
+    this.liftCarArt?.setPosition(lift.x, y + 4)
+
+    if (this.liftRope) {
+      this.liftRope.setPosition(lift.x, topStop - 12)
+      this.liftRope.setSize(2, Math.max(4, y - topStop + 12))
+    }
+
+    const body = this.slime.body as Phaser.Physics.Arcade.Body
+    const onCar =
+      Math.abs(body.bottom - y) < 5 && Math.abs(this.slime.x - lift.x) < lift.width / 2 + 4
+
+    if (this.liftMoving && onCar) {
+      body.reset(body.center.x, y - body.height / 2)
+    }
+  }
+
+  // 站在轿厢上按 F：站在中线左边 = 下行、右边 = 上行；站在楼口按 F = 把轿厢叫到这一层
+  private useLift() {
+    const lift = this.liftDef
+
+    if (!lift || !this.liftCar || this.liftMoving) {
+      return
+    }
+
+    const body = this.slime.body as Phaser.Physics.Arcade.Body
+    const onCar =
+      Math.abs(body.bottom - this.liftState.y) < 5 &&
+      Math.abs(this.slime.x - lift.x) < lift.width / 2 + 4
+
+    if (!onCar) {
+      const stopIndex = lift.stops.findIndex((stop) => Math.abs(body.bottom - stop) < 8)
+
+      if (stopIndex < 0 || stopIndex === this.liftIndex) {
+        return
+      }
+
+      this.moveLiftTo(stopIndex)
+      return
+    }
+
+    const wantUp = this.slime.x > lift.x
+    const next = wantUp ? this.liftIndex - 1 : this.liftIndex + 1
+
+    if (next < 0 || next >= lift.stops.length) {
+      this.showMessage('水利电梯已经到头了。')
+      return
+    }
+
+    this.moveLiftTo(next)
+  }
+
+  private moveLiftTo(index: number) {
+    const lift = this.liftDef
+
+    if (!lift) {
+      return
+    }
+
+    const from = this.liftState.y
+    const to = lift.stops[index]
+    const crossed = lift.stops.filter((stop) =>
+      to > from ? stop > from && stop <= to : stop < from && stop >= to
+    ).length
+
+    this.liftMoving = true
+    this.inputLocked = true
+    playSfx(this, 'sfx-interact', 0.25)
+
+    this.tweens.add({
+      targets: this.liftState,
+      y: to,
+      duration: 700 + 260 * crossed,
+      ease: 'Sine.easeInOut',
+      onComplete: () => {
+        this.liftIndex = index
+        this.liftMoving = false
+        this.inputLocked = false
+        this.syncLiftGates()
+        playSfx(this, 'sfx-land', 0.22)
+      },
+    })
+  }
+
   // 重画短木：树皮平铺一层（只取贴图中间那片），玩家在树后层时擦透视洞
   private updateRoot() {
     const rt = this.rootRT
@@ -3812,6 +4010,8 @@ export class GameScene extends Phaser.Scene {
     this.updateSpindle()
     // 活板（层补片）上的透视圈：楼板一直画着，只擦史莱姆附近那一块
     this.updateLayerReveals()
+    // 水利电梯：轿厢跟到当前高度，站在上面的人跟着走
+    this.updateLift()
 
     if (this.perfText) {
       this.perfTimer -= dt
@@ -4120,6 +4320,34 @@ export class GameScene extends Phaser.Scene {
       if (nearGoal) {
         prompt = this.interactPrefix() + this.level.goal.prompt
         action = () => this.win()
+      }
+    }
+
+    // 水利电梯：站在轿厢上（左半边下行、右半边上行），或站在楼口叫轿厢
+    if (!prompt && this.liftCar && !this.liftMoving) {
+      const lift = this.liftDef!
+      const liftBody = this.slime.body as Phaser.Physics.Arcade.Body
+      const onCar =
+        Math.abs(liftBody.bottom - this.liftState.y) < 5 &&
+        Math.abs(this.slime.x - lift.x) < lift.width / 2 + 4
+
+      if (onCar) {
+        const wantUp = this.slime.x > lift.x
+        const next = wantUp ? this.liftIndex - 1 : this.liftIndex + 1
+
+        if (next >= 0 && next < lift.stops.length) {
+          prompt = this.interactPrefix() + (wantUp ? '上行' : '下行')
+          action = () => this.useLift()
+        }
+      } else {
+        const stopIndex = lift.stops.findIndex(
+          (stop) => Math.abs(liftBody.bottom - stop) < 8
+        )
+
+        if (stopIndex >= 0 && stopIndex !== this.liftIndex) {
+          prompt = this.interactPrefix() + '呼叫电梯'
+          action = () => this.useLift()
+        }
       }
     }
 
