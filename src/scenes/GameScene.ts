@@ -266,6 +266,9 @@ export class GameScene extends Phaser.Scene {
   // 平铺贴图一偏移就会绕回开头（远山下面又冒出天空），整幅图不会
   private bgTall: { image: Phaser.GameObjects.Image; k: number }[] = []
   private groundScrollY = 0
+  // 客栈家具（柜台/柜子/灶台/柴堆/吊锅/挂灯/酒桶）：跟着"树前/树后"换深度 ——
+  // 树前层时摆在史莱姆后面（2.8 左右），树后层时整组沉到史莱姆（1.2）后面
+  private innDecor: { image: Phaser.GameObjects.Image; front: number; back: number }[] = []
   private bgFarY = 0.2
   private bgMidY = 0.45
   private bgNearY = 0.75
@@ -402,6 +405,7 @@ export class GameScene extends Phaser.Scene {
     this.spindleRT = null
     this.spindleDrawn = { x: -99999, y: -99999, layer: '' }
     this.gateFired = []
+    this.innDecor = []
     this.layerPieces = []
     // 存档只记「永久成果」（元素 / 原石 / 成就 / 关卡推进）。
     // 木材和修好的楼梯属于关卡内的机关，每进一次关卡都从头来（见开发笔记「开发约定」）
@@ -635,15 +639,26 @@ export class GameScene extends Phaser.Scene {
     // 望舒客栈 1110 层（进楼第一层）的前台：柜台摆在楼板左段上，旁边放个酒桶。
     // 纯画面、不挡人 —— 深度 2.8 让史莱姆从它前面走过
     if (theme === 'liyue' && this.level.trunk) {
-      this.add.image(150, 1110, 'inn-front').setOrigin(0.5, 1).setDepth(2.8)
-      this.add.image(60, 1110, 'barrel').setOrigin(0.5, 1).setDepth(2.8)
-      this.add.image(28, 1110, 'inn-cabinet').setOrigin(0.5, 1).setDepth(2.8)
-      this.add.image(150, 906, 'lantern').setOrigin(0.5, 0).setDepth(2.9)
+      // 第 4 个参数：贴地家具（originY=1）还是吊起来的（originY=0，挂灯/吊锅）
+      const put = (key: string, x: number, y: number, hanging = false) => {
+        const image = this.add
+          .image(x, y, key)
+          .setOrigin(0.5, hanging ? 0 : 1)
+          .setDepth(2.8)
+
+        this.innDecor.push({ image, front: hanging ? 2.9 : 2.8, back: hanging ? 1.08 : 1.05 })
+      }
+
+      // 1110 层：前台（柜台 + 木格柜 + 酒桶 + 檐下挂灯）
+      put('inn-front', 150, 1110)
+      put('barrel', 60, 1110)
+      put('inn-cabinet', 28, 1110)
+      put('lantern', 150, 906, true)
 
       // 900 层：厨房（砖灶 + 吊锅 + 柴堆）
-      this.add.image(64, 900, 'inn-stove').setOrigin(0.5, 1).setDepth(2.8)
-      this.add.image(64, 898, 'inn-pot').setOrigin(0.5, 1).setDepth(2.9)
-      this.add.image(150, 900, 'inn-wood').setOrigin(0.5, 1).setDepth(2.8)
+      put('inn-stove', 64, 900)
+      put('inn-pot', 64, 898, true)
+      put('inn-wood', 150, 900)
     }
 
     this.gems = this.physics.add.staticGroup()
@@ -2874,6 +2889,9 @@ export class GameScene extends Phaser.Scene {
     this.armorPlate.setDepth(back ? 1.15 : 9)
     this.windTrails.forEach((trail) => trail.setDepth(back ? 1.1 : 9))
     this.eyes.forEach((eye) => eye.setDepth(back ? 1.3 : 11))
+
+    // 客栈家具跟着换：树后层整组沉到史莱姆后面
+    this.innDecor.forEach((item) => item.image.setDepth(back ? item.back : item.front))
 
     this.updateTrunk()
     this.updateRoot()
