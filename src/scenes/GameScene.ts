@@ -688,10 +688,27 @@ export class GameScene extends Phaser.Scene {
       put('inn-cabinet', 28, 1110)
       put('lantern', 150, 906, true)
 
+      // 1110 层大堂右半边（井口 200~280、楼梯口 430~534 之外的 534~960）：
+      // 招待客人吃饭的两张方桌 + 从 900 层楼板垂下来的挂灯
+      put('inn-table', 600, 1110)
+      put('inn-stool', 578, 1110)
+      put('inn-stool', 622, 1110)
+      put('inn-table', 790, 1110)
+      put('inn-stool', 768, 1110)
+      put('inn-stool', 812, 1110)
+      put('lantern', 695, 906, true)
+      put('lantern', 880, 906, true)
+
       // 900 层：厨房（砖灶 + 吊锅 + 柴堆）
       put('inn-stove', 64, 900)
       put('inn-pot', 64, 898, true)
       put('inn-wood', 150, 900)
+
+      // 900 层厨房右半边：水缸 + 案板 + 一摞备用的柴
+      put('barrel', 600, 900)
+      put('inn-table', 700, 900)
+      put('inn-wood', 800, 900)
+      put('inn-stool', 660, 900)
 
       // 一楼地面：楼下乘凉吃饭的地方（两桌四凳）。
       // 放在楼梯左边 —— 第一跑楼梯的起点（x=362）贴在地面上，右边只能从 1/2 平台跳下去，
@@ -708,6 +725,21 @@ export class GameScene extends Phaser.Scene {
       // 650 层：客房（床 + 木格柜当衣箱）
       put('inn-bed', 60, 650)
       put('inn-cabinet', 140, 650)
+
+      // 650 层右边是第二间客房：另一张床 + 床头柜 + 一扇屏风挡在门口一侧
+      put('inn-bed', 620, 650)
+      put('inn-cabinet', 705, 650)
+      put('inn-screen', 800, 650)
+      put('inn-stool', 560, 650)
+
+      // 一楼户外用餐区：两张桌子各撑一个棚子，棚下各挂一盏灯
+      put('inn-awning', 50, 2160)
+      put('inn-awning', 325, 2160)
+      put('lantern', 50, 2122, true)
+      put('lantern', 325, 2122, true)
+
+      // 进楼门口旁边挂一盏门灯
+      put('lantern', 404, 1030, true)
 
       // 顶楼阳台：一张小桌 + 一个蒲团（蒲团直接用圆凳代替）
       put('inn-table', 820, 400)
@@ -736,10 +768,10 @@ export class GameScene extends Phaser.Scene {
       // 走 put 走的是家具那套深度（树前 2.8 / 树后 1.05），玩家从前层进楼不会被门挡住
       put('inn-door', 362, 1110)
 
-      // 招牌：钉在门上方那面墙上。牌面是贴图，四个字用 Text 打（跟提示词一样的做法）
-      this.add.image(362, 966, 'inn-sign').setDepth(0.6)
+      // 招牌：钉在门楣上方那面墙上（再往下挪了 32）。牌面是贴图，四个字用 Text 打
+      this.add.image(362, 998, 'inn-sign').setDepth(0.6)
       this.add
-        .text(362, 966, '望舒客栈', {
+        .text(362, 998, '望舒客栈', {
           fontFamily: 'sans-serif',
           fontSize: '15px',
           color: '#33220f',

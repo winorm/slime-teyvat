@@ -208,6 +208,8 @@ export class BootScene extends Phaser.Scene {
     this.makeInnBed()
     this.makeInnDoor()
     this.makeInnSign()
+    this.makeInnAwning()
+    this.makeInnScreen()
     this.makeOsmanthusTree()
     this.makePetal()
   }
@@ -695,6 +697,82 @@ export class BootScene extends Phaser.Scene {
     gfx.fillRect(69, 5, 1, 18)
 
     gfx.generateTexture('inn-sign', 76, 28)
+    gfx.destroy()
+  }
+
+  // 一楼户外用餐区的棚子：两根木柱撑一片小屋檐（跟屋顶同一套青灰瓦 + 金边），
+  // 100×66，贴地摆。柱子落在 x=6/90，棚底在贴图 y=25（离地 41 像素，人从下面过）
+  private makeInnAwning() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0x3d4a63, 1)              // 棚面（梯形）
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(0, 18),
+        new Phaser.Math.Vector2(100, 18),
+        new Phaser.Math.Vector2(84, 0),
+        new Phaser.Math.Vector2(16, 0),
+      ],
+      true
+    )
+    gfx.fillStyle(0x4b5975, 1)              // 下沿一条亮带
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(0, 18),
+        new Phaser.Math.Vector2(100, 18),
+        new Phaser.Math.Vector2(96, 14),
+        new Phaser.Math.Vector2(4, 14),
+      ],
+      true
+    )
+    gfx.fillStyle(0x5a6a86, 1)              // 正脊
+    gfx.fillRect(14, 0, 72, 3)
+    gfx.fillStyle(0x2b3446, 1)              // 檐板
+    gfx.fillRect(0, 18, 100, 5)
+    gfx.fillStyle(0xc9a227, 1)              // 檐口金边
+    gfx.fillRect(0, 23, 100, 2)
+
+    gfx.fillStyle(0x6b4a2c, 1)              // 两根木柱
+    gfx.fillRect(6, 16, 4, 50)
+    gfx.fillRect(90, 16, 4, 50)
+    gfx.fillStyle(0x8a6034, 1)
+    gfx.fillRect(6, 16, 1, 50)
+    gfx.fillRect(90, 16, 1, 50)
+    gfx.fillStyle(0x4a3320, 1)
+    gfx.fillRect(9, 16, 1, 50)
+    gfx.fillRect(93, 16, 1, 50)
+
+    gfx.generateTexture('inn-awning', 100, 66)
+    gfx.destroy()
+  }
+
+  // 客房里的三扇屏风：木框 + 纸面，中间那扇当成背光面压暗一档，做出折起来的感觉
+  private makeInnScreen() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0x4a3320, 1)
+    gfx.fillRect(0, 2, 60, 40)
+    gfx.fillStyle(0x6b4a2c, 1)
+    gfx.fillRect(1, 3, 58, 38)
+
+    for (let panel = 0; panel < 3; panel++) {
+      const x = 3 + panel * 19
+
+      gfx.fillStyle(0x6b4a2c, 1)
+      gfx.fillRect(x, 5, 16, 34)
+      gfx.fillStyle(panel === 1 ? 0xd8c69a : 0xe8d9b0, 1)
+      gfx.fillRect(x + 2, 7, 12, 30)
+      gfx.fillStyle(0x5a6a86, 1)            // 每扇上一点远山
+      gfx.fillTriangle(x + 3, 30, x + 8, 21, x + 13, 30)
+      gfx.fillStyle(0x8a9a7a, 1)
+      gfx.fillRect(x + 3, 32, 10, 2)
+    }
+
+    gfx.fillStyle(0x4a3320, 1)              // 两只小脚
+    gfx.fillRect(0, 42, 4, 4)
+    gfx.fillRect(56, 42, 4, 4)
+
+    gfx.generateTexture('inn-screen', 60, 46)
     gfx.destroy()
   }
 
