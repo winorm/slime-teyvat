@@ -4798,9 +4798,9 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
-    // ④ 中间那段（带玩家回话）：楼梯修好了就能开，**不要求见过魈**；
-    //    没修完但已经上过顶楼碰过气息的，也能从这儿问出来（只是省掉开头那两句道谢）
-    if (this.stairsDone || this.metXiao) {
+    // ④ 中间那段（带玩家回话）：**要修完两处楼梯**才开 —— 修楼梯是这条线的必经之路。
+    //    跟有没有见过魈无关：先跑上顶楼碰了气息、却没修楼梯的，她只会先催你去修
+    if (this.stairsDone) {
       if (this.ingredientHintSeen) {
         this.showDialogue('老板娘', [last])
         return
@@ -4808,7 +4808,8 @@ export class GameScene extends Phaser.Scene {
 
       this.ingredientHintSeen = true
       this.showDialogue('老板娘', [
-        ...(this.stairsDone ? ['太感谢了。', '（没事，小菜一碟。）'] : []),
+        '太感谢了。',
+        '（没事，小菜一碟。）',
         '对了，我听说你在找回家的方法。不瞒您说，咱客栈顶楼住着一位仙人，唤名「魈」。',
         '你可以找他打听打听——只不过他一般不见人。',
         '除非你做一盘他最喜欢吃的杏仁豆腐，兴许他会告诉你。',
