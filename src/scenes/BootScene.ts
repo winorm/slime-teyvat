@@ -630,7 +630,9 @@ export class BootScene extends Phaser.Scene {
   // 客栈的桌凳：方桌（桌面 + 四条腿 + 横撑）和圆凳
   // 客栈后墙：可平铺的木墙 + 一扇格子窗（120×120 一格，横着平铺就成一整面墙）
   private makeInnWall() {
-    const size = 120
+    // 一格 300×300：横着平铺大约每 300 像素一扇窗（原来 120 太频繁），
+    // 竖着不重复（楼层高度 210~250，一格里只出现一扇窗）
+    const size = 300
     const gfx = this.add.graphics()
 
     gfx.fillStyle(0x5f4224, 1)              // 墙板底色
