@@ -186,11 +186,20 @@ export class GameScene extends Phaser.Scene {
   private trunkRT: Phaser.GameObjects.RenderTexture | null = null
   private trunkDrawn = { x: -99999, y: -99999, layer: '' as string }
   private gateFired: boolean[] = []
-  // 只在「树前」或「树后」某一层存在的楼板补片（第七关整层楼板中间那块"活板"）：
-  // 树前层时它是完整楼板（可以正常走过去），树后层时它消失、露出楼梯井（可以下楼）
+  // 只在「树前」或「树后」某一层存在的楼板补片（第七关整层楼板中间那块"活板"）。
+  // 贴图搬在 RenderTexture 上，跟树干同一套做法：楼板**一直画着**，史莱姆在另一层时
+  // 在它附近擦一个椭圆"透视"洞 —— 于是能看见自己从楼板中间穿过去，而不是楼板整块消失。
+  // 碰撞由 collider 的过滤函数按 layer 决定（不属于玩家那一层就不挡人）
   private layerPieces: {
     layer: 'front' | 'back'
-    objects: (Phaser.GameObjects.Sprite | Phaser.GameObjects.TileSprite)[]
+    rt: Phaser.GameObjects.RenderTexture
+    left: number
+    top: number
+    width: number
+    height: number
+    plank: boolean
+    tint: number
+    drawn: { x: number; y: number; layer: string }
   }[] = []
   // 楼梯护栏单独一张 Graphics，depth 按「这一跑属于哪一层」定：
   // 前台层的护栏给 12（压在史莱姆 10/11 上面 —— 栏杆在台阶外侧，人从栏杆后面走过），
@@ -544,13 +553,11 @@ export class GameScene extends Phaser.Scene {
       // 分层：古树的后层楼梯给 1（会被树干挡住），前层给 3；不写就是原来的 0
       platform.setDepth(def.depth ?? 0)
 
-      // 只在某一层存在的楼板补片：把它的贴图和叠在上面的材质一起记下来，
-      // 换层时跟着显示/隐藏；碰撞由下面 collider 的过滤函数负责
-      const layerObjects: (Phaser.GameObjects.Sprite | Phaser.GameObjects.TileSprite)[] = []
-
+      // 只在某一层存在的楼板补片：视觉交给下面的 RenderTexture（一直画、只擦透视洞），
+      // 自带的矩形就不画了；碰撞仍然靠 collider 的过滤函数按 layer 决定
       if (def.layer) {
         platform.setData('layer', def.layer)
-        layerObjects.push(platform)
+        platform.setVisible(false)
       }
 
       if (def.oneWay) {
@@ -567,37 +574,29 @@ export class GameScene extends Phaser.Scene {
       // 浅水 / 草地只是叠在地形顶面上的一层贴图，不参与碰撞，也不改地形本身的颜色
       const top = def.y - def.height / 2
 
-      if (def.water) {
-        const water = this.add
+      if (def.water && !def.layer) {
+        this.add
           .tileSprite(def.x, top + 5, def.width, 10, 'water-top')
           .setDepth((def.depth ?? 0) + 0.1)
           .setAlpha(0.85)
-
-        layerObjects.push(water)
       }
 
-      if (def.grass) {
-        const grass = this.add
+      if (def.grass && !def.layer) {
+        this.add
           .tileSprite(def.x, top - 2, def.width, 7, 'grass-top')
           .setDepth((def.depth ?? 0) + 0.1)
-
-        layerObjects.push(grass)
       }
 
-      if (def.brick) {
-        const brick = this.add
+      if (def.brick && !def.layer) {
+        this.add
           .tileSprite(def.x, def.y, def.width, def.height, 'ruin-brick')
           .setDepth((def.depth ?? 0) + 0.1)
-
-        layerObjects.push(brick)
       }
 
-      if (def.plank) {
-        const plank = this.add
+      if (def.plank && !def.layer) {
+        this.add
           .tileSprite(def.x, def.y, def.width, def.height, 'wood-plank')
           .setDepth((def.depth ?? 0) + 0.1)
-
-        layerObjects.push(plank)
       }
 
       // 平台护栏：高度和楼梯护栏一样是「踏面往上 26」，所以平台边上这一头正好接上
@@ -739,10 +738,24 @@ export class GameScene extends Phaser.Scene {
         }
       }
 
-      // 层补片：登记下来，并按玩家当前所在层设一次显隐（后面换层时在 setPlayerLayer 里切）
+      // 层补片：建一张 RenderTexture 当它的视觉（照树干那套每帧重铺 + 擦透视洞）
       if (def.layer) {
-        this.layerPieces.push({ layer: def.layer, objects: layerObjects })
-        layerObjects.forEach((obj) => obj.setVisible(def.layer === this.playerLayer))
+        const pieceLeft = def.x - def.width / 2
+
+        this.layerPieces.push({
+          layer: def.layer,
+          rt: this.add
+            .renderTexture(pieceLeft, top, def.width, def.height)
+            .setOrigin(0, 0)
+            .setDepth((def.depth ?? 0) + 0.1),
+          left: pieceLeft,
+          top,
+          width: def.width,
+          height: def.height,
+          plank: def.plank === true,
+          tint: def.tint ?? palette.ground,
+          drawn: { x: -99999, y: -99999, layer: '' },
+        })
       }
     })
 
@@ -2660,12 +2673,49 @@ export class GameScene extends Phaser.Scene {
     this.windTrails.forEach((trail) => trail.setDepth(back ? 1.1 : 9))
     this.eyes.forEach((eye) => eye.setDepth(back ? 1.3 : 11))
 
-    // 层补片（整层楼板上的活板）：树前层露出来、树后层收起来
-    this.layerPieces.forEach((piece) => {
-      piece.objects.forEach((obj) => obj.setVisible(piece.layer === layer))
-    })
-
     this.updateTrunk()
+  }
+
+  // 层补片（活板）的透视：楼板照常画着，只在史莱姆附近擦掉一个椭圆。
+  // 史莱姆在「另一层」时才擦（这时这截楼板挡在它前面）；在自己那一层时楼板是完整的。
+  // 跟 updateTrunk 一样：图层没变、人也没动就跳过，省性能
+  private updateLayerReveals() {
+    if (this.layerPieces.length === 0) {
+      return
+    }
+
+    const px = this.slime.x
+    const py = this.slime.y
+
+    this.layerPieces.forEach((piece) => {
+      const last = piece.drawn
+
+      if (
+        last.layer === this.playerLayer &&
+        Math.abs(px - last.x) < 1 &&
+        Math.abs(py - last.y) < 1
+      ) {
+        return
+      }
+
+      const rt = piece.rt
+
+      rt.clear()
+
+      if (piece.plank) {
+        rt.repeat('wood-plank', undefined, 0, 0, piece.width, piece.height)
+      } else {
+        rt.fill(piece.tint, 1, 0, 0, piece.width, piece.height)
+      }
+
+      if (piece.layer !== this.playerLayer) {
+        rt.erase('reveal-blob', px - piece.left, py - piece.top)
+      }
+
+      // RenderTexture 是先往缓冲里记命令，必须再 render() 一次才会真正画进去
+      rt.render()
+      piece.drawn = { x: px, y: py, layer: this.playerLayer }
+    })
   }
 
   // 重画树干：树皮平铺一层，玩家在树后面时在玩家位置擦出一个圆（透视圈）。
@@ -3591,6 +3641,8 @@ export class GameScene extends Phaser.Scene {
     }
     // 树干上的透视圈跟着玩家走
     this.updateTrunk()
+    // 活板（层补片）上的透视圈：楼板一直画着，只擦史莱姆附近那一块
+    this.updateLayerReveals()
 
     if (this.perfText) {
       this.perfTimer -= dt
