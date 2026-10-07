@@ -261,8 +261,10 @@ export class GameScene extends Phaser.Scene {
 
   private bgFar!: Phaser.GameObjects.TileSprite
   private bgMid!: Phaser.GameObjects.TileSprite
+  private bgNear: Phaser.GameObjects.TileSprite | null = null
   private bgFarY = 0.2
   private bgMidY = 0.45
+  private bgNearY = 0.75
   private bgSpin = 0
   private windmillBlades: Phaser.GameObjects.Image | null = null
 
@@ -452,27 +454,40 @@ export class GameScene extends Phaser.Scene {
     // 纵向视差：户外的天空/远山/湖面/芦苇是「远景」，纵向一律不跟着相机走，
     // 所以跳起来的时候整片背景不会上下滑动（横向的视差保留）。
     // 塔内的墙反过来，要跟世界 1:1 地往上走，每层的窗户才对得上楼层。
-    // 第七关（爬树）例外：它太高（2200），用竖版 liyue 背景 + 跟世界 1:1 走，
-    // 这样爬高时湖面/芦苇会随世界退出画面，头顶只剩天空
-    const tallLiyue = theme === 'liyue' && this.level.height > 800
-    const worldLocked = theme === 'tower' || tallLiyue
+    // 很高的户外关卡（第七关爬树，2200 高）用「分层视差」：2D 游戏的通行做法 ——
+    // 天空几乎不动（0.06）、远山/湖面很慢（0.14）、岸边的芦苇最快（0.6，爬高时最先退出画面）。
+    // 这样爬到高层仍然看得见远处的山和湖，而脚边的芦苇早就沉到画面外了
+    const tallOutdoor = this.level.height > 800
+    const worldLocked = theme === 'tower'
 
-    this.bgFarY = worldLocked ? 1 : 0
-    this.bgMidY = worldLocked ? 1 : 0
+    this.bgFarY = worldLocked ? 1 : tallOutdoor ? 0.06 : 0
+    this.bgMidY = worldLocked ? 1 : tallOutdoor ? 0.14 : 0
+    this.bgNearY = worldLocked ? 1 : tallOutdoor ? 0.6 : 0
     // 「环树」系数：这关往上爬的时候，背景横向也一起流，做出绕着树转的感觉
     this.bgSpin = this.level.bgSpin ?? 0
 
     this.bgFar = this.add
-      .tileSprite(0, 0, 480, 270, tallLiyue ? 'bg-liyue-tall-far' : 'bg-' + theme + '-far')
+      .tileSprite(0, 0, 480, 270, 'bg-' + theme + '-far')
       .setOrigin(0, 0)
       .setScrollFactor(0)
       .setDepth(-30)
 
     this.bgMid = this.add
-      .tileSprite(0, 0, 480, 270, tallLiyue ? 'bg-liyue-tall-mid' : 'bg-' + theme + '-mid')
+      .tileSprite(0, 0, 480, 270, 'bg-' + theme + '-mid')
       .setOrigin(0, 0)
       .setScrollFactor(0)
       .setDepth(-20)
+
+    // 近景层（岸边芦苇）：只有画了这张贴图的主题才建
+    const nearKey = 'bg-' + theme + '-near'
+
+    this.bgNear = this.textures.exists(nearKey)
+      ? this.add
+          .tileSprite(0, 0, 480, 270, nearKey)
+          .setOrigin(0, 0)
+          .setScrollFactor(0)
+          .setDepth(-10)
+      : null
 
     // 第二关的风车：塔身固定在世界坐标里，扇叶用另一张贴图负责转
     this.windmillBlades = null
@@ -4003,6 +4018,13 @@ export class GameScene extends Phaser.Scene {
       Math.floor(camera.scrollX * 0.35 + camera.scrollY * this.bgSpin * 1.6),
       Math.floor(camera.scrollY * this.bgMidY)
     )
+
+    if (this.bgNear) {
+      this.bgNear.setTilePosition(
+        Math.floor(camera.scrollX * 0.55 + camera.scrollY * this.bgSpin * 2.2),
+        Math.floor(camera.scrollY * this.bgNearY)
+      )
+    }
 
     if (this.windmillBlades) {
       // 正角度在屏幕坐标里就是顺时针

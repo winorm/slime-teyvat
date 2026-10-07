@@ -201,7 +201,6 @@ export class BootScene extends Phaser.Scene {
     this.makeTreeBranches()
     this.makeLiftCar()
     this.makeWaterWheel()
-    this.makeLiyueBackgroundTall()
   }
 
   private makeSpire() {
@@ -2656,75 +2655,6 @@ export class BootScene extends Phaser.Scene {
   // → 湖面 → 堤岸和芦苇，一层压一层，各占各的高度不互相盖掉。
   // 注意：户外的背景是钉在屏幕上的，而地面站在屏幕最下边（大约 y>210 那一带），
   // 所以有内容的东西都要画在 y≈205 以上，芦苇的顶也是从堤岸往上伸到这一段里
-  // 第七关（望舒客栈那棵古树）专用的竖版背景：480 × 2200，按世界坐标排布、跟世界 1:1 走。
-  // 从上到下：高空的天 → 云 → 晚霞/落日 → 远山 → 湖面 → 堤岸芦苇。
-  // 湖和芦苇只画在地面那一带（y≈2080 以下），所以爬高时它们会随世界退出画面，头顶只剩天空。
-  private makeLiyueBackgroundTall() {
-    const width = 480
-    const height = 2200
-    const horizon = 2080
-    const far = this.add.graphics()
-
-    // 天空：高空是深紫，越靠近地平线越暖
-    this.paintGradient(far, width, height, 0x3a3560, 0xf3b072)
-
-    // 高空的薄云
-    far.fillStyle(0xffffff, 0.12)
-    far.fillEllipse(120, 380, 220, 26)
-    far.fillEllipse(330, 640, 180, 22)
-    far.fillEllipse(90, 980, 200, 24)
-    far.fillEllipse(300, 1320, 160, 20)
-
-    // 落日 + 晚霞：都压在地平线附近
-    far.fillStyle(0xffe2ad, 0.9)
-    far.fillEllipse(352, horizon - 66, 150, 70)
-    far.fillStyle(0xffffff, 0.28)
-    far.fillEllipse(140, horizon - 120, 150, 24)
-    far.fillEllipse(320, horizon - 150, 110, 18)
-
-    // 远山：两层剪影，山脚埋进湖里（只露地平线以上的部分）
-    this.drawRidge(far, width, height, 0x8a7396, [2, 5], 20, horizon - 34, 0.9)
-    this.drawRidge(far, width, height, 0x5d5075, [1, 4], 26, horizon - 16)
-
-    far.generateTexture('bg-liyue-tall-far', width, height)
-    far.destroy()
-
-    const mid = this.add.graphics()
-
-    // 湖面：从地平线一直铺到最底下（上面整片是透明的，露出天空和远山）
-    mid.fillStyle(0x4f6f8a, 1)
-    mid.fillRect(0, horizon, width, height - horizon)
-    mid.fillStyle(0x6f8fa8, 1)
-    mid.fillRect(0, horizon, width, 3)
-
-    // 落日在水面上的反光
-    mid.fillStyle(0xffd9a0, 0.45)
-
-    for (let index = 0; index < 12; index++) {
-      const w = 38 - (index % 4) * 8
-
-      mid.fillRect(340 - w / 2 + ((index % 3) - 1) * 10, horizon + 6 + index * 6, w, 2)
-    }
-
-    // 堤岸 + 芦苇：贴着地面那一带（2140 起）
-    this.drawRidge(mid, width, height, 0x6b5a44, [3, 7], 6, 2140)
-    this.drawRidge(mid, width, height, 0x50442f, [4, 9], 4, 2158)
-
-    for (let index = 0; index < 26; index++) {
-      const x = 8 + index * 19 + ((index * 7) % 5)
-      const reedHeight = 26 + ((index * 11) % 16)
-      const y = 2140 - reedHeight
-
-      mid.fillStyle(0x6f6a3c, 1)
-      mid.fillRect(x, y, 1, reedHeight)
-      mid.fillStyle(0x9a945a, 1)
-      mid.fillRect(x - 1, y - 3, 2, 4)
-    }
-
-    mid.generateTexture('bg-liyue-tall-mid', width, height)
-    mid.destroy()
-  }
-
   private makeLiyueBackground() {
     const far = this.add.graphics()
 
@@ -2766,26 +2696,31 @@ export class BootScene extends Phaser.Scene {
       mid.fillRect(340 - width / 2 + ((index % 3) - 1) * 10, 161 + index * 4, width, 2)
     }
 
-    // 堤岸 + 芦苇：芦苇站在岸线（215）上，往湖里伸出来，
-    // 岸线本身藏在地面后面，露出来的是芦苇的上半截
-    this.drawRidge(mid, 480, 270, 0x6b5a44, [3, 7], 6, 215)
-    this.drawRidge(mid, 480, 270, 0x50442f, [4, 9], 4, 232)
+    mid.generateTexture('bg-liyue-mid', 480, 270)
+    mid.destroy()
+
+    // 堤岸 + 芦苇单独一层（近景）：这层视差最大，爬高时会最先退出画面 ——
+    // 天空/远山几乎不动、湖面很慢、岸边的芦苇最快，"高处还能看见芦苇"就是这层没分开造成的
+    const near = this.add.graphics()
+
+    this.drawRidge(near, 480, 270, 0x6b5a44, [3, 7], 6, 215)
+    this.drawRidge(near, 480, 270, 0x50442f, [4, 9], 4, 232)
 
     for (let index = 0; index < 26; index++) {
       const x = 8 + index * 19 + ((index * 7) % 5)
       const height = 26 + ((index * 11) % 16)
       const y = 215 - height
 
-      mid.fillStyle(0x6f6a3c, 1)
-      mid.fillRect(x, y, 1, height)
+      near.fillStyle(0x6f6a3c, 1)
+      near.fillRect(x, y, 1, height)
 
       // 穗子
-      mid.fillStyle(0x9a945a, 1)
-      mid.fillRect(x - 1, y - 3, 2, 4)
+      near.fillStyle(0x9a945a, 1)
+      near.fillRect(x - 1, y - 3, 2, 4)
     }
 
-    mid.generateTexture('bg-liyue-mid', 480, 270)
-    mid.destroy()
+    near.generateTexture('bg-liyue-near', 480, 270)
+    near.destroy()
   }
 
   // 望舒客栈：一根很高的岩柱，顶上压着一栋木楼，檐下挂着灯笼。
