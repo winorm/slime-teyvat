@@ -673,10 +673,10 @@ export class GameScene extends Phaser.Scene {
       put('inn-stool', 850, 400)
 
       // 树右侧那半截楼板玩家走不到，就当"后墙"用：平铺木墙 + 格子窗。
-      // 深度 1.05 —— 比树后层的史莱姆（1.1/1.2）还低，所以站在右侧 1/2 平台上
-      // （树后层）时人不会被这面墙挡住；树干（2）和楼梯（3）照样在墙前面
+      // 深度 0.5 —— 比树后层的楼梯（1）还低：所以"往左走的那几跑楼梯"是画在房间里的，
+      // 墙面只是它背后的背景板；树后层史莱姆（1.1/1.2）、树干（2）、树前层楼梯（3）也都在它前面
       const wall = (x: number, y: number, w: number, h: number) =>
-        this.add.tileSprite(x, y, w, h, 'inn-wall').setDepth(1.05)
+        this.add.tileSprite(x, y, w, h, 'inn-wall').setDepth(0.5)
 
       wall(709, 1005, 502, 210)     // 1110 层：458~960
       wall(747, 775, 426, 250)      // 900 层：534~960
