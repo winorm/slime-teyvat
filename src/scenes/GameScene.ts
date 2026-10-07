@@ -632,6 +632,13 @@ export class GameScene extends Phaser.Scene {
 
     this.buildLift()
 
+    // 望舒客栈 1110 层（进楼第一层）的前台：柜台摆在楼板左段上，旁边放个酒桶。
+    // 纯画面、不挡人 —— 深度 2.8 让史莱姆从它前面走过
+    if (theme === 'liyue' && this.level.trunk) {
+      this.add.image(150, 1110, 'inn-front').setOrigin(0.5, 1).setDepth(2.8)
+      this.add.image(60, 1110, 'barrel').setOrigin(0.5, 1).setDepth(2.8)
+    }
+
     this.gems = this.physics.add.staticGroup()
     this.blessings = this.physics.add.staticGroup()
     this.hazards = this.physics.add.staticGroup()

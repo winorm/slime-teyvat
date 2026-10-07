@@ -201,6 +201,7 @@ export class BootScene extends Phaser.Scene {
     this.makeTreeBranches()
     this.makeLiftCar()
     this.makeWaterWheel()
+    this.makeInnFront()
   }
 
   private makeSpire() {
@@ -621,6 +622,39 @@ export class BootScene extends Phaser.Scene {
   }
 
   // 水利电梯的水车：木轮 + 八根辐条 + 中心轴，转动时用来当"水力"的表现
+  // 望舒客栈的前台柜台：木台面 + 分格柜身 + 台面上一个小算盘
+  private makeInnFront() {
+    const width = 76
+    const height = 30
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0x6b4a2c, 1)              // 柜身
+    gfx.fillRect(0, 8, width, height - 8)
+
+    gfx.fillStyle(0x8a6034, 1)              // 台面
+    gfx.fillRect(0, 6, width, 4)
+    gfx.fillStyle(0xa8794a, 1)              // 台面高光
+    gfx.fillRect(0, 6, width, 2)
+
+    for (let x = 6; x < width - 4; x += 14) {
+      gfx.fillStyle(0x5a3c22, 1)            // 柜身分格
+      gfx.fillRect(x, 12, 10, height - 16)
+      gfx.fillStyle(0x7a4c28, 1)            // 格子里的横板
+      gfx.fillRect(x, 12, 10, 2)
+    }
+
+    gfx.fillStyle(0x4a3320, 1)              // 台面上的小算盘
+    gfx.fillRect(54, 2, 14, 4)
+    gfx.fillStyle(0xd9a441, 1)
+
+    for (let i = 0; i < 6; i++) {
+      gfx.fillRect(55 + i * 2, 2, 1, 3)
+    }
+
+    gfx.generateTexture('inn-front', width, height)
+    gfx.destroy()
+  }
+
   private makeWaterWheel() {
     const size = 96
     const center = size / 2
