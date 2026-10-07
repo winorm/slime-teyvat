@@ -288,6 +288,17 @@ export class GameScene extends Phaser.Scene {
   private xiaoAura: Phaser.GameObjects.Graphics | null = null
   private xiaoWall: Phaser.Physics.Arcade.Sprite | null = null
   private xiaoAuraSeen = false
+  // 支线的进度：0 = 还没见过魈、1 = 见过（该去做杏仁豆腐了）、2 = 菜做好了、3 = 喂完了
+  private xiaoStage = 0
+  private innkeeper: Phaser.GameObjects.Image | null = null
+
+  // 对话板（老板娘 / 仙人说话用）：一次显示一句，"按 F / 点屏幕"翻到下一句
+  private dialogueShowing = false
+  private dialogueLayer: Phaser.GameObjects.Container | null = null
+  private dialogueText: Phaser.GameObjects.Text | null = null
+  private dialogueTip: Phaser.GameObjects.Text | null = null
+  private dialogueLines: string[] = []
+  private dialogueIndex = 0
   private bgFarY = 0.2
   private bgMidY = 0.45
   private bgNearY = 0.75
@@ -444,6 +455,14 @@ export class GameScene extends Phaser.Scene {
     this.xiaoAura = null
     this.xiaoWall = null
     this.xiaoAuraSeen = false
+    this.xiaoStage = 0
+    this.innkeeper = null
+    this.dialogueShowing = false
+    this.dialogueLayer = null
+    this.dialogueText = null
+    this.dialogueTip = null
+    this.dialogueLines = []
+    this.dialogueIndex = 0
     this.petalsOn = false
     this.petalTimer = 0
     this.petals = []
@@ -689,10 +708,14 @@ export class GameScene extends Phaser.Scene {
           .setDepth(2.8)
 
         this.innDecor.push({ image, front: hanging ? 2.9 : 2.8, back: hanging ? 1.08 : 1.05 })
+
+        return image
       }
 
       // 1110 层：前台（柜台 + 木格柜 + 酒桶 + 檐下挂灯）
       put('inn-front', 150, 1110)
+      // 老板娘站在柜台右边（柜台是 112~188，她站 205 不会被柜台挡住）
+      this.innkeeper = put('npc-innkeeper', 205, 1110)
       put('barrel', 60, 1110)
       put('inn-cabinet', 28, 1110)
       put('lantern', 150, 906, true)
@@ -3969,7 +3992,11 @@ export class GameScene extends Phaser.Scene {
       const allRepairs = this.level.repairs ?? []
       const done = allRepairs.filter((item) => this.isRepaired(item)).length
 
-      this.showMessage(`楼梯修好了（${done}/${allRepairs.length}）`)
+      this.showMessage(
+        done >= allRepairs.length
+          ? '楼梯都修好了 —— 楼上有动静，上去看看'
+          : `楼梯修好了（${done}/${allRepairs.length}）`
+      )
 
       // 两处都修好 → 塔顶的宝箱出现
       if (done >= allRepairs.length) {
@@ -4357,6 +4384,139 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  // 老板娘 / 仙人说话的对话板：黑底金框的一条，一句一句翻
+  private showDialogue(speaker: string, lines: string[]) {
+    if (this.dialogueShowing || lines.length === 0) {
+      return
+    }
+
+    this.dialogueShowing = true
+    this.dialogueLines = lines
+    this.dialogueIndex = 0
+    this.physics.world.pause()
+    stopAllLoops()
+
+    const layer = this.add.container(0, 0).setDepth(220).setScrollFactor(0)
+    const shade = this.add.rectangle(0, 0, 480, 270, 0x0a0a14, 0.42).setOrigin(0, 0)
+    const panel = this.add
+      .rectangle(240, 196, 448, 96, 0x14181f)
+      .setStrokeStyle(2, 0xffd54f)
+      .setAlpha(0.95)
+    const tag = this.add.rectangle(74, 160, 104, 22, 0x1b1b2a).setStrokeStyle(1, 0xffd54f)
+    const name = this.add
+      .text(74, 160, speaker, {
+        fontFamily: 'sans-serif',
+        fontSize: '14px',
+        color: '#ffd54f',
+      })
+      .setOrigin(0.5)
+    const body = this.add
+      .text(240, 198, lines[0], {
+        fontFamily: 'sans-serif',
+        fontSize: '14px',
+        color: '#e8e2d0',
+        align: 'left',
+        lineSpacing: 8,
+        wordWrap: { width: 408 },
+      })
+      .setOrigin(0.5)
+    const tip = this.add
+      .text(452, 234, this.touchMode ? '轻点继续 ▶' : '按 F 继续 ▶', {
+        fontFamily: 'sans-serif',
+        fontSize: '12px',
+        color: '#8fa3b8',
+      })
+      .setOrigin(1, 0.5)
+
+    layer.add([shade, panel, tag, name, body, tip])
+
+    this.dialogueLayer = layer
+    this.dialogueText = body
+    this.dialogueTip = tip
+    this.refreshDialogueTip()
+    this.bindDialogueTap()
+  }
+
+  private refreshDialogueTip() {
+    const last = this.dialogueIndex >= this.dialogueLines.length - 1
+
+    this.dialogueTip?.setText(
+      this.touchMode ? (last ? '轻点收起 ▶' : '轻点继续 ▶') : last ? '按 F 收起 ▶' : '按 F 继续 ▶'
+    )
+  }
+
+  // 手机上点一下屏幕就翻页。延迟一帧再挂：那一次点击正是"按提示打开对话"的那一下
+  private bindDialogueTap() {
+    this.time.delayedCall(0, () => {
+      this.input.once('pointerdown', () => this.advanceDialogue())
+    })
+  }
+
+  private advanceDialogue() {
+    if (!this.dialogueShowing) {
+      return
+    }
+
+    this.dialogueIndex += 1
+
+    if (this.dialogueIndex >= this.dialogueLines.length) {
+      this.closeDialogue()
+      return
+    }
+
+    this.dialogueText?.setText(this.dialogueLines[this.dialogueIndex])
+    this.refreshDialogueTip()
+    this.bindDialogueTap()
+  }
+
+  private closeDialogue() {
+    if (!this.dialogueShowing) {
+      return
+    }
+
+    this.dialogueLayer?.destroy()
+    this.dialogueLayer = null
+    this.dialogueText = null
+    this.dialogueTip = null
+    this.dialogueShowing = false
+    this.physics.world.resume()
+  }
+
+  private updateDialogue() {
+    if (Phaser.Input.Keyboard.JustDown(this.interactKey)) {
+      this.advanceDialogue()
+    }
+  }
+
+  // 老板娘：按支线进度说不同的话。她的话就是整条支线的"指引"
+  private talkToInnkeeper() {
+    if (this.xiaoStage === 0) {
+      this.showDialogue('老板娘', [
+        '客官是来住店的？',
+        '楼上的楼梯断了两处，你要是能帮我修好，食宿就免了。',
+      ])
+      return
+    }
+
+    if (this.xiaoStage === 1) {
+      this.showDialogue('老板娘', [
+        '你说顶楼那位？唉……他叫魈，是位仙人，平时不见人的。',
+        '不过，他要是闻到杏仁豆腐的味儿，兴许肯搭理你。那是他最喜欢的吃食。',
+        '糖、杏仁、豆腐，一样都不能少。',
+        '糖在一楼外头吃饭的桌上；杏仁嘛，去那棵金桂底下找找；豆腐在楼上厨房的水缸旁边。',
+        '东西凑齐了，到厨房的灶台边说一声就成。',
+      ])
+      return
+    }
+
+    if (this.xiaoStage === 2) {
+      this.showDialogue('老板娘', ['做好了？快趁热端上去吧，凉了就不是那个味儿了。'])
+      return
+    }
+
+    this.showDialogue('老板娘', ['那位仙人走了？……也好。谢谢你，客官。'])
+  }
+
   private playCageScene() {
     if (this.cageScene || !this.cageSprite || !this.eggSprite) {
       return
@@ -4579,6 +4739,11 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
+    if (this.dialogueShowing) {
+      this.updateDialogue()
+      return
+    }
+
     if (this.cageScene) {
       return
     }
@@ -4770,6 +4935,10 @@ export class GameScene extends Phaser.Scene {
 
     if (!this.xiaoAuraSeen && this.xiaoWall && this.slime.x > 470 && this.slime.y < 450) {
       this.xiaoAuraSeen = true
+      // 这一步就是支线的起点：见过他之后回前台，老板娘才会说杏仁豆腐那一套
+      if (this.xiaoStage === 0) {
+        this.xiaoStage = 1
+      }
       this.showMessage('他身上有一股让人不敢靠近的气息')
     }
 
@@ -4908,6 +5077,21 @@ export class GameScene extends Phaser.Scene {
           this.statueUsed = true
           this.playStatueScene(statue.grants)
         }
+      }
+    }
+
+    // 老板娘：站在 1110 层柜台右边，是整条支线的"问讯处"
+    if (!prompt && this.innkeeper) {
+      const distance = Phaser.Math.Distance.Between(
+        this.slime.x,
+        this.slime.y,
+        this.innkeeper.x,
+        this.innkeeper.y
+      )
+
+      if (distance < 60) {
+        prompt = this.interactPrefix() + '和老板娘说话'
+        action = () => this.talkToInnkeeper()
       }
     }
 

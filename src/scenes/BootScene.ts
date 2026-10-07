@@ -211,6 +211,7 @@ export class BootScene extends Phaser.Scene {
     this.makeInnAwning()
     this.makeInnScreen()
     this.makeXiaoSlime()
+    this.makeInnkeeper()
     this.makeOsmanthusTree()
     this.makePetal()
   }
@@ -1095,6 +1096,112 @@ export class BootScene extends Phaser.Scene {
     gfx.fillRect(43, 43, 1, 2)
 
     gfx.generateTexture('npc-xiao-slime', 64, 60)
+    gfx.destroy()
+  }
+
+  // 望舒客栈的老板娘：一只史莱姆，头上包着米白头巾、腰间系深红围裙（纯画面 NPC）。
+  // 和主角同一套画法（黑描边 + 平色本体），只是颜色挑了个温吞的米黄，一眼能和主角区分开
+  private makeInnkeeper() {
+    const gfx = this.add.graphics()
+
+    const outline = 0x14141f
+    const body = 0xcfb894
+    const cloth = 0xe8e4d8
+    const clothShade = 0x9a958a
+    const apron = 0xa04a4a
+    const apronDark = 0x7a3636
+
+    // 身体
+    gfx.fillStyle(outline, 1)
+    gfx.fillEllipse(17, 17, 32, 25)
+    gfx.fillStyle(body, 1)
+    gfx.fillEllipse(17, 17, 30, 23)
+
+    // 围裙：贴着身体下缘的一个梯形（跟着椭圆收），下面一道暗边，中间一个小口袋
+    gfx.fillStyle(outline, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(2.6, 20.4),
+        new Phaser.Math.Vector2(31.4, 20.4),
+        new Phaser.Math.Vector2(23.2, 29.6),
+        new Phaser.Math.Vector2(10.8, 29.6),
+      ],
+      true
+    )
+    gfx.fillStyle(apron, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(3.6, 21.2),
+        new Phaser.Math.Vector2(30.4, 21.2),
+        new Phaser.Math.Vector2(22.6, 28.8),
+        new Phaser.Math.Vector2(11.4, 28.8),
+      ],
+      true
+    )
+    gfx.fillStyle(cloth, 1)                  // 围裙上沿那条白边
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(3.6, 21.2),
+        new Phaser.Math.Vector2(30.4, 21.2),
+        new Phaser.Math.Vector2(30.1, 22.6),
+        new Phaser.Math.Vector2(3.9, 22.6),
+      ],
+      true
+    )
+    gfx.fillStyle(apronDark, 1)              // 小口袋
+    gfx.fillRect(13, 24, 8, 4)
+    gfx.fillStyle(0xc06a6a, 1)
+    gfx.fillRect(13, 24, 8, 1)
+
+    // 头巾：盖在头顶那一片，右边打个结
+    gfx.fillStyle(outline, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(3.4, 14.4),
+        new Phaser.Math.Vector2(6.8, 7.6),
+        new Phaser.Math.Vector2(17, 3.4),
+        new Phaser.Math.Vector2(27.2, 7.6),
+        new Phaser.Math.Vector2(30.6, 14.4),
+        new Phaser.Math.Vector2(25, 16.6),
+        new Phaser.Math.Vector2(9, 16.6),
+      ],
+      true
+    )
+    gfx.fillStyle(cloth, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(4.6, 13.8),
+        new Phaser.Math.Vector2(7.8, 8.2),
+        new Phaser.Math.Vector2(17, 4.6),
+        new Phaser.Math.Vector2(26.2, 8.2),
+        new Phaser.Math.Vector2(29.4, 13.8),
+        new Phaser.Math.Vector2(24.6, 15.6),
+        new Phaser.Math.Vector2(9.4, 15.6),
+      ],
+      true
+    )
+    gfx.fillStyle(clothShade, 1)             // 头巾下沿的褶子
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(9.4, 14.6),
+        new Phaser.Math.Vector2(24.6, 14.6),
+        new Phaser.Math.Vector2(24.6, 15.6),
+        new Phaser.Math.Vector2(9.4, 15.6),
+      ],
+      true
+    )
+    gfx.fillStyle(cloth, 1)                  // 右边那个结
+    gfx.fillCircle(30, 12, 3)
+    gfx.fillRect(27, 11, 5, 2)
+    gfx.fillStyle(clothShade, 1)
+    gfx.fillRect(28, 13, 4, 1)
+
+    // 眼睛：两个圆点，温吞一点（比主角的稍微小一号）
+    gfx.fillStyle(0x2a2a3a, 1)
+    gfx.fillEllipse(11, 19, 4, 5)
+    gfx.fillEllipse(23, 19, 4, 5)
+
+    gfx.generateTexture('npc-innkeeper', 34, 30)
     gfx.destroy()
   }
 
