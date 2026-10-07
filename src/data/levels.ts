@@ -179,6 +179,9 @@ export type LevelDef = {
   decor?: DecorDef[]                      // 背景静物：破屋、矿山剪影
   trunk?: { x: number; y: number; width: number; height: number; depth?: number }
                                           // 古树主干：竖着平铺树皮带，x/y 是中心点
+  spindle?: { x: number; y: number; width: number; height: number; depth?: number }
+                                          // 楼内那根"短木"（楼内楼梯绕着它上）：同样画成 RenderTexture，
+                                          // 史莱姆在树后层时在它附近擦一个透视洞
   bgSpin?: number                         // 背景横向"环树"系数：往上爬时背景往一侧流
   statue?: StatueDef
   unlocks?: ElementKey[]                  // 本关开局就解锁的元素（没有神像但想给某个元素时用）
@@ -629,6 +632,7 @@ export const LEVELS: LevelDef[] = [
     // 爬得越高，背景越往一侧流 —— 「绕着古树盘旋而上」的感觉
     bgSpin: 0.25,
     trunk: { x: 460, y: 1555, width: 220, height: 890 },   // 主杆：y 1110~2000
+    spindle: { x: 510, y: 758, width: 22, height: 704 },   // 楼内短木：顶 406（顶楼楼板底面）、底 1110（一层楼板面）
     goal: { x: 880, y: 386, kind: 'chest', prompt: '打开', after: 'repair' },
     platforms: [
       // 一楼地面（顶面 2160）
