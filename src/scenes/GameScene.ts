@@ -231,7 +231,6 @@ export class GameScene extends Phaser.Scene {
   private collectedIndices: number[] = []
 
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
-  private restartKey!: Phaser.Input.Keyboard.Key
   private prevKey!: Phaser.Input.Keyboard.Key
   private nextKey!: Phaser.Input.Keyboard.Key
   private staminaBar!: Phaser.GameObjects.Rectangle
@@ -1518,7 +1517,6 @@ export class GameScene extends Phaser.Scene {
       .setDepth(HUD_DEPTH)
 
     this.cursors = this.input.keyboard!.createCursorKeys()
-    this.restartKey = this.input.keyboard!.addKey('R')
     this.prevKey = this.input.keyboard!.addKey('Q')
     this.nextKey = this.input.keyboard!.addKey('E')
     this.interactKey = this.input.keyboard!.addKey('F')
@@ -4178,11 +4176,6 @@ export class GameScene extends Phaser.Scene {
             this.tweens.getTweens().length
         )
       }
-    }
-
-    if (Phaser.Input.Keyboard.JustDown(this.restartKey)) {
-      this.scene.restart()
-      return
     }
 
     // 键盘 + 触屏的输入边沿都在这里各读一次（JustDown/JustUp 读一次就把标记清掉，
