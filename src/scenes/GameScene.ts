@@ -5201,6 +5201,11 @@ export class GameScene extends Phaser.Scene {
         }
 
         this.showMessage('他身上有一股让人不敢靠近的气息')
+
+        // 等第一句淡掉再补一句"该去哪儿" —— 支线的第一环是回前台问老板娘
+        this.time.delayedCall(2600, () => {
+          this.showMessage('……不如回楼下找老板娘问问')
+        })
       }
 
       if (onTop && this.xiaoStage === 2 && !this.inputLocked) {
