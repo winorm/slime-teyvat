@@ -1272,6 +1272,30 @@ export class BootScene extends Phaser.Scene {
     tofu.fillRect(8, 5.4, 1, 4.6)
     tofu.generateTexture('item-tofu', 16, 16)
     tofu.destroy()
+
+    // 做好的菜：白瓷浅盘 + 一层琥珀糖水 + 三块奶白豆腐 + 两片杏仁
+    const dish = this.add.graphics()
+
+    dish.fillStyle(outline, 1)
+    dish.fillEllipse(9, 10, 17, 8)
+    dish.fillStyle(0xdfe6ec, 1)
+    dish.fillEllipse(9, 9.6, 15, 6.4)
+    dish.fillStyle(0xffffff, 1)
+    dish.fillEllipse(9, 9, 13, 5)
+    dish.fillStyle(0xd8a24a, 1)              // 糖水
+    dish.fillEllipse(9, 9, 11, 4)
+    dish.fillStyle(0xf8f6ee, 1)              // 豆腐块
+    dish.fillRect(4, 6, 4, 4)
+    dish.fillRect(10, 6, 4, 4)
+    dish.fillRect(7, 8, 4, 4)
+    dish.fillStyle(0xd8b483, 1)              // 杏仁片
+    dish.fillRect(6, 5, 2, 1)
+    dish.fillRect(11, 7, 2, 1)
+    dish.fillStyle(0xffffff, 1)
+    dish.fillRect(5, 6, 1, 1)
+    dish.fillRect(11, 6, 1, 1)
+    dish.generateTexture('item-almond-tofu', 18, 14)
+    dish.destroy()
   }
 
   // 望舒客栈一楼右侧那棵景观树：不是樱花，是本地（璃月＝中国）的「金桂」。

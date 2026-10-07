@@ -305,6 +305,8 @@ export class GameScene extends Phaser.Scene {
     label: string
     taken: boolean
   }[] = []
+  // 做好的那盘杏仁豆腐：端在史莱姆头上，一直跟着他走
+  private carriedDish: Phaser.GameObjects.Image | null = null
   private bgFarY = 0.2
   private bgMidY = 0.45
   private bgNearY = 0.75
@@ -470,6 +472,7 @@ export class GameScene extends Phaser.Scene {
     this.dialogueLines = []
     this.dialogueIndex = 0
     this.ingredients = []
+    this.carriedDish = null
     this.petalsOn = false
     this.petalTimer = 0
     this.petals = []
@@ -3387,6 +3390,9 @@ export class GameScene extends Phaser.Scene {
     // 客栈家具跟着换：树后层整组沉到史莱姆后面
     this.innDecor.forEach((item) => item.image.setDepth(back ? item.back : item.front))
 
+    // 头顶那盘菜跟着人换层，不然走到树后面它还飘在树前
+    this.carriedDish?.setDepth(back ? 1.35 : 11.5)
+
     // 压力板也换：树后层要把板子沉到史莱姆后面，否则人站在板子上会被板子盖住脚
     this.plateList.forEach((item) =>
       item.art.setDepth(back ? PLATE_DEPTH.back : PLATE_DEPTH.front)
@@ -4515,6 +4521,57 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  // 灶上冒的白汽：几团往上飘、边飘边淡，给"做菜"这件事一个动静
+  private stoveSteam(x: number, topY: number) {
+    for (let i = 0; i < 6; i++) {
+      this.time.delayedCall(i * 70, () => {
+        const puff = this.add
+          .image(x + Phaser.Math.Between(-8, 8), topY - i * 2, 'pixel')
+          .setDisplaySize(6, 6)
+          .setTint(0xf0f4f6)
+          .setAlpha(0.65)
+          .setDepth(4)
+
+        this.tweens.add({
+          targets: puff,
+          y: puff.y - Phaser.Math.Between(18, 30),
+          x: puff.x + Phaser.Math.Between(-9, 10),
+          alpha: 0,
+          scale: 2.2,
+          duration: 720,
+          onComplete: () => puff.destroy(),
+        })
+      })
+    }
+  }
+
+  // 在灶台做杏仁豆腐：三样原料缺一不可。做好了那盘菜就端在史莱姆头上
+  private cookAlmondTofu(stoveX: number, stoveTop: number) {
+    if (this.xiaoStage >= 2) {
+      this.showMessage('杏仁豆腐已经做好了')
+      return
+    }
+
+    const missing = this.ingredients.filter((one) => !one.taken).map((one) => one.label)
+
+    if (missing.length > 0) {
+      this.showMessage(`还差：${missing.join('、')}`)
+      return
+    }
+
+    this.xiaoStage = 2
+    this.stoveSteam(stoveX, stoveTop)
+    playSfx(this, 'sfx-interact', 0.4)
+
+    this.time.delayedCall(520, () => {
+      this.carriedDish = this.add
+        .image(this.slime.x, this.slime.y - 30, 'item-almond-tofu')
+        .setDepth(11.5)
+
+      this.showMessage('杏仁豆腐做好了 —— 端到顶楼去吧')
+    })
+  }
+
   // 拾取一样原料：拿掉贴图、报一下进度，三样齐了就提醒去厨房
   private takeIngredient(item: (typeof this.ingredients)[number]) {
     item.taken = true
@@ -4975,6 +5032,14 @@ export class GameScene extends Phaser.Scene {
       this.xiaoAura.setAlpha(breath * (0.62 + near * 0.38))
     }
 
+    // 端在头上的那盘菜跟着走，还轻轻晃
+    if (this.carriedDish) {
+      this.carriedDish.setPosition(
+        this.slime.x,
+        this.slime.y - 30 + Math.sin(this.time.now / 380) * 1.5
+      )
+    }
+
     if (!this.xiaoAuraSeen && this.xiaoWall && this.slime.x > 470 && this.slime.y < 450) {
       this.xiaoAuraSeen = true
       // 这一步就是支线的起点：见过他之后回前台，老板娘才会说杏仁豆腐那一套
@@ -5134,6 +5199,18 @@ export class GameScene extends Phaser.Scene {
       if (distance < 60) {
         prompt = this.interactPrefix() + '和老板娘说话'
         action = () => this.talkToInnkeeper()
+      }
+    }
+
+    // 厨房灶台：靠近就能做菜（缺原料的话按 F 会告诉你还差哪样）
+    if (!prompt && this.level.trunk) {
+      const stoveX = 64
+      const stoveTop = 870
+      const distance = Phaser.Math.Distance.Between(this.slime.x, this.slime.y, stoveX, 900)
+
+      if (distance < 52) {
+        prompt = this.interactPrefix() + '做杏仁豆腐'
+        action = () => this.cookAlmondTofu(stoveX, stoveTop)
       }
     }
 
