@@ -891,20 +891,56 @@ export class BootScene extends Phaser.Scene {
     gfx.fillStyle(body, 1)
     gfx.fillEllipse(32, 46, 30, 23)
 
+    // ---- 白色腰带：贴着身体下缘横一道，上沿压暗当褶皱、下沿提亮 ----
+    gfx.fillStyle(0xa8a49a, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(17.6, 49.6),
+        new Phaser.Math.Vector2(46.4, 49.6),
+        new Phaser.Math.Vector2(43.1, 54.4),
+        new Phaser.Math.Vector2(20.9, 54.4),
+      ],
+      true
+    )
+    gfx.fillStyle(0xe8e4d8, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(17.8, 50.2),
+        new Phaser.Math.Vector2(46.2, 50.2),
+        new Phaser.Math.Vector2(43, 53.8),
+        new Phaser.Math.Vector2(21, 53.8),
+      ],
+      true
+    )
+    gfx.fillStyle(0xffffff, 1)                 // 腰带下沿的一线亮光
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(20.9, 53.6),
+        new Phaser.Math.Vector2(43.1, 53.6),
+        new Phaser.Math.Vector2(43, 54.4),
+        new Phaser.Math.Vector2(20.9, 54.4),
+      ],
+      true
+    )
+    gfx.fillStyle(0xc9c4b6, 1)                 // 腰前打的一个结
+    gfx.fillRect(30, 49.6, 4, 4.8)
+    gfx.fillStyle(0xe8e4d8, 1)
+    gfx.fillRect(30.5, 50.2, 3, 3.6)
+
     // ---- 伤疤：几道很淡的深色细痕，散在身上 ----
     gfx.fillStyle(scar, 1)
     gfx.fillRect(24, 39, 4, 1)
     gfx.fillRect(26, 40, 2, 1)
     gfx.fillRect(38, 36, 3, 1)
     gfx.fillRect(39, 37, 1, 2)
-    gfx.fillRect(29, 51, 3, 1)
+    gfx.fillRect(29, 48, 3, 1)
     gfx.fillRect(21, 45, 2, 1)
-    gfx.fillRect(36, 49, 2, 2)
+    gfx.fillRect(37, 47, 2, 2)
 
     gfx.fillStyle(scarDark, 1)
     gfx.fillRect(25, 39, 1, 1)
     gfx.fillRect(33, 35, 2, 1)
-    gfx.fillRect(37, 49, 1, 1)
+    gfx.fillRect(35, 46, 1, 1)
     gfx.fillRect(22, 45, 1, 1)
 
     // ---- 眼睛：外眼角往下垂、上眼睑往外压，带一点孤独和忧伤；眼里留一点湿光 ----
@@ -933,22 +969,59 @@ export class BootScene extends Phaser.Scene {
     eye(27, -1)
     eye(37, 1)
 
-    // 额头那点玉色的菱形印记（比上一版更小、更淡）
-    gfx.fillStyle(0x6fe0b8, 1)
-    gfx.fillTriangle(32, 35.8, 33.8, 38, 30.2, 38)
-    gfx.fillTriangle(32, 40.2, 33.8, 38, 30.2, 38)
+    // ---- 头顶的饰件：照着魈那身"紫 + 金 + 红"来的额饰 ----
+    // 金底托 + 紫色莲瓣 + 中间一颗红玉 + 下头一截红流苏，两侧各一枚小金角
+    gfx.fillStyle(0xd9a441, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(32, 32.6),
+        new Phaser.Math.Vector2(38.4, 36.6),
+        new Phaser.Math.Vector2(32, 40.8),
+        new Phaser.Math.Vector2(25.6, 36.6),
+      ],
+      true
+    )
+    gfx.fillStyle(0x8a6fbf, 1)                 // 紫莲瓣
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(32, 33.8),
+        new Phaser.Math.Vector2(36.8, 36.6),
+        new Phaser.Math.Vector2(32, 39.6),
+        new Phaser.Math.Vector2(27.2, 36.6),
+      ],
+      true
+    )
+    gfx.fillStyle(0xb79ae0, 1)                 // 莲瓣的受光半边
+    gfx.fillTriangle(32, 33.8, 36.8, 36.6, 32, 36.6)
 
-    // ---- 腰侧那具罗刹面具：侧面朝外（不是正脸），整块用几片棱面拼出体积 ----
+    gfx.fillStyle(0xd9a441, 1)                 // 两侧小金角
+    gfx.fillTriangle(24.6, 35.8, 26.6, 33.4, 27.4, 36.6)
+    gfx.fillTriangle(39.4, 35.8, 37.4, 33.4, 36.6, 36.6)
+
+    // 这几处都是 2 像素级的细节，坐标必须落在整像素上，不然会被抗锯齿糊掉
+    gfx.fillStyle(0xc0392b, 1)                 // 中间那颗红玉
+    gfx.fillRect(31, 36, 2, 2)
+    gfx.fillStyle(0xf0a08a, 1)
+    gfx.fillRect(31, 36, 1, 1)
+
+    gfx.fillStyle(0xc0392b, 1)                 // 垂下来的红流苏
+    gfx.fillRect(31, 41, 2, 5)
+    gfx.fillRect(30, 46, 4, 1)
+    gfx.fillStyle(0xd9a441, 1)                 // 流苏头上的金珠
+    gfx.fillRect(30, 40, 4, 1)
+
+    // ---- 腰侧那具罗刹面具：侧面朝外（不是正脸），整块用几片棱面拼出体积。
+    // 第一版太大（15×17），整块按 0.72 缩到 11×12 左右 ----
     const mask = [
-      new Phaser.Math.Vector2(41, 43),         // 后脑
-      new Phaser.Math.Vector2(44, 38.5),       // 角根
-      new Phaser.Math.Vector2(46, 43.5),       // 眉骨
-      new Phaser.Math.Vector2(55, 47.5),       // 鼻尖
-      new Phaser.Math.Vector2(50.5, 50),       // 上唇
-      new Phaser.Math.Vector2(52.5, 52),       // 獠牙
-      new Phaser.Math.Vector2(49, 55.5),       // 下巴
-      new Phaser.Math.Vector2(44, 55),         // 下颌
-      new Phaser.Math.Vector2(40.5, 51),       // 后颈
+      new Phaser.Math.Vector2(42.68, 44.12),   // 后脑
+      new Phaser.Math.Vector2(44.84, 40.88),   // 角根
+      new Phaser.Math.Vector2(46.28, 44.48),   // 眉骨
+      new Phaser.Math.Vector2(52.76, 47.36),   // 鼻尖
+      new Phaser.Math.Vector2(49.52, 49.16),   // 上唇
+      new Phaser.Math.Vector2(50.96, 50.6),    // 獠牙
+      new Phaser.Math.Vector2(48.44, 53.12),   // 下巴
+      new Phaser.Math.Vector2(44.84, 52.76),   // 下颌
+      new Phaser.Math.Vector2(42.32, 49.88),   // 后颈
     ]
 
     gfx.fillStyle(outline, 1)                  // 外描边：整体放大一圈
@@ -959,7 +1032,7 @@ export class BootScene extends Phaser.Scene {
           const dy = point.y - 47
           const len = Math.hypot(dx, dy) || 1
 
-          return new Phaser.Math.Vector2(point.x + (dx / len) * 1.4, point.y + (dy / len) * 1.4)
+          return new Phaser.Math.Vector2(point.x + (dx / len) * 1, point.y + (dy / len) * 1)
         }),
       true
     )
@@ -970,11 +1043,11 @@ export class BootScene extends Phaser.Scene {
     gfx.fillStyle(0x6fbf9c, 1)                 // 眉骨到鼻梁那一片受光面
     gfx.fillPoints(
       [
-        new Phaser.Math.Vector2(44, 38.5),
-        new Phaser.Math.Vector2(46, 43.5),
-        new Phaser.Math.Vector2(55, 47.5),
-        new Phaser.Math.Vector2(49, 45),
-        new Phaser.Math.Vector2(45, 42),
+        new Phaser.Math.Vector2(44.84, 40.88),
+        new Phaser.Math.Vector2(46.28, 44.48),
+        new Phaser.Math.Vector2(52.76, 47.36),
+        new Phaser.Math.Vector2(48.44, 45.56),
+        new Phaser.Math.Vector2(45.56, 43.4),
       ],
       true
     )
@@ -982,44 +1055,44 @@ export class BootScene extends Phaser.Scene {
     gfx.fillStyle(0x2f6f58, 1)                 // 下半张脸压暗
     gfx.fillPoints(
       [
-        new Phaser.Math.Vector2(40.5, 51),
-        new Phaser.Math.Vector2(44, 55),
-        new Phaser.Math.Vector2(49, 55.5),
-        new Phaser.Math.Vector2(50.5, 50),
-        new Phaser.Math.Vector2(45, 49),
+        new Phaser.Math.Vector2(42.32, 49.88),
+        new Phaser.Math.Vector2(44.84, 52.76),
+        new Phaser.Math.Vector2(48.44, 53.12),
+        new Phaser.Math.Vector2(49.52, 49.16),
+        new Phaser.Math.Vector2(45.56, 48.44),
       ],
       true
     )
 
     gfx.fillStyle(outline, 1)                  // 侧面那只眼：斜着的三角形
-    gfx.fillTriangle(45.5, 45.4, 51, 46.6, 46.5, 47.6)
+    gfx.fillTriangle(45.92, 45.85, 49.88, 46.71, 46.64, 47.43)
     gfx.fillStyle(0xd8a24a, 1)
-    gfx.fillTriangle(46.6, 46, 49.6, 46.6, 47.2, 47)
+    gfx.fillTriangle(46.71, 46.28, 48.87, 46.71, 47.14, 47)
 
     gfx.fillStyle(0xe8e0c8, 1)                 // 嘴里露出的獠牙
-    gfx.fillTriangle(50.6, 50.4, 51.8, 50.6, 51, 52.4)
+    gfx.fillTriangle(49.59, 49.45, 50.46, 49.59, 49.88, 50.89)
 
     gfx.fillStyle(0xa04a4a, 1)                 // 眉上那一抹红
     gfx.fillPoints(
       [
-        new Phaser.Math.Vector2(44.5, 39.6),
-        new Phaser.Math.Vector2(47, 43),
-        new Phaser.Math.Vector2(45.6, 43.4),
-        new Phaser.Math.Vector2(43.4, 40.4),
+        new Phaser.Math.Vector2(45.2, 41.67),
+        new Phaser.Math.Vector2(47, 44.12),
+        new Phaser.Math.Vector2(45.99, 44.41),
+        new Phaser.Math.Vector2(44.41, 42.25),
       ],
       true
     )
 
     gfx.fillStyle(0x8fd8bb, 1)                 // 鼻梁上一条高光，做出瓷面的质感
-    gfx.fillTriangle(46.5, 43.2, 54, 47.2, 46.2, 44.6)
+    gfx.fillTriangle(46.64, 44.26, 52.04, 47.14, 46.42, 45.27)
 
     gfx.fillStyle(0x24564a, 1)                 // 几道磨痕
-    gfx.fillRect(43, 52, 3, 1)
-    gfx.fillRect(47.5, 53.5, 2, 1)
-    gfx.fillRect(42.5, 46, 1, 2)
+    gfx.fillRect(44, 51, 2, 1)
+    gfx.fillRect(47, 52, 1, 1)
+    gfx.fillRect(44, 46, 1, 1)
 
     gfx.fillStyle(0x6b4a2c, 1)                 // 系在腰带上的那根绳
-    gfx.fillRect(41.5, 41, 1, 3)
+    gfx.fillRect(43, 43, 1, 2)
 
     gfx.generateTexture('npc-xiao-slime', 64, 60)
     gfx.destroy()
