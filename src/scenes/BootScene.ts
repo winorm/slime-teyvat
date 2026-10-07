@@ -200,6 +200,7 @@ export class BootScene extends Phaser.Scene {
     this.makeTreeRoot()
     this.makeTreeBranches()
     this.makeLiftCar()
+    this.makeWaterWheel()
   }
 
   private makeSpire() {
@@ -616,6 +617,41 @@ export class BootScene extends Phaser.Scene {
     }
 
     gfx.generateTexture('lift-car', width, height)
+    gfx.destroy()
+  }
+
+  // 水利电梯的水车：木轮 + 八根辐条 + 中心轴，转动时用来当"水力"的表现
+  private makeWaterWheel() {
+    const size = 40
+    const center = size / 2
+    const gfx = this.add.graphics()
+
+    // 外圈
+    gfx.fillStyle(0x6f4423, 1)
+    gfx.fillCircle(center, center, center - 1)
+    gfx.fillStyle(0x8a6034, 1)
+    gfx.fillCircle(center, center, center - 4)
+    gfx.fillStyle(0x2f6f8f, 0.55)          // 中心透出一点"水"
+    gfx.fillCircle(center, center, center - 7)
+
+    // 八根辐条
+    gfx.fillStyle(0x5f4224, 1)
+
+    for (let i = 0; i < 8; i++) {
+      const angle = (Math.PI * 2 * i) / 8
+      const x = center + Math.cos(angle) * (center - 6)
+      const y = center + Math.sin(angle) * (center - 6)
+
+      gfx.fillRect(Math.min(x, center) - 1, Math.min(y, center) - 1, Math.abs(x - center) + 2, Math.abs(y - center) + 2)
+    }
+
+    // 中心轴
+    gfx.fillStyle(0x3f2c1c, 1)
+    gfx.fillCircle(center, center, 4)
+    gfx.fillStyle(0xa8794a, 1)
+    gfx.fillCircle(center, center, 2)
+
+    gfx.generateTexture('water-wheel', size, size)
     gfx.destroy()
   }
 

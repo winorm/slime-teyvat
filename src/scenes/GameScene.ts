@@ -213,6 +213,7 @@ export class GameScene extends Phaser.Scene {
   private liftCar: Phaser.Physics.Arcade.Sprite | null = null
   private liftCarArt: Phaser.GameObjects.Image | null = null
   private liftRope: Phaser.GameObjects.Rectangle | null = null
+  private liftWheel: Phaser.GameObjects.Image | null = null
   private liftIndex = 0
   private liftMoving = false
   private liftState = { y: 0 }
@@ -2862,11 +2863,13 @@ export class GameScene extends Phaser.Scene {
     const bottomStop = Math.max(...lift.stops)
     const carH = 8
 
-    // 井道两侧的立柱（画在楼板之后、树干之前）
-    ;[lift.x - half - 2, lift.x + half + 2].forEach((railX) => {
-      this.add
-        .rectangle(railX, (topStop + bottomStop) / 2, 3, bottomStop - topStop + 24, 0x5a3c22)
-        .setDepth(2.4)
+    // 井道两侧的立柱（画在楼板之后、树干之前）：加深加粗一点，从地面一直到顶层都看得见
+    const railHeight = bottomStop - topStop + 30
+    const railY = (topStop + bottomStop) / 2
+
+    ;[lift.x - half - 3, lift.x + half + 1].forEach((railX) => {
+      this.add.rectangle(railX, railY, 4, railHeight, 0x4a3320).setDepth(2.4)
+      this.add.rectangle(railX + 2, railY, 1, railHeight, 0x7a5a38).setDepth(2.41)
     })
 
     // 轿厢：挡住玩家的那块（静态体，靠 refreshBody 跟着走）
@@ -2894,11 +2897,23 @@ export class GameScene extends Phaser.Scene {
     // 不做挡板/横杆了 —— 那是实体，人还能跳上去，也会把轿厢里的人卡住
     lift.stops.forEach((stop) => {
       ;[-1, 1].forEach((side) => {
-        this.add
-          .rectangle(lift.x + side * (half + 4), stop - 10, 4, 20, 0x6f4423)
-          .setDepth(2.6)
+        const portX = lift.x + side * (half + 4)
+
+        this.add.rectangle(portX, stop - 9, 5, 18, 0x6f4423).setDepth(2.6)      // 门柱
+        this.add.rectangle(portX, stop - 19, 7, 3, 0x5f4224).setDepth(2.61)    // 柱头
+        this.add.rectangle(portX, stop - 2, 9, 4, 0x8a6034).setDepth(2.62)     // 门槛
       })
     })
+
+    // 井道底部的立式水车 + 水槽：既是"水利"的表现，也让地面的电梯口一眼看得出来
+    this.liftWheel = this.add
+      .image(lift.x - half - 26, bottomStop - 30, 'water-wheel')
+      .setDepth(2.3)
+
+    this.add
+      .rectangle(lift.x - half - 26, bottomStop - 4, 46, 8, 0x2f6f8f)
+      .setAlpha(0.5)
+      .setDepth(2.31)
   }
 
   // 每帧：把轿厢、吊绳挪到当前高度；玩家站在轿厢上就跟着一起走
@@ -2976,19 +2991,31 @@ export class GameScene extends Phaser.Scene {
 
     const from = this.liftState.y
     const to = lift.stops[index]
-    const crossed = lift.stops.filter((stop) =>
-      to > from ? stop > from && stop <= to : stop < from && stop >= to
-    ).length
+    const distance = Math.abs(to - from)
+    // 水利电梯本来就慢：按距离算时间，约 160 像素/秒
+    // （跨一层约 1.6 秒；从一层直接到地面 1050 像素，约 6.6 秒）
+    const duration = Math.max(700, (distance / 160) * 1000)
 
     this.liftMoving = true
     this.inputLocked = true
     playSfx(this, 'sfx-interact', 0.25)
 
+    // 水车跟着转：上行顺时针、下行逆时针，转速和行程成正比
+    if (this.liftWheel) {
+      const turn = (distance / 14) * (Math.PI / 2) * (to < from ? -1 : 1)
+
+      this.tweens.add({
+        targets: this.liftWheel,
+        rotation: this.liftWheel.rotation + turn,
+        duration,
+        ease: 'Linear',
+      })
+    }
+
     this.tweens.add({
       targets: this.liftState,
       y: to,
-      // 慢一点：每穿过一层多 420ms，跨一层大约 1.3 秒
-      duration: 900 + 420 * crossed,
+      duration,
       ease: 'Sine.easeInOut',
       onComplete: () => {
         this.liftIndex = index
@@ -4334,7 +4361,10 @@ export class GameScene extends Phaser.Scene {
           (stop) => Math.abs(liftBody.bottom - stop) < 8
         )
 
-        if (stopIndex >= 0 && stopIndex !== this.liftIndex) {
+        // 只在井口附近才提示：地面整条都是 2160，光比高度的话站在哪儿都会冒出来
+        const nearShaft = Math.abs(this.slime.x - lift.x) < lift.width / 2 + 40
+
+        if (stopIndex >= 0 && stopIndex !== this.liftIndex && nearShaft) {
           prompt = this.interactPrefix() + '呼叫电梯'
           action = () => this.useLift()
         }

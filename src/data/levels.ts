@@ -636,7 +636,7 @@ export const LEVELS: LevelDef[] = [
     bgSpin: 0.25,
     trunk: { x: 460, y: 1555, width: 220, height: 890 },   // 主杆：y 1110~2000
     spindle: { x: 510, y: 758, width: 22, height: 704 },   // 楼内短木：顶 406（顶楼楼板底面）、底 1110（一层楼板面）
-    lift: { x: 240, width: 80, stops: [400, 650, 900, 1110] },
+    lift: { x: 240, width: 80, stops: [400, 650, 900, 1110, 2160] },   // 最低一站在一楼地面上
     goal: { x: 880, y: 386, kind: 'chest', prompt: '打开', after: 'repair' },
     platforms: [
       // 一楼地面（顶面 2160）
