@@ -2965,12 +2965,13 @@ export class GameScene extends Phaser.Scene {
     // 井道底部的立式水车 + 水槽：既是"水利"的表现，也让地面的电梯口一眼看得出来
     this.liftWheel = this.add
       .image(lift.x - half - 58, bottomStop - 44, 'water-wheel')
-      .setDepth(2.3)
+      // 深度给负：水车底座那几像素落在地面线以下，画在地面后面才是"扎在地里"
+      .setDepth(-5)
 
     this.add
       .rectangle(lift.x - half - 58, bottomStop - 5, 104, 12, 0x2f6f8f)
       .setAlpha(0.5)
-      .setDepth(2.31)
+      .setDepth(-4.9)
   }
 
   // 每帧：把轿厢、吊绳挪到当前高度；玩家站在轿厢上就跟着一起走
