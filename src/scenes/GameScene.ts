@@ -805,7 +805,10 @@ export class GameScene extends Phaser.Scene {
     const gem = this.gems.create(spot.x, spot.y, 'gem') as Phaser.Physics.Arcade.Sprite
       gem.setTint(0x6ec6ff)
       gem.setData('index', index)
-      gem.setDepth(5)
+      // 属于「树后层」的原石画在树干（depth 2）后面：站树前层看不见，走到树后那一跑、
+      // 透视洞把它露出来的时候才能拿（拾取那边也会再按 layer 卡一次）
+      gem.setData('layer', spot.layer ?? null)
+      gem.setDepth(spot.layer === 'back' ? 1.5 : 5)
     })
 
     this.level.blessings.forEach((spot) => {
@@ -958,6 +961,14 @@ export class GameScene extends Phaser.Scene {
 
     this.physics.add.overlap(this.slime, this.gems, (_slime, gem) => {
     const gemSprite = gem as Phaser.Physics.Arcade.Sprite
+
+      // 带层数的原石只有玩家也在同一层时才拿得到（树后层那两颗站在树前层碰不到）
+      const gemLayer = gemSprite.getData('layer') as 'front' | 'back' | null
+
+      if (gemLayer && gemLayer !== this.playerLayer) {
+        return
+      }
+
     this.collectedIndices.push(gemSprite.getData('index') as number)
     gemSprite.destroy()
     this.refreshGemHud()

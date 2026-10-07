@@ -160,7 +160,9 @@ export type LevelDef = {
   pickups?: PickupDef[]
   repairs?: RepairDef[]
   orbs: OrbDef[]
-  gems: { x: number; y: number }[]
+  gems: { x: number; y: number; layer?: 'front' | 'back' }[]
+                                        // layer：这颗原石属于哪一层。写 'back' 的挂在树干之后，
+                                        // 只有史莱姆也在树后层、透视洞把它露出来时才看得到、捡得到
   blessings: { x: number; y: number }[]
   blessingEndX?: number
   hazards: HazardDef[]
@@ -715,8 +717,8 @@ export const LEVELS: LevelDef[] = [
     ],
     orbs: [],
     gems: [
-      { x: 466, y: 1770 },
-      { x: 466, y: 1420 },
+      { x: 466, y: 1770, layer: 'back' },
+      { x: 466, y: 1420, layer: 'back' },
       { x: 880, y: 370 },
     ],
     blessings: [],
