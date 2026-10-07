@@ -259,9 +259,13 @@ export class GameScene extends Phaser.Scene {
   private jumpPower = -260
   private stamina = STAMINA_MAX
 
-  private bgFar!: Phaser.GameObjects.TileSprite
-  private bgMid!: Phaser.GameObjects.TileSprite
+  private bgFar: Phaser.GameObjects.TileSprite | null = null
+  private bgMid: Phaser.GameObjects.TileSprite | null = null
   private bgNear: Phaser.GameObjects.TileSprite | null = null
+  // 很高的户外关卡（第七关）：三层背景不用平铺，改成"整幅图 + 相对地面的位移"——
+  // 平铺贴图一偏移就会绕回开头（远山下面又冒出天空），整幅图不会
+  private bgTall: { image: Phaser.GameObjects.Image; k: number }[] = []
+  private groundScrollY = 0
   private bgFarY = 0.2
   private bgMidY = 0.45
   private bgNearY = 0.75
@@ -463,31 +467,60 @@ export class GameScene extends Phaser.Scene {
     this.bgFarY = worldLocked ? 1 : tallOutdoor ? 0.06 : 0
     this.bgMidY = worldLocked ? 1 : tallOutdoor ? 0.14 : 0
     this.bgNearY = worldLocked ? 1 : tallOutdoor ? 0.6 : 0
+
+    // 很高的户外关卡：地面那一屏就是设计好的构图，往上爬时三层各自按系数往下沉。
+    // 用整幅 Image（不平铺），所以不会出现"远山下面又是天空"的绕回
+    if (tallOutdoor) {
+      this.groundScrollY = this.level.height - 270
+      this.add
+        .rectangle(0, 0, 480, 270, 0xf3b072)
+        .setOrigin(0, 0)
+        .setScrollFactor(0)
+        .setDepth(-40)
+
+      this.bgTall = [
+        { key: 'bg-' + theme + '-far', k: 0.03, depth: -30 },
+        { key: 'bg-' + theme + '-mid', k: 0.05, depth: -20 },
+        { key: 'bg-' + theme + '-near', k: 0.5, depth: -10 },
+      ]
+        .filter((def) => this.textures.exists(def.key))
+        .map((def) => ({
+          image: this.add
+            .image(0, 0, def.key)
+            .setOrigin(0, 0)
+            .setScrollFactor(0)
+            .setDepth(def.depth),
+          k: def.k,
+        }))
+    }
     // 「环树」系数：这关往上爬的时候，背景横向也一起流，做出绕着树转的感觉
     this.bgSpin = this.level.bgSpin ?? 0
 
-    this.bgFar = this.add
-      .tileSprite(0, 0, 480, 270, 'bg-' + theme + '-far')
-      .setOrigin(0, 0)
-      .setScrollFactor(0)
-      .setDepth(-30)
+    // 矮的关卡照旧用平铺（有限的高度里不会绕回）；高的关卡上面已经用整幅图铺好了
+    if (!tallOutdoor) {
+      this.bgFar = this.add
+        .tileSprite(0, 0, 480, 270, 'bg-' + theme + '-far')
+        .setOrigin(0, 0)
+        .setScrollFactor(0)
+        .setDepth(-30)
 
-    this.bgMid = this.add
-      .tileSprite(0, 0, 480, 270, 'bg-' + theme + '-mid')
-      .setOrigin(0, 0)
-      .setScrollFactor(0)
-      .setDepth(-20)
+      this.bgMid = this.add
+        .tileSprite(0, 0, 480, 270, 'bg-' + theme + '-mid')
+        .setOrigin(0, 0)
+        .setScrollFactor(0)
+        .setDepth(-20)
 
-    // 近景层（岸边芦苇）：只有画了这张贴图的主题才建
-    const nearKey = 'bg-' + theme + '-near'
+      // 近景层（岸边芦苇）：只有画了这张贴图的主题才建
+      const nearKey = 'bg-' + theme + '-near'
 
-    this.bgNear = this.textures.exists(nearKey)
-      ? this.add
-          .tileSprite(0, 0, 480, 270, nearKey)
-          .setOrigin(0, 0)
-          .setScrollFactor(0)
-          .setDepth(-10)
-      : null
+      this.bgNear = this.textures.exists(nearKey)
+        ? this.add
+            .tileSprite(0, 0, 480, 270, nearKey)
+            .setOrigin(0, 0)
+            .setScrollFactor(0)
+            .setDepth(-10)
+        : null
+    }
 
     // 第二关的风车：塔身固定在世界坐标里，扇叶用另一张贴图负责转
     this.windmillBlades = null
@@ -4009,21 +4042,28 @@ export class GameScene extends Phaser.Scene {
 
     const camera = this.cameras.main
 
-    // 横向视差：除了相机 x，再加上"爬得越高背景转得越多"（环树感，bgSpin 由关卡数据给）
-    this.bgFar.setTilePosition(
-      Math.floor(camera.scrollX * 0.15 + camera.scrollY * this.bgSpin),
-      Math.floor(camera.scrollY * this.bgFarY)
-    )
-    this.bgMid.setTilePosition(
-      Math.floor(camera.scrollX * 0.35 + camera.scrollY * this.bgSpin * 1.6),
-      Math.floor(camera.scrollY * this.bgMidY)
-    )
+    if (this.bgTall.length > 0) {
+      // 高关卡：相对地面往下沉（地面那一屏就是设计好的构图），各层系数不同
+      const drift = this.groundScrollY - camera.scrollY
 
-    if (this.bgNear) {
-      this.bgNear.setTilePosition(
-        Math.floor(camera.scrollX * 0.55 + camera.scrollY * this.bgSpin * 2.2),
-        Math.floor(camera.scrollY * this.bgNearY)
+      this.bgTall.forEach((layer) => layer.image.setY(drift * layer.k))
+    } else if (this.bgFar && this.bgMid) {
+      // 横向视差：除了相机 x，再加上"爬得越高背景转得越多"（环树感，bgSpin 由关卡数据给）
+      this.bgFar.setTilePosition(
+        Math.floor(camera.scrollX * 0.15 + camera.scrollY * this.bgSpin),
+        Math.floor(camera.scrollY * this.bgFarY)
       )
+      this.bgMid.setTilePosition(
+        Math.floor(camera.scrollX * 0.35 + camera.scrollY * this.bgSpin * 1.6),
+        Math.floor(camera.scrollY * this.bgMidY)
+      )
+
+      if (this.bgNear) {
+        this.bgNear.setTilePosition(
+          Math.floor(camera.scrollX * 0.55 + camera.scrollY * this.bgSpin * 2.2),
+          Math.floor(camera.scrollY * this.bgNearY)
+        )
+      }
     }
 
     if (this.windmillBlades) {
