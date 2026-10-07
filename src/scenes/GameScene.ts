@@ -713,11 +713,14 @@ export class GameScene extends Phaser.Scene {
       // 照这套逻辑会在屋里横一道栏杆，看着像凭空多了排栅栏
       const narrowLanding = def.width <= 220
 
-      // 井口两边的楼板也不补自动护栏：那是进出电梯的门，横杆 + 实体挡板会把电梯堵死
+      // 井口两边的楼板：这是进出电梯的门，端头那道实体挡板必须去掉，否则一出电梯就被卡住
       const lift = this.liftDef
+      const liftLeftEdge = lift ? lift.x - lift.width / 2 : 0
+      const liftRightEdge = lift ? lift.x + lift.width / 2 : 0
       const atLiftShaft =
         lift !== undefined &&
-        Math.abs(lift.x - lift.width / 2 - railRightEdge) < 2
+        (Math.abs(railRightEdge - liftLeftEdge) < 2 ||
+          Math.abs(railLeftEdge - liftRightEdge) < 2)
 
       // 层补片（整层楼板上的活板）也不补护栏：它本身宽不到 220，会被当成"窄平台"
       // 在中间横一道栏杆、还会加一块实体挡板挡住下楼的路
@@ -744,15 +747,18 @@ export class GameScene extends Phaser.Scene {
         // 护栏的端头挡板（实体）：1/2 层平台的外端是悬空的，没东西挡着人会一头栽下去。
         // 挡板只有 26 高（和护栏一样），走不过去但跳得过去 —— 只防"不小心走掉下去"，
         // 不封死路线。它不进 this.stairs，所以不会被自动上台阶抬上去
-        const endBar = this.platforms.create(
-          stairAtRight ? railLeftEdge + 2 : railRightEdge - 2,
-          railY + 13,
-          'pixel'
-        ) as Phaser.Physics.Arcade.Sprite
+        // 井口那一侧不加：那是进出电梯的门（护栏横木留着，只去掉这块实体挡板）
+        if (!atLiftShaft) {
+          const endBar = this.platforms.create(
+            stairAtRight ? railLeftEdge + 2 : railRightEdge - 2,
+            railY + 13,
+            'pixel'
+          ) as Phaser.Physics.Arcade.Sprite
 
-        endBar.setDisplaySize(4, 26)
-        endBar.setVisible(false)
-        endBar.refreshBody()
+          endBar.setDisplaySize(4, 26)
+          endBar.setVisible(false)
+          endBar.refreshBody()
+        }
 
         // 挑檐：在**没有楼梯那一端**往外挑一小块斜面瓦片，外缘略起翘 ——
         // 一眼看出这是「楼」而不是一块平台。深 3.2，压在楼板上、盖不住玩家
