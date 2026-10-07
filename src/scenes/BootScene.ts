@@ -1680,37 +1680,39 @@ export class BootScene extends Phaser.Scene {
     ]
 
     if (key === 'rock') {
-      // 三档取色：正上=岩脊色，正中=土色，正下=浅黄（原来是白色，太亮，删掉了）。
+      // 三档取色：正上=岩脊色，正中=土色，正下=浅黄。整体比原来更往金色偏一档
+      // （原来的土黄偏褐，加上头顶一层泥沼，离璃月的金太远了）。
       // 逐行铺满椭圆，横向宽度按椭圆公式收，所以四周不会再有单独的白边
       for (let y = 3; y <= 27; y++) {
         const t = (15 - y) / 11.5
         const color =
           t >= 0
-            ? this.mixColor(0x9d7430, 0x8a6a2c, Math.min(1, t))
-            : this.mixColor(0x9d7430, 0xefd79b, Math.min(1, -t))
+            ? this.mixColor(0xb08a26, 0x8f6c1e, Math.min(1, t))
+            : this.mixColor(0xb08a26, 0xf2d88a, Math.min(1, -t))
         const half = 15 * Math.sqrt(Math.max(0, 1 - t * t))
 
         gfx.fillStyle(color, 1)
         gfx.fillRect(16 - half, y, half * 2, 1)
       }
 
-      // 头顶挂一层泥沼：几摊深浅不一的泥。眼睛占着 y 10~16、x 6~26 这一片，
-      // 所以泥一律待在 y 10 以上、往左右两个边缘靠，别糊到眼睛上
-      gfx.fillStyle(0x6b5734, 1)
-      gfx.fillEllipse(9, 8, 8.5, 3.8)
+      // 头顶的泥沼删掉了，换成几粒嵌在岩壳里的金矿：上亮下暗各 1 像素，再点一个高光。
+      // 眼睛占着 y 10~16、x 6~26 那一片，所以金粒一律在 y 9 以上
+      const nuggets: [number, number, number][] = [
+        // x, y, 宽
+        [5, 8, 3],
+        [13, 4, 3],
+        [17, 6, 2],
+        [22, 7, 4],
+      ]
 
-      gfx.fillStyle(0x5c6238, 1)
-      gfx.fillEllipse(23, 7.5, 7, 3.8)
+      gfx.fillStyle(0xc79a22, 1)
+      nuggets.forEach(([x, y, w]) => gfx.fillRect(x, y + 1, w, 1))
 
-      gfx.fillStyle(0x54452a, 1)
-      gfx.fillEllipse(16, 5.5, 6, 3)
-      gfx.fillRect(6, 8, 1, 2)
-      gfx.fillRect(26, 7, 1, 2)
+      gfx.fillStyle(0xffd76a, 1)
+      nuggets.forEach(([x, y, w]) => gfx.fillRect(x, y, w, 1))
 
-      gfx.fillStyle(0x7d6640, 1)
-      gfx.fillRect(9, 5, 2, 1)
-      gfx.fillRect(21, 5, 1, 1)
-      gfx.fillRect(15, 4, 1, 1)
+      gfx.fillStyle(0xfff0bd, 1)
+      nuggets.forEach(([x, y]) => gfx.fillRect(x, y, 1, 1))
     } else {
       layers.forEach((layer) => {
         gfx.fillStyle(element.color, layer.alpha)
@@ -1738,10 +1740,10 @@ export class BootScene extends Phaser.Scene {
     // 岩化态也走同一套：正上=岩化岩脊的深色，正中=更深的土色，正下=哑一点的浅黄（不再是白）
     for (let y = 3; y <= 27; y++) {
       const t = (15 - y) / 11.5
-      const color =
-        t >= 0
-          ? this.mixColor(0x866631, 0x5c4d33, Math.min(1, t))
-          : this.mixColor(0x866631, 0xc6b07e, Math.min(1, -t))
+        const color =
+          t >= 0
+            ? this.mixColor(0x8f6b24, 0x5f4e28, Math.min(1, t))
+            : this.mixColor(0x8f6b24, 0xcbb171, Math.min(1, -t))
       const half = 15 * Math.sqrt(Math.max(0, 1 - t * t))
 
       gfx.fillStyle(color, 1)
@@ -1886,36 +1888,39 @@ export class BootScene extends Phaser.Scene {
   }
 
   // 压力板：灰阶贴图，靠 setTint 变色（没踩住=石头色，踩住=金色）。
-  // 画成一块坐在石座上的面板：四周黑描边、面板上沿提亮、下沿压暗，中间一道凹槽。
-  // 判定用的细条不在贴图里，见 GameScene 的 PLATE_BODY
+  // 画法照抄木地板那张（wood-plank）：一整块**平的**石板 —— 上沿一条亮线、下沿一层
+  // 侧边 + 接触阴影、中间一道嵌进去的凹槽。横版 2D 里用"外框 + 厚侧面"那套假体积会很像
+  // 贴上去的按钮，所以不用黑描边、也不做厚底座。判定用的细条不在贴图里，见 PLATE_BODY
   private makePlate() {
     const gfx = this.add.graphics()
 
-    // 石座：比面板大一圈，底下那圈就是"坐在地面上的框"
-    gfx.fillStyle(0x24242a, 1)
-    gfx.fillRect(0, 0, 46, 20)              // 整块的外描边
-    gfx.fillStyle(0x8f8f8f, 1)
-    gfx.fillRect(1, 1, 44, 18)              // 石座本体
-    gfx.fillStyle(0xc4c4c4, 1)
-    gfx.fillRect(1, 1, 44, 3)               // 石座受光的上沿
-
-    // 面板：踩下去的就是这一块
-    gfx.fillStyle(0x24242a, 1)
-    gfx.fillRect(4, 4, 38, 13)              // 面板描边
-    gfx.fillStyle(0xf4f4f4, 1)
-    gfx.fillRect(5, 5, 36, 11)
-    gfx.fillStyle(0xffffff, 1)
-    gfx.fillRect(5, 5, 36, 3)               // 面板上沿更亮
-    gfx.fillStyle(0xbfbfbf, 1)
-    gfx.fillRect(5, 13, 36, 3)              // 面板下沿压暗
-
-    // 中间一道凹槽：一眼看出"这儿是拿来踩/压的"
+    // 板面：从上到下亮 → 暗，四档，跟木头地板同一个路数
+    gfx.fillStyle(0xf0f0f0, 1)
+    gfx.fillRect(1, 2, 50, 2)
+    gfx.fillStyle(0xdedede, 1)
+    gfx.fillRect(1, 4, 50, 4)
+    gfx.fillStyle(0xc0c0c0, 1)
+    gfx.fillRect(1, 8, 50, 2)
+    gfx.fillStyle(0x9a9a9a, 1)
+    gfx.fillRect(1, 10, 50, 1)
     gfx.fillStyle(0x6e6e6e, 1)
-    gfx.fillRect(15, 9, 16, 3)
-    gfx.fillStyle(0xffffff, 1)
-    gfx.fillRect(15, 12, 16, 1)
+    gfx.fillRect(1, 11, 50, 1)              // 贴地那条接触阴影
 
-    gfx.generateTexture('plate', 46, 20)
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillRect(1, 0, 50, 2)               // 上沿的受光亮线（板子"厚度"只靠这一条）
+
+    // 两头压一道暗边：读起来是单独一块板，不是地上一条亮带
+    gfx.fillStyle(0xb0b0b0, 1)
+    gfx.fillRect(0, 0, 1, 12)
+    gfx.fillRect(51, 0, 1, 12)
+
+    // 中间那道凹槽：上缘压暗、下缘提亮，看着是"嵌进去"的
+    gfx.fillStyle(0xa8a8a8, 1)
+    gfx.fillRect(15, 5, 22, 2)
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillRect(15, 7, 22, 1)
+
+    gfx.generateTexture('plate', 52, 12)
     gfx.destroy()
   }
 
@@ -2442,7 +2447,7 @@ export class BootScene extends Phaser.Scene {
 
     const ridge = ridgeAt(25)
 
-    // 普通态：亮金岩脊
+    // 普通态：亮金岩脊（跟着身体一起往金色偏了一档）
     const gfx = this.add.graphics()
     const peaks: Array<[number, number]> = [
       [2, 9],
@@ -2454,7 +2459,7 @@ export class BootScene extends Phaser.Scene {
       const t = step / 5
       const inset = step * 0.9
 
-      gfx.fillStyle(this.mixColor(0x8a6a2c, 0x33291a, t), 1)
+      gfx.fillStyle(this.mixColor(0x8f6c1e, 0x3a2f14, t), 1)
       ridge(
         gfx,
         1 + inset,
@@ -2465,7 +2470,7 @@ export class BootScene extends Phaser.Scene {
       )
     }
 
-    gfx.fillStyle(0xa8894a, 1)
+    gfx.fillStyle(0xbba03f, 1)
     gfx.fillPoints(
       [
         new Phaser.Math.Vector2(16, 1),
@@ -2490,7 +2495,7 @@ export class BootScene extends Phaser.Scene {
     gfx.fillEllipse(16, 25, 30, 23)
 
     bodyLayers.forEach((layer) => {
-      gfx.fillStyle(0xd9a441, layer.alpha)
+      gfx.fillStyle(0xe3b83c, layer.alpha)
       gfx.fillEllipse(16, 25, layer.w, layer.h)
     })
 
@@ -2511,7 +2516,7 @@ export class BootScene extends Phaser.Scene {
       const t = step / 5
       const inset = step * 1.2
 
-      armor.fillStyle(this.mixColor(0x5c4d33, 0x2a2316, t), 1)
+      armor.fillStyle(this.mixColor(0x5f4e28, 0x2b2412, t), 1)
       armorRidge(
         armor,
         1 + inset,
@@ -2527,7 +2532,7 @@ export class BootScene extends Phaser.Scene {
     // 只填岩化态，普通态那两个凹口保持原样。底边压在身体后面，不用管接缝
     const armorBottom = 34
 
-    armor.fillStyle(this.mixColor(0x5c4d33, 0x2a2316, 0.4), 1)
+    armor.fillStyle(this.mixColor(0x5f4e28, 0x2b2412, 0.4), 1)
 
     for (let index = 0; index + 1 < armorPeaks.length; index++) {
       const [leftX, leftY] = armorPeaks[index]
@@ -2565,7 +2570,7 @@ export class BootScene extends Phaser.Scene {
       { w: 13, h: 9, alpha: 0.8 },
       { w: 8, h: 6, alpha: 0.9 },
     ].forEach((layer) => {
-      armor.fillStyle(0xa8823a, layer.alpha)
+      armor.fillStyle(0xb08a30, layer.alpha)
       armor.fillEllipse(16, armorCenterY, layer.w, layer.h)
     })
 
