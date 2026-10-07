@@ -717,8 +717,10 @@ export const LEVELS: LevelDef[] = [
     ],
     orbs: [],
     gems: [
-      { x: 466, y: 1770, layer: 'back' },
-      { x: 466, y: 1420, layer: 'back' },
+      // 树后层那两颗：放在树后两跑楼梯的踏面上（x=466 处，踏面顶 1890.8 / 1540.8），
+      // 站树前层看不见也捡不到，绕到树后才拿得到
+      { x: 466, y: 1884, layer: 'back' },
+      { x: 466, y: 1534, layer: 'back' },
       { x: 880, y: 370 },
     ],
     blessings: [],
