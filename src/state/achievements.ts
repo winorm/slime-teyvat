@@ -12,6 +12,8 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { key: 'first-gem', name: '家乡的影子', desc: '第一次拾起原石', hidden: false },
   { key: 'first-clear', name: '你好，提瓦特', desc: '第一次通关任意关卡', hidden: false },
   { key: 'tower-top', name: '到达蒙德最高层！', desc: '登上风塔的塔尖', hidden: true },
+  { key: 'blossom-view', name: '邀诸位共赏', desc: '在望舒客栈的金桂树下，站够五秒看完一场花瓣雨', hidden: true },
+  
 ]
 
 export function findAchievement(key: string) {

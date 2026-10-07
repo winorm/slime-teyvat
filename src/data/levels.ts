@@ -86,7 +86,7 @@ export type GoalDef = {
   y: number
   kind: GoalKind
   grants?: ElementKey
-  after?: 'cage' | 'statue' | 'repair'
+  after?: 'cage' | 'statue' | 'repair'| 'xiao'
   prompt: string
 }
 
@@ -623,8 +623,7 @@ export const LEVELS: LevelDef[] = [
   {
     name: '第七关 · 修复望舒客栈',
     intro:
-      '望舒客栈最近像是遭了魔物的袭击。\n老板娘说，帮她修好断掉的楼梯，\n食宿就免费。那就顺手帮个忙吧。',
-
+      '听客栈的人说，这里最近遭了\n魔物袭击，楼梯断了好几处。\n我去找老板娘问问怎么回事。',
     width: 960,
     height: 2200,
     startElement: 'rock',
@@ -637,7 +636,7 @@ export const LEVELS: LevelDef[] = [
     trunk: { x: 460, y: 1555, width: 220, height: 890 },   // 主杆：y 1110~2000
     spindle: { x: 510, y: 758, width: 22, height: 704 },   // 楼内短木：顶 406（顶楼楼板底面）、底 1110（一层楼板面）
     lift: { x: 240, width: 80, stops: [400, 650, 900, 1110, 2160] },   // 最低一站在一楼地面上
-    goal: { x: 880, y: 386, kind: 'chest', prompt: '打开', after: 'repair' },
+    goal: { x: 880, y: 386, kind: 'chest', prompt: '打开', after: 'xiao' },
     platforms: [
       // 一楼地面（顶面 2160）
       { x: 480, y: 2180, width: 960, height: 40 },
