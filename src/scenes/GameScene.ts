@@ -3057,9 +3057,10 @@ export class GameScene extends Phaser.Scene {
     this.inputLocked = true
     playSfx(this, 'sfx-interact', 0.25)
 
-    // 水车跟着转：上行顺时针、下行逆时针，转速和行程成正比
+    // 水车跟着转：上行顺时针、下行逆时针，转速和行程成正比。
+    // 分母是"推进多少像素转 1/4 圈"——数字越大水车转得越慢（40 ≈ 每秒 0.7 圈，像真水车）
     if (this.liftWheel) {
-      const turn = (distance / 14) * (Math.PI / 2) * (to < from ? -1 : 1)
+      const turn = (distance / 40) * (Math.PI / 2) * (to < from ? -1 : 1)
 
       this.tweens.add({
         targets: this.liftWheel,
