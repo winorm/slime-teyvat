@@ -712,9 +712,18 @@ export class GameScene extends Phaser.Scene {
       // 照这套逻辑会在屋里横一道栏杆，看着像凭空多了排栅栏
       const narrowLanding = def.width <= 220
 
+      // 井口两边的楼板也不补自动护栏：那是进出电梯的门，横杆 + 实体挡板会把电梯堵死
+      const lift = this.liftDef
+      const atLiftShaft =
+        lift !== undefined &&
+        Math.abs(lift.x - lift.width / 2 - railRightEdge) < 2
+
       // 层补片（整层楼板上的活板）也不补护栏：它本身宽不到 220，会被当成"窄平台"
       // 在中间横一道栏杆、还会加一块实体挡板挡住下楼的路
-      if (!def.layer && (def.rail || (narrowLanding && (stairAtLeft || stairAtRight)))) {
+      if (
+        !def.layer &&
+        (def.rail || (!atLiftShaft && narrowLanding && (stairAtLeft || stairAtRight)))
+      ) {
         const railY = top - 26
         const railLeft = railLeftEdge
         // 平台护栏也画在人前面：它和楼梯护栏是接在一起的，depth 要一致

@@ -178,10 +178,13 @@ export type LevelDef = {
   inn?: { x: number; y: number }          // 望舒客栈：画在背景里的地标，不参与碰撞
   decor?: DecorDef[]                      // 背景静物：破屋、矿山剪影
   trunk?: { x: number; y: number; width: number; height: number; depth?: number }
-                                          // 古树主干：竖着平铺树皮带，x/y 是中心点
+  // 古树主干：竖着平铺树皮带，x/y 是中心点
   spindle?: { x: number; y: number; width: number; height: number; depth?: number }
-                                          // 楼内那根"短木"（楼内楼梯绕着它上）：同样画成 RenderTexture，
-                                          // 史莱姆在树后层时在它附近擦一个透视洞
+  // 楼内那根"短木"（楼内楼梯绕着它上）：同样画成 RenderTexture，
+  // 史莱姆在树后层时在它附近擦一个透视洞
+  lift?: { x: number; width: number; stops: number[] }
+  // 木制水利电梯：x = 井道中心，width = 井道宽，
+  // stops = 每层楼板顶面 y（从高到低写）
   bgSpin?: number                         // 背景横向"环树"系数：往上爬时背景往一侧流
   statue?: StatueDef
   unlocks?: ElementKey[]                  // 本关开局就解锁的元素（没有神像但想给某个元素时用）
@@ -633,6 +636,7 @@ export const LEVELS: LevelDef[] = [
     bgSpin: 0.25,
     trunk: { x: 460, y: 1555, width: 220, height: 890 },   // 主杆：y 1110~2000
     spindle: { x: 510, y: 758, width: 22, height: 704 },   // 楼内短木：顶 406（顶楼楼板底面）、底 1110（一层楼板面）
+    lift: { x: 240, width: 80, stops: [400, 650, 900, 1110] },
     goal: { x: 880, y: 386, kind: 'chest', prompt: '打开', after: 'repair' },
     platforms: [
       // 一楼地面（顶面 2160）
@@ -646,32 +650,39 @@ export const LEVELS: LevelDef[] = [
       { x: 630, y: 1638, width: 120, height: 6, depth: 3, rail: true, plank: true, pillars: 3 },
       { x: 630, y: 1288, width: 120, height: 6, depth: 3, rail: true, plank: true, pillars: 3 },
       
-      // 楼内：每层楼板在「上楼梯的上端」留一道隔断（活板）——
-      // 树前层时它是完整楼板（正常走过去），树后层时它消失、露出楼梯井（可以下楼）。
-      // 隔断宽度要盖住"整个人"（人 32 宽、头离脚 26、楼板 6 厚）：脚一踩到下一级就会和楼板重叠
-      { x: 181, y: 1113, width: 362, height: 6, depth: 3, plank: true },
+      // 1110 层
+      { x: 100, y: 1113, width: 200, height: 6, depth: 3, plank: true },
+      { x: 321, y: 1113, width: 82,  height: 6, depth: 3, plank: true },
       { x: 410, y: 1113, width: 96,  height: 6, depth: 3, plank: true, layer: 'front' },
       { x: 709, y: 1113, width: 502, height: 6, depth: 3, plank: true },
-      { x: 215, y: 903,  width: 430, height: 6, depth: 3, plank: true },
-      { x: 482, y: 903,  width: 104, height: 6, depth: 3, plank: true, layer: 'front' },
-      { x: 747, y: 903,  width: 426, height: 6, depth: 3, plank: true },
-      { x: 215, y: 653,  width: 430, height: 6, depth: 3, plank: true },
-      { x: 482, y: 653,  width: 104, height: 6, depth: 3, plank: true, layer: 'front' },
-      { x: 747, y: 653,  width: 426, height: 6, depth: 3, plank: true },
+      
+      // 900 层
+      { x: 100, y: 903, width: 200, height: 6, depth: 3, plank: true },
+      { x: 355, y: 903, width: 150, height: 6, depth: 3, plank: true },
+      { x: 482, y: 903, width: 104, height: 6, depth: 3, plank: true, layer: 'front' },
+      { x: 747, y: 903, width: 426, height: 6, depth: 3, plank: true },
+      
+      // 650 层
+      { x: 100, y: 653, width: 200, height: 6, depth: 3, plank: true },
+      { x: 355, y: 653, width: 150, height: 6, depth: 3, plank: true },
+      { x: 482, y: 653, width: 104, height: 6, depth: 3, plank: true, layer: 'front' },
+      { x: 747, y: 653, width: 426, height: 6, depth: 3, plank: true },
 
+      
       // 楼内：绕短木的半层平台（顶面 985 / 775 / 525）
       // 楼内六跑楼梯每跑的上端都落在 x=590，就是踩在这三块上
       { x: 650, y: 988, width: 120, height: 6, depth: 3, rail: true, plank: true },
       { x: 650, y: 778, width: 120, height: 6, depth: 3, rail: true, plank: true },
       { x: 650, y: 528, width: 120, height: 6, depth: 3, rail: true, plank: true },
 
-      // 顶楼（顶面 400）：最后一跑落在 x=430 的楼梯口上，430~510 是活板 ——
-      // 树前层是完整楼板（能一路走到阳台），树后层让开、露出楼梯井（往右走就下楼）；
-      // 阳台和宝箱（880,386）在最右端
-      { x: 215, y: 403, width: 430, height: 6, depth: 3, plank: true },
+      // 顶楼 400
+      { x: 100, y: 403, width: 200, height: 6, depth: 3, plank: true },
+      { x: 355, y: 403, width: 150, height: 6, depth: 3, plank: true },
       { x: 470, y: 403, width: 80,  height: 6, depth: 3, plank: true, layer: 'front' },
       { x: 735, y: 403, width: 450, height: 6, depth: 3, plank: true },
+      // 顶楼阳台（宝箱 880,386 在这上面）
       { x: 855, y: 403, width: 210, height: 6, depth: 3, rail: true, plank: true },
+    
     ],
 
     stairs: [
