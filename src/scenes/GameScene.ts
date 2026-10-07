@@ -728,8 +728,16 @@ export class GameScene extends Phaser.Scene {
 
       // 1110 层：前台（柜台 + 木格柜 + 酒桶 + 檐下挂灯）
       put('inn-front', 150, 1110)
-      // 老板娘站在柜台右边（柜台是 112~188，她站 205 不会被柜台挡住）
-      this.innkeeper = put('npc-innkeeper', 205, 1110)
+      // 老板娘站到柜台"里面"：位置就在柜台中线（150），抬高到 1096 让上半身露在柜台
+      // 上沿之上，深度压到柜台（2.8）下面 —— 于是柜台把她下半身挡住，看着就是站在柜台后头。
+      // 注意别往右摆：200~280 是电梯井道，站在那儿会挡住下楼的路
+      const keeper = this.add
+        .image(150, 1096, 'npc-innkeeper')
+        .setOrigin(0.5, 1)
+        .setDepth(2.75)
+
+      this.innDecor.push({ image: keeper, front: 2.75, back: 1.02 })
+      this.innkeeper = keeper
       put('barrel', 60, 1110)
       put('inn-cabinet', 28, 1110)
       put('lantern', 150, 906, true)
