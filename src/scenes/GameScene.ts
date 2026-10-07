@@ -2964,11 +2964,11 @@ export class GameScene extends Phaser.Scene {
 
     // 井道底部的立式水车 + 水槽：既是"水利"的表现，也让地面的电梯口一眼看得出来
     this.liftWheel = this.add
-      .image(lift.x - half - 42, bottomStop - 34, 'water-wheel')
+      .image(lift.x - half - 58, bottomStop - 44, 'water-wheel')
       .setDepth(2.3)
 
     this.add
-      .rectangle(lift.x - half - 42, bottomStop - 4, 70, 10, 0x2f6f8f)
+      .rectangle(lift.x - half - 58, bottomStop - 5, 104, 12, 0x2f6f8f)
       .setAlpha(0.5)
       .setDepth(2.31)
   }
@@ -3049,9 +3049,9 @@ export class GameScene extends Phaser.Scene {
     const from = this.liftState.y
     const to = lift.stops[index]
     const distance = Math.abs(to - from)
-    // 水利电梯本来就慢：按距离算时间，约 160 像素/秒
-    // （跨一层约 1.6 秒；从一层直接到地面 1050 像素，约 6.6 秒）
-    const duration = Math.max(700, (distance / 160) * 1000)
+    // 水利电梯慢得像水车：约 110 像素/秒
+    // （跨一层约 2.3 秒；从一层直接到地面 1050 像素，约 9.5 秒）
+    const duration = Math.max(900, (distance / 110) * 1000)
 
     this.liftMoving = true
     this.inputLocked = true

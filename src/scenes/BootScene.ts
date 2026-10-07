@@ -622,7 +622,7 @@ export class BootScene extends Phaser.Scene {
 
   // 水利电梯的水车：木轮 + 八根辐条 + 中心轴，转动时用来当"水力"的表现
   private makeWaterWheel() {
-    const size = 64
+    const size = 96
     const center = size / 2
     const gfx = this.add.graphics()
 
@@ -630,15 +630,15 @@ export class BootScene extends Phaser.Scene {
     gfx.fillStyle(0x6f4423, 1)
     gfx.fillCircle(center, center, center - 1)
     gfx.fillStyle(0x8a6034, 1)
-    gfx.fillCircle(center, center, center - 5)
+    gfx.fillCircle(center, center, center - 7)
     gfx.fillStyle(0x2f6f8f, 0.5)           // 中心透出一点"水"
-    gfx.fillCircle(center, center, center - 11)
+    gfx.fillCircle(center, center, center - 17)
 
     // 八根辐条 + 轮叶（辐条末端那几片小桨）
     for (let i = 0; i < 8; i++) {
       const angle = (Math.PI * 2 * i) / 8
-      const x = center + Math.cos(angle) * (center - 9)
-      const y = center + Math.sin(angle) * (center - 9)
+      const x = center + Math.cos(angle) * (center - 14)
+      const y = center + Math.sin(angle) * (center - 14)
 
       gfx.fillStyle(0x5f4224, 1)
       gfx.fillRect(
@@ -649,20 +649,20 @@ export class BootScene extends Phaser.Scene {
       )
 
       // 轮叶：贴着外圈的一小片深色桨
-      const px = center + Math.cos(angle) * (center - 2)
-      const py = center + Math.sin(angle) * (center - 2)
+      const px = center + Math.cos(angle) * (center - 3)
+      const py = center + Math.sin(angle) * (center - 3)
 
       gfx.fillStyle(0x3f2c1c, 1)
-      gfx.fillRect(px - 4, py - 4, 8, 8)
+      gfx.fillRect(px - 6, py - 6, 12, 12)
       gfx.fillStyle(0x9adcf0, 0.35)        // 桨面上挂着一线水光
-      gfx.fillRect(px - 4, py - 4, 8, 2)
+      gfx.fillRect(px - 6, py - 6, 12, 3)
     }
 
     // 中心轴
     gfx.fillStyle(0x3f2c1c, 1)
-    gfx.fillCircle(center, center, 7)
+    gfx.fillCircle(center, center, 10)
     gfx.fillStyle(0xa8794a, 1)
-    gfx.fillCircle(center, center, 3)
+    gfx.fillCircle(center, center, 5)
 
     gfx.generateTexture('water-wheel', size, size)
     gfx.destroy()
