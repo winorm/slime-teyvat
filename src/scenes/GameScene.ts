@@ -671,6 +671,16 @@ export class GameScene extends Phaser.Scene {
       // 顶楼阳台：一张小桌 + 一个蒲团（蒲团直接用圆凳代替）
       put('inn-table', 820, 400)
       put('inn-stool', 850, 400)
+
+      // 树右侧那半截楼板玩家走不到，就当"后墙"用：平铺木墙 + 格子窗。
+      // 深度 1.5 —— 在史莱姆（树后 1.2 / 树前 10）之后、树干（2）之前，
+      // 树后层时人是走在墙前面的
+      const wall = (x: number, y: number, w: number, h: number) =>
+        this.add.tileSprite(x, y, w, h, 'inn-wall').setDepth(1.5)
+
+      wall(709, 1005, 502, 210)     // 1110 层：458~960
+      wall(747, 775, 426, 250)      // 900 层：534~960
+      wall(747, 525, 426, 250)      // 650 层：534~960
     }
 
     this.gems = this.physics.add.staticGroup()

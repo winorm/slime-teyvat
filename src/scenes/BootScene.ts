@@ -204,6 +204,7 @@ export class BootScene extends Phaser.Scene {
     this.makeInnFront()
     this.makeInnFurniture()
     this.makeInnDining()
+    this.makeInnWall()
   }
 
   private makeSpire() {
@@ -627,6 +628,52 @@ export class BootScene extends Phaser.Scene {
   // 望舒客栈的前台柜台：木台面 + 分格柜身 + 台面上一个小算盘
   // 望舒客栈的家具：木格柜、砖灶（带锅）、柴堆、吊锅
   // 客栈的桌凳：方桌（桌面 + 四条腿 + 横撑）和圆凳
+  // 客栈后墙：可平铺的木墙 + 一扇格子窗（120×120 一格，横着平铺就成一整面墙）
+  private makeInnWall() {
+    const size = 120
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0x5f4224, 1)              // 墙板底色
+    gfx.fillRect(0, 0, size, size)
+    gfx.fillStyle(0x6b4a2c, 1)
+    gfx.fillRect(0, 0, size, 4)
+    gfx.fillRect(0, size - 4, size, 4)
+
+    // 竖向木板缝
+    gfx.fillStyle(0x4a3320, 0.7)
+
+    for (let x = 20; x < size; x += 20) {
+      gfx.fillRect(x, 0, 2, size)
+    }
+
+    // 横梁
+    gfx.fillStyle(0x3f2c1c, 1)
+    gfx.fillRect(0, 0, size, 2)
+    gfx.fillRect(0, size - 2, size, 2)
+
+    // 格子窗：木框 + 深色玻璃 + 3×3 木格
+    const winW = 44
+    const winH = 40
+    const winX = (size - winW) / 2
+    const winY = (size - winH) / 2
+
+    gfx.fillStyle(0x8a6034, 1)
+    gfx.fillRect(winX - 3, winY - 3, winW + 6, winH + 6)
+    gfx.fillStyle(0x1a1a2e, 1)
+    gfx.fillRect(winX, winY, winW, winH)
+    gfx.fillStyle(0xffd9a0, 0.18)           // 窗里透一点暖光
+    gfx.fillRect(winX, winY, winW, winH)
+    gfx.fillStyle(0x8a6034, 1)
+
+    for (let i = 1; i < 3; i++) {
+      gfx.fillRect(winX, winY + (winH / 3) * i, winW, 2)
+      gfx.fillRect(winX + (winW / 3) * i, winY, 2, winH)
+    }
+
+    gfx.generateTexture('inn-wall', size, size)
+    gfx.destroy()
+  }
+
   private makeInnDining() {
     const table = this.add.graphics()
 
