@@ -2712,6 +2712,19 @@ export class GameScene extends Phaser.Scene {
       gfx.fillTriangle(beam[0].x, beam[0].y, beam[1].x, beam[1].y, beam[2].x, beam[2].y)
       gfx.fillTriangle(beam[0].x, beam[0].y, beam[2].x, beam[2].y, beam[3].x, beam[3].y)
 
+      // 第一跑如果是站在地面上起步的（from.y 就是最低那块楼板的顶面），把斜梁底下填平到地面：
+      // 不然斜梁下沿会一路翘到右端，看着像楼梯悬在半空
+      const groundTop = this.level.platforms.reduce(
+        (lowest, item) => Math.max(lowest, item.y - item.height / 2),
+        Number.NEGATIVE_INFINITY
+      )
+
+      if (Math.abs(from.y - groundTop) < 2) {
+        gfx.fillStyle(beamWood, 1)
+        gfx.fillTriangle(from.x, from.y, to.x, to.y, to.x, groundTop)
+        gfx.fillTriangle(from.x, from.y, to.x, groundTop, from.x, groundTop)
+      }
+
       for (let i = 0; i < count; i++) {
         // 断口：这一级的图形和碰撞都不生成
         if (this.isBrokenStep(stairIndex, i)) {
