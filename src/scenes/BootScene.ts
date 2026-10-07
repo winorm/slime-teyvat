@@ -202,6 +202,7 @@ export class BootScene extends Phaser.Scene {
     this.makeLiftCar()
     this.makeWaterWheel()
     this.makeInnFront()
+    this.makeInnFurniture()
   }
 
   private makeSpire() {
@@ -623,6 +624,91 @@ export class BootScene extends Phaser.Scene {
 
   // 水利电梯的水车：木轮 + 八根辐条 + 中心轴，转动时用来当"水力"的表现
   // 望舒客栈的前台柜台：木台面 + 分格柜身 + 台面上一个小算盘
+  // 望舒客栈的家具：木格柜、砖灶（带锅）、柴堆、吊锅
+  private makeInnFurniture() {
+    const cab = this.add.graphics()          // 木格柜：柜体 + 3×4 格子窗
+
+    cab.fillStyle(0x6b4a2c, 1)
+    cab.fillRect(0, 0, 40, 44)
+    cab.fillStyle(0x8a6034, 1)
+    cab.fillRect(0, 0, 40, 3)
+    cab.fillStyle(0x3f2c1c, 1)
+    cab.fillRect(3, 4, 34, 36)
+    cab.fillStyle(0x8a6034, 1)
+
+    for (let i = 1; i < 3; i++) {
+      cab.fillRect(3, 4 + (36 / 3) * i, 34, 2)
+    }
+
+    for (let i = 1; i < 4; i++) {
+      cab.fillRect(3 + (34 / 4) * i, 4, 2, 36)
+    }
+
+    cab.generateTexture('inn-cabinet', 40, 44)
+    cab.destroy()
+
+    const stove = this.add.graphics()        // 砖灶 + 灶上的锅
+
+    stove.fillStyle(0x7a5644, 1)
+    stove.fillRect(0, 8, 48, 22)
+    stove.fillStyle(0x8f6a54, 1)
+
+    for (let y = 14; y < 30; y += 6) {
+      stove.fillRect(0, y, 48, 1)
+    }
+
+    for (let x = 8; x < 48; x += 12) {
+      stove.fillRect(x, 8, 1, 22)
+    }
+
+    stove.fillStyle(0x4a3320, 1)
+    stove.fillRect(16, 20, 16, 10)
+    stove.fillStyle(0xd9a441, 0.8)
+    stove.fillRect(18, 24, 12, 6)
+    stove.fillStyle(0x8a6034, 1)
+    stove.fillRect(0, 6, 48, 3)
+    stove.fillStyle(0x5f4224, 1)
+    stove.fillEllipse(24, 4, 30, 12)
+    stove.fillStyle(0x3f2c1c, 1)
+    stove.fillEllipse(24, 2, 24, 8)
+    stove.generateTexture('inn-stove', 48, 30)
+    stove.destroy()
+
+    const wood = this.add.graphics()         // 柴堆：六根圆木堆成小三角
+    const logs = [
+      [0, 12],
+      [10, 12],
+      [20, 12],
+      [5, 6],
+      [15, 6],
+      [10, 0],
+    ]
+
+    logs.forEach(([x, y]) => {
+      wood.fillStyle(0x6a4c2e, 1)
+      wood.fillCircle(x + 6, y + 6, 6)
+      wood.fillStyle(0x8a6a44, 1)
+      wood.fillCircle(x + 6, y + 6, 4)
+      wood.fillStyle(0x4a3320, 1)
+      wood.fillCircle(x + 6, y + 6, 2)
+    })
+
+    wood.generateTexture('inn-wood', 34, 26)
+    wood.destroy()
+
+    const pot = this.add.graphics()          // 吊锅：黑锅 + 吊钩横杆
+
+    pot.fillStyle(0x3f2c1c, 1)
+    pot.fillRect(0, 0, 16, 2)
+    pot.fillRect(7, 2, 2, 4)
+    pot.fillStyle(0x555566, 1)
+    pot.fillEllipse(8, 12, 14, 12)
+    pot.fillStyle(0x3f3f4a, 1)
+    pot.fillEllipse(8, 9, 14, 6)
+    pot.generateTexture('inn-pot', 16, 20)
+    pot.destroy()
+  }
+
   private makeInnFront() {
     const width = 76
     const height = 30

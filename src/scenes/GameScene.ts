@@ -637,6 +637,13 @@ export class GameScene extends Phaser.Scene {
     if (theme === 'liyue' && this.level.trunk) {
       this.add.image(150, 1110, 'inn-front').setOrigin(0.5, 1).setDepth(2.8)
       this.add.image(60, 1110, 'barrel').setOrigin(0.5, 1).setDepth(2.8)
+      this.add.image(28, 1110, 'inn-cabinet').setOrigin(0.5, 1).setDepth(2.8)
+      this.add.image(150, 906, 'lantern').setOrigin(0.5, 0).setDepth(2.9)
+
+      // 900 层：厨房（砖灶 + 吊锅 + 柴堆）
+      this.add.image(64, 900, 'inn-stove').setOrigin(0.5, 1).setDepth(2.8)
+      this.add.image(64, 898, 'inn-pot').setOrigin(0.5, 1).setDepth(2.9)
+      this.add.image(150, 900, 'inn-wood').setOrigin(0.5, 1).setDepth(2.8)
     }
 
     this.gems = this.physics.add.staticGroup()
