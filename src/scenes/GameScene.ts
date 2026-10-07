@@ -186,6 +186,12 @@ export class GameScene extends Phaser.Scene {
   private trunkRT: Phaser.GameObjects.RenderTexture | null = null
   private trunkDrawn = { x: -99999, y: -99999, layer: '' as string }
   private gateFired: boolean[] = []
+  // 只在「树前」或「树后」某一层存在的楼板补片（第七关整层楼板中间那块"活板"）：
+  // 树前层时它是完整楼板（可以正常走过去），树后层时它消失、露出楼梯井（可以下楼）
+  private layerPieces: {
+    layer: 'front' | 'back'
+    objects: (Phaser.GameObjects.Sprite | Phaser.GameObjects.TileSprite)[]
+  }[] = []
   private pillars!: Phaser.Physics.Arcade.StaticGroup
   private orbs!: Phaser.Physics.Arcade.StaticGroup
 
@@ -355,6 +361,7 @@ export class GameScene extends Phaser.Scene {
     this.trunkRT = null
     this.trunkDrawn = { x: -99999, y: -99999, layer: '' }
     this.gateFired = []
+    this.layerPieces = []
     // 存档只记「永久成果」（元素 / 原石 / 成就 / 关卡推进）。
     // 木材和修好的楼梯属于关卡内的机关，每进一次关卡都从头来（见开发笔记「开发约定」）
     this.woods = 0
@@ -533,6 +540,15 @@ export class GameScene extends Phaser.Scene {
       // 分层：古树的后层楼梯给 1（会被树干挡住），前层给 3；不写就是原来的 0
       platform.setDepth(def.depth ?? 0)
 
+      // 只在某一层存在的楼板补片：把它的贴图和叠在上面的材质一起记下来，
+      // 换层时跟着显示/隐藏；碰撞由下面 collider 的过滤函数负责
+      const layerObjects: (Phaser.GameObjects.Sprite | Phaser.GameObjects.TileSprite)[] = []
+
+      if (def.layer) {
+        platform.setData('layer', def.layer)
+        layerObjects.push(platform)
+      }
+
       if (def.oneWay) {
         const body = platform.body as Phaser.Physics.Arcade.StaticBody
         body.checkCollision.down = false
@@ -548,28 +564,36 @@ export class GameScene extends Phaser.Scene {
       const top = def.y - def.height / 2
 
       if (def.water) {
-        this.add
+        const water = this.add
           .tileSprite(def.x, top + 5, def.width, 10, 'water-top')
           .setDepth((def.depth ?? 0) + 0.1)
           .setAlpha(0.85)
+
+        layerObjects.push(water)
       }
 
       if (def.grass) {
-        this.add
+        const grass = this.add
           .tileSprite(def.x, top - 2, def.width, 7, 'grass-top')
           .setDepth((def.depth ?? 0) + 0.1)
+
+        layerObjects.push(grass)
       }
 
       if (def.brick) {
-        this.add
+        const brick = this.add
           .tileSprite(def.x, def.y, def.width, def.height, 'ruin-brick')
           .setDepth((def.depth ?? 0) + 0.1)
+
+        layerObjects.push(brick)
       }
 
       if (def.plank) {
-        this.add
+        const plank = this.add
           .tileSprite(def.x, def.y, def.width, def.height, 'wood-plank')
           .setDepth((def.depth ?? 0) + 0.1)
+
+        layerObjects.push(plank)
       }
 
       // 平台护栏：高度和楼梯护栏一样是「踏面往上 26」，所以平台边上这一头正好接上
@@ -601,7 +625,9 @@ export class GameScene extends Phaser.Scene {
       // 照这套逻辑会在屋里横一道栏杆，看着像凭空多了排栅栏
       const narrowLanding = def.width <= 220
 
-      if (def.rail || (narrowLanding && (stairAtLeft || stairAtRight))) {
+      // 层补片（整层楼板上的活板）也不补护栏：它本身宽不到 220，会被当成"窄平台"
+      // 在中间横一道栏杆、还会加一块实体挡板挡住下楼的路
+      if (!def.layer && (def.rail || (narrowLanding && (stairAtLeft || stairAtRight)))) {
         const railY = top - 26
         const railLeft = railLeftEdge
         const railGfx = this.add.graphics().setDepth((def.depth ?? 0) + 0.1)
@@ -706,6 +732,12 @@ export class GameScene extends Phaser.Scene {
 
           postGfx.fillRect(postX - 2, postTop, 4, Math.max(6, footY - postTop))
         }
+      }
+
+      // 层补片：登记下来，并按玩家当前所在层设一次显隐（后面换层时在 setPlayerLayer 里切）
+      if (def.layer) {
+        this.layerPieces.push({ layer: def.layer, objects: layerObjects })
+        layerObjects.forEach((obj) => obj.setVisible(def.layer === this.playerLayer))
       }
     })
 
@@ -890,14 +922,14 @@ export class GameScene extends Phaser.Scene {
     }, (_slime, platform) => {
       const sprite = platform as Phaser.Physics.Arcade.Sprite
 
-      if (!sprite.getData('stair')) {
-        return true
-      }
+      const layer = sprite.getData('layer') as 'front' | 'back' | undefined
 
-      // 楼梯踏步只认玩家所在的那一层：另一层藏在树后面，不参与碰撞。
-      // 不然从 1/2 层平台往折返方向走，会正面撞上那一跑的第 3 级（高 37 像素），
-      // 超过自动上台阶的 14，人就被钉在平台上了
-      return sprite.getData('layer') === this.playerLayer
+      // 打了 layer 的东西（楼梯踏步、只在某一层存在的楼板补片）只跟同层碰撞：
+      // 另一层藏在树后面，不参与碰撞。
+      // 楼梯那边非这么写不可 —— 不然从 1/2 层平台往折返方向走，会正面撞上那一跑的第 3 级
+      //（高 37 像素），超过自动上台阶的 14，人就被钉在平台上了。
+      // 楼板补片则让它做到「树前层是完整楼板，树后层才露出楼梯井」
+      return layer === undefined || layer === this.playerLayer
     })
 
     this.physics.add.overlap(this.slime, this.orbs, (_slime, orb) => {
@@ -2613,6 +2645,11 @@ export class GameScene extends Phaser.Scene {
     this.armorPlate.setDepth(back ? 1.15 : 9)
     this.windTrails.forEach((trail) => trail.setDepth(back ? 1.1 : 9))
     this.eyes.forEach((eye) => eye.setDepth(back ? 1.3 : 11))
+
+    // 层补片（整层楼板上的活板）：树前层露出来、树后层收起来
+    this.layerPieces.forEach((piece) => {
+      piece.objects.forEach((obj) => obj.setVisible(piece.layer === layer))
+    })
 
     this.updateTrunk()
   }
