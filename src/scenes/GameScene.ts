@@ -282,6 +282,12 @@ export class GameScene extends Phaser.Scene {
   // 客栈家具（柜台/柜子/灶台/柴堆/吊锅/挂灯/酒桶）：跟着"树前/树后"换深度 ——
   // 树前层时摆在史莱姆后面（2.8 左右），树后层时整组沉到史莱姆（1.2）后面
   private innDecor: { image: Phaser.GameObjects.Image; front: number; back: number }[] = []
+
+  // 顶楼那位仙人的"气息"：一圈画面上的风环 + 一道看不见的挡人墙 + 提醒过没有。
+  // 杏仁豆腐那条线做完之后整组散掉（xiaoCalm()）
+  private xiaoAura: Phaser.GameObjects.Graphics | null = null
+  private xiaoWall: Phaser.Physics.Arcade.Sprite | null = null
+  private xiaoAuraSeen = false
   private bgFarY = 0.2
   private bgMidY = 0.45
   private bgNearY = 0.75
@@ -435,6 +441,9 @@ export class GameScene extends Phaser.Scene {
     this.spindleDrawn = { x: -99999, y: -99999, layer: '' }
     this.gateFired = []
     this.innDecor = []
+    this.xiaoAura = null
+    this.xiaoWall = null
+    this.xiaoAuraSeen = false
     this.petalsOn = false
     this.petalTimer = 0
     this.petals = []
@@ -741,9 +750,42 @@ export class GameScene extends Phaser.Scene {
       // 进楼门口旁边挂一盏门灯
       put('lantern', 404, 1030, true)
 
-      // 隐藏动画的 NPC（风史莱姆「魈」）：先摆在一楼地面上给用户看，
-      // 出生点 (220) 往左走 70 像素就是，一进关就能看到
-      put('npc-xiao-slime', 150, 2160)
+      // 支线的主角：仙人「魈」站在顶楼（400 那层）靠阳台的位置。
+      // 顶楼楼板是 510~960，阳台 750~960，宝箱在 880 —— 他正好挡在玩家和阳台之间
+      put('npc-xiao-slime', 650, 400)
+
+      // 他身上的气息：一圈淡青的风环 + 里面一层压暗的底 + 几缕往上飘的风丝，慢速呼吸。
+      // 深度 8.5：在客栈家具（2.8）之后、玩家（9/10）之前，所以是"笼罩"在人身上
+      const auraX = 650
+      const auraY = 396
+      const aura = this.add.graphics().setDepth(8.5)
+
+      this.xiaoAura = aura
+
+      aura.fillStyle(0x0a2320, 0.22)
+      aura.fillEllipse(auraX, auraY, 150, 34)
+      aura.lineStyle(2, 0x8fe0c2, 0.5)
+      aura.strokeEllipse(auraX, auraY, 136, 30)
+      aura.lineStyle(1, 0x74d0b0, 0.35)
+      aura.strokeEllipse(auraX, auraY, 108, 22)
+      aura.lineStyle(1, 0x9fe8cc, 0.45)
+
+      for (const [dx, len] of [[-46, 26], [-26, 38], [24, 34], [46, 22]]) {
+        aura.beginPath()
+        aura.moveTo(auraX + dx, auraY - 3)
+        aura.lineTo(auraX + dx * 0.78, auraY - 3 - len)
+        aura.strokePath()
+      }
+
+      // 挡人的那道看不见的墙：从楼板顶面往上 170（顶楼净高只有 70，跳也跳不过去），
+      // 加在 platforms 组里，所以玩家自己撞上去就停住了，不用另外注册 collider
+      const auraWall = this.platforms.create(578, 320, 'pixel') as Phaser.Physics.Arcade.Sprite
+
+      auraWall.setDisplaySize(10, 170)
+      auraWall.setVisible(false)
+      auraWall.refreshBody()
+
+      this.xiaoWall = auraWall
 
       // 顶楼阳台：一张小桌 + 一个蒲团（蒲团直接用圆凳代替）
       put('inn-table', 820, 400)
@@ -4716,6 +4758,20 @@ export class GameScene extends Phaser.Scene {
 
     // 飘花不吃输入锁：过场动画里也照飘
     this.updatePetals(dt)
+
+    // 顶楼那位仙人的气息：慢速呼吸，玩家越靠近越亮；第一次走到跟前提醒一句
+    if (this.xiaoAura) {
+      const away = Phaser.Math.Distance.Between(this.slime.x, this.slime.y, 650, 396)
+      const breath = 0.72 + Math.sin(this.time.now / 620) * 0.16
+      const near = Phaser.Math.Clamp(1 - (away - 70) / 140, 0, 1)
+
+      this.xiaoAura.setAlpha(breath * (0.62 + near * 0.38))
+    }
+
+    if (!this.xiaoAuraSeen && this.xiaoWall && this.slime.x > 470 && this.slime.y < 450) {
+      this.xiaoAuraSeen = true
+      this.showMessage('他身上有一股让人不敢靠近的气息')
+    }
 
     if (this.finished) {
       this.syncVisual(1, 1)
