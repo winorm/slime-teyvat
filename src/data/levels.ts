@@ -653,6 +653,12 @@ export const LEVELS: LevelDef[] = [
       { x: 482, y: 653,  width: 104, height: 6, depth: 3, plank: true, layer: 'front' },
       { x: 747, y: 653,  width: 426, height: 6, depth: 3, plank: true },
 
+      // 楼内：绕短木的半层平台（顶面 985 / 775 / 525）
+      // 楼内六跑楼梯每跑的上端都落在 x=590，就是踩在这三块上
+      { x: 650, y: 988, width: 120, height: 6, depth: 3, rail: true, plank: true },
+      { x: 650, y: 778, width: 120, height: 6, depth: 3, rail: true, plank: true },
+      { x: 650, y: 528, width: 120, height: 6, depth: 3, rail: true, plank: true },
+
       // 顶楼阳台（顶面 400）：最后一跑从 525 平台往上、往右接到这儿（左边就是楼梯井，
       // 往回走一脚下楼），宝箱摆在阳台右端
       { x: 855, y: 403, width: 210, height: 6, depth: 3, rail: true, plank: true },
