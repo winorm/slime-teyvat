@@ -5370,7 +5370,7 @@ export class GameScene extends Phaser.Scene {
       )
 
       if (distance < 60) {
-        prompt = this.interactPrefix() + '和老板娘说话'
+        prompt = this.interactPrefix() + '对话'
         action = () => this.talkToInnkeeper()
       }
     }
@@ -5506,6 +5506,13 @@ export class GameScene extends Phaser.Scene {
       this.promptText.setPosition(this.slime.x, this.slime.y - 34)
       // 触屏下把「[F] 阅读」这类提示里的按键字样去掉
       this.promptText.setText(touchText(prompt))
+
+      // 提示框跟着文字宽度走。原来是固定 80 宽，「拾取杏仁」「修理楼梯」这种就顶出去了；
+      // 顺带把点得到的地方（hitArea）也改成一样宽，手机上点框才算点得到
+      const boxWidth = this.promptText.width + 16
+
+      this.promptBox.setSize(boxWidth, 18)
+      this.promptBox.input?.hitArea.setSize(boxWidth, 18)
 
       // 第一次显示带 [F] 的交互提示之后，后面的提示就不再带前缀了
       if (action) {
