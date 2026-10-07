@@ -186,6 +186,8 @@ export class GameScene extends Phaser.Scene {
   private trunkRT: Phaser.GameObjects.RenderTexture | null = null
   private trunkDrawn = { x: -99999, y: -99999, layer: '' as string }
   private gateFired: boolean[] = []
+  // 上一帧是不是踩在楼梯踏板上（用来抓「刚从楼梯踏上整层楼板」那一下，见 updateFloorLayer）
+  private wasOnStair = false
   // 只在「树前」或「树后」某一层存在的楼板补片（第七关整层楼板中间那块"活板"）：
   // 树前层时它是完整楼板（可以正常走过去），树后层时它消失、露出楼梯井（可以下楼）
   private layerPieces: {
@@ -365,6 +367,7 @@ export class GameScene extends Phaser.Scene {
     this.trunkRT = null
     this.trunkDrawn = { x: -99999, y: -99999, layer: '' }
     this.gateFired = []
+    this.wasOnStair = false
     this.layerPieces = []
     // 存档只记「永久成果」（元素 / 原石 / 成就 / 关卡推进）。
     // 木材和修好的楼梯属于关卡内的机关，每进一次关卡都从头来（见开发笔记「开发约定」）
@@ -2642,6 +2645,77 @@ export class GameScene extends Phaser.Scene {
   }
 
   // 切换「树前面 / 树后面」：画面层级跟着换。
+  // 刚从楼梯踏上整层楼板的那一下：翻到"接着走"的那一层
+  private updateFloorLayer(body: Phaser.Physics.Arcade.Body) {
+    if (!this.wasOnStair || this.onStair(body)) {
+      return
+    }
+
+    if (!this.onWideFloor(body)) {
+      return
+    }
+
+    this.setPlayerLayer(this.playerLayer === 'back' ? 'front' : 'back')
+  }
+
+  // 脚底是不是踩在楼梯踏板上（只认玩家所在那一层；自动上台阶用的是同一套判断）
+  private onStair(body: Phaser.Physics.Arcade.Body) {
+    if (!body.blocked.down && !body.touching.down) {
+      return false
+    }
+
+    for (const step of this.stairs) {
+      if (step.getData('layer') !== this.playerLayer) {
+        continue
+      }
+
+      const stepBody = step.body as Phaser.Physics.Arcade.StaticBody
+
+      if (body.right <= stepBody.left || body.left >= stepBody.right) {
+        continue
+      }
+
+      if (Math.abs(body.bottom - stepBody.top) < 2) {
+        return true
+      }
+    }
+
+    return false
+  }
+
+  // 脚底是不是踩在「整层楼板」上。只算宽平台（> 220）：1/2 层平台、阳台这些窄平台
+  // 有各自的判定区，不参与自动换层
+  private onWideFloor(body: Phaser.Physics.Arcade.Body) {
+    if (!body.blocked.down && !body.touching.down) {
+      return false
+    }
+
+    for (const def of this.level.platforms) {
+      if (def.width <= 220) {
+        continue
+      }
+
+      if (def.layer && def.layer !== this.playerLayer) {
+        continue
+      }
+
+      const top = def.y - def.height / 2
+      const left = def.x - def.width / 2
+      const right = def.x + def.width / 2
+
+      if (Math.abs(body.bottom - top) > 2) {
+        continue
+      }
+
+      if (body.right > left && body.left < right) {
+        return true
+      }
+    }
+
+    return false
+  }
+
+  // 切换「树前面 / 树后面」：画面层级跟着换。
   // 走到树后面时整个人画在树干（depth 2）之后，同时把树干调淡 —— 透视，能看见人和楼梯
   private setPlayerLayer(layer: 'front' | 'back') {
     if (this.playerLayer === layer) {
@@ -3576,6 +3650,16 @@ export class GameScene extends Phaser.Scene {
 
     // 第七关「绕树而上」：踩到判定区就在树前/树后之间切换
     this.updateDepthGates(body)
+
+    // 第七关专用：刚从楼梯踏上「整层楼板」的那一下自动翻层。
+    // 上楼的人（刚踩着一跑 back 的楼梯上来）翻到树前层 —— 楼板是完整的、上楼的踏步也在，
+    // 往右走就会被踏步自动抬上去；下楼的人（刚踩着一跑 front 的楼梯下来）翻到树后层 ——
+    // 楼板让开露出楼梯井，往右走就是一级一级下去。这样"上楼继续上楼、下楼继续下楼"，
+    // 不用再回头去蹭判定区（判定区还在，留给"想掉头"的时候用）
+    if (this.level.depthGates) {
+      this.updateFloorLayer(body)
+      this.wasOnStair = this.onStair(body)
+    }
 
     // 保险：站在**一楼地面**上就强制回到前台 —— 从顶层跳下来会带着「树后面」那一层，
     // 落回一楼后如果还是 back，往右走会穿过前台的楼梯爬不上去。一楼地面上没有任何
