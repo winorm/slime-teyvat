@@ -741,6 +741,10 @@ export const LEVELS: LevelDef[] = [
     blessings: [],
     hazards: [],
     monuments: [],
+    plates: [
+      // 花树左边的压力板：岩柱压上去 / 岩化史莱姆站上去 → 树上开始飘花
+      { x: 620, y: 2160, id: 'blossom' },
+    ],
     hints: [],
   },
 

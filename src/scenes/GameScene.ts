@@ -58,6 +58,10 @@ const ARMOR_JUMP = 1.12
 const PLATE_PRESS_TIME = 0.45
 const PLATE_SINK = 3
 
+// 花树飘花（第七关一楼那棵观赏花树）：隔多久飘一片花瓣、花瓣用哪几种粉
+const PETAL_INTERVAL = 0.2
+const PETAL_COLORS = [0xf1b8c8, 0xf7d2dc, 0xfff0f4, 0xe8a3b6]
+
 // 岩柱：贴图多大、从落点上方多高开始掉、蓄力多久、落点最远能低于脚底多少
 const PILLAR_SIZE = { width: 20, height: 72 }
 const PILLAR_DROP = 140
@@ -350,6 +354,22 @@ export class GameScene extends Phaser.Scene {
   private doorList: DoorRef[] = []
   private plates!: Phaser.Physics.Arcade.StaticGroup
   private plateList: PlateRef[] = []
+  // 飘花：踩住过一次花树压力板以后就一直下花瓣（松手也不停）。
+  // petals 是正在飘的，petalIdle 是回收下来重复利用的贴图（不在更新里 new 对象）
+  private petalsOn = false
+  private petalTimer = 0
+  private petals: {
+    image: Phaser.GameObjects.Image
+    vx: number
+    vy: number
+    phase: number
+    sway: number
+    speed: number
+    spin: number
+    life: number
+    groundY: number
+  }[] = []
+  private petalIdle: Phaser.GameObjects.Image[] = []
   private spikes!: Phaser.Physics.Arcade.Group
   private launchers: LauncherRef[] = []
   private noteList: NoteRef[] = []
@@ -405,6 +425,10 @@ export class GameScene extends Phaser.Scene {
     this.spindleDrawn = { x: -99999, y: -99999, layer: '' }
     this.gateFired = []
     this.innDecor = []
+    this.petalsOn = false
+    this.petalTimer = 0
+    this.petals = []
+    this.petalIdle = []
     this.layerPieces = []
     // 存档只记「永久成果」（元素 / 原石 / 成就 / 关卡推进）。
     // 木材和修好的楼梯属于关卡内的机关，每进一次关卡都从头来（见开发笔记「开发约定」）
@@ -2617,6 +2641,11 @@ export class GameScene extends Phaser.Scene {
       plate.sprite.setTint(pressed ? 0xffd54f : 0x8a7f6a)
       playSfx(this, pressed ? 'sfx-interact' : 'sfx-step', 0.3)
 
+      // 花树那块板（id=blossom）压住一次就把飘花打开，之后一直飘，松手也不停
+      if (pressed && plate.id === 'blossom') {
+        this.petalsOn = true
+      }
+
       this.doorList.forEach((door) => {
         if (
           !door.opened &&
@@ -2638,6 +2667,76 @@ export class GameScene extends Phaser.Scene {
     }
 
     return this.plateList.some((plate) => plate.id === id && plate.pressed)
+  }
+
+  // 花树飘花：花冠上一直有花瓣被风卷下来，往左飘、左右摆、边飘边转，
+  // 落到地面（y=2160 上下）就淡出回收。开了以后不关，压力板松掉照样飘。
+  // 深度分两层撒：0.9 的落在树干后面（depth 2），11 的落在史莱姆前面，做出层次
+  private updatePetals(dt: number) {
+    for (let index = this.petals.length - 1; index >= 0; index--) {
+      const petal = this.petals[index]
+
+      petal.life += dt
+      petal.image.x += (petal.vx + Math.sin(petal.life * petal.speed + petal.phase) * petal.sway) * dt
+      petal.image.y += petal.vy * dt
+      petal.image.angle += petal.spin * dt
+
+      // 快贴地的时候淡出，免得"啪"一下消失
+      const above = petal.groundY - petal.image.y
+      petal.image.setAlpha(above < 16 ? Math.max(0, above / 16) : 1)
+
+      if (petal.image.y < petal.groundY) {
+        continue
+      }
+
+      petal.image.setVisible(false)
+      this.petalIdle.push(petal.image)
+      this.petals.splice(index, 1)
+    }
+
+    if (!this.petalsOn) {
+      return
+    }
+
+    this.petalTimer -= dt
+
+    // 同屏最多 24 片，飘得慢的时候不至于一直往上堆
+    if (this.petalTimer > 0 || this.petals.length > 24) {
+      return
+    }
+
+    this.petalTimer = PETAL_INTERVAL
+    this.spawnPetal()
+  }
+
+  private spawnPetal() {
+    const image = this.petalIdle.pop() ?? this.add.image(0, 0, 'petal')
+    // 大部分飘在树前面，少部分飘在树干后面
+    const near = Math.random() < 0.65
+
+    image
+      .setVisible(true)
+      .setAlpha(1)
+      .setDepth(near ? 11 : 0.9)
+      .setScale(near ? 1 : 0.8)
+      .setAngle(Phaser.Math.Between(0, 359))
+      .setTint(PETAL_COLORS[Math.floor(Math.random() * PETAL_COLORS.length)])
+
+    // 从花冠里冒出来（花树贴在 x=700、贴地 2160，花冠大概 x 660~740 / y 2088~2124）
+    image.x = 700 + Phaser.Math.FloatBetween(-40, 38)
+    image.y = 2088 + Phaser.Math.FloatBetween(0, 18)
+
+    this.petals.push({
+      image,
+      vx: Phaser.Math.FloatBetween(-16, -6),          // 风往左吹
+      vy: Phaser.Math.FloatBetween(16, 26),
+      phase: Math.random() * Math.PI * 2,
+      sway: Phaser.Math.FloatBetween(6, 16),
+      speed: Phaser.Math.FloatBetween(1.6, 3.2),
+      spin: Phaser.Math.FloatBetween(-70, 70),
+      life: 0,
+      groundY: 2160 - Phaser.Math.FloatBetween(0, 4),
+    })
   }
 
   // 岩刺造物：到点先抖一下当预警，0.15 秒后真的吐出一根
@@ -4308,6 +4407,9 @@ export class GameScene extends Phaser.Scene {
       this.updateLaunchers(dt)
       this.updatePillarPreview()
     }
+
+    // 飘花不吃输入锁：过场动画里也照飘
+    this.updatePetals(dt)
 
     if (this.finished) {
       this.syncVisual(1, 1)

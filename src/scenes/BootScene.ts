@@ -207,6 +207,7 @@ export class BootScene extends Phaser.Scene {
     this.makeInnWall()
     this.makeInnBed()
     this.makeBlossomTree()
+    this.makePetal()
   }
 
   private makeSpire() {
@@ -671,6 +672,20 @@ export class BootScene extends Phaser.Scene {
     }
 
     gfx.generateTexture('blossom-tree', 84, 76)
+    gfx.destroy()
+  }
+
+  // 花瓣：花树飘花用的小粉瓣。
+  // 画成白色的，运行时按 PETAL_COLORS setTint 出深浅不一的粉色
+  private makePetal() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillEllipse(3, 2.4, 5.4, 3.8)
+    gfx.fillStyle(0xd6d6d6, 1)              // 花瓣根部压暗一点，染色后是深浅两层
+    gfx.fillEllipse(3, 2.9, 2.2, 1.4)
+
+    gfx.generateTexture('petal', 6, 5)
     gfx.destroy()
   }
 
