@@ -287,6 +287,7 @@ export class GameScene extends Phaser.Scene {
   // 杏仁豆腐那条线做完之后整组散掉（xiaoCalm()）
   private xiaoAura: Phaser.GameObjects.Graphics | null = null
   private xiaoWall: Phaser.Physics.Arcade.Sprite | null = null
+  private xiaoSprite: Phaser.GameObjects.Image | null = null
   private xiaoAuraSeen = false
   // 支线的进度：0 = 还没见过魈、1 = 见过（该去做杏仁豆腐了）、2 = 菜做好了、3 = 喂完了
   private xiaoStage = 0
@@ -299,6 +300,7 @@ export class GameScene extends Phaser.Scene {
   private dialogueTip: Phaser.GameObjects.Text | null = null
   private dialogueLines: string[] = []
   private dialogueIndex = 0
+  private dialogueDone: (() => void) | null = null
   // 支线的三样原料（第七关专用，位置是照着客栈地图定的，所以直接写在这儿，不动 levels.ts）
   private ingredients: {
     sprite: Phaser.GameObjects.Image
@@ -462,6 +464,7 @@ export class GameScene extends Phaser.Scene {
     this.innDecor = []
     this.xiaoAura = null
     this.xiaoWall = null
+    this.xiaoSprite = null
     this.xiaoAuraSeen = false
     this.xiaoStage = 0
     this.innkeeper = null
@@ -471,6 +474,7 @@ export class GameScene extends Phaser.Scene {
     this.dialogueTip = null
     this.dialogueLines = []
     this.dialogueIndex = 0
+    this.dialogueDone = null
     this.ingredients = []
     this.carriedDish = null
     this.petalsOn = false
@@ -785,7 +789,7 @@ export class GameScene extends Phaser.Scene {
 
       // 支线的主角：仙人「魈」站在顶楼（400 那层）靠阳台的位置。
       // 顶楼楼板是 510~960，阳台 750~960，宝箱在 880 —— 他正好挡在玩家和阳台之间
-      put('npc-xiao-slime', 650, 400)
+      this.xiaoSprite = put('npc-xiao-slime', 650, 400)
 
       // 他身上的气息：一圈淡青的风环 + 里面一层压暗的底 + 几缕往上飘的风丝，慢速呼吸。
       // 深度 8.5：在客栈家具（2.8）之后、玩家（9/10）之前，所以是"笼罩"在人身上
@@ -4031,10 +4035,8 @@ export class GameScene extends Phaser.Scene {
           : `楼梯修好了（${done}/${allRepairs.length}）`
       )
 
-      // 两处都修好 → 塔顶的宝箱出现
-      if (done >= allRepairs.length) {
-        this.revealGoal()
-      }
+      // 注意：宝箱不再"修完楼梯就出现"了 —— 第七关的收口改成"把杏仁豆腐端给顶楼那位仙人"，
+      // revealGoal() 现在在 xiaoLeaves() 里调（见那句注释）
     })
   }
 
@@ -4418,7 +4420,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   // 老板娘 / 仙人说话的对话板：黑底金框的一条，一句一句翻
-  private showDialogue(speaker: string, lines: string[]) {
+  private showDialogue(speaker: string, lines: string[], onDone?: () => void) {
     if (this.dialogueShowing || lines.length === 0) {
       return
     }
@@ -4426,6 +4428,7 @@ export class GameScene extends Phaser.Scene {
     this.dialogueShowing = true
     this.dialogueLines = lines
     this.dialogueIndex = 0
+    this.dialogueDone = onDone ?? null
     this.physics.world.pause()
     stopAllLoops()
 
@@ -4513,12 +4516,156 @@ export class GameScene extends Phaser.Scene {
     this.dialogueTip = null
     this.dialogueShowing = false
     this.physics.world.resume()
+
+    const done = this.dialogueDone
+
+    this.dialogueDone = null
+    done?.()
   }
 
   private updateDialogue() {
     if (Phaser.Input.Keyboard.JustDown(this.interactKey)) {
       this.advanceDialogue()
     }
+  }
+
+  // 气息散开：撤掉挡人的墙、让风环淡掉（端着菜走近时发生）
+  private xiaoCalm() {
+    if (this.xiaoWall) {
+      this.xiaoWall.destroy()
+      this.xiaoWall = null
+    }
+
+    const aura = this.xiaoAura
+
+    this.xiaoAura = null
+
+    if (aura) {
+      this.tweens.add({
+        targets: aura,
+        alpha: 0,
+        duration: 700,
+        onComplete: () => aura.destroy(),
+      })
+    }
+  }
+
+  // 支线收尾：把杏仁豆腐端给魈。菜先飘过去，他吃完留一句回家的提示，再化风离开 ——
+  // 宝箱要等他走了才出现
+  private playXiaoScene() {
+    if (this.xiaoStage !== 2) {
+      return
+    }
+
+    this.xiaoStage = 3
+    this.inputLocked = true
+    stopAllLoops()
+
+    const dish = this.carriedDish
+
+    this.carriedDish = null
+
+    if (!dish) {
+      this.xiaoThanks()
+      return
+    }
+
+    this.tweens.add({
+      targets: dish,
+      x: 632,
+      y: 374,
+      duration: 640,
+      ease: 'Sine.easeInOut',
+      onComplete: () => {
+        playSfx(this, 'sfx-interact', 0.35)
+        dish.destroy()
+        this.xiaoThanks()
+      },
+    })
+  }
+
+  // 他吃的这几口用热气表示一下，然后说台词
+  private xiaoThanks() {
+    for (let i = 0; i < 5; i++) {
+      this.time.delayedCall(i * 130, () => {
+        const puff = this.add
+          .image(640 + Phaser.Math.Between(-6, 6), 374, 'pixel')
+          .setDisplaySize(4, 4)
+          .setTint(0xf0f4f6)
+          .setAlpha(0.6)
+          .setDepth(11)
+
+        this.tweens.add({
+          targets: puff,
+          y: puff.y - Phaser.Math.Between(12, 22),
+          alpha: 0,
+          scale: 1.8,
+          duration: 620,
+          onComplete: () => puff.destroy(),
+        })
+      })
+    }
+
+    this.time.delayedCall(780, () => {
+      this.showDialogue(
+        '魈',
+        [
+          '……杏仁豆腐。',
+          '很久没人给我做这个了。多谢。',
+          '你要问怎么回去？',
+          '往北走，翻过雪山，会看见一条旧路。',
+          '你从天上掉下来时留下的那点痕迹，还留在那儿。',
+          '……去吧。',
+        ],
+        () => this.xiaoLeaves()
+      )
+    })
+  }
+
+  // 化风离开：一阵青色的风屑把他带走，然后宝箱出现
+  private xiaoLeaves() {
+    for (let i = 0; i < 10; i++) {
+      this.time.delayedCall(i * 60, () => {
+        const speck = this.add
+          .image(650 + Phaser.Math.Between(-14, 14), 396 - Phaser.Math.Between(0, 40), 'pixel')
+          .setDisplaySize(3, 3)
+          .setTint(0xbdf0d8)
+          .setDepth(11)
+
+        this.tweens.add({
+          targets: speck,
+          x: speck.x + Phaser.Math.Between(30, 70),
+          y: speck.y - Phaser.Math.Between(10, 30),
+          alpha: 0,
+          scale: 0.4,
+          duration: Phaser.Math.Between(400, 700),
+          onComplete: () => speck.destroy(),
+        })
+      })
+    }
+
+    playSfx(this, 'sfx-interact', 0.35)
+
+    const xiao = this.xiaoSprite
+
+    this.xiaoSprite = null
+
+    if (xiao) {
+      this.tweens.add({
+        targets: xiao,
+        alpha: 0,
+        x: xiao.x + 26,
+        y: xiao.y - 16,
+        duration: 760,
+        onComplete: () => xiao.destroy(),
+      })
+    }
+
+    this.time.delayedCall(840, () => {
+      this.revealGoal()
+      this.inputLocked = false
+      this.showMessage('仙人走了 —— 阳台上有什么东西亮了起来')
+    })
   }
 
   // 灶上冒的白汽：几团往上飘、边飘边淡，给"做菜"这件事一个动静
@@ -5023,13 +5170,39 @@ export class GameScene extends Phaser.Scene {
     // 飘花不吃输入锁：过场动画里也照飘
     this.updatePetals(dt)
 
-    // 顶楼那位仙人的气息：慢速呼吸，玩家越靠近越亮；第一次走到跟前提醒一句
-    if (this.xiaoAura) {
+    // 顶楼的支线：气息的表现 → 端着菜走近时让路 → 端到跟前触发出场
+    if (this.xiaoStage > 0 || this.xiaoAura) {
+      const onTop = this.slime.x > 470 && this.slime.y < 450
       const away = Phaser.Math.Distance.Between(this.slime.x, this.slime.y, 650, 396)
-      const breath = 0.72 + Math.sin(this.time.now / 620) * 0.16
-      const near = Phaser.Math.Clamp(1 - (away - 70) / 140, 0, 1)
 
-      this.xiaoAura.setAlpha(breath * (0.62 + near * 0.38))
+      // 气息慢速呼吸，玩家越靠近越亮
+      if (this.xiaoAura) {
+        const breath = 0.72 + Math.sin(this.time.now / 620) * 0.16
+        const near = Phaser.Math.Clamp(1 - (away - 70) / 140, 0, 1)
+
+        this.xiaoAura.setAlpha(breath * (0.62 + near * 0.38))
+      }
+
+      if (onTop && !this.xiaoAuraSeen) {
+        this.xiaoAuraSeen = true
+
+        // 这一步就是支线的起点：见过他之后回前台，老板娘才会说杏仁豆腐那一套
+        if (this.xiaoStage === 0) {
+          this.xiaoStage = 1
+        }
+
+        this.showMessage('他身上有一股让人不敢靠近的气息')
+      }
+
+      if (onTop && this.xiaoStage === 2 && !this.inputLocked) {
+        if (this.xiaoWall && away < 120) {
+          // 端着菜走近，那股气息自己让开一条路
+          this.xiaoCalm()
+          this.showMessage('那股气息……让开了一条路')
+        } else if (!this.xiaoWall && away < 62) {
+          this.playXiaoScene()
+        }
+      }
     }
 
     // 端在头上的那盘菜跟着走，还轻轻晃
@@ -5038,15 +5211,6 @@ export class GameScene extends Phaser.Scene {
         this.slime.x,
         this.slime.y - 30 + Math.sin(this.time.now / 380) * 1.5
       )
-    }
-
-    if (!this.xiaoAuraSeen && this.xiaoWall && this.slime.x > 470 && this.slime.y < 450) {
-      this.xiaoAuraSeen = true
-      // 这一步就是支线的起点：见过他之后回前台，老板娘才会说杏仁豆腐那一套
-      if (this.xiaoStage === 0) {
-        this.xiaoStage = 1
-      }
-      this.showMessage('他身上有一股让人不敢靠近的气息')
     }
 
     if (this.finished) {
