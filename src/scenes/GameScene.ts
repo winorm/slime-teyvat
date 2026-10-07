@@ -659,14 +659,20 @@ export class GameScene extends Phaser.Scene {
       put('inn-pot', 64, 898, true)
       put('inn-wood', 150, 900)
 
-      // 一楼地面：楼下乘凉吃饭的地方（两桌四凳）
-      put('inn-table', 700, 2160)
-      put('inn-stool', 676, 2160)
-      put('inn-stool', 724, 2160)
+      // 一楼地面：楼下乘凉吃饭的地方（两桌四凳）。
+      // 放在楼梯左边 —— 第一跑楼梯的起点（x=362）贴在地面上，右边只能从 1/2 平台跳下去，
+      // 摆到右边玩家平时走不过去
+      put('inn-table', 90, 2160)
+      put('inn-stool', 66, 2160)
+      put('inn-stool', 114, 2160)
 
-      put('inn-table', 880, 2160)
-      put('inn-stool', 856, 2160)
-      put('inn-stool', 904, 2160)
+      put('inn-table', 250, 2160)
+      put('inn-stool', 226, 2160)
+      put('inn-stool', 274, 2160)
+
+      // 650 层：客房（床 + 木格柜当衣箱）
+      put('inn-bed', 60, 650)
+      put('inn-cabinet', 140, 650)
 
       // 顶楼阳台：一张小桌 + 一个蒲团（蒲团直接用圆凳代替）
       put('inn-table', 820, 400)

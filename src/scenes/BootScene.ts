@@ -205,6 +205,7 @@ export class BootScene extends Phaser.Scene {
     this.makeInnFurniture()
     this.makeInnDining()
     this.makeInnWall()
+    this.makeInnBed()
   }
 
   private makeSpire() {
@@ -629,6 +630,32 @@ export class BootScene extends Phaser.Scene {
   // 望舒客栈的家具：木格柜、砖灶（带锅）、柴堆、吊锅
   // 客栈的桌凳：方桌（桌面 + 四条腿 + 横撑）和圆凳
   // 客栈后墙：可平铺的木墙 + 一扇格子窗（120×120 一格，横着平铺就成一整面墙）
+  // 客栈客房的床：床头板 + 褥子 + 枕头 + 被子
+  private makeInnBed() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0x6b4a2c, 1)              // 床架
+    gfx.fillRect(0, 16, 44, 8)
+    gfx.fillStyle(0x8a6034, 1)              // 床头板
+    gfx.fillRect(0, 6, 5, 18)
+    gfx.fillStyle(0xa8794a, 1)
+    gfx.fillRect(0, 6, 5, 2)
+    gfx.fillStyle(0xd9cfc0, 1)              // 褥子
+    gfx.fillRect(5, 13, 39, 5)
+    gfx.fillStyle(0xf2ece2, 1)              // 枕头
+    gfx.fillRect(7, 8, 12, 6)
+    gfx.fillStyle(0x7a4c28, 1)              // 被子
+    gfx.fillRect(21, 12, 23, 8)
+    gfx.fillStyle(0x9a6a3c, 1)
+    gfx.fillRect(21, 12, 23, 2)
+    gfx.fillStyle(0x5f4224, 1)              // 床腿
+    gfx.fillRect(2, 24, 3, 2)
+    gfx.fillRect(39, 24, 3, 2)
+
+    gfx.generateTexture('inn-bed', 44, 26)
+    gfx.destroy()
+  }
+
   private makeInnWall() {
     // 一格 300×300：横着平铺大约每 300 像素一扇窗（原来 120 太频繁），
     // 竖着不重复（楼层高度 210~250，一格里只出现一扇窗）
