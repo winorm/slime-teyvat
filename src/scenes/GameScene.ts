@@ -718,15 +718,99 @@ export class GameScene extends Phaser.Scene {
       // 左边缘离压力板（x=620）还有 40 像素，不会把板子压在树底下
       put('osmanthus-tree', 770, 2160)
 
-      // 树右侧那半截楼板玩家走不到，就当"后墙"用：平铺木墙 + 格子窗。
+      // 后墙：平铺木墙 + 格子窗。
+      // 以前只铺了"走不到的那半截"，三层还是三个范围（458 / 534 / 534 起）——
+      // 站到那些楼板上往背后看是空的，像在外面。现在三层都铺满整幅宽度，
+      // 每层才是一个完整的房间；顶楼只铺内侧那 750 宽，阳台那半边留着露天。
       // 深度 0.5 —— 比树后层的楼梯（1）还低：所以"往左走的那几跑楼梯"是画在房间里的，
       // 墙面只是它背后的背景板；树后层史莱姆（1.1/1.2）、树干（2）、树前层楼梯（3）也都在它前面
       const wall = (x: number, y: number, w: number, h: number) =>
         this.add.tileSprite(x, y, w, h, 'inn-wall').setDepth(0.5)
 
-      wall(709, 1005, 502, 210)     // 1110 层：458~960
-      wall(747, 775, 426, 250)      // 900 层：534~960
-      wall(747, 525, 426, 250)      // 650 层：534~960
+      wall(480, 1005, 960, 210)     // 1110 层房间：y 900~1110
+      wall(480, 775, 960, 250)      // 900 层房间：y 650~900
+      wall(480, 525, 960, 250)      // 650 层房间：y 400~650
+      wall(375, 365, 750, 70)       // 顶楼内侧：y 330~400（330 就是屋檐底面）
+
+      // 进楼门口：室外楼梯最后一跑的落点是 (362, 1110)，门就开在那儿。
+      // 走 put 走的是家具那套深度（树前 2.8 / 树后 1.05），玩家从前层进楼不会被门挡住
+      put('inn-door', 362, 1110)
+
+      // 招牌：钉在门上方那面墙上。牌面是贴图，四个字用 Text 打（跟提示词一样的做法）
+      this.add.image(362, 966, 'inn-sign').setDepth(0.6)
+      this.add
+        .text(362, 966, '望舒客栈', {
+          fontFamily: 'sans-serif',
+          fontSize: '15px',
+          color: '#33220f',
+        })
+        .setOrigin(0.5)
+        .setDepth(0.7)
+
+      // 屋顶：正脊 + 两坡瓦面 + 出檐檐板 + 两头上翘的飞檐，屋脊两头一对金色鸱吻。
+      // 只有站在顶楼 / 阳台上才看得到；纯画面、没有碰撞。
+      // 深度 12 是故意的：在玩家（9/10）前面，跳起来顶到屋檐时人是"在屋顶下面"，不会穿出去
+      const eaveY = 330
+      const ridgeY = 262
+      const eaveLeft = -30
+      const eaveRight = 990
+      const ridgeLeft = 150
+      const ridgeRight = 810
+      const roof = this.add.graphics().setDepth(12)
+      const slopeTop = (x: number) => {
+        if (x <= ridgeLeft) {
+          return ridgeY + ((ridgeLeft - x) * (eaveY - ridgeY)) / (ridgeLeft - eaveLeft)
+        }
+
+        if (x >= ridgeRight) {
+          return ridgeY + ((x - ridgeRight) * (eaveY - ridgeY)) / (eaveRight - ridgeRight)
+        }
+
+        return ridgeY
+      }
+
+      roof.fillStyle(0x3d4a63, 1)             // 屋面
+      roof.fillPoints(
+        [
+          new Phaser.Math.Vector2(eaveLeft, eaveY),
+          new Phaser.Math.Vector2(eaveRight, eaveY),
+          new Phaser.Math.Vector2(ridgeRight, ridgeY),
+          new Phaser.Math.Vector2(ridgeLeft, ridgeY),
+        ],
+        true
+      )
+
+      roof.fillStyle(0x4b5975, 1)             // 瓦垄
+
+      for (let x = eaveLeft; x <= eaveRight; x += 16) {
+        const top = slopeTop(x)
+
+        if (top < eaveY) {
+          roof.fillRect(x, top, 2, eaveY - top)
+        }
+      }
+
+      roof.fillStyle(0x5a6a86, 1)             // 正脊
+      roof.fillRect(ridgeLeft - 4, ridgeY - 4, ridgeRight - ridgeLeft + 8, 5)
+
+      roof.fillStyle(0x2b3446, 1)             // 檐板
+      roof.fillRect(eaveLeft, eaveY, eaveRight - eaveLeft, 8)
+      roof.fillStyle(0xc9a227, 1)             // 檐口一线金边
+      roof.fillRect(eaveLeft, eaveY + 8, eaveRight - eaveLeft, 2)
+
+      roof.fillStyle(0x2b3446, 1)             // 两头上翘的飞檐角
+      roof.fillTriangle(eaveLeft, eaveY, eaveLeft - 22, eaveY - 18, eaveLeft + 10, eaveY + 8)
+      roof.fillTriangle(eaveRight, eaveY, eaveRight + 22, eaveY - 18, eaveRight - 10, eaveY + 8)
+
+      roof.fillStyle(0xc9a227, 1)
+      roof.fillTriangle(eaveLeft - 20, eaveY - 16, eaveLeft - 22, eaveY - 18, eaveLeft - 8, eaveY - 6)
+      roof.fillTriangle(eaveRight + 20, eaveY - 16, eaveRight + 22, eaveY - 18, eaveRight + 8, eaveY - 6)
+
+      roof.fillStyle(0xe0b03c, 1)             // 正脊两头的鸱吻
+      roof.fillRect(ridgeLeft - 9, ridgeY - 12, 9, 12)
+      roof.fillRect(ridgeRight, ridgeY - 12, 9, 12)
+      roof.fillRect(ridgeLeft - 4, ridgeY - 16, 4, 4)
+      roof.fillRect(ridgeRight, ridgeY - 16, 4, 4)
     }
 
     this.gems = this.physics.add.staticGroup()

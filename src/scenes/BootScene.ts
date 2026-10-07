@@ -206,6 +206,8 @@ export class BootScene extends Phaser.Scene {
     this.makeInnDining()
     this.makeInnWall()
     this.makeInnBed()
+    this.makeInnDoor()
+    this.makeInnSign()
     this.makeOsmanthusTree()
     this.makePetal()
   }
@@ -633,6 +635,69 @@ export class BootScene extends Phaser.Scene {
   // 客栈的桌凳：方桌（桌面 + 四条腿 + 横撑）和圆凳
   // 客栈后墙：可平铺的木墙 + 一扇格子窗（120×120 一格，横着平铺就成一整面墙）
   // 客栈客房的床：床头板 + 褥子 + 枕头 + 被子
+  // 望舒客栈的进楼门口：两根木柱夹一个门洞，门洞里压暗、挂一幅红门帘。
+  // 贴在室外楼梯最后一跑的落点（x=362 那一层），玩家就是从这里进楼的
+  private makeInnDoor() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0x2a2018, 1)              // 门洞：里面是暗的
+    gfx.fillRect(6, 8, 52, 76)
+
+    gfx.fillStyle(0x7d2f28, 1)              // 红门帘
+    gfx.fillRect(7, 12, 50, 46)
+    gfx.fillStyle(0x5e211c, 1)              // 门帘的褶子
+
+    for (let x = 16; x < 56; x += 9) {
+      gfx.fillRect(x, 12, 2, 46)
+    }
+
+    gfx.fillStyle(0xe0b03c, 1)              // 门帘下摆的金边
+    gfx.fillRect(7, 56, 50, 3)
+
+    gfx.fillStyle(0x6b4a2c, 1)              // 两根门柱
+    gfx.fillRect(0, 0, 6, 84)
+    gfx.fillRect(58, 0, 6, 84)
+    gfx.fillStyle(0x8a6034, 1)
+    gfx.fillRect(0, 0, 2, 84)
+    gfx.fillRect(58, 0, 2, 84)
+    gfx.fillStyle(0x4a3320, 1)
+    gfx.fillRect(4, 0, 2, 84)
+    gfx.fillRect(62, 0, 2, 84)
+
+    gfx.fillStyle(0x5f4224, 1)              // 门楣
+    gfx.fillRect(0, 0, 64, 10)
+    gfx.fillStyle(0x8a6034, 1)
+    gfx.fillRect(0, 0, 64, 3)
+    gfx.fillStyle(0x3f2c1c, 1)
+    gfx.fillRect(0, 10, 64, 2)
+
+    gfx.fillStyle(0xe0b03c, 1)              // 门楣中间一颗门簪
+    gfx.fillCircle(32, 6, 3)
+
+    gfx.generateTexture('inn-door', 64, 84)
+    gfx.destroy()
+  }
+
+  // 客栈招牌的木板：牌面留空，字由 GameScene 用 Text 打上去（跟提示词一套做法，改字方便）
+  private makeInnSign() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0x3f2c1c, 1)              // 外框
+    gfx.fillRect(0, 0, 76, 28)
+    gfx.fillStyle(0xb5854f, 1)              // 牌面
+    gfx.fillRect(2, 2, 72, 24)
+    gfx.fillStyle(0xd0a56b, 1)
+    gfx.fillRect(2, 2, 72, 4)               // 上沿受光
+    gfx.fillStyle(0x9a7040, 1)
+    gfx.fillRect(2, 22, 72, 4)              // 下沿压暗
+    gfx.fillStyle(0x8a6034, 1)              // 左右两头的木纹
+    gfx.fillRect(6, 5, 1, 18)
+    gfx.fillRect(69, 5, 1, 18)
+
+    gfx.generateTexture('inn-sign', 76, 28)
+    gfx.destroy()
+  }
+
   // 望舒客栈一楼右侧那棵景观树：不是樱花，是本地（璃月＝中国）的「金桂」。
   // 220×250（约一层楼高）。叶子是深绿革质、高光偏黄（有蜡质的油光）；
   // 花是几颗一串簇生在枝上、被叶子遮掉一部分，远看是"绿丛里透出点点金"
