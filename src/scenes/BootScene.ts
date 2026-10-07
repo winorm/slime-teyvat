@@ -198,7 +198,7 @@ export class BootScene extends Phaser.Scene {
     this.makeLantern()
     this.makeBarrel()
     this.makeTreeRoot()
-    this.makeTreeBranch()
+    this.makeTreeBranches()
   }
 
   private makeSpire() {
@@ -488,18 +488,19 @@ export class BootScene extends Phaser.Scene {
   // 木桥的板材：横铺的一根板子，可平铺。上沿受光、下沿压暗，
   // 中间几道木纹，两头各一颗钉子
   // 望舒客栈的琉璃灯笼：暖黄灯身 + 深红上下箍 + 顶端一截挂绳
-  // 古树的树根段：上面接主杆（约 120 宽），往下越铺越宽，底部 300 宽并分出几块根盘。
-  // 只作为一整张贴图用（不能平铺），所以做成一张图，靠 y 对齐主杆的底端
+  // 古树的树根段：顶端和主杆一样宽（220），往下张开成三条根盘，底边压在地面线上。
+  // 一整张贴图用（不平铺），靠 y 对齐主杆底端
   private makeTreeRoot() {
     const width = 300
-    const height = 200
+    const height = 220
+    const topWidth = 220
     const gfx = this.add.graphics()
 
-    // 逐行画：从顶部的主杆宽度，线性张开到底部的全宽
+    // 主干往下张开的部分：逐行画，宽度从 220 平滑张到 300
     for (let y = 0; y < height; y++) {
       const t = y / (height - 1)
-      const halfWidth = 60 + 90 * t * t          // 顶 60 → 底 150
-      const shade = 1 - (1 - t) * 0.15
+      const halfWidth = topWidth / 2 + (width / 2 - topWidth / 2) * t * t
+      const shade = 1 - t * 0.1
 
       gfx.fillStyle(
         Phaser.Display.Color.GetColor(
@@ -512,50 +513,158 @@ export class BootScene extends Phaser.Scene {
       gfx.fillRect(width / 2 - halfWidth, y, halfWidth * 2, 1)
     }
 
-    // 中间亮、两边暗的圆柱感
+    // 圆柱明暗：中间亮、两边压暗（和主杆一个调子）
     for (let x = 0; x < width; x++) {
       const t = Math.abs(x / (width - 1) - 0.5) * 2
 
-      gfx.fillStyle(0x2a1c10, t * t * 0.28)
+      gfx.fillStyle(0x2a1c10, t * t * 0.3)
       gfx.fillRect(x, 0, 1, height)
     }
 
-    // 几块根盘：底部往两侧伸出的斜块
-    gfx.fillStyle(0x6a4c2e, 1)
-    gfx.fillTriangle(150, height, 18, height, 54, height - 46)
-    gfx.fillTriangle(150, height, 282, height, 246, height - 46)
-    gfx.fillStyle(0x3f2c1c, 1)
-    gfx.fillTriangle(150, height, 40, height, 70, height - 30)
-    gfx.fillTriangle(150, height, 260, height, 230, height - 30)
+    // 三条根盘：从主干两侧斜着扎下去，越往根尖越细，右下方那条压在最后（近处那条）
+    const roots = [
+      { fromX: 92, tipX: 20, tipW: 30, thickness: 17 },
+      { fromX: 214, tipX: 284, tipW: 26, thickness: 15 },
+      { fromX: 148, tipX: 116, tipW: 34, thickness: 19 },
+    ]
+
+    roots.forEach((root) => {
+      const steps = 30
+
+      for (let i = 0; i < steps; i++) {
+        const t = i / (steps - 1)
+        const x = root.fromX + (root.tipX - root.fromX) * t * t
+        const y = 120 + (height - 120) * t
+        const thickness = root.thickness * (1 - t * 0.5)
+
+        gfx.fillStyle(0x6a4c2e, 1)
+        gfx.fillRect(x - thickness / 2, y, thickness, 9)
+        gfx.fillStyle(0x8a6a44, 1)
+        gfx.fillRect(x - thickness / 2, y, thickness, 2)
+        gfx.fillStyle(0x4a3320, 0.9)
+        gfx.fillRect(x - thickness / 2, y + 7, thickness, 3)
+      }
+    })
+
+    // 根盘扎进土里的暗影
+    gfx.fillStyle(0x2a1c10, 0.45)
+    gfx.fillRect(0, height - 8, width, 8)
+
+    // 树皮裂纹 + 苔藓，和主杆一个调子
+    gfx.fillStyle(0x3f2c1c, 0.5)
+
+    for (let index = 0; index < 16; index++) {
+      const x = 24 + ((index * 47) % (width - 48))
+      const y = (index * 41) % (height - 60)
+
+      gfx.fillRect(x, y, 2, 12 + (index % 3) * 8)
+    }
+
+    gfx.fillStyle(0x5f7a3c, 0.6)
+    gfx.fillRect(60, 150, 34, 5)
+    gfx.fillRect(212, 172, 30, 5)
+    gfx.fillRect(132, 196, 26, 4)
 
     gfx.generateTexture('tree-root', width, height)
     gfx.destroy()
   }
 
-  // 斜枝：左边粗、右边细的一条枝干，横着画；用的时候 setAngle 转成斜的
-  private makeTreeBranch() {
-    const width = 140
-    const height = 24
-    const gfx = this.add.graphics()
+  // 斜枝：一共四种形状，都是左边粗、右边细，横着画；
+  // 用的时候 setAngle 转成斜的、左边的 setFlipX 翻过来
+  //   0 = 普通枝（主枝 + 两根小杈）
+  //   1 = 分叉枝（中段往上岔出一条）
+  //   2 = 断枝（短、粗，右端一个斜切口）
+  //   3 = 细枝（细长，挑几根小杈）
+  private makeTreeBranches() {
+    this.makeBranchShape('tree-branch', 140, 26, 0)
+    this.makeBranchShape('tree-branch-fork', 140, 36, 1)
+    this.makeBranchShape('tree-branch-short', 74, 24, 2)
+    this.makeBranchShape('tree-branch-twig', 120, 18, 3)
+  }
 
+  private makeBranchShape(key: string, width: number, height: number, kind: number) {
+    const gfx = this.add.graphics()
+    const thickness = kind === 3 ? 9 : kind === 2 ? 15 : 19
+
+    // 主体：左端粗头往右收细，上沿受光、下沿压暗
     for (let x = 0; x < width; x++) {
       const t = x / (width - 1)
-      const halfHeight = 11 * (1 - t * 0.75)      // 根 22 粗 → 梢 5 粗
+      const halfHeight = (thickness / 2) * (1 - t * 0.72)
+      const y0 = height / 2 - halfHeight
 
       gfx.fillStyle(0x6a4c2e, 1)
-      gfx.fillRect(x, height / 2 - halfHeight, 1, halfHeight * 2)
-      gfx.fillStyle(0x7a5a38, 1)
-      gfx.fillRect(x, height / 2 - halfHeight, 1, 3)
+      gfx.fillRect(x, y0, 1, halfHeight * 2)
+      gfx.fillStyle(0x8a6a44, 1)
+      gfx.fillRect(x, y0, 1, 3)
       gfx.fillStyle(0x3f2c1c, 1)
-      gfx.fillRect(x, height / 2 + halfHeight - 3, 1, 3)
+      gfx.fillRect(x, y0 + halfHeight * 2 - 3, 1, 3)
+    }
+
+    // 普通枝：主枝上挑两根小杈
+    if (kind === 0) {
+      ;[0.42, 0.72].forEach((at, index) => {
+        const x0 = Math.round(width * at)
+
+        for (let i = 0; i < 16; i++) {
+          const t = i / 15
+          const x = x0 + i
+          const dir = index % 2 === 0 ? -1 : 1
+          const y = height / 2 + dir * t * (height / 2 - 4)
+
+          gfx.fillStyle(0x6a4c2e, 1)
+          gfx.fillRect(x, y - 2, 6, 4)
+        }
+      })
+    }
+
+    // 分叉枝：中段往上岔出一条
+    if (kind === 1) {
+      const forkStart = Math.round(width * 0.34)
+
+      for (let i = 0; i < 48; i++) {
+        const t = i / 47
+        const x = forkStart + i
+        const y = height / 2 - t * (height / 2 - 4)
+        const half = 7 * (1 - t * 0.65)
+
+        gfx.fillStyle(0x6a4c2e, 1)
+        gfx.fillRect(x, y - half, 7, half * 2)
+        gfx.fillStyle(0x8a6a44, 1)
+        gfx.fillRect(x, y - half, 7, 2)
+      }
+    }
+
+    // 细枝：挑三根小杈，左右交替
+    if (kind === 3) {
+      ;[0.3, 0.55, 0.78].forEach((at, index) => {
+        const x0 = Math.round(width * at)
+
+        for (let i = 0; i < 16; i++) {
+          const t = i / 15
+          const x = x0 + i
+          const dir = index % 2 === 0 ? -1 : 1
+          const y = height / 2 + dir * t * (height / 2 - 2)
+
+          gfx.fillStyle(0x6a4c2e, 1)
+          gfx.fillRect(x, y - 1, 5, 3)
+        }
+      })
+    }
+
+    // 断枝：右端留一个斜切口（亮面 + 深色边）
+    if (kind === 2) {
+      gfx.fillStyle(0x9a7444, 1)
+      gfx.fillRect(width - 9, height / 2 - 6, 9, 5)
+      gfx.fillStyle(0x3f2c1c, 1)
+      gfx.fillRect(width - 9, height / 2 + 1, 9, 3)
     }
 
     // 几道树皮纹
-    gfx.fillStyle(0x4a3320, 0.5)
-    gfx.fillRect(26, height / 2 - 4, 40, 2)
-    gfx.fillRect(74, height / 2 + 1, 30, 2)
+    gfx.fillStyle(0x4a3320, 0.55)
+    gfx.fillRect(Math.round(width * 0.18), height / 2 - 4, 26, 2)
+    gfx.fillRect(Math.round(width * 0.46), height / 2 + 2, 20, 2)
 
-    gfx.generateTexture('tree-branch', width, height)
+    gfx.generateTexture(key, width, height)
     gfx.destroy()
   }
 
@@ -649,13 +758,13 @@ export class BootScene extends Phaser.Scene {
   // 横向做「两边暗、中间亮」的渐变，柱子才有体积感；再撒几道树皮纹、两个树瘤和苔藓
   private makeTreeTrunk() {
     const gfx = this.add.graphics()
-    const width = 140
+    const width = 220
     const height = 160
 
-    // 圆柱明暗：中间亮、两边压暗
+    // 圆柱明暗：中间亮、两边压暗。宽度做成和主杆一样（220），平铺时左右不会有接缝
     for (let x = 0; x < width; x++) {
       const t = (x / (width - 1) - 0.5) * 2      // -1 ~ 1
-      const shade = 1 - t * t * 0.45             // 中间 1，两边 0.55
+      const shade = 1 - t * t * 0.4 + Math.sin(x * 0.55) * 0.02   // 中间 1，两边 0.6 左右
 
       gfx.fillStyle(
         Phaser.Display.Color.GetColor(
@@ -668,29 +777,49 @@ export class BootScene extends Phaser.Scene {
       gfx.fillRect(x, 0, 1, height)
     }
 
+    // 受光面：中偏左一条窄亮带
+    gfx.fillStyle(0x9a7444, 0.32)
+    gfx.fillRect(Math.round(width * 0.3), 0, 10, height)
+    gfx.fillStyle(0x9a7444, 0.16)
+    gfx.fillRect(Math.round(width * 0.43), 0, 6, height)
+
     // 树皮纹：短竖纹，错开分布（都不跨 y=0 / y=160，平铺起来没接缝）
-    gfx.fillStyle(0x3f2c1c, 0.45)
+    gfx.fillStyle(0x3f2c1c, 0.5)
 
-    for (let index = 0; index < 22; index++) {
-      const x = 6 + ((index * 37) % (width - 12))
-      const y = (index * 53) % (height - 24)
+    for (let index = 0; index < 40; index++) {
+      const x = 4 + ((index * 53) % (width - 8))
+      const y = (index * 37) % (height - 30)
 
-      gfx.fillRect(x, y, 2, 10 + (index % 3) * 6)
+      gfx.fillRect(x, y, 2, 10 + (index % 4) * 7)
+    }
+
+    // 深色裂纹：带一点分叉，树皮才有层次
+    gfx.fillStyle(0x2a1c10, 0.55)
+
+    for (let index = 0; index < 10; index++) {
+      const x = 10 + ((index * 71) % (width - 22))
+      const y = (index * 61) % (height - 42)
+
+      gfx.fillRect(x, y, 2, 22 + (index % 3) * 10)
+      gfx.fillRect(x - 2, y + 8, 2, 10)
     }
 
     // 两处树瘤
     gfx.fillStyle(0x4a3320, 0.9)
-    gfx.fillEllipse(38, 46, 18, 26)
+    gfx.fillEllipse(52, 44, 26, 34)
     gfx.fillStyle(0x3a2718, 1)
-    gfx.fillEllipse(38, 46, 10, 16)
+    gfx.fillEllipse(52, 44, 14, 20)
     gfx.fillStyle(0x4a3320, 0.9)
-    gfx.fillEllipse(104, 118, 14, 20)
+    gfx.fillEllipse(168, 116, 20, 26)
 
-    // 苔藓
-    gfx.fillStyle(0x5f7a3c, 0.7)
-    gfx.fillRect(96, 20, 26, 6)
-    gfx.fillRect(14, 118, 30, 5)
-    gfx.fillRect(58, 86, 20, 4)
+    // 苔藓：贴着两侧和几道缝长
+    gfx.fillStyle(0x5f7a3c, 0.65)
+    gfx.fillRect(150, 18, 40, 6)
+    gfx.fillRect(20, 120, 46, 5)
+    gfx.fillRect(96, 84, 28, 4)
+    gfx.fillStyle(0x6f8c46, 0.5)
+    gfx.fillRect(156, 24, 22, 3)
+    gfx.fillRect(28, 125, 24, 3)
 
     gfx.generateTexture('tree-trunk', width, height)
     gfx.destroy()

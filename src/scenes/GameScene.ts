@@ -502,28 +502,38 @@ export class GameScene extends Phaser.Scene {
         .setDepth(trunk.depth ?? 2)
 
       // 树根：接在主干底端，底边压在地面线（最低那块平台的顶面）上。
-      // 贴图顶端约 120 宽、主杆 220 宽，所以横向拉开一点让接口对齐
+      // 贴图顶端 220 宽（和主杆一样），底边 300 宽
       const groundTop = this.level.platforms.reduce(
         (lowest, item) => Math.max(lowest, item.y - item.height / 2),
         Number.NEGATIVE_INFINITY
       )
 
+      const rootTexture = this.textures.get('tree-root').getSourceImage()
+
       this.add
-        .image(trunk.x, groundTop - 100, 'tree-root')
-        .setScale(width / 120, 1)
+        .image(trunk.x, groundTop - rootTexture.height / 2, 'tree-root')
+        .setScale(width / 220, 1)
         .setDepth(trunk.depth ?? 2)
 
-      // 4 条斜枝：粗头插在树干里（贴图左端是粗头，左边那条翻过来用），往外斜着往上长
+      // 7 条斜枝：粗头插在树干里（贴图左端是粗头，左边那条翻过来用），
+      // 四种形状混着摆，高低和角度都错开
       const branchDefs = [
-        { side: -1, at: 0.16, tilt: 16 },
-        { side: 1, at: 0.34, tilt: -18 },
-        { side: -1, at: 0.54, tilt: 14 },
-        { side: 1, at: 0.72, tilt: -20 },
+        { key: 'tree-branch', side: 1, at: 0.12, tilt: -14, gap: 52 },
+        { key: 'tree-branch-short', side: -1, at: 0.22, tilt: 18, gap: 32 },
+        { key: 'tree-branch-fork', side: 1, at: 0.36, tilt: -20, gap: 48 },
+        { key: 'tree-branch-twig', side: -1, at: 0.46, tilt: 12, gap: 40 },
+        { key: 'tree-branch', side: -1, at: 0.57, tilt: 16, gap: 50 },
+        { key: 'tree-branch-fork', side: 1, at: 0.7, tilt: -22, gap: 46 },
+        { key: 'tree-branch-short', side: 1, at: 0.82, tilt: -10, gap: 32 },
       ]
 
       branchDefs.forEach((branch) => {
         this.add
-          .image(trunk.x + branch.side * (width / 2 + 50), top + height * branch.at, 'tree-branch')
+          .image(
+            trunk.x + branch.side * (width / 2 + branch.gap),
+            top + height * branch.at,
+            branch.key
+          )
           .setFlipX(branch.side < 0)
           .setAngle(branch.tilt)
           .setDepth(trunk.depth ?? 2)
@@ -2811,9 +2821,11 @@ export class GameScene extends Phaser.Scene {
 
     rt.clear()
 
-    // 树干贴图是 140 宽、中间亮两边暗：往左挪一点，只留中间那一片当短木
-    for (let y = 0; y < spindle.height; y += 160) {
-      rt.stamp('tree-trunk', undefined, -(140 - spindle.width) / 2, y)
+    // 树皮贴图中间亮、两边暗：往左挪一点，只留中间那一片当短木
+    const bark = this.textures.get('tree-trunk').getSourceImage()
+
+    for (let y = 0; y < spindle.height; y += bark.height) {
+      rt.stamp('tree-trunk', undefined, -(bark.width - spindle.width) / 2, y)
     }
 
     if (this.playerLayer === 'back') {
