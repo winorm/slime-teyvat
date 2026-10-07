@@ -3016,20 +3016,100 @@ export class GameScene extends Phaser.Scene {
       // 那种情况画成三角形（斜边 = 楼梯底面，底边水平，右端竖直），
       // 不然梁的下沿会一路翘到右端，看着像楼梯悬在半空
       const beamThickness = 10
-      const beam = [
-        { x: from.x, y: from.y },
-        { x: to.x, y: to.y },
-        { x: to.x + nx * beamThickness, y: to.y + ny * beamThickness },
-        { x: from.x + nx * beamThickness, y: from.y + ny * beamThickness },
-      ]
 
-      gfx.fillStyle(beamWood, 1)
-      if (flatFoot) {
-        // 底边水平的三角梁
-        gfx.fillTriangle(from.x, from.y, to.x, to.y, to.x, from.y)
+      // 这一跑上断了几级：repairs 里点名的那些（数据里都是一段连续的）。
+      // 缺口盖住的台阶线区间是 [gapFrom, gapTo]
+      const broken: number[] = []
+
+      for (let i = 0; i < count; i++) {
+        if (this.isBrokenStep(stairIndex, i)) {
+          broken.push(i)
+        }
+      }
+
+      const gapFrom = broken.length > 0 ? broken[0] : -1
+      const gapTo = broken.length > 0 ? broken[broken.length - 1] + 1 : -1
+
+      // 台阶线上第 i 个点（第 i 级"靠下那一头"的角点）
+      const pointAt = (i: number) => ({ x: from.x + dir * run * i, y: from.y - rise * i })
+
+      // 斜梁的一截：沿着台阶线走，往法线方向长出 beamThickness。
+      // 整段画的时候和原来一模一样（地面上起步的那种仍然是水平底边的三角梁）
+      const beamPiece = (i0: number, i1: number) => {
+        gfx.fillStyle(beamWood, 1)
+
+        if (flatFoot && i0 === 0 && i1 === count) {
+          gfx.fillTriangle(from.x, from.y, to.x, to.y, to.x, from.y)
+          return
+        }
+
+        const a = pointAt(i0)
+        const b = pointAt(i1)
+
+        gfx.fillPoints(
+          [
+            new Phaser.Math.Vector2(a.x, a.y),
+            new Phaser.Math.Vector2(b.x, b.y),
+            new Phaser.Math.Vector2(b.x + nx * beamThickness, b.y + ny * beamThickness),
+            new Phaser.Math.Vector2(a.x + nx * beamThickness, a.y + ny * beamThickness),
+          ],
+          true
+        )
+      }
+
+      if (gapFrom < 0) {
+        beamPiece(0, count)
       } else {
-        gfx.fillTriangle(beam[0].x, beam[0].y, beam[1].x, beam[1].y, beam[2].x, beam[2].y)
-        gfx.fillTriangle(beam[0].x, beam[0].y, beam[2].x, beam[2].y, beam[3].x, beam[3].y)
+        // 断口的梁断成两截，不再一通到底
+        beamPiece(0, gapFrom)
+        beamPiece(gapTo, count)
+
+        // 断头往缺口里炸开的木刺：贴着梁的厚度方向排三片，长短不一
+        const fray = (i: number, sign: number) => {
+          const p = pointAt(i)
+
+          for (let k = 0; k < 3; k++) {
+            const off = 1 + k * 3.4
+
+            gfx.fillStyle(k === 1 ? woodTop : woodFace, 1)
+            gfx.fillTriangle(
+              p.x + nx * off,
+              p.y + ny * off,
+              p.x + nx * off + sign * (7 + (k % 2) * 5),
+              p.y + ny * off + 2,
+              p.x + nx * off + sign * 2,
+              p.y + ny * off + 3.6
+            )
+          }
+        }
+
+        fray(gapFrom, dir)
+        fray(gapTo, -dir)
+
+        // 上头那截梁的断口垂一片断板下来：一端还挂在梁上，一端朝下甩开
+        const hang = pointAt(gapTo)
+        const hx = hang.x + nx * 2
+        const hy = hang.y + ny * 2
+
+        gfx.fillStyle(beamWood, 1)
+        gfx.fillPoints(
+          [
+            new Phaser.Math.Vector2(hx, hy),
+            new Phaser.Math.Vector2(hx - dir * 8, hy + 24),
+            new Phaser.Math.Vector2(hx - dir * 8 + 5, hy + 26.5),
+            new Phaser.Math.Vector2(hx + 5, hy + 2.5),
+          ],
+          true
+        )
+        gfx.fillStyle(woodDark, 1)             // 甩开的那头是断口，压暗
+        gfx.fillTriangle(
+          hx - dir * 8,
+          hy + 24,
+          hx - dir * 8 + 5,
+          hy + 26.5,
+          hx - dir * 5,
+          hy + 25
+        )
       }
 
       for (let i = 0; i < count; i++) {
@@ -3087,21 +3167,58 @@ export class GameScene extends Phaser.Scene {
       this.stairRails[stairIndex] = railGfx
 
       const railThickness = 4
-      const rail = [
-        { x: from.x, y: from.y - railHeight },
-        { x: to.x, y: to.y - railHeight },
-        { x: to.x + nx * railThickness, y: to.y - railHeight + ny * railThickness },
-        { x: from.x + nx * railThickness, y: from.y - railHeight + ny * railThickness },
-      ]
+      // 扶栏跟斜梁一样断：断口处断成两截，上头再垂一截断栏下来
+      const railPointAt = (i: number) => {
+        const p = pointAt(i)
 
-      railGfx.fillStyle(railWood, 1)
-      railGfx.fillTriangle(rail[0].x, rail[0].y, rail[1].x, rail[1].y, rail[2].x, rail[2].y)
-      railGfx.fillTriangle(rail[0].x, rail[0].y, rail[2].x, rail[2].y, rail[3].x, rail[3].y)
+        return { x: p.x, y: p.y - railHeight }
+      }
+
+      const railPiece = (i0: number, i1: number) => {
+        const a = railPointAt(i0)
+        const b = railPointAt(i1)
+
+        railGfx.fillStyle(railWood, 1)
+        railGfx.fillPoints(
+          [
+            new Phaser.Math.Vector2(a.x, a.y),
+            new Phaser.Math.Vector2(b.x, b.y),
+            new Phaser.Math.Vector2(b.x + nx * railThickness, b.y + ny * railThickness),
+            new Phaser.Math.Vector2(a.x + nx * railThickness, a.y + ny * railThickness),
+          ],
+          true
+        )
+      }
+
+      if (gapFrom < 0) {
+        railPiece(0, count)
+      } else {
+        railPiece(0, gapFrom)
+        railPiece(gapTo, count)
+
+        const hang = railPointAt(gapTo)
+
+        railGfx.fillStyle(railWood, 1)
+        railGfx.fillPoints(
+          [
+            new Phaser.Math.Vector2(hang.x, hang.y),
+            new Phaser.Math.Vector2(hang.x - dir * 6, hang.y + 20),
+            new Phaser.Math.Vector2(hang.x - dir * 6 + 4, hang.y + 21),
+            new Phaser.Math.Vector2(hang.x + 4, hang.y),
+          ],
+          true
+        )
+      }
 
       // 立柱：每 4 级一根，把扶栏和底下的斜梁连起来
       railGfx.fillStyle(beamWood, 1)
 
       for (let i = 0; i <= count; i += 4) {
+        // 断口里的立柱不存在（否则会悬在缺口里）
+        if (gapFrom >= 0 && i > gapFrom && i < gapTo) {
+          continue
+        }
+
         const postX = from.x + dir * run * i
         const t = (postX - from.x) / (to.x - from.x)
 
@@ -3752,25 +3869,38 @@ export class GameScene extends Phaser.Scene {
     // 动画期间锁操作（和神像那段一个做法）
     this.inputLocked = true
 
-    for (const offset of [-18, 18]) {
-      const plank = this.add.image(def.x + offset * 3, def.y - 96, 'wood-plank').setDepth(7)
+    // 三块木板依次从上面飞进来：两块补回缺掉的踏面（落点在缺口里），
+    // 一块补回上面断掉的扶栏（落得高 26 像素）。每落一块扬一次尘
+    const landings = [
+      { dx: 4, dy: 0, delay: 0, angle: -6 },
+      { dx: 20, dy: 0, delay: 90, angle: 7 },
+      { dx: 12, dy: -26, delay: 170, angle: -4 },
+    ]
 
-      this.tweens.add({
-        targets: plank,
-        x: def.x + offset,
-        y: def.y,
-        angle: offset > 0 ? 8 : -8,
-        duration: 320,
-        ease: 'Quad.easeIn',
-        onComplete: () => {
-          playSfx(this, 'sfx-land', 0.18)
-          this.cameras.main.shake(160, 0.004)
-          plank.destroy()
-        },
+    landings.forEach(({ dx, dy, delay, angle }) => {
+      this.time.delayedCall(delay, () => {
+        const plank = this.add
+          .image(def.x + dx * 3, def.y - 96 + dy, 'wood-plank')
+          .setDepth(7)
+
+        this.tweens.add({
+          targets: plank,
+          x: def.x + dx,
+          y: def.y + dy,
+          angle,
+          duration: 320,
+          ease: 'Quad.easeIn',
+          onComplete: () => {
+            playSfx(this, 'sfx-land', 0.18)
+            this.cameras.main.shake(160, 0.004)
+            this.dustPuff(def.x + dx, def.y + dy)
+            plank.destroy()
+          },
+        })
       })
-    }
+    })
 
-    this.time.delayedCall(420, () => {
+    this.time.delayedCall(580, () => {
       repair.done = true
       repair.mark.destroy()
 
@@ -3800,6 +3930,27 @@ export class GameScene extends Phaser.Scene {
         this.revealGoal()
       }
     })
+  }
+
+  // 木板落地扬起的土屑：几粒小点往两边散开、边升边淡掉
+  private dustPuff(x: number, y: number) {
+    for (let i = 0; i < 6; i++) {
+      const dust = this.add
+        .image(x, y, 'pixel')
+        .setDisplaySize(3, 3)
+        .setTint(0xc9b48a)
+        .setDepth(7)
+
+      this.tweens.add({
+        targets: dust,
+        x: x + Phaser.Math.Between(-16, 16),
+        y: y - Phaser.Math.Between(1, 9),
+        alpha: 0,
+        scale: 0.4,
+        duration: Phaser.Math.Between(220, 380),
+        onComplete: () => dust.destroy(),
+      })
+    }
   }
 
   private showMessage(text: string) {
