@@ -5304,28 +5304,51 @@ export class GameScene extends Phaser.Scene {
         this.xiaoAura.setAlpha(breath * (0.62 + near * 0.38))
       }
 
+      // 第一次上顶楼：不管手上有没有那盘菜，都先让玩家撞一次那股气息（支线的起点）
       if (onTop && !this.xiaoAuraSeen) {
         this.xiaoAuraSeen = true
-
-        // 这一步就是支线的起点：见过他之后回前台，老板娘才会说杏仁豆腐那一套
         this.metXiao = true
-
         this.showMessage('他身上有一股让人不敢靠近的气息')
 
-        // 等第一句淡掉再补一句"该去哪儿" —— 支线的第一环是回前台问老板娘
-        this.time.delayedCall(2600, () => {
-          this.showMessage('……不如回楼下找老板娘问问')
-        })
+        if (this.dishMade) {
+          // 端着菜第一次上来：先站住看两秒那股气息，然后它自己散开
+          this.time.delayedCall(2700, () => {
+            if (!this.xiaoWall) {
+              return
+            }
+
+            this.xiaoCalm()
+            this.showMessage('那股气息……让开了一条路')
+          })
+        } else {
+          // 手上没菜：等第一句淡掉再补一句"该去哪儿"（支线的第一环是回前台问老板娘）
+          this.time.delayedCall(2600, () => {
+            this.showMessage('……不如回楼下找老板娘问问')
+          })
+        }
+      } else if (
+        onTop &&
+        this.dishMade &&
+        this.metXiao &&
+        this.xiaoWall &&
+        away < 120 &&
+        !this.inputLocked
+      ) {
+        // 先撞过气息、后来才端着菜回来的：走近它就让路
+        this.xiaoCalm()
+        this.showMessage('那股气息……让开了一条路')
       }
 
-      if (onTop && this.dishMade && !this.xiaoGone && !this.inputLocked) {
-        if (this.xiaoWall && away < 120) {
-          // 端着菜走近，那股气息自己让开一条路
-          this.xiaoCalm()
-          this.showMessage('那股气息……让开了一条路')
-        } else if (!this.xiaoWall && away < 62) {
-          this.playXiaoScene()
-        }
+      // 端着菜走到他跟前 → 演出一段（前提是那股气息已经让开了）
+      if (
+        onTop &&
+        this.dishMade &&
+        !this.xiaoGone &&
+        !this.xiaoWall &&
+        !this.inputLocked &&
+        away < 62
+      ) {
+        this.playXiaoScene()
       }
     }
 
