@@ -211,13 +211,13 @@ export class GameScene extends Phaser.Scene {
   // 木制水利电梯（第七关）：井道里一台轿厢，在每层楼板处停靠。
   // 数据是 LevelDef.lift（可选）：{ x: 井道中心, width: 井道宽, stops: [每层楼板顶面 y, 从高到低] }
   private liftCar: Phaser.Physics.Arcade.Sprite | null = null
-  private liftCarArt: Phaser.GameObjects.TileSprite | null = null
+  private liftCarArt: Phaser.GameObjects.Image | null = null
   private liftRope: Phaser.GameObjects.Rectangle | null = null
-  private liftGates: Phaser.Physics.Arcade.Sprite[] = []
-  private liftBars: Phaser.GameObjects.Rectangle[] = []
   private liftIndex = 0
   private liftMoving = false
   private liftState = { y: 0 }
+  // 上车的那一趟就一路"栓"在轿厢上：中途不再看距离，免得下行太快把人留在空中
+  private liftRider = false
   // 楼梯护栏单独一张 Graphics，depth 按「这一跑属于哪一层」定：
   // 前台层的护栏给 12（压在史莱姆 10/11 上面 —— 栏杆在台阶外侧，人从栏杆后面走过），
   // 后台层的护栏给 1.4（在树干 2 之前，走到树后面时仍然被树挡住）
@@ -2849,10 +2849,9 @@ export class GameScene extends Phaser.Scene {
     this.liftCar = null
     this.liftCarArt = null
     this.liftRope = null
-    this.liftGates = []
-    this.liftBars = []
     this.liftIndex = 0
     this.liftMoving = false
+    this.liftRider = false
 
     if (!lift || lift.stops.length < 2) {
       return
@@ -2879,9 +2878,9 @@ export class GameScene extends Phaser.Scene {
     car.setData('liftCar', true)
     this.liftCar = car
 
-    // 轿厢的样子 + 上面吊着的绳子
+    // 轿厢的样子（专用的轿厢贴图，比普通木板更容易认）+ 上面吊着的绳子
     this.liftCarArt = this.add
-      .tileSprite(lift.x, lift.stops[0] + carH / 2, lift.width, carH, 'wood-plank')
+      .image(lift.x, lift.stops[0] + carH / 2, 'lift-car')
       .setDepth(2.5)
 
     this.liftRope = this.add
@@ -2891,34 +2890,14 @@ export class GameScene extends Phaser.Scene {
 
     this.liftState.y = lift.stops[0]
 
-    // 每层井口一块挡板 + 一根横杆：轿厢不在这一层时挡住，免得掉进井道
+    // 每层井口：只在两侧画一对短立柱（纯画面，不挡人）。
+    // 不做挡板/横杆了 —— 那是实体，人还能跳上去，也会把轿厢里的人卡住
     lift.stops.forEach((stop) => {
-      const gate = this.platforms.create(lift.x, stop - 13, 'pixel') as Phaser.Physics.Arcade.Sprite
-
-      gate.setDisplaySize(lift.width + 8, 26)
-      gate.setVisible(false)
-      gate.refreshBody()
-      gate.setData('liftGate', true)
-      this.liftGates.push(gate)
-
-      const bar = this.add
-        .rectangle(lift.x, stop - 3, lift.width + 8, 6, 0x6f4423)
-        .setDepth(2.6)
-
-      this.liftBars.push(bar)
-    })
-
-    this.syncLiftGates()
-  }
-
-  // 每层井口的挡板 / 横杆：只有轿厢停着的那一层是开的
-  private syncLiftGates() {
-    this.liftGates.forEach((gate, index) => {
-      ;(gate.body as Phaser.Physics.Arcade.StaticBody).enable = index !== this.liftIndex
-    })
-
-    this.liftBars.forEach((bar, index) => {
-      bar.setVisible(index !== this.liftIndex)
+      ;[-1, 1].forEach((side) => {
+        this.add
+          .rectangle(lift.x + side * (half + 4), stop - 10, 4, 20, 0x6f4423)
+          .setDepth(2.6)
+      })
     })
   }
 
@@ -2944,10 +2923,9 @@ export class GameScene extends Phaser.Scene {
     }
 
     const body = this.slime.body as Phaser.Physics.Arcade.Body
-    const onCar =
-      Math.abs(body.bottom - y) < 5 && Math.abs(this.slime.x - lift.x) < lift.width / 2 + 4
 
-    if (this.liftMoving && onCar) {
+    // 上车那一趟一路栓住（不再逐帧比距离，速度再快也不会把人落下）
+    if (this.liftMoving && this.liftRider) {
       body.reset(body.center.x, y - body.height / 2)
     }
   }
@@ -2972,6 +2950,7 @@ export class GameScene extends Phaser.Scene {
         return
       }
 
+      this.liftRider = false
       this.moveLiftTo(stopIndex)
       return
     }
@@ -2984,6 +2963,7 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
+    this.liftRider = true
     this.moveLiftTo(next)
   }
 
@@ -3007,13 +2987,14 @@ export class GameScene extends Phaser.Scene {
     this.tweens.add({
       targets: this.liftState,
       y: to,
-      duration: 700 + 260 * crossed,
+      // 慢一点：每穿过一层多 420ms，跨一层大约 1.3 秒
+      duration: 900 + 420 * crossed,
       ease: 'Sine.easeInOut',
       onComplete: () => {
         this.liftIndex = index
         this.liftMoving = false
+        this.liftRider = false
         this.inputLocked = false
-        this.syncLiftGates()
         playSfx(this, 'sfx-land', 0.22)
       },
     })

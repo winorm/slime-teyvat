@@ -199,6 +199,7 @@ export class BootScene extends Phaser.Scene {
     this.makeBarrel()
     this.makeTreeRoot()
     this.makeTreeBranches()
+    this.makeLiftCar()
   }
 
   private makeSpire() {
@@ -590,6 +591,31 @@ export class BootScene extends Phaser.Scene {
     })
 
     gfx.generateTexture('tree-root', width, height)
+    gfx.destroy()
+  }
+
+  // 水利电梯的轿厢：木框 + 铺板 + 两道横箍（和井道立柱呼应），和普通楼板区分开
+  private makeLiftCar() {
+    const width = 80
+    const height = 12
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0x5f4224, 1)              // 底下那圈厚边框
+    gfx.fillRect(0, 3, width, 9)
+    gfx.fillStyle(0x8a6034, 1)              // 铺板
+    gfx.fillRect(1, 4, width - 2, 5)
+    gfx.fillStyle(0xa8794a, 1)              // 上沿受光
+    gfx.fillRect(1, 4, width - 2, 2)
+    gfx.fillStyle(0x7a4c28, 1)              // 两道横箍
+    gfx.fillRect(6, 3, 3, 9)
+    gfx.fillRect(width - 9, 3, 3, 9)
+    gfx.fillStyle(0x3f2c1c, 1)              // 顶面的分格线
+
+    for (let x = 14; x < width - 10; x += 12) {
+      gfx.fillRect(x, 6, 1, 3)
+    }
+
+    gfx.generateTexture('lift-car', width, height)
     gfx.destroy()
   }
 
