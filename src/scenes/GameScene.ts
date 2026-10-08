@@ -22,6 +22,7 @@ import { playMusic, playSfx, setLoop, stopAllLoops } from '../state/audio'
 import { queueAchievementToast } from '../state/achievements'
 import { touchMode, touchText } from '../state/touch'
 import { getMoveMode } from '../state/settings'
+import { DEV_LEVEL, DEV_LEVEL_MODE } from '../data/devLevel'
 
 const HOVER = {
   // 风元素削过一轮（用户按玩家反馈选了 B 档）：升得慢一点、耗得快一点、回得也慢一点
@@ -468,7 +469,15 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
-    this.level = LEVELS[progress.levelIndex]
+    // 测试沙盒：带 ?dev=1 而且 DEV_MODE 开着时，直接加载 src/data/devLevel.ts 那一关。
+    // 它不在 LEVELS 里，所以选关界面永远看不到；存档下标故意用一个"越界"的值（LEVELS.length），
+    // 这样沙盒里的原石 / 通关记录不会写进任何真关卡（配合 ?fresh=1 连写都不写）
+    if (DEV_LEVEL_MODE) {
+      progress.levelIndex = LEVELS.length
+      this.level = DEV_LEVEL
+    } else {
+      this.level = LEVELS[progress.levelIndex]
+    }
 
     this.touchMode = touchMode()
     this.finished = false

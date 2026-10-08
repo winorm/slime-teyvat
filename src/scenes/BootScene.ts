@@ -1,5 +1,6 @@
 ﻿import Phaser from 'phaser'
 import { ELEMENTS, ELEMENT_ORDER, type ElementKey } from '../data/elements'
+import { DEV_LEVEL_MODE } from '../data/devLevel'
 
 const ICON_NONE = [
   '................',
@@ -83,7 +84,8 @@ export class BootScene extends Phaser.Scene {
   create() {
     this.makeTextures()
     this.scene.launch('achievement')
-    this.scene.start('menu')
+    // 带 ?dev=1（并且 DEV_MODE 开着）时跳过主菜单，直接进测试沙盒
+    this.scene.start(DEV_LEVEL_MODE ? 'game' : 'menu')
   }
 
   private makeTextures() {
