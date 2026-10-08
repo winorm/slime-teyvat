@@ -3591,6 +3591,10 @@ export class GameScene extends Phaser.Scene {
     const bottomStop = Math.max(...lift.stops)
     const carH = 8
 
+    // 轿厢一开始就停在地面那一站（用户要求：进关卡不用再等它从顶上下来）。
+    // stops 是从高到低排的，但这里不依赖顺序 —— 直接找 y 最大的那一站
+    this.liftIndex = lift.stops.indexOf(bottomStop)
+
     // 井道两侧的立柱（画在楼板之后、树干之前）：加深加粗一点，从地面一直到顶层都看得见
     const railHeight = bottomStop - topStop + 30
     const railY = (topStop + bottomStop) / 2
@@ -3601,7 +3605,11 @@ export class GameScene extends Phaser.Scene {
     })
 
     // 轿厢：挡住玩家的那块（静态体，靠 refreshBody 跟着走）
-    const car = this.platforms.create(lift.x, lift.stops[0] + carH / 2, 'pixel') as Phaser.Physics.Arcade.Sprite
+    const car = this.platforms.create(
+      lift.x,
+      lift.stops[this.liftIndex] + carH / 2,
+      'pixel'
+    ) as Phaser.Physics.Arcade.Sprite
 
     car.setDisplaySize(lift.width, carH)
     car.setVisible(false)
@@ -3611,7 +3619,7 @@ export class GameScene extends Phaser.Scene {
 
     // 轿厢的样子（专用的轿厢贴图，比普通木板更容易认）+ 上面吊着的绳子
     this.liftCarArt = this.add
-      .image(lift.x, lift.stops[0] + carH / 2, 'lift-car')
+      .image(lift.x, lift.stops[this.liftIndex] + carH / 2, 'lift-car')
       .setDepth(2.5)
 
     this.liftRope = this.add
