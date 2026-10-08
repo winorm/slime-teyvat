@@ -590,8 +590,11 @@ export class GameScene extends Phaser.Scene {
     // 很高的户外关卡（第七关爬树，2200 高）用「分层视差」：2D 游戏的通行做法 ——
     // 天空几乎不动（0.06）、远山/湖面很慢（0.14）、岸边的芦苇最快（0.6，爬高时最先退出画面）。
     // 这样爬到高层仍然看得见远处的山和湖，而脚边的芦苇早就沉到画面外了
-    const tallOutdoor = this.level.height > 800
     const worldLocked = theme === 'tower'
+    // 只有"很高的**户外**关卡"才用整幅图那套（第七关爬树，2200 高）。
+    // 塔内（tower）是室内：墙面必须跟世界 1:1 地往上走 —— 第五关高 1600，也过了 800 这条线，
+    // 但它得照旧走下面的"平铺 + 分层视差"，所以这里要把 worldLocked 排除掉
+    const tallOutdoor = this.level.height > 800 && !worldLocked
 
     this.bgFarY = worldLocked ? 1 : tallOutdoor ? 0.06 : 0
     this.bgMidY = worldLocked ? 1 : tallOutdoor ? 0.14 : 0
