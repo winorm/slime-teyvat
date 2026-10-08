@@ -168,7 +168,8 @@ const DEV_GROUND_TOP = 860
 // 展品：展示间里「同一类东西」中的一个。
 // statue 是已经画好的神像（没做过贴图的元素会自动退回一块灰牌），slot 是纯预留位
 type DevExhibit =
-  | { kind: 'statue'; x: number; element: ElementKey; label: string }
+  // playable：这尊能站面前按 F 看「元素授予」那套演出（展厅里只看动画，不给元素）
+  | { kind: 'statue'; x: number; element: ElementKey; label: string; playable?: boolean }
   | { kind: 'slot'; x: number; label: string }
 
 type DevLevelDef = LevelDef & { devExhibits?: DevExhibit[] }
@@ -204,37 +205,28 @@ function devRoomShell(name: string, intro: string, width: number): DevLevelDef {
   }
 }
 
-// ① 七天神像：风 / 岩是成品（风那尊还能真的按 F 触碰一下看演出），另外五种先立灰牌
+// ① 七天神像：风 / 岩是成品，站面前按 F 能看「元素授予」那套动画 ——
+// 展厅里只放动画、不真的给元素（用户要求：测试关的神像保留动画，不保留功能），另外五种先立灰牌
 function devStatueRoom(): DevLevelDef {
   const level = devRoomShell(
     '测试 · 七天神像',
-    '七天神像展厅：\n七尊展品间距 230。\n风、岩是成品，\n其余五种还是预留位。',
+    '七天神像展厅：\n七尊展品间距 230。\n风、岩能站面前看动画，\n只看演出、不给元素；\n其余五种还是预留位。',
     1900
   )
 
-  // 第一尊做成能交互的真神像：站面前按 F，看元素授予那一整套演出
-  level.statue = { x: 290, y: DEV_GROUND_TOP, grants: 'wind', prompt: '触碰' }
-
-  const seats: { element: ElementKey; label: string }[] = [
-    { element: 'rock', label: '岩神像' },
-    { element: 'thunder', label: '雷神像（预留）' },
-    { element: 'grass', label: '草神像（预留）' },
-    { element: 'water', label: '水神像（预留）' },
-    { element: 'fire', label: '火神像（预留）' },
-    { element: 'ice', label: '冰神像（预留）' },
+  // 注意：标签里别出现「按 F」三个字 —— makeHint 会把它当成操作提示，
+  // 一旦这一类提示过了就不再显示，标签会整块消失
+  level.devExhibits = [
+    { kind: 'statue', x: 290, element: 'wind', label: '风神像 · 可看演出', playable: true },
+    { kind: 'statue', x: 520, element: 'rock', label: '岩神像 · 可看演出', playable: true },
+    { kind: 'slot', x: 750, label: '雷神像（预留）' },
+    { kind: 'slot', x: 980, label: '草神像（预留）' },
+    { kind: 'slot', x: 1210, label: '水神像（预留）' },
+    { kind: 'slot', x: 1440, label: '火神像（预留）' },
+    { kind: 'slot', x: 1670, label: '冰神像（预留）' },
   ]
 
-  level.devExhibits = seats.map((seat, index) => ({
-    kind: 'statue' as const,
-    x: 520 + index * 230,
-    element: seat.element,
-    label: seat.label,
-  }))
-
-  level.hints = [
-    { x: 290, y: 716, text: '风神像（按 F 可交互）' },
-    { x: 1240, y: 700, text: '往后每 230 摆一尊' },
-  ]
+  level.hints = [{ x: 180, y: 752, text: '展厅：神像只演动画，不给元素' }]
 
   return level
 }
@@ -624,6 +616,14 @@ export class GameScene extends Phaser.Scene {
   private devReturnX = 0
   // 这一局里能用的传送门：大厅是七扇，展厅里只有一扇「回大厅」
   private devPortals: DevPortalRef[] = []
+  // 展厅里「能看演出」的神像：站面前按 F，只放动画、不授予元素。
+  // groundY 用来算「人站得够不够近」，figure 是造像本体 —— 元素力从它身上冒出来
+  private devStatues: {
+    x: number
+    groundY: number
+    element: ElementKey
+    figure: Phaser.GameObjects.Image
+  }[] = []
   // 已经看过开场的房间（大厅记 -1），免得来回换房间每次都被黑屏文字挡一下
   private devIntroSeen: number[] = []
   private innkeeper: Phaser.GameObjects.Image | null = null
@@ -2914,8 +2914,13 @@ export class GameScene extends Phaser.Scene {
     return figure
   }
 
-  private playStatueScene(granted: ElementKey) {
-    unlockElement(granted)
+  // grant = false 时只放动画：不解锁元素、不变身、也不结算
+  // （测试关卡的展厅要的就是这个：保留动画，不保留功能）。
+  // from 是演出以哪尊神像为中心；展厅里的神像不是 level.statue，得由调用方指过来
+  private playStatueScene(granted: ElementKey, grant = true, from?: { x: number; y: number }) {
+    if (grant) {
+      unlockElement(granted)
+    }
 
     // 演出期间锁操作：物理世界暂停 + 清速度 + 收掉岩柱预览
     this.inputLocked = true
@@ -2925,12 +2930,12 @@ export class GameScene extends Phaser.Scene {
     this.stopPillarPreview()
 
     // 本关的锁解开了：元素图标那一排会多出一个，Q/E 也能切到它了
-    if (this.lockedElement === granted) {
+    if (grant && this.lockedElement === granted) {
       this.lockedElement = null
     }
 
     // 演出以神像为中心：没有独立神像时（旧数据）退回用终点
-    const source = this.statueSprite ?? this.goalSprite
+    const source = from ?? this.statueSprite ?? this.goalSprite
     const held = this.statueHeldOffset(granted)
     const heldX = source.x + held.x
     const heldY = source.y + held.y
@@ -2964,14 +2969,14 @@ export class GameScene extends Phaser.Scene {
           ease: 'Sine.easeInOut',
           onComplete: () => {
             orb.destroy()
-            this.playTransformFlash(granted)
+            this.playTransformFlash(granted, grant)
           },
         })
       },
     })
   }
 
-  private playTransformFlash(granted: ElementKey) {
+  private playTransformFlash(granted: ElementKey, grant = true) {
     const flash = this.add
       .rectangle(0, 0, 480, 270, 0xffffff)
       .setOrigin(0, 0)
@@ -2986,7 +2991,9 @@ export class GameScene extends Phaser.Scene {
       hold: 80,
       yoyo: true,
       onYoyo: () => {
-        this.applyElement(granted)
+        if (grant) {
+          this.applyElement(granted)
+        }
       },
       onComplete: () => {
         flash.destroy()
@@ -2998,6 +3005,11 @@ export class GameScene extends Phaser.Scene {
         // 演出结束，镜头恢复到正常跟随和 1 倍缩放
         this.cameras.main.zoomTo(1, 300)
         this.cameras.main.startFollow(this.slime, true, 0.12, 0.12)
+
+        // 只是看演出（测试展厅）：没有宝箱要放、也不进结算界面
+        if (!grant) {
+          return
+        }
 
         // 神像不是终点：演出结束后，如果这一关的宝箱在等神像，就把宝箱放出来
         if (this.level.goal.after === 'statue') {
@@ -4645,9 +4657,22 @@ export class GameScene extends Phaser.Scene {
   private buildDevExhibits() {
     const def = this.level as DevLevelDef
 
+    this.devStatues = []
+
     ;(def.devExhibits ?? []).forEach((exhibit) => {
       if (exhibit.kind === 'statue' && this.textures.exists('statue-' + exhibit.element)) {
-        this.placeStatue(exhibit.x, DEV_GROUND_TOP, exhibit.element)
+        const figure = this.placeStatue(exhibit.x, DEV_GROUND_TOP, exhibit.element)
+
+        // 挂了 playable 的才登记成「能按 F 看演出」的；演出只走动画，不给元素
+        if (exhibit.playable) {
+          this.devStatues.push({
+            x: exhibit.x,
+            groundY: DEV_GROUND_TOP,
+            element: exhibit.element,
+            figure,
+          })
+        }
+
         this.makeHint(exhibit.x, DEV_GROUND_TOP - 148, exhibit.label)
 
         return
@@ -5990,6 +6015,24 @@ export class GameScene extends Phaser.Scene {
         ) {
           prompt = this.interactPrefix() + (portal.room < 0 ? '回大厅' : '进入 ' + portal.label)
           action = () => this.useDevPortal(portal)
+          break
+        }
+      }
+    }
+
+    // 展厅里能看演出的神像：只放「元素授予」那套动画，不给元素、不结算，可以反复看
+    if (!prompt && this.devStatues.length > 0) {
+      for (const statue of this.devStatues) {
+        const distance = Phaser.Math.Distance.Between(
+          this.slime.x,
+          this.slime.y,
+          statue.x,
+          statue.groundY
+        )
+
+        if (distance < 70) {
+          prompt = this.interactPrefix() + '看演出'
+          action = () => this.playStatueScene(statue.element, false, statue.figure)
           break
         }
       }
