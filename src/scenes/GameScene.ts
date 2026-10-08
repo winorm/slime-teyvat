@@ -3627,7 +3627,10 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(0.5, 0)
       .setDepth(2.45)
 
-    this.liftState.y = lift.stops[0]
+    // 轿厢一开始就停在地面那一站（用户要求：进关卡不用再等它从顶上慢慢下来）。
+    // **真正管用的是 this.liftState.y** —— updateLift() 每帧都拿它去摆轿厢和吊绳，
+    // 光改上面刚体/贴图的初始位置没用（会被下一帧覆盖回去）
+    this.liftState.y = bottomStop
 
     // 每层井口：只在两侧画一对短立柱（纯画面，不挡人）。
     // 不做挡板/横杆了 —— 那是实体，人还能跳上去，也会把轿厢里的人卡住
