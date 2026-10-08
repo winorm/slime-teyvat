@@ -4,17 +4,19 @@ import { progress } from '../state/progress'
 
 export class DeadScene extends Phaser.Scene {
   private cause = 'fall'
+  private levelName = ''
 
   constructor() {
     super('dead')
   }
 
-  init(data: { cause?: string }) {
+  init(data: { cause?: string; name?: string }) {
     this.cause = data?.cause ?? 'fall'
+    // 关卡名由 GameScene 带过来；旧调用没带就退回按存档下标查（测试关卡不在 LEVELS 里）
+    this.levelName = data?.name ?? LEVELS[progress.levelIndex]?.name ?? ''
   }
 
   create() {
-    const level = LEVELS[progress.levelIndex]
     let title = '掉下去了……'
 
     if (this.cause === 'hazard') {
@@ -37,7 +39,7 @@ export class DeadScene extends Phaser.Scene {
       .setOrigin(0.5)
 
     this.add
-      .text(240, 88, level.name, {
+      .text(240, 88, this.levelName, {
         fontFamily: 'sans-serif',
         fontSize: '14px',
         color: '#ffffff',

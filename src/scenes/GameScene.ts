@@ -155,6 +155,307 @@ const CHASE = {
   stopX: 1450,
 }
 
+// ─────────────────────────────────────────────────────────────
+// 测试关卡（只有 DEV_MODE + ?dev=1 进得来）：大厅 + 分类展示间
+//
+// 用户的新设计（2026-10-08）：进关卡先落在一个大厅里，一排传送门各自写着名字；
+// 走进一扇门就换到一间「只放这一类东西」的展示间，展品之间隔着一段距离，方便逐个看。
+// 传送门的机制（画门 / 按 F / 切房间）在 GameScene 里，房间的内容就是下面这张表。
+// **只影响 ?dev=1 的测试关卡，正式关卡一个字都不动**
+// ─────────────────────────────────────────────────────────────
+const DEV_GROUND_TOP = 860
+
+// 展品：展示间里「同一类东西」中的一个。
+// statue 是已经画好的神像（没做过贴图的元素会自动退回一块灰牌），slot 是纯预留位
+type DevExhibit =
+  | { kind: 'statue'; x: number; element: ElementKey; label: string }
+  | { kind: 'slot'; x: number; label: string }
+
+type DevLevelDef = LevelDef & { devExhibits?: DevExhibit[] }
+
+type DevRoomDef = { label: string; level: DevLevelDef }
+
+type DevPortalRef = { x: number; label: string; room: number; groundY: number }
+
+// 展示间的公共壳：一条地面 + 七种元素全解锁 + 不设终点（宝箱摆在世界外面，够不着）
+function devRoomShell(name: string, intro: string, width: number): DevLevelDef {
+  return {
+    name,
+    intro,
+    width,
+    height: 900,
+    startElement: 'none',
+    unlocks: [...ELEMENT_ORDER],
+    spawn: { x: 150, y: 820 },
+    bg: 'field',
+    music: 'music-field',
+    goal: { x: -600, y: DEV_GROUND_TOP - 14, kind: 'chest', prompt: '打开' },
+    platforms: [{ x: width / 2, y: DEV_GROUND_TOP + 20, width, height: 40 }],
+    stairs: [],
+    pickups: [],
+    repairs: [],
+    orbs: [],
+    gems: [],
+    blessings: [],
+    hazards: [],
+    monuments: [],
+    notes: [],
+    hints: [],
+  }
+}
+
+// ① 七天神像：风 / 岩是成品（风那尊还能真的按 F 触碰一下看演出），另外五种先立灰牌
+function devStatueRoom(): DevLevelDef {
+  const level = devRoomShell(
+    '测试 · 七天神像',
+    '七天神像展厅：\n七尊展品间距 230。\n风、岩是成品，\n其余五种还是预留位。',
+    1900
+  )
+
+  // 第一尊做成能交互的真神像：站面前按 F，看元素授予那一整套演出
+  level.statue = { x: 290, y: DEV_GROUND_TOP, grants: 'wind', prompt: '触碰' }
+
+  const seats: { element: ElementKey; label: string }[] = [
+    { element: 'rock', label: '岩神像' },
+    { element: 'thunder', label: '雷神像（预留）' },
+    { element: 'grass', label: '草神像（预留）' },
+    { element: 'water', label: '水神像（预留）' },
+    { element: 'fire', label: '火神像（预留）' },
+    { element: 'ice', label: '冰神像（预留）' },
+  ]
+
+  level.devExhibits = seats.map((seat, index) => ({
+    kind: 'statue' as const,
+    x: 520 + index * 230,
+    element: seat.element,
+    label: seat.label,
+  }))
+
+  level.hints = [
+    { x: 290, y: 716, text: '风神像（按 F 可交互）' },
+    { x: 1240, y: 700, text: '往后每 230 摆一尊' },
+  ]
+
+  return level
+}
+
+// ② 元素方碑：未点亮 / 已点亮各摆一对（风、岩都是真能点亮的），再往右是预留位
+function devMonumentRoom(): DevLevelDef {
+  const level = devRoomShell(
+    '测试 · 元素方碑',
+    '元素方碑展厅：\n前四块是风 / 岩的\n未点亮与已点亮对照，\n再往右是预留位。',
+    2100
+  )
+
+  level.monuments = [
+    { x: 300, y: 838, element: 'wind', id: 'vm1' },
+    { x: 520, y: 838, element: 'rock', id: 'vm2' },
+    { x: 740, y: 838, element: 'wind', id: 'vm3', startLit: true },
+    { x: 960, y: 838, element: 'rock', id: 'vm4', startLit: true },
+  ]
+
+  level.devExhibits = [
+    { kind: 'slot', x: 1200, label: '雷方碑（预留）' },
+    { kind: 'slot', x: 1420, label: '草方碑（预留）' },
+    { kind: 'slot', x: 1640, label: '水方碑（预留）' },
+    { kind: 'slot', x: 1860, label: '火方碑（预留）' },
+  ]
+
+  level.hints = [
+    { x: 300, y: 690, text: '未点亮' },
+    { x: 740, y: 690, text: '已点亮' },
+    { x: 130, y: 780, text: '风 / 岩两块都能真的点亮' },
+  ]
+
+  return level
+}
+
+// ③ 造物机关：石门、天花板岩刺、横向岩刺、压力板 + 铁栅栏，一样隔一段摆一处
+function devTrapRoom(): DevLevelDef {
+  const level = devRoomShell(
+    '测试 · 造物机关',
+    '造物机关展厅：\n石门（要两块方碑）、\n天花板岩刺、横向岩刺、\n压力板 + 铁栅栏。',
+    2400
+  )
+
+  level.platforms = [
+    { x: 1200, y: DEV_GROUND_TOP + 20, width: 2400, height: 40 },
+    // 岩刺区头顶那块天花板：四个发射器贴在它底面往下打
+    { x: 1300, y: 240, width: 620, height: 30 },
+    // 横向岩刺右边那堵墙：岩刺从墙左边打出来，玩家得用岩柱（C）挡
+    { x: 1750, y: 700, width: 40, height: 320 },
+  ]
+
+  level.monuments = [
+    { x: 380, y: 838, element: 'wind', id: 'tm1' },
+    { x: 860, y: 838, element: 'rock', id: 'tm2' },
+  ]
+
+  level.doors = [
+    { x: 620, y: 840, width: 70, height: 40, needs: ['tm1', 'tm2'] },
+    { x: 2200, y: 810, width: 80, height: 100, needs: ['p1', 'p2'], texture: 'iron-gate' },
+  ]
+
+  level.plates = [
+    { x: 1950, y: 856, id: 'p1' },
+    { x: 2030, y: 856, id: 'p2' },
+  ]
+
+  level.launchers = [
+    { x: 1100, y: 262, interval: 2.2 },
+    { x: 1250, y: 262, interval: 2.2 },
+    { x: 1400, y: 262, interval: 2.2 },
+    { x: 1550, y: 262, interval: 2.2 },
+    { x: 1700, y: 760, dir: 'left', interval: 2 },
+  ]
+
+  level.hints = [
+    { x: 380, y: 780, text: '方碑 ①' },
+    { x: 860, y: 780, text: '方碑 ② → 石门' },
+    { x: 1300, y: 180, text: '天花板岩刺 ×4' },
+    { x: 1660, y: 700, text: '横向岩刺 ← 岩柱能挡' },
+    { x: 1990, y: 790, text: '压力板 ×2（岩柱 / 岩化触发）→ 铁栅栏' },
+  ]
+
+  return level
+}
+
+// ④ 能力测试：岩柱 / 岩化、楼梯、电梯、单向平台、碎裂平台都在这儿
+function devAbilityRoom(): DevLevelDef {
+  const level = devRoomShell(
+    '测试 · 能力测试',
+    '能力测试：\n岩柱压板开铁栅栏、楼梯、\n水利电梯、单向平台、\n碎裂平台都在这儿。',
+    2200
+  )
+
+  level.platforms = [
+    { x: 1100, y: DEV_GROUND_TOP + 20, width: 2200, height: 40 },
+    // 楼梯顶端接的那层楼板（顶面 700），一直连到电梯井口
+    { x: 1465, y: 703, width: 430, height: 6, plank: true },
+    // 电梯的两站：地面（860）和这层（660）
+    { x: 1800, y: 663, width: 240, height: 6, plank: true },
+    { x: 2000, y: 800, width: 120, height: 6, oneWay: true },
+    { x: 2150, y: 740, width: 100, height: 6, crumble: true, tint: 0xa4583a },
+  ]
+
+  level.stairs = [
+    { from: { x: 1050, y: DEV_GROUND_TOP }, to: { x: 1250, y: 700 }, layer: 'front' },
+  ]
+
+  level.lift = { x: 1800, width: 80, stops: [660, 860] }
+
+  level.plates = [{ x: 600, y: 856, id: 'a1' }]
+  level.doors = [
+    { x: 820, y: 810, width: 80, height: 100, needs: ['a1'], texture: 'iron-gate' },
+  ]
+
+  level.hints = [
+    { x: 600, y: 800, text: '压力板：只有岩柱 / 岩化能压住' },
+    { x: 1150, y: 780, text: '楼梯（走上去自动抬脚）' },
+    { x: 1800, y: 600, text: '水利电梯：右半边上行、左半边下行' },
+    { x: 2000, y: 760, text: '单向平台' },
+    { x: 2150, y: 700, text: '碎裂平台' },
+  ]
+
+  return level
+}
+
+// ⑤ 地形与建材：六块矮台依次是 草 / 浅水 / 砖 / 木 / 单向 / 碎裂，右边是背景静物
+function devTerrainRoom(): DevLevelDef {
+  const level = devRoomShell(
+    '测试 · 地形与建材',
+    '地形与建材展厅：\n六块矮台依次是草、浅水、\n砖、木、单向、碎裂，\n右边是背景静物。',
+    1800
+  )
+
+  level.platforms = [
+    { x: 900, y: DEV_GROUND_TOP + 20, width: 1800, height: 40 },
+    { x: 320, y: 822, width: 110, height: 6, grass: true },
+    { x: 470, y: 822, width: 110, height: 6, water: true },
+    { x: 620, y: 822, width: 110, height: 6, brick: true },
+    { x: 770, y: 822, width: 110, height: 6, plank: true },
+    { x: 920, y: 822, width: 110, height: 6, oneWay: true },
+    { x: 1070, y: 822, width: 110, height: 6, crumble: true, tint: 0xa4583a },
+    // 第七关楼板那两样：护栏 + 楼板下面的立柱
+    { x: 1350, y: 700, width: 220, height: 8, plank: true, rail: true, pillars: 2 },
+  ]
+
+  level.decor = [
+    { x: 1460, y: DEV_GROUND_TOP, key: 'mine-hill' },
+    { x: 1680, y: DEV_GROUND_TOP, key: 'ruin-house', scale: 0.85 },
+  ]
+  level.windmill = { x: 1780, y: DEV_GROUND_TOP }
+
+  level.hints = [
+    { x: 320, y: 770, text: '草 grass' },
+    { x: 470, y: 770, text: '浅水 water' },
+    { x: 620, y: 770, text: '砖 brick' },
+    { x: 770, y: 770, text: '木 plank' },
+    { x: 920, y: 770, text: '单向 oneWay' },
+    { x: 1070, y: 770, text: '碎裂 crumble' },
+    { x: 1350, y: 640, text: '护栏 rail + 立柱 pillars' },
+  ]
+
+  return level
+}
+
+// ⑥ 预留：以后新元素、新机关往这儿摆（现在先留五个空位）
+function devReserveRoom(): DevLevelDef {
+  const level = devRoomShell(
+    '测试 · 预留',
+    '预留展厅：\n以后新元素、新机关\n按 240 的间距往右接。\n现在先留五个空位。',
+    1600
+  )
+
+  level.devExhibits = [
+    { kind: 'slot', x: 400, label: '雷 · 待设计' },
+    { kind: 'slot', x: 640, label: '草 · 待设计' },
+    { kind: 'slot', x: 880, label: '水 · 待设计' },
+    { kind: 'slot', x: 1120, label: '火 · 待设计' },
+    { kind: 'slot', x: 1360, label: '冰 · 待设计' },
+  ]
+
+  level.hints = [{ x: 800, y: 760, text: '新展品按 240 的间距往右接' }]
+
+  return level
+}
+
+// 大厅里那七扇门。x 是门中心，间距 230；最后一扇通向原来那个「一关走完全部机关」的旧沙盒
+const DEV_ROOMS: DevRoomDef[] = [
+  { label: '七天神像', level: devStatueRoom() },
+  { label: '元素方碑', level: devMonumentRoom() },
+  { label: '造物机关', level: devTrapRoom() },
+  { label: '能力测试', level: devAbilityRoom() },
+  { label: '地形与建材', level: devTerrainRoom() },
+  { label: '预留', level: devReserveRoom() },
+  { label: '综合沙盒', level: DEV_LEVEL },
+]
+
+const DEV_PORTALS: DevPortalRef[] = DEV_ROOMS.map((room, index) => ({
+  x: 260 + index * 230,
+  label: room.label,
+  room: index,
+  groundY: DEV_GROUND_TOP,
+}))
+
+// 调试某一间展厅时不用先走大厅：地址上带 ?room=3 就直接落进第 3 间（0 起，越界就当大厅）
+const DEV_START_ROOM = (() => {
+  const raw = new URLSearchParams(location.search).get('room')
+  const index = raw === null ? -1 : Number.parseInt(raw, 10)
+
+  return Number.isInteger(index) && index >= 0 && index < DEV_ROOMS.length ? index : -1
+})()
+
+const DEV_HUB: DevLevelDef = {
+  ...devRoomShell(
+    '测试关卡 · 大厅',
+    '测试关卡 · 大厅\n七扇门各通一间展厅，\n站到门前按 F 进去。',
+    2000
+  ),
+  spawn: { x: 90, y: 820 },
+  hints: [{ x: 90, y: 740, text: '开发用的测试大厅（正式关卡里没有）' }],
+}
+
 type MonumentRef = {
   pillar: Phaser.Physics.Arcade.Sprite
   head: Phaser.GameObjects.Image
@@ -314,6 +615,17 @@ export class GameScene extends Phaser.Scene {
   private innRestored = false
   // 第五关同理：存档里记着"小龙已经救出来了"
   private towerRestored = false
+  // 这一局跑的是不是测试沙盒（?dev=1）：是的话原石和通关记录都不进存档
+  private devLevel = false
+  // 测试关卡现在待在哪一间：-1 = 大厅，0 起 = 大厅里那排传送门的下标。
+  // 初值来自地址上的 ?room=N（见 DEV_START_ROOM），用来直接打开某一间
+  private devRoom = DEV_START_ROOM
+  // 从展厅回大厅时站的位置（进门前那扇门的右边一点，不站正门上）
+  private devReturnX = 0
+  // 这一局里能用的传送门：大厅是七扇，展厅里只有一扇「回大厅」
+  private devPortals: DevPortalRef[] = []
+  // 已经看过开场的房间（大厅记 -1），免得来回换房间每次都被黑屏文字挡一下
+  private devIntroSeen: number[] = []
   private innkeeper: Phaser.GameObjects.Image | null = null
 
   // 对话板（老板娘 / 仙人说话用）：一次显示一句，"按 F / 点屏幕"翻到下一句
@@ -469,15 +781,25 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
-    // 测试沙盒：带 ?dev=1 而且 DEV_MODE 开着时，直接加载 src/data/devLevel.ts 那一关。
-    // 它不在 LEVELS 里，所以选关界面永远看不到；存档下标故意用一个"越界"的值（LEVELS.length），
-    // 这样沙盒里的原石 / 通关记录不会写进任何真关卡（配合 ?fresh=1 连写都不写）
-    if (DEV_LEVEL_MODE) {
-      progress.levelIndex = LEVELS.length
-      this.level = DEV_LEVEL
-    } else {
-      this.level = LEVELS[progress.levelIndex]
-    }
+    // 测试沙盒（src/data/devLevel.ts）：只在 DEV_MODE 开着 + 地址带 ?dev=1 时进得来。
+    // **这里绝对不要动 progress.levelIndex** —— 死亡界面 DeadScene 会拿它去查
+    // `LEVELS[progress.levelIndex].name`，之前图省事塞了个越界下标（LEVELS.length），
+    // 结果死亡界面在 create() 里就抛错了、三个按钮根本没建出来（表现就是"死了没法复活"）。
+    // 沙盒自己的原石 / 通关记录改用下面这个 devLevel 开关挡住，不碰存档
+    this.devLevel = DEV_LEVEL_MODE
+    // 测试关卡是「大厅 + 展厅」：devRoom < 0 在大厅，其余去对应那间展厅。
+    // 换房间走 scene.restart()，所以 devRoom 是在上一帧就定好的
+    this.level = this.devLevel
+      ? this.devRoom >= 0
+        ? (DEV_ROOMS[this.devRoom]?.level ?? DEV_HUB)
+        : DEV_HUB
+      : LEVELS[progress.levelIndex]
+
+    // 从展厅回大厅时站回刚才那扇门的右边一点：不站门上，起身就不会又提示按 F
+    const spawnPoint =
+      this.devLevel && this.devRoom < 0 && this.devReturnX > 0
+        ? { x: this.devReturnX + 48, y: 820 }
+        : this.level.spawn
 
     this.touchMode = touchMode()
     this.finished = false
@@ -1365,7 +1687,8 @@ export class GameScene extends Phaser.Scene {
       this.makeHint(hint.x, hint.y, hint.text)
     })
 
-    const savedGems = progress.levelGems[progress.levelIndex] ?? []
+    // 测试沙盒不看存档里"捡过没"：每次都当全新的一关
+    const savedGems = this.devLevel ? [] : (progress.levelGems[progress.levelIndex] ?? [])
 
     this.level.gems.forEach((spot, index) => {
       if (savedGems.includes(index)) {
@@ -1415,51 +1738,16 @@ export class GameScene extends Phaser.Scene {
 
     if (this.level.statue) {
       const statue = this.level.statue
-      const wanted = 'statue-' + statue.grants
-      const figureKey = this.textures.exists(wanted) ? wanted : 'statue-wind'
-      const tint = ELEMENTS[statue.grants].color
-
       // statue.y 是「底座底面所在的那条线」，也就是脚下的地面顶面
-      const base = this.add.image(statue.x, statue.y, 'statue-base').setDepth(-1)
-      // 底座：底面对齐地面线 → 中心 = 地面线 − 半高，顶面 = 地面线 − 全高
-      const baseTop = statue.y - base.displayHeight
-
-      base.setY(statue.y - base.displayHeight / 2)
-
-      // 风神像的翅膀直接用风史莱姆那张 wing 贴图放大来摆，
-      // 形状、羽线、角度和史莱姆完全一致，只是大号版
-      if (statue.grants === 'wind') {
-        const wings = [
-          { offset: -7, originX: 1, angle: -45, flip: true },
-          { offset: 7, originX: 0, angle: 45, flip: false },
-        ]
-
-        wings.forEach((wing) => {
-          this.add
-            .image(statue.x + wing.offset, baseTop + STATUE_SEAT - 38, 'wing')
-            .setOrigin(wing.originX, 0.5)
-            .setFlipX(wing.flip)
-            .setAngle(wing.angle)
-            .setScale(1.2)
-            .setTint(tint)
-            .setDepth(-2)
-        })
-      }
-
-      // 本体站在底座上（底座在后面，所以台面会从袍子/裙摆两侧露出来）
-      this.statueSprite = this.add.image(statue.x, statue.y, figureKey).setTint(tint)
-      // 造像：底面压在底座顶面下面一点（压 5 像素），做出"下托上"的坐实感
-      this.statueSprite.setY(
-        baseTop + STATUE_SEAT - this.statueSprite.displayHeight / 2
-      )
+      this.statueSprite = this.placeStatue(statue.x, statue.y, statue.grants)
     }
 
-    this.slime = this.physics.add.sprite(this.level.spawn.x, this.level.spawn.y, 'slime-none')
+    this.slime = this.physics.add.sprite(spawnPoint.x, spawnPoint.y, 'slime-none')
     this.slime.setBounce(0.2)
     this.slime.setCollideWorldBounds(true)
     this.slime.setVisible(false)
 
-    this.slimeArt = this.add.image(this.level.spawn.x, this.level.spawn.y, 'slime-none')
+    this.slimeArt = this.add.image(spawnPoint.x, spawnPoint.y, 'slime-none')
 
     this.wingLeft = this.add.image(0, 0, 'wing')
     this.wingRight = this.add.image(0, 0, 'wing')
@@ -1974,7 +2262,19 @@ export class GameScene extends Phaser.Scene {
       this.revealGoal()
     }
 
-    this.showIntro(this.level.intro)
+    // 测试关卡：同一间展厅只看一次开场，来回换房间不会被黑屏文字反复挡
+    if (this.devLevel) {
+      this.buildDevExhibits()
+      this.buildDevPortals()
+
+      if (!this.devIntroSeen.includes(this.devRoom)) {
+        this.devIntroSeen.push(this.devRoom)
+        this.showIntro(this.level.intro)
+      }
+    } else {
+      this.showIntro(this.level.intro)
+    }
+
     playMusic(this, this.level.music ?? 'music-field')
 
     if (this.level.chase) {
@@ -2113,6 +2413,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   private availableElements(): ElementKey[] {
+    // 测试关卡：不按关卡进度卡元素，解锁过什么就能切什么。
+    // 不这么写的话，?dev=1 进来时 progress.levelIndex 还在第一关，
+    // 上面那圈只认"前十关发过的元素"，沙盒里就只剩一个"无"能用了
+    if (this.devLevel) {
+      return ELEMENT_ORDER.filter((key) => progress.unlocked.includes(key))
+    }
+
     const list: ElementKey[] = []
 
     const add = (key: ElementKey) => {
@@ -2543,7 +2850,10 @@ export class GameScene extends Phaser.Scene {
     this.pillarPressed = false
     this.stopPillarPreview()
 
-    recordClear(progress.levelIndex, this.collectedIndices)
+    // 测试沙盒的通关不进存档（不然会把"最后一关"的进度和原石记乱）
+    if (!this.devLevel) {
+      recordClear(progress.levelIndex, this.collectedIndices)
+    }
     stopAllLoops()
     playSfx(this, 'sfx-win', 0.55)
 
@@ -2560,6 +2870,48 @@ export class GameScene extends Phaser.Scene {
   // 岩是右手举在胸前的立方体（偏左）。偏移 = 持物中心 − 本体中心
   private statueHeldOffset(granted: ElementKey) {
     return granted === 'rock' ? { x: -13, y: -3 } : { x: 0, y: -3 }
+  }
+
+  // 摆一尊神像：底座 + 造像（风神像再加一对大翅膀），返回造像本体。
+  // baseLine 是「底座底面所在的那条线」，也就是脚下的地面顶面。
+  // 关卡里的真神像和测试展厅里的展品都走这一个函数，样子才不会走样
+  private placeStatue(x: number, baseLine: number, element: ElementKey) {
+    const wanted = 'statue-' + element
+    const figureKey = this.textures.exists(wanted) ? wanted : 'statue-wind'
+    const tint = ELEMENTS[element].color
+
+    const base = this.add.image(x, baseLine, 'statue-base').setDepth(-1)
+    // 底座：底面对齐地面线 → 中心 = 地面线 − 半高，顶面 = 地面线 − 全高
+    const baseTop = baseLine - base.displayHeight
+
+    base.setY(baseLine - base.displayHeight / 2)
+
+    // 风神像的翅膀直接用风史莱姆那张 wing 贴图放大来摆，
+    // 形状、羽线、角度和史莱姆完全一致，只是大号版
+    if (element === 'wind') {
+      const wings = [
+        { offset: -7, originX: 1, angle: -45, flip: true },
+        { offset: 7, originX: 0, angle: 45, flip: false },
+      ]
+
+      wings.forEach((wing) => {
+        this.add
+          .image(x + wing.offset, baseTop + STATUE_SEAT - 38, 'wing')
+          .setOrigin(wing.originX, 0.5)
+          .setFlipX(wing.flip)
+          .setAngle(wing.angle)
+          .setScale(1.2)
+          .setTint(tint)
+          .setDepth(-2)
+      })
+    }
+
+    // 本体站在底座上（底座在后面，所以台面会从袍子/裙摆两侧露出来）
+    const figure = this.add.image(x, baseLine, figureKey).setTint(tint)
+    // 造像：底面压在底座顶面下面一点（压 5 像素），做出"下托上"的坐实感
+    figure.setY(baseTop + STATUE_SEAT - figure.displayHeight / 2)
+
+    return figure
   }
 
   private playStatueScene(granted: ElementKey) {
@@ -4050,7 +4402,7 @@ export class GameScene extends Phaser.Scene {
 
   private refreshGemHud() {
     const collected = new Set([
-      ...(progress.levelGems[progress.levelIndex] ?? []),
+      ...(this.devLevel ? [] : (progress.levelGems[progress.levelIndex] ?? [])),
       ...this.collectedIndices,
     ])
 
@@ -4230,7 +4582,9 @@ export class GameScene extends Phaser.Scene {
     stopAllLoops()
     playSfx(this, 'sfx-die', 0.45)
     this.scene.pause()
-    this.scene.launch('dead', { cause })
+    // 关卡名一起带过去：死亡界面显示的是"死在哪一关"，
+    // 而测试关卡不在 LEVELS 里，它自己查存档下标只会查出别人家的名字
+    this.scene.launch('dead', { cause, name: this.level.name })
   }
 
   private showIntro(text: string) {
@@ -4284,6 +4638,85 @@ export class GameScene extends Phaser.Scene {
         this.showMessage('乘电梯上楼，找老板娘问问')
       })
     }
+  }
+
+  // ── 测试关卡：大厅 + 分类展厅 ──────────────────────────────────
+  // 展厅里的展品：神像摆真的，没做过贴图的元素退回一块灰牌
+  private buildDevExhibits() {
+    const def = this.level as DevLevelDef
+
+    ;(def.devExhibits ?? []).forEach((exhibit) => {
+      if (exhibit.kind === 'statue' && this.textures.exists('statue-' + exhibit.element)) {
+        this.placeStatue(exhibit.x, DEV_GROUND_TOP, exhibit.element)
+        this.makeHint(exhibit.x, DEV_GROUND_TOP - 148, exhibit.label)
+
+        return
+      }
+
+      this.addDevSlot(exhibit.x, exhibit.label)
+    })
+  }
+
+  // 预留位：一块灰牌，写清以后这里要放什么
+  private addDevSlot(x: number, label: string) {
+    this.add
+      .rectangle(x, DEV_GROUND_TOP - 44, 44, 88, 0x232833, 0.7)
+      .setStrokeStyle(1, 0x5a6272)
+      .setDepth(1)
+
+    this.makeHint(x, DEV_GROUND_TOP - 100, label)
+  }
+
+  // 传送门：大厅里一排七扇（每扇写着那间展厅的名字），展厅里只有一扇「回大厅」
+  private buildDevPortals() {
+    this.devPortals = []
+
+    if (this.devRoom >= 0) {
+      const back: DevPortalRef = { x: 70, label: '回大厅', room: -1, groundY: DEV_GROUND_TOP }
+
+      this.drawDevPortal(back.x, back.label, 0xffd27a)
+      this.devPortals.push(back)
+
+      return
+    }
+
+    DEV_PORTALS.forEach((portal) => {
+      this.drawDevPortal(portal.x, portal.label, 0x6ec6ff)
+      this.devPortals.push(portal)
+    })
+  }
+
+  private drawDevPortal(x: number, label: string, tint: number) {
+    const midY = DEV_GROUND_TOP - 32
+
+    // 门里那层光：外圈淡、内芯亮，外圈慢慢呼吸
+    const glow = this.add.rectangle(x, midY, 38, 66, tint, 0.3).setDepth(1)
+    this.add.rectangle(x, midY, 20, 54, 0xdff2ff, 0.85).setDepth(1.2)
+
+    // 门框：两根立柱 + 一根门楣
+    this.add.rectangle(x - 19, midY, 6, 70, 0x39435a).setDepth(1.4)
+    this.add.rectangle(x + 19, midY, 6, 70, 0x39435a).setDepth(1.4)
+    this.add.rectangle(x, midY - 38, 44, 6, 0x39435a).setDepth(1.4)
+
+    this.tweens.add({
+      targets: glow,
+      alpha: { from: 0.12, to: 0.45 },
+      duration: 900,
+      yoyo: true,
+      repeat: -1,
+    })
+
+    this.makeHint(x, DEV_GROUND_TOP - 92, label)
+  }
+
+  // 站到门前按 F 换房间：进厅里的门先记下位置，回来时站回它右边
+  private useDevPortal(portal: DevPortalRef) {
+    if (portal.room >= 0) {
+      this.devReturnX = portal.x
+    }
+
+    this.devRoom = portal.room
+    this.scene.restart()
   }
 
   private lightMonument(monument: MonumentRef) {
@@ -5547,6 +5980,21 @@ export class GameScene extends Phaser.Scene {
     let prompt: string | null = null
     let action: (() => void) | null = null
 
+    // 测试关卡的传送门：放在整条交互链最前面。
+    // 后面那些交互（方碑 / 老板娘）都是按距离算的，不抢先的话大厅里会串味
+    if (this.devPortals.length > 0) {
+      for (const portal of this.devPortals) {
+        if (
+          Math.abs(this.slime.x - portal.x) < 40 &&
+          Math.abs(this.slime.y - portal.groundY) < 70
+        ) {
+          prompt = this.interactPrefix() + (portal.room < 0 ? '回大厅' : '进入 ' + portal.label)
+          action = () => this.useDevPortal(portal)
+          break
+        }
+      }
+    }
+
     let target: MonumentRef | null = null
     let nearest = 56
 
@@ -5570,7 +6018,7 @@ export class GameScene extends Phaser.Scene {
       target = monument
     }
 
-    if (target) {
+    if (!prompt && target) {
       const monument = target
 
       if (this.element === monument.element) {
