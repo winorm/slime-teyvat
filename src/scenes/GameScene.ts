@@ -71,6 +71,11 @@ const PLATE_DEPTH = { front: 2.9, back: 1.05 }
 const PETAL_INTERVAL = 0.2
 const PETAL_COLORS = [0xf2c14e, 0xffd97a, 0xffe9a8, 0xd99a2b]
 
+// 第七关那条杏仁豆腐支线做完之后，这一关的机关也要记进存档（用户要求：别让人重跑一遍）。
+// 借 seenHints 这条现成的存档数组放一个标记，省得去动 progress.ts 里 SaveData 的结构
+// （那个文件按约定归用户维护）。这个字符串不会被任何提示查询用到，放着是安全的
+const INN_RESTORED_FLAG = 'inn-restored'
+
 // 岩柱：贴图多大、从落点上方多高开始掉、蓄力多久、落点最远能低于脚底多少
 const PILLAR_SIZE = { width: 20, height: 72 }
 const PILLAR_DROP = 140
@@ -300,6 +305,8 @@ export class GameScene extends Phaser.Scene {
   private dishMade = false
   private xiaoGone = false
   private ingredientHintSeen = false
+  // 这一局是不是"支线已经做完过"的档（存档里记着）：两处楼梯直接算修好、仙人已经走了
+  private innRestored = false
   private innkeeper: Phaser.GameObjects.Image | null = null
 
   // 对话板（老板娘 / 仙人说话用）：一次显示一句，"按 F / 点屏幕"翻到下一句
@@ -506,9 +513,22 @@ export class GameScene extends Phaser.Scene {
     this.petalIdle = []
     this.layerPieces = []
     // 存档只记「永久成果」（元素 / 原石 / 成就 / 关卡推进）。
-    // 木材和修好的楼梯属于关卡内的机关，每进一次关卡都从头来（见开发笔记「开发约定」）
+    // 木材和修好的楼梯属于关卡内的机关，每进一次关卡都从头来（见开发笔记「开发约定」）。
+    // **唯一的例外是第七关**：那条杏仁豆腐支线做完之后，这一关的机关也跟着记进存档
+    this.innRestored = !!this.level.trunk && hasSeenHint(INN_RESTORED_FLAG)
     this.woods = 0
     this.repaired = []
+
+    // 支线做过的档：两处楼梯直接算修好（断口、断茬、木材堆都不会再出现），仙人已经走了
+    if (this.innRestored) {
+      this.stairsDone = true
+      this.xiaoGone = true
+      ;(this.level.repairs ?? []).forEach((repair) => {
+        repair.steps.forEach((step) => {
+          this.repaired.push(`${repair.stair}:${step}`)
+        })
+      })
+    }
     this.collectedIndices = []
     this.blessed = false
     this.dying = false
@@ -874,6 +894,20 @@ export class GameScene extends Phaser.Scene {
           taken: false,
         })
       })
+
+      // 支线已经做完过的档：仙人走了、气息散了、三样原料也用掉了 —— 顶楼只剩那个宝箱。
+      // 这里放在最后"拆"掉，而不是把上面整段包进 if 里：改动小，也不会漏掉哪一项
+      if (this.innRestored) {
+        this.xiaoGone = true
+        this.xiaoSprite?.destroy()
+        this.xiaoSprite = null
+        this.xiaoWall?.destroy()
+        this.xiaoWall = null
+        this.xiaoAura?.destroy()
+        this.xiaoAura = null
+        this.ingredients.forEach((item) => item.sprite.destroy())
+        this.ingredients = []
+      }
 
       // 顶楼阳台：一张小桌 + 一个蒲团（蒲团直接用圆凳代替）
       put('inn-table', 820, 400)
@@ -1348,6 +1382,12 @@ export class GameScene extends Phaser.Scene {
       this.goalSprite.setVisible(false).setScale(0)
     }
 
+    // 支线做过的档：宝箱一开始就摆在阳台上（第七关的 goal.after 是 'xiao'，
+    // 正常流程要等仙人走了才调 revealGoal）
+    if (this.innRestored && !this.goalReady) {
+      this.revealGoal()
+    }
+
     // 路边的神像：点了给元素，但不再是终点（真正过关的是随后出现的宝箱）
     this.statueSprite = null
     this.statueUsed = false
@@ -1599,6 +1639,11 @@ export class GameScene extends Phaser.Scene {
     })
 
     ;(this.level.pickups ?? []).forEach((def) => {
+      // 支线做过的档：两处楼梯早修好了，木材堆摆出来也没用，干脆不摆
+      if (this.innRestored) {
+        return
+      }
+
       // 木材堆：两块木板。def.y 是「它下面那条线」（也就是平台顶面），
       // 用 origin(0.5, 1) 让木板的**底边**落在 def.y 上，所以是躺在地上的，不会浮空；
       // 上面那块压在下面前半段上，看起来就是一摞
@@ -4764,6 +4809,13 @@ export class GameScene extends Phaser.Scene {
       this.revealGoal()
       this.inputLocked = false
       this.showMessage('仙人走了 —— 阳台上有什么东西亮了起来')
+
+      // 支线做完 → 把"这一关的机关"也记进存档：下次进来楼梯是修好的、仙人不在、宝箱已经在
+      if (!this.innRestored) {
+        this.innRestored = true
+        markHintSeen(INN_RESTORED_FLAG)
+        saveProgress()
+      }
     })
   }
 
