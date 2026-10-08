@@ -660,17 +660,19 @@ export class GameScene extends Phaser.Scene {
     if (this.level.windmill) {
       const windmill = this.level.windmill
 
-      this.add.image(windmill.x, windmill.y - 32, 'windmill').setDepth(-15)
+      // 背景静物 / 地标统一放 -5：要压在近景那一层（`bg-<主题>-near`，堤岸 + 芦苇，depth -10）
+      // 的前面，否则第六关的芦苇会盖在破屋上（2026/10/08 修）
+      this.add.image(windmill.x, windmill.y - 32, 'windmill').setDepth(-5)
 
       this.windmillBlades = this.add
         .image(windmill.x, windmill.y - 54, 'windmill-blades')
-        .setDepth(-14)
+        .setDepth(-4)
         .setScale(0.8)
     }
 
     // 望舒客栈：背景里的地标，贴着地面立着
     if (this.level.inn) {
-      this.add.image(this.level.inn.x, this.level.inn.y - 80, 'inn').setDepth(-15)
+      this.add.image(this.level.inn.x, this.level.inn.y - 80, 'inn').setDepth(-5)
     }
 
     // 背景静物：破屋、矿山剪影，底边贴在地面线上，不参与碰撞
@@ -679,7 +681,7 @@ export class GameScene extends Phaser.Scene {
         .image(def.x, def.y, def.key)
         .setOrigin(0.5, 1)
         .setScale(def.scale ?? 1)
-        .setDepth(-15)
+        .setDepth(-5)
     })
 
     // 古树主干：一条竖着平铺的树皮带，画在前后两层楼梯中间（默认 depth 2）
