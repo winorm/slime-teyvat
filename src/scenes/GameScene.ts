@@ -76,6 +76,10 @@ const PETAL_COLORS = [0xf2c14e, 0xffd97a, 0xffe9a8, 0xd99a2b]
 // （那个文件按约定归用户维护）。这个字符串不会被任何提示查询用到，放着是安全的
 const INN_RESTORED_FLAG = 'inn-restored'
 
+// 第五关的"小龙已经救出来了"同样记进存档（用户要求）：下次进来方碑全亮、四道门全开、
+// 笼子是空的、宝箱已经在塔中央。存法同上（借 seenHints）
+const TOWER_RESTORED_FLAG = 'tower-restored'
+
 // 岩柱：贴图多大、从落点上方多高开始掉、蓄力多久、落点最远能低于脚底多少
 const PILLAR_SIZE = { width: 20, height: 72 }
 const PILLAR_DROP = 140
@@ -307,6 +311,8 @@ export class GameScene extends Phaser.Scene {
   private ingredientHintSeen = false
   // 这一局是不是"支线已经做完过"的档（存档里记着）：两处楼梯直接算修好、仙人已经走了
   private innRestored = false
+  // 第五关同理：存档里记着"小龙已经救出来了"
+  private towerRestored = false
   private innkeeper: Phaser.GameObjects.Image | null = null
 
   // 对话板（老板娘 / 仙人说话用）：一次显示一句，"按 F / 点屏幕"翻到下一句
@@ -516,6 +522,7 @@ export class GameScene extends Phaser.Scene {
     // 木材和修好的楼梯属于关卡内的机关，每进一次关卡都从头来（见开发笔记「开发约定」）。
     // **唯一的例外是第七关**：那条杏仁豆腐支线做完之后，这一关的机关也跟着记进存档
     this.innRestored = !!this.level.trunk && hasSeenHint(INN_RESTORED_FLAG)
+    this.towerRestored = !!this.level.cage && hasSeenHint(TOWER_RESTORED_FLAG)
     this.woods = 0
     this.repaired = []
 
@@ -1936,6 +1943,22 @@ export class GameScene extends Phaser.Scene {
 
     this.applyElement(progress.current)
     this.refreshGemHud()
+
+    // 存档里"小龙已经救出来了"：方碑全亮、四道门全开、笼子空了、宝箱已经在塔中央。
+    // 统一放在这儿补，而不是去各个创建处加分支 —— 这时候方碑 / 门 / 笼子 / 宝箱都已经建好了
+    if (this.towerRestored) {
+      // 按数据里的顺序点亮（f2b 那种"跟进碑"要靠前面那块把自己带出来）
+      this.monumentList.forEach((monument) => this.lightMonument(monument))
+      this.doorList.forEach((door) => this.openDoor(door, true))
+
+      if (this.cageSprite && this.eggSprite) {
+        this.cageSprite.setTexture('cage-open')
+        this.eggSprite.setVisible(false)
+        this.cageOpened = true
+      }
+
+      this.revealGoal()
+    }
 
     this.showIntro(this.level.intro)
     playMusic(this, this.level.music ?? 'music-field')
@@ -4408,7 +4431,7 @@ export class GameScene extends Phaser.Scene {
     this.showMessage('五碑俱灭……顺序错了。')
   }
 
-  private openDoor(door: DoorRef) {
+  private openDoor(door: DoorRef, quiet = false) {
     if (door.opened) {
       return
     }
@@ -4419,10 +4442,18 @@ export class GameScene extends Phaser.Scene {
     ;(door.sprite.body as Phaser.Physics.Arcade.StaticBody).enable = false
     ;(door.right.body as Phaser.Physics.Arcade.StaticBody).enable = false
 
-    this.showMessage('门开了。')
-
     // 各往左右滑开半扇的宽度，滑完停在两边——门口的位置就留在那儿
     const slide = door.sprite.displayWidth / 2 + 2
+
+    // quiet：存档继承过来的时候"门本来就是开着的"，直接摆到打开的位置，
+    // 不弹"门开了。"、也不播滑开的动画
+    if (quiet) {
+      door.sprite.setX(door.sprite.x - slide)
+      door.right.setX(door.right.x + slide)
+      return
+    }
+
+    this.showMessage('门开了。')
 
     const tween = (target: Phaser.Physics.Arcade.Sprite, x: number) =>
       this.tweens.add({
@@ -5110,6 +5141,14 @@ export class GameScene extends Phaser.Scene {
     if (this.level.goal.after === 'cage') {
       this.time.delayedCall(1200, () => {
         this.revealGoal()
+
+        // 小龙救出来了 → 把这一关的机关也记进存档：下次进来方碑全亮、门全开、笼子空的、
+        // 宝箱已经在塔中央，不用再重新解一遍
+        if (!this.towerRestored) {
+          this.towerRestored = true
+          markHintSeen(TOWER_RESTORED_FLAG)
+          saveProgress()
+        }
       })
     }
   }
