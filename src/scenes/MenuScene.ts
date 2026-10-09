@@ -80,6 +80,32 @@ export class MenuScene extends Phaser.Scene {
 
     this.refreshMenu()
 
+    // 开发版：左下角一个小按钮，一键切「手机版预览」——
+    // 电脑上想看虚拟按键/手机版式的时候点它，省得手打 ?touch=1 打错
+    if (DEV_MODE) {
+      const on = new URLSearchParams(location.search).get('touch') === '1'
+      const toggle = this.add
+        .text(10, 258, on ? '退出手机版' : '手机版预览', {
+          fontFamily: 'sans-serif',
+          fontSize: '11px',
+          color: '#6f8399',
+        })
+        .setOrigin(0, 0.5)
+        .setInteractive({ useHandCursor: true })
+
+      toggle.on('pointerdown', () => {
+        const params = new URLSearchParams(location.search)
+
+        if (on) {
+          params.delete('touch')
+        } else {
+          params.set('touch', '1')
+        }
+
+        location.search = params.toString()
+      })
+    }
+
     this.input.keyboard!.on('keydown-UP', () => this.moveMenu(-1))
     this.input.keyboard!.on('keydown-DOWN', () => this.moveMenu(1))
     this.input.keyboard!.on('keydown-W', () => this.moveMenu(-1))
