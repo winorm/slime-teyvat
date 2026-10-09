@@ -90,6 +90,28 @@ const PILLAR_HOLD = 0.22
 // 依次尝试的生成距离：前面放不下就往人身边挪
 const PILLAR_OFFSETS = [30, 22, 14, 6, 0]
 
+// 雷闪（X）：朝指定方向瞬移一段。点按 = 朝面朝方向闪，按住 = 进瞄准、松开闪。
+// 它同时是最强位移和最硬无敌（位移期间免疫一切伤害、穿过所有障碍），
+// 所以单独给它一套「电荷」资源，不能无限赖
+const BLINK_DIST = 90
+// 按住多久算「长按」（和岩柱同一个手感阈值）
+const BLINK_HOLD = 0.22
+// 一次闪完之后的硬直：这段时间里按 X 不响应
+const BLINK_LOCKOUT = 0.4
+// 位移期间的无敌时间（盖住整段闪现 + 一点余量）
+const BLINK_INVULN = 0.35
+const BLINK_CHARGE_MAX = 3
+// 站着不动每这么久回一格电荷（落地也立刻回一格）
+const BLINK_CHARGE_TIME = 3
+// 瞄准时指针离史莱姆小于这个距离就不改方向（免得手指一抖方向乱跳）
+const BLINK_AIM_DEAD = 24
+
+// 雷鸣（C）：正前方依次劈下三道雷，落点会往附近的目标吸一点，免得瞄不准
+const THUNDER_STEPS = [70, 140, 210]
+const THUNDER_GAP = 0.18
+const THUNDER_COOLDOWN = 5
+const THUNDER_SNAP = 26
+
 type PillarTarget = {
   x: number
   landTop: number
@@ -244,10 +266,11 @@ function devMonumentRoom(): DevLevelDef {
     { x: 520, y: 838, element: 'rock', id: 'vm2' },
     { x: 740, y: 838, element: 'wind', id: 'vm3', startLit: true },
     { x: 960, y: 838, element: 'rock', id: 'vm4', startLit: true },
+    // 雷方碑：走近了用雷元素碰，或者站在左边用雷鸣劈
+    { x: 1200, y: 838, element: 'thunder', id: 'vm5' },
   ]
 
   level.devExhibits = [
-    { kind: 'slot', x: 1200, label: '雷方碑（预留）' },
     { kind: 'slot', x: 1420, label: '草方碑（预留）' },
     { kind: 'slot', x: 1640, label: '水方碑（预留）' },
     { kind: 'slot', x: 1860, label: '火方碑（预留）' },
@@ -256,7 +279,7 @@ function devMonumentRoom(): DevLevelDef {
   level.hints = [
     { x: 300, y: 690, text: '未点亮' },
     { x: 740, y: 690, text: '已点亮' },
-    { x: 130, y: 780, text: '风 / 岩两块都能真的点亮' },
+    { x: 130, y: 780, text: '风 / 岩 / 雷都能真的点亮' },
   ]
 
   return level
@@ -318,19 +341,24 @@ function devTrapRoom(): DevLevelDef {
 function devAbilityRoom(): DevLevelDef {
   const level = devRoomShell(
     '测试 · 能力测试',
-    '能力测试：\n岩柱压板开铁栅栏、楼梯、\n水利电梯、单向平台、\n碎裂平台都在这儿。',
-    2200
+    '能力测试：\n岩柱压板开铁栅栏、楼梯、\n水利电梯、单向平台、\n碎裂平台、雷闪的墙\n都在这儿。',
+    2680
   )
 
   level.platforms = [
-    { x: 1100, y: DEV_GROUND_TOP + 20, width: 2200, height: 40 },
+    { x: 1340, y: DEV_GROUND_TOP + 20, width: 2680, height: 40 },
     // 楼梯顶端接的那层楼板（顶面 700），一直连到电梯井口
     { x: 1465, y: 703, width: 430, height: 6, plank: true },
     // 电梯的两站：地面（860）和这层（660）
     { x: 1800, y: 663, width: 240, height: 6, plank: true },
     { x: 2000, y: 800, width: 120, height: 6, oneWay: true },
     { x: 2150, y: 740, width: 100, height: 6, crumble: true, tint: 0xa4583a },
+    // 雷闪测试：一道 200 高的墙，跳不过去也绕不过去，只能闪过去；
+    // 墙顶那块雷方碑够不着，只能站在左边用雷鸣劈
+    { x: 2320, y: 760, width: 24, height: 200 },
   ]
+
+  level.monuments = [{ x: 2320, y: 638, element: 'thunder', id: 'ah1' }]
 
   level.stairs = [
     { from: { x: 1050, y: DEV_GROUND_TOP }, to: { x: 1250, y: 700 }, layer: 'front' },
@@ -349,6 +377,8 @@ function devAbilityRoom(): DevLevelDef {
     { x: 1800, y: 600, text: '水利电梯：右半边上行、左半边下行' },
     { x: 2000, y: 760, text: '单向平台' },
     { x: 2150, y: 700, text: '碎裂平台' },
+    { x: 2180, y: 780, text: '雷闪：X 键长按瞄准，松开闪出' },
+    { x: 2320, y: 592, text: '雷方碑（够不着，用雷鸣劈）' },
   ]
 
   return level
@@ -682,6 +712,27 @@ export class GameScene extends Phaser.Scene {
   private pillarCharging = false
   private pillarPressed = false
   private pillarHold = 0
+
+  // 雷闪：电荷 + 瞄准状态
+  private blinkCharges = BLINK_CHARGE_MAX
+  private blinkChargeTimer = 0
+  private blinkGrounded = true
+  private blinkAirTime = 0
+  private blinkLockout = 0
+  private blinkHeld = false
+  private blinkHold = 0
+  private blinkAiming = false
+  private blinkDir = { x: 1, y: 0 }
+  private blinkGhost: Phaser.GameObjects.Image | null = null
+  private blinkGfx: Phaser.GameObjects.Graphics | null = null
+  private blinkBolts: Phaser.GameObjects.Rectangle[] = []
+
+  // 雷鸣的冷却
+  private thunderCooldown = 0
+  // 手机上按着雷闪键的那根手指（-1 = 没有）
+  private blinkPointerId = -1
+  // 雷史莱姆头顶那两根雷晶（和岩脊一个位置、一个挂法）
+  private thunderHorns!: Phaser.GameObjects.Image
   private armorKey!: Phaser.Input.Keyboard.Key
   private rockKey!: Phaser.Input.Keyboard.Key
 
@@ -706,6 +757,7 @@ export class GameScene extends Phaser.Scene {
   private touchJump = false
   private touchJumpJust = false
   private touchArmorJust = false
+  private touchArmorUp = false
   private touchPillarJust = false
   private touchPillarUp = false
   // 触屏按键的引用：跟着「有没有岩元素」显示/隐藏，并随岩化冷却做回充
@@ -902,6 +954,12 @@ export class GameScene extends Phaser.Scene {
     this.inputLocked = false
     this.pillarPressed = false
     this.pillarCharging = false
+    this.blinkHeld = false
+    this.blinkAiming = false
+    this.blinkLockout = 0
+    this.blinkCharges = BLINK_CHARGE_MAX
+    this.blinkChargeTimer = 0
+    this.thunderCooldown = 0
 
     // 触屏按键的状态也一并复位（场景实例复用）
     this.clearTouchInput()
@@ -917,6 +975,8 @@ export class GameScene extends Phaser.Scene {
 
     this.pillarGhost = null
     this.pillarMark = null
+    this.blinkGhost = null
+    this.blinkGfx = null
     this.physics.world.resume()
 
     this.cameras.main.setZoom(1)
@@ -1767,6 +1827,7 @@ export class GameScene extends Phaser.Scene {
     this.wingRight = this.add.image(0, 0, 'wing')
     this.rockCrown = this.add.image(0, 0, 'rock-crown').setDepth(9).setVisible(false)
     this.armorPlate = this.add.image(0, 0, 'armor-plate').setDepth(9).setVisible(false)
+    this.thunderHorns = this.add.image(0, 0, 'thunder-horns').setDepth(9).setVisible(false)
     
     this.windTrails = [0, 1, 2].map((index) =>
       this.add
@@ -2108,6 +2169,15 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(0, 0.5)
       .setScrollFactor(0)
       .setDepth(HUD_DEPTH)
+
+    // 雷闪的电荷：三个小格，挂在元素图标那一排下面（只有雷史莱姆时露出来）
+    this.blinkBolts = [0, 1, 2].map((_index, i) =>
+      this.add
+        .rectangle(18 + i * 12, 56, 9, 5, 0xb388ff, 1)
+        .setScrollFactor(0)
+        .setDepth(HUD_DEPTH)
+        .setVisible(false)
+    )
 
     // 电脑端：左下角常驻一份键位说明（那一块在手机上是虚拟按键，两边各显示各的）
     this.keyLegend = this.touchMode
@@ -2466,8 +2536,10 @@ export class GameScene extends Phaser.Scene {
     this.touchJump = false
     this.touchJumpJust = false
     this.touchArmorJust = false
+    this.touchArmorUp = false
     this.touchPillarJust = false
     this.touchPillarUp = false
+    this.blinkPointerId = -1
 
     // 摇杆也要松手：暂停/恢复时手指的 pointerup 收不到，不归位会一直往一个方向跑
     this.stickPointer = -1
@@ -2591,14 +2663,22 @@ export class GameScene extends Phaser.Scene {
       armorFill.setScale(TOUCH_SCALE)
     }
 
-    armorDim.on('pointerdown', () => {
+    armorDim.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       armorDim.setScale(TOUCH_SCALE * 0.92)
       armorFill.setScale(TOUCH_SCALE * 0.92)
       this.touchArmorJust = true
+      // 记下是哪根手指按的：雷闪要按住拖动选方向，得等这根手指真的抬起来才算松手
+      this.blinkPointerId = pointer.id
     })
 
     armorDim.on('pointerup', armorRelease)
     armorDim.on('pointerout', armorRelease)
+
+    // 手指拖到按钮外面再抬起来时收不到 pointerup，这里兜一道：
+    // 哪根手指按的就在全局的 pointerup 里配对，配对上了才算松手。
+    // 先 off 再 on：场景实例是复用的，直接 on 会一次一次叠上去
+    this.input.off('pointerup', this.onGlobalPointerUp, this)
+    this.input.on('pointerup', this.onGlobalPointerUp, this)
 
     this.touchButtons.push({
       image: armorDim,
@@ -2773,9 +2853,28 @@ export class GameScene extends Phaser.Scene {
 
     const showRockSkills = this.rockAvailable && this.element === 'rock'
 
-    this.touchPillarButton?.setVisible(showRockSkills)
-    this.touchArmorDim?.setVisible(showRockSkills)
+    // 雷元素解锁了、而且「当前就是雷史莱姆」，两个键换成雷闪 / 雷鸣。
+    // 用的是同一个键位、同一块按钮，只换贴图 —— 手机上不用再学一套位置
+    const showThunderSkills = unlocked.includes('thunder') && this.element === 'thunder'
+
+    if (showThunderSkills) {
+      this.touchPillarButton?.setTexture('touch-thunder')
+      this.touchArmorDim?.setTexture('touch-blink')
+    } else {
+      this.touchPillarButton?.setTexture('touch-pillar')
+      this.touchArmorDim?.setTexture('touch-armor-dim')
+    }
+
+    this.touchPillarButton?.setVisible(showRockSkills || showThunderSkills)
+    this.touchArmorDim?.setVisible(showRockSkills || showThunderSkills)
+    // 冷却用的灰底 + 亮底那一对只有岩化用，雷鸣的冷却画在别处
     this.touchArmorFill?.setVisible(showRockSkills)
+
+    // 雷闪的电荷：三个小格，亮着的是还有的
+    this.blinkBolts.forEach((pip, index) => {
+      pip.setVisible(showThunderSkills)
+      pip.setAlpha(index < this.blinkCharges ? 1 : 0.22)
+    })
 
     unlocked.forEach((key, index) => {
       const icon = this.elementIcons[index]
@@ -2808,6 +2907,10 @@ export class GameScene extends Phaser.Scene {
         skills.push('X 岩化　C 岩柱')
       }
 
+      if (showThunderSkills) {
+        skills.push('X 雷闪　C 雷鸣')
+      }
+
       if (unlocked.some((key) => ELEMENTS[key].canHover)) {
         // 悬浮和缓降都吃体力，键位说明里要写出来，不然玩家以为能无限飘
         skills.push('长按空格 悬浮／缓降（耗体力）')
@@ -2834,6 +2937,10 @@ export class GameScene extends Phaser.Scene {
     // 预览也一起收掉
     this.pillarPressed = false
     this.stopPillarPreview()
+    // 雷闪的瞄准同理：换元素的瞬间一定不在瞄准里
+    this.blinkHeld = false
+    this.blinkHold = 0
+    this.stopBlinkAim()
 
     this.wingLeft.setTint(element.color)
     this.wingRight.setTint(element.color)
@@ -3257,6 +3364,408 @@ export class GameScene extends Phaser.Scene {
     this.spawnRockPillar(target.x, target.landTop, target.spawnBottom)
 
     return true
+  }
+
+  // ── 雷闪（X）───────────────────────────────────────────────
+  // 手机上按着按钮的那根手指抬起来（哪怕拖到按钮外面）
+  private onGlobalPointerUp(pointer: Phaser.Input.Pointer) {
+    if (this.blinkPointerId >= 0 && pointer.id === this.blinkPointerId) {
+      this.blinkPointerId = -1
+      this.touchArmorUp = true
+    }
+  }
+
+  private cancelBlinkHold() {
+    this.blinkHeld = false
+    this.blinkHold = 0
+    this.stopBlinkAim()
+  }
+
+  // 进入瞄准：人缩成一颗雷球定在原地，前面画一条虚线指到落点
+  private startBlinkAim() {
+    if (this.blinkAiming) {
+      return
+    }
+
+    this.blinkAiming = true
+    this.blinkDir = { x: this.slime.flipX ? -1 : 1, y: 0 }
+
+    // 长按期间人不动：连重力一起关掉，空中长按也悬在那儿，方便瞄准
+    const body = this.slime.body as Phaser.Physics.Arcade.Body
+
+    body.setAllowGravity(false)
+    this.slime.setVelocity(0, 0)
+
+    this.slimeArt.setTexture('thunder-ball')
+    this.eyes.forEach((eye) => eye.setVisible(false))
+    this.rockCrown.setVisible(false)
+    this.thunderHorns.setVisible(false)
+
+    this.blinkGhost?.destroy()
+    this.blinkGhost = this.add.image(0, 0, 'thunder-ball').setAlpha(0.45).setDepth(8)
+
+    this.blinkGfx?.destroy()
+    this.blinkGfx = this.add.graphics().setDepth(8)
+  }
+
+  private stopBlinkAim() {
+    if (!this.blinkAiming) {
+      return
+    }
+
+    this.blinkAiming = false
+
+    const body = this.slime.body as Phaser.Physics.Arcade.Body
+
+    body.setAllowGravity(true)
+
+    this.slimeArt.setTexture('slime-' + this.element)
+    this.eyes.forEach((eye) => eye.setVisible(true))
+
+    this.blinkGhost?.destroy()
+    this.blinkGhost = null
+    this.blinkGfx?.destroy()
+    this.blinkGfx = null
+  }
+
+  // 瞄准每帧更新：方向 = 从史莱姆指向鼠标 / 手指按着的地方，吸到八个方向之一
+  private updateBlinkAim() {
+    if (!this.blinkAiming || !this.blinkGhost || !this.blinkGfx) {
+      return
+    }
+
+    const world = this.input.activePointer.positionToCamera(
+      this.cameras.main
+    ) as Phaser.Math.Vector2
+    const dx = world.x - this.slime.x
+    const dy = world.y - this.slime.y
+
+    if (Math.hypot(dx, dy) > BLINK_AIM_DEAD) {
+      const oct = Math.round(Math.atan2(dy, dx) / (Math.PI / 4))
+      const angle = oct * (Math.PI / 4)
+
+      this.blinkDir = { x: Math.round(Math.cos(angle)), y: Math.round(Math.sin(angle)) }
+    }
+
+    const landing = this.blinkLanding(this.blinkDir.x, this.blinkDir.y)
+
+    this.blinkGhost.setPosition(landing.x, landing.y)
+    this.blinkGhost.setTint(landing.ok ? 0xd9c9ff : 0xff6b6b)
+
+    // 从人指到落点的一串点
+    this.blinkGfx.clear()
+    this.blinkGfx.fillStyle(landing.ok ? 0xb388ff : 0xff6b6b, 0.85)
+
+    const steps = 7
+
+    for (let i = 1; i < steps; i++) {
+      const t = i / steps
+
+      this.blinkGfx.fillCircle(
+        Phaser.Math.Linear(this.slime.x, landing.x, t),
+        Phaser.Math.Linear(this.slime.y, landing.y, t),
+        2
+      )
+    }
+  }
+
+  // 落点：先按指定方向算 90 像素，压进实心块里就往旁边挤；
+  // 整堵墙都塞不下（落点在厚墙里面）就顺着方向再往前探一段，从墙那头穿出来
+  private blinkLanding(dirX: number, dirY: number) {
+    const body = this.slime.body as Phaser.Physics.Arcade.Body
+    const halfW = body.halfWidth
+    const halfH = body.halfHeight
+
+    const nudges: Array<[number, number]> = [
+      [0, 0],
+      [0, -8],
+      [0, -16],
+      [0, -24],
+      [0, -32],
+      [0, -40],
+      [0, 8],
+      [0, 16],
+      [0, 24],
+      [-8, 0],
+      [8, 0],
+      [-16, 0],
+      [16, 0],
+      [-24, 0],
+      [24, 0],
+    ]
+
+    for (let step = 1; step <= 4; step++) {
+      const x = Phaser.Math.Clamp(
+        this.slime.x + dirX * BLINK_DIST * step,
+        halfW + 2,
+        this.level.width - halfW - 2
+      )
+      const y = Phaser.Math.Clamp(
+        this.slime.y + dirY * BLINK_DIST * step,
+        halfH + 2,
+        this.level.height - halfH - 2
+      )
+
+      for (const [ox, oy] of nudges) {
+        const cx = Phaser.Math.Clamp(x + ox, halfW + 2, this.level.width - halfW - 2)
+        const cy = Phaser.Math.Clamp(y + oy, halfH + 2, this.level.height - halfH - 2)
+
+        if (this.blinkSpotFree(cx, cy, halfW, halfH)) {
+          // 方向是斜的：只承认第一次试探，不做"越撞越远"那套
+          return { x: cx, y: cy, ok: true }
+        }
+      }
+
+      if (dirX !== 0 && dirY !== 0) {
+        break
+      }
+    }
+
+    return { x: this.slime.x, y: this.slime.y, ok: false }
+  }
+
+  // 这个位置能不能站人：和地形、关着的门、岩柱都不许重叠
+  private blinkSpotFree(cx: number, cy: number, halfW: number, halfH: number) {
+    const box = {
+      left: cx - halfW,
+      right: cx + halfW,
+      top: cy - halfH,
+      bottom: cy + halfH,
+    }
+    let hit = false
+
+    const scan = (child: Phaser.GameObjects.GameObject) => {
+      const body = (child as Phaser.Physics.Arcade.Sprite).body as Phaser.Physics.Arcade.StaticBody
+
+      if (!body || !body.enable) {
+        return
+      }
+
+      if (
+        box.left < body.right &&
+        box.right > body.left &&
+        box.top < body.bottom &&
+        box.bottom > body.top
+      ) {
+        hit = true
+      }
+    }
+
+    this.platforms.getChildren().forEach(scan)
+    this.gates.getChildren().forEach(scan)
+    this.pillars.getChildren().forEach(scan)
+
+    return !hit
+  }
+
+  private castBlink(dirX: number, dirY: number) {
+    if (this.blinkLockout > 0) {
+      return
+    }
+
+    if (this.blinkCharges <= 0) {
+      this.showMessage('雷闪还没充好')
+      return
+    }
+
+    const landing = this.blinkLanding(dirX, dirY)
+
+    if (!landing.ok) {
+      this.showMessage('那边闪不过去')
+      return
+    }
+
+    this.blinkCharges -= 1
+    this.blinkLockout = BLINK_LOCKOUT
+    // 位移期间免疫一切伤害（撞岩刺、掉进危险区、被崩塌追上都不算）
+    this.invulnTimer = Math.max(this.invulnTimer, BLINK_INVULN)
+
+    const fromX = this.slime.x
+    const fromY = this.slime.y
+    const body = this.slime.body as Phaser.Physics.Arcade.Body
+
+    // 闪现 = 直接挪过去，中间那些墙一概不参与碰撞，所以"穿过障碍"是白送的
+    body.reset(landing.x, landing.y)
+    this.slimeArt.setPosition(landing.x, landing.y)
+
+    this.spawnBlinkTrail(fromX, fromY, landing.x, landing.y)
+    // 还没有专属音效文件，先拿交互音提一档顶上（等挑了电击音再换）
+    playSfx(this, 'sfx-interact', 0.35, 1.6)
+    this.refreshHud()
+  }
+
+  // 身后拖几道残影
+  private spawnBlinkTrail(fromX: number, fromY: number, toX: number, toY: number) {
+    for (let i = 1; i <= 4; i++) {
+      const t = i / 5
+      const ghost = this.add
+        .image(
+          Phaser.Math.Linear(fromX, toX, t),
+          Phaser.Math.Linear(fromY, toY, t),
+          'slime-' + this.element
+        )
+        .setScale(this.slimeArt.scaleX, this.slimeArt.scaleY)
+        .setTint(0xb388ff)
+        .setAlpha(0.55)
+        .setDepth(9)
+
+      this.tweens.add({
+        targets: ghost,
+        alpha: 0,
+        scaleX: ghost.scaleX * 0.75,
+        scaleY: ghost.scaleY * 0.75,
+        duration: 240,
+        onComplete: () => ghost.destroy(),
+      })
+    }
+  }
+
+  // 电荷：落地立刻回一格，站在地上每 BLINK_CHARGE_TIME 秒再回一格
+  private updateBlinkCharges(dt: number) {
+    if (this.blinkLockout > 0) {
+      this.blinkLockout -= dt
+    }
+
+    // 瞄准时人是被冻住的（重力都关了），不算「在空中」：
+    // 不这么挡一下，松开闪完落回地面会被当成"刚落地"，白白还一格电荷
+    if (this.blinkAiming) {
+      this.blinkAirTime = 0
+      return
+    }
+
+    if (this.blinkCharges >= BLINK_CHARGE_MAX) {
+      this.blinkChargeTimer = 0
+      return
+    }
+
+    const grounded = (this.slime.body as Phaser.Physics.Arcade.Body).blocked.down
+
+    if (!grounded) {
+      this.blinkAirTime += dt
+      this.blinkChargeTimer = 0
+      this.blinkGrounded = false
+      return
+    }
+
+    // 落地回一格。这里要求「在空中待够一会儿」——闪现是直接把人挪到地上的，
+    // 落地那一帧身体被 reset 过、blocked 会空一拍，不这么卡一下的话
+    // 每闪一次都会被当成"刚落地"立刻还一格，等于白嫖
+    if (!this.blinkGrounded && this.blinkAirTime > 0.25) {
+      this.addBlinkCharge()
+    }
+
+    this.blinkGrounded = true
+    this.blinkAirTime = 0
+
+    this.blinkChargeTimer += dt
+
+    if (this.blinkChargeTimer >= BLINK_CHARGE_TIME) {
+      this.blinkChargeTimer = 0
+      this.addBlinkCharge()
+    }
+  }
+
+  private addBlinkCharge() {
+    if (this.blinkCharges >= BLINK_CHARGE_MAX) {
+      return
+    }
+
+    this.blinkCharges += 1
+    this.refreshHud()
+  }
+
+  // ── 雷鸣（C）───────────────────────────────────────────────
+  private castThunder() {
+    if (this.thunderCooldown > 0) {
+      this.showMessage('雷鸣还在充能')
+      return
+    }
+
+    this.thunderCooldown = THUNDER_COOLDOWN
+
+    const dirX = this.slime.flipX ? -1 : 1
+    const originX = this.slime.x
+    const originY = this.slime.y
+
+    THUNDER_STEPS.forEach((step, index) => {
+      this.time.delayedCall(index * THUNDER_GAP * 1000, () => {
+        if (this.dying || this.finished) {
+          return
+        }
+
+        this.strikeThunder(originX + dirX * step, originY)
+      })
+    })
+  }
+
+  // 一道雷：从天上一路折线劈到地面，命中的雷元素物件按"用雷元素碰了一下"算
+  private strikeThunder(x: number, baseY: number) {
+    // 落点往最近的方碑吸一点：差几个像素不该判空
+    let targetX = x
+    let best = THUNDER_SNAP
+
+    this.monumentList.forEach((monument) => {
+      const distance = Math.abs(monument.pillar.x - x)
+
+      if (distance < best) {
+        best = distance
+        targetX = monument.pillar.x
+      }
+    })
+
+    const top = baseY - 230
+    const bottom = baseY + 32
+    const points: Array<[number, number]> = [[targetX, top]]
+    let y = top
+
+    while (y < bottom) {
+      y = Math.min(bottom, y + 18)
+      points.push([targetX + Phaser.Math.Between(-7, 7), y])
+    }
+
+    const bolt = this.add.graphics().setDepth(7)
+    const stroke = (width: number, color: number, alpha: number) => {
+      bolt.lineStyle(width, color, alpha)
+      bolt.beginPath()
+      bolt.moveTo(points[0][0], points[0][1])
+
+      for (let i = 1; i < points.length; i++) {
+        bolt.lineTo(points[i][0], points[i][1])
+      }
+
+      bolt.strokePath()
+    }
+
+    stroke(5, 0x6b3fd0, 0.3)
+    stroke(2, 0xe6dcff, 0.95)
+
+    const flash = this.add
+      .rectangle(targetX, (top + bottom) / 2, 20, bottom - top, 0xd9c9ff, 0.18)
+      .setDepth(7)
+
+    this.tweens.add({
+      targets: [bolt, flash],
+      alpha: 0,
+      duration: 260,
+      onComplete: () => {
+        bolt.destroy()
+        flash.destroy()
+      },
+    })
+
+    // 先借落地音当"轰"的一声，等挑了雷电音效再换
+    playSfx(this, 'sfx-land', 0.3, 1.4)
+
+    // 命中：只有"要雷元素的"东西才吃这一下（方碑点亮 / 翻邻居那套完全复用触碰逻辑）
+    this.monumentList.forEach((monument) => {
+      if (monument.hidden || monument.lit || monument.element !== 'thunder') {
+        return
+      }
+
+      if (Math.abs(monument.pillar.x - targetX) <= 20) {
+        this.touchMonument(monument)
+      }
+    })
   }
 
   // 真正生成：从落点上方掉下来，动画期间不参与碰撞，落点就是预览里那一个
@@ -3879,6 +4388,7 @@ export class GameScene extends Phaser.Scene {
     this.wingRight.setDepth(back ? 1.1 : 9)
     this.rockCrown.setDepth(back ? 1.1 : 9)
     this.armorPlate.setDepth(back ? 1.15 : 9)
+    this.thunderHorns.setDepth(back ? 1.1 : 9)
     this.windTrails.forEach((trail) => trail.setDepth(back ? 1.1 : 9))
     this.eyes.forEach((eye) => eye.setDepth(back ? 1.3 : 11))
 
@@ -4388,6 +4898,18 @@ export class GameScene extends Phaser.Scene {
       this.rockCrown.setScale(scaleX, scaleY)
       this.rockCrown.setFlipX(this.slime.flipX)
       this.rockCrown.setPosition(this.slime.x, this.slime.y - growLift - lift * scaleY)
+    }
+
+    // 雷史莱姆的两根雷晶：和岩脊一个挂法（贴图 24x26，身体圆心在贴图 (12,21)，
+    // 所以往上提 8 像素，底边就正好压在头顶那条弧线上）
+    const isThunder = this.element === 'thunder'
+
+    this.thunderHorns.setVisible(isThunder)
+
+    if (isThunder) {
+      this.thunderHorns.setScale(scaleX, scaleY)
+      this.thunderHorns.setFlipX(this.slime.flipX)
+      this.thunderHorns.setPosition(this.slime.x, this.slime.y - growLift - 8 * scaleY)
     }
 
     if (hasWing) {
@@ -5793,11 +6315,13 @@ export class GameScene extends Phaser.Scene {
     const prevJust = Phaser.Input.Keyboard.JustDown(this.prevKey)
     const nextJust = Phaser.Input.Keyboard.JustDown(this.nextKey)
     const armorJust = Phaser.Input.Keyboard.JustDown(this.armorKey) || this.touchArmorJust
+    const armorUp = Phaser.Input.Keyboard.JustUp(this.armorKey) || this.touchArmorUp
     const rockJustDown = Phaser.Input.Keyboard.JustDown(this.rockKey) || this.touchPillarJust
     const rockJustUp = Phaser.Input.Keyboard.JustUp(this.rockKey) || this.touchPillarUp
     const jumpJust = Phaser.Input.Keyboard.JustDown(this.cursors.space) || this.touchJumpJust
 
     this.touchArmorJust = false
+    this.touchArmorUp = false
     this.touchPillarJust = false
     this.touchPillarUp = false
     this.touchJumpJust = false
@@ -5834,6 +6358,42 @@ export class GameScene extends Phaser.Scene {
       // 只能开：岩化中按不掉，冷却中按不了
       if (!this.armored && this.armorCooldown <= 0) {
         this.setArmored(true)
+      }
+    }
+
+    // 雷闪（X）：点按朝面朝方向闪；按住进瞄准（这段时间人变成一颗雷球、定住），松开闪出去
+    if (this.inputLocked || this.element !== 'thunder') {
+      if (this.blinkHeld || this.blinkAiming) {
+        this.cancelBlinkHold()
+      }
+    } else {
+      if (armorJust) {
+        this.blinkHeld = true
+        this.blinkHold = 0
+      }
+
+      if (this.blinkHeld) {
+        this.blinkHold += dt
+
+        if (this.blinkHold >= BLINK_HOLD) {
+          this.startBlinkAim()
+        }
+      }
+
+      if (armorUp && this.blinkHeld) {
+        const aiming = this.blinkAiming
+
+        this.blinkHeld = false
+        this.blinkHold = 0
+
+        if (aiming) {
+          // 松手前再取一次方向：手指 / 鼠标最后停在哪儿就往哪儿闪
+          this.updateBlinkAim()
+          this.stopBlinkAim()
+          this.castBlink(this.blinkDir.x, this.blinkDir.y)
+        } else {
+          this.castBlink(this.slime.flipX ? -1 : 1, 0)
+        }
       }
     }
 
@@ -5875,10 +6435,21 @@ export class GameScene extends Phaser.Scene {
       this.stopPillarPreview()
     }
 
+    // 雷鸣（C）：雷史莱姆时 C 是三道雷
+    if (!this.inputLocked && this.element === 'thunder' && rockJustDown) {
+      this.castThunder()
+    }
+
+    if (this.thunderCooldown > 0) {
+      this.thunderCooldown -= dt
+    }
+
     if (!this.inputLocked) {
       this.updatePlates(dt)
       this.updateLaunchers(dt)
       this.updatePillarPreview()
+      this.updateBlinkCharges(dt)
+      this.updateBlinkAim()
     }
 
     // 飘花不吃输入锁：过场动画里也照飘
@@ -5989,8 +6560,8 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    if (this.inputLocked) {
-      // 神像演出期间原地不动
+    if (this.inputLocked || this.blinkAiming) {
+      // 神像演出期间原地不动；雷闪瞄准时也要定住（长按期间史莱姆是一颗不动的雷球）
       this.slime.setVelocityX(0)
     } else if (this.cursors.left.isDown || this.touchLeft) {
       this.slime.setVelocityX(-speed)
@@ -6330,7 +6901,7 @@ export class GameScene extends Phaser.Scene {
       this.stamina = Math.min(STAMINA_MAX, this.stamina + HOVER.regenPerSecond * dt)
     }
 
-    if (!this.inputLocked && jumpJust && onGround) {
+    if (!this.inputLocked && !this.blinkAiming && jumpJust && onGround) {
       // 岩化时身体更结实，跳得也略高一点
       this.slime.setVelocityY(this.jumpPower * (this.armored ? ARMOR_JUMP : 1))
       playSfx(this, 'sfx-jump', 0.16)

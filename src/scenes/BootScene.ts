@@ -60,6 +60,26 @@ const ICON_ROCK = [
   '................',
 ]
 
+// 雷：一道竖劈下来的闪电
+const ICON_THUNDER = [
+  '................',
+  '.......#####....',
+  '......#####.....',
+  '.....#####......',
+  '....#####.......',
+  '...#####........',
+  '...########.....',
+  '..##########....',
+  '.....######.....',
+  '......#####.....',
+  '.......#####....',
+  '........#####...',
+  '.........#####..',
+  '..........###...',
+  '................',
+  '................',
+]
+
 export class BootScene extends Phaser.Scene {
   constructor() {
     super('boot')
@@ -120,6 +140,11 @@ export class BootScene extends Phaser.Scene {
     this.makeTouchJump()
     this.makeTouchPillar()
     this.makeTouchArmor()
+    this.makeTouchThunder()
+
+    this.makeThunderHorns()
+    this.makeThunderBall()
+    this.makeStunMark()
 
     this.makeEyeGlow()
 
@@ -169,6 +194,7 @@ export class BootScene extends Phaser.Scene {
     this.makeIcon('icon-none', ICON_NONE)
     this.makeIcon('icon-wind', ICON_WIND)
     this.makeIcon('icon-rock', ICON_ROCK)
+    this.makeIcon('icon-thunder', ICON_THUNDER)
 
     this.makeGear()
 
@@ -2875,6 +2901,175 @@ export class BootScene extends Phaser.Scene {
     dim.generateTexture('touch-armor-dim', 50, 50)
     dim.destroy()
   }
+  // 测试关卡专属：雷闪 / 雷鸣两个键（雷史莱姆时盖掉岩化 / 岩柱那两张）
+  private makeTouchThunder() {
+    // 雷闪（X）：雷元素色的底盘 + 一颗带电的球往右窜，后面拖三条速度线
+    const blink = this.add.graphics()
+    const center = 25
+
+    blink.fillStyle(0x1c1c28, 0.55)
+    blink.fillCircle(center, center, 24)
+    blink.fillStyle(0x3b2a66, 1)
+    blink.fillCircle(center, center, 22)
+    blink.fillStyle(0x5b3fa8, 1)
+    blink.fillCircle(center, center, 18)
+    this.pixelRing(blink, center, center, 21, 0xb388ff, 0.6, 2)
+
+    blink.fillStyle(0xd9c9ff, 0.85)
+    blink.fillRect(6, 19, 10, 2)
+    blink.fillRect(4, 24, 12, 2)
+    blink.fillRect(6, 29, 10, 2)
+
+    blink.fillStyle(0x6b3fd0, 1)
+    blink.fillCircle(32, 24, 10)
+    blink.fillStyle(0xa07bff, 1)
+    blink.fillCircle(32, 24, 7)
+    blink.fillStyle(0xe6dcff, 1)
+    blink.fillCircle(32, 24, 3)
+
+    blink.generateTexture('touch-blink', 50, 50)
+    blink.destroy()
+
+    // 雷鸣（C）：底盘 + 雷电图标
+    const bolt = this.add.graphics()
+
+    bolt.fillStyle(0x1c1c28, 0.5)
+    bolt.fillCircle(21, 21, 19)
+    bolt.fillStyle(0x3b2a66, 1)
+    bolt.fillCircle(21, 21, 18)
+    bolt.fillStyle(0x5b3fa8, 1)
+    bolt.fillCircle(21, 21, 14)
+    this.pixelRing(bolt, 21, 21, 17, 0xb388ff, 0.6, 2)
+
+    bolt.fillStyle(0xe6dcff, 1)
+    ICON_THUNDER.forEach((row, y) => {
+      for (let x = 0; x < row.length; x++) {
+        if (row[x] === '#') {
+          bolt.fillRect(8 + x * 1.6, 8 + y * 1.6, 2, 2)
+        }
+      }
+    })
+
+    bolt.generateTexture('touch-thunder', 42, 42)
+    bolt.destroy()
+  }
+
+  // 雷史莱姆头顶的两根雷晶：左右各一根竖着往上，底下压一段和本体一样的渐变，
+  // 所以底边永远跟脑袋接得上（岩脊是连着三个峰，雷就是两根更瘦更尖的晶柱）。
+  // 贴图 24x26，身体圆心在这个贴图里落在 (12, 21)
+  private makeThunderHorns() {
+    const cx = 12
+    const centerY = 21
+    const bodyTop = (x: number) => {
+      const offset = Math.min(1, Math.abs(x - cx) / 15)
+
+      return centerY - 11.5 * Math.sqrt(Math.max(0, 1 - offset * offset))
+    }
+
+    const gfx = this.add.graphics()
+
+    // 一根晶柱：下宽上窄、尖顶，稍微往外斜
+    const horn = (x: number, tilt: number, height: number, width: number) => {
+      const base = bodyTop(x) + 2
+
+      gfx.fillPoints(
+        [
+          new Phaser.Math.Vector2(x - width / 2, base),
+          new Phaser.Math.Vector2(x - width / 2 + tilt, base - height),
+          new Phaser.Math.Vector2(x + width / 2 + tilt, base - height),
+          new Phaser.Math.Vector2(x + width / 2, base),
+        ],
+        true
+      )
+    }
+
+    // 三档色：外圈深紫 → 中间亮紫 → 芯里近白，做出晶体感
+    gfx.fillStyle(0x4b2a78, 1)
+    horn(6, -1, 12, 7)
+    horn(18, 1, 12, 7)
+
+    gfx.fillStyle(0x8a5cf0, 1)
+    horn(6.4, -1, 9.5, 4.6)
+    horn(17.6, 1, 9.5, 4.6)
+
+    gfx.fillStyle(0xe6dcff, 1)
+    horn(6.8, -1, 6, 2)
+    horn(17.2, 1, 6, 2)
+
+    // 底边：抄本体那套同心椭圆渐变，接缝看不出来
+    const layers = [
+      { w: 28, h: 21, alpha: 0.35 },
+      { w: 25, h: 18, alpha: 0.5 },
+      { w: 21, h: 15, alpha: 0.6 },
+      { w: 17, h: 12, alpha: 0.7 },
+      { w: 13, h: 9, alpha: 0.8 },
+      { w: 8, h: 6, alpha: 0.9 },
+    ]
+
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillEllipse(cx, centerY, 30, 23)
+
+    layers.forEach((layer) => {
+      gfx.fillStyle(ELEMENTS.thunder.color, layer.alpha)
+      gfx.fillEllipse(cx, centerY, layer.w, layer.h)
+    })
+
+    gfx.generateTexture('thunder-horns', 24, 26)
+    gfx.destroy()
+  }
+
+  // 蓄力瞄准时史莱姆变成的那颗雷球（34x30）
+  private makeThunderBall() {
+    const gfx = this.add.graphics()
+    const cx = 17
+    const cy = 15
+
+    gfx.fillStyle(0x241a3d, 1)
+    gfx.fillEllipse(cx, cy, 34, 30)
+    gfx.fillStyle(0x5b3fa8, 1)
+    gfx.fillEllipse(cx, cy, 30, 26)
+    gfx.fillStyle(0x8a5cf0, 1)
+    gfx.fillEllipse(cx, cy, 24, 21)
+    gfx.fillStyle(0xc8b4ff, 1)
+    gfx.fillEllipse(cx, cy, 15, 13)
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillEllipse(cx, cy, 7, 6)
+
+    // 外面跳几道小电弧
+    gfx.lineStyle(1, 0xe6dcff, 0.9)
+
+    const arcs: number[][][] = [
+      [[2, 6], [5, 9], [3, 12]],
+      [[31, 4], [28, 8], [30, 11]],
+      [[6, 26], [9, 23], [7, 20]],
+      [[29, 27], [26, 24], [28, 21]],
+    ]
+
+    arcs.forEach((arc) => {
+      gfx.beginPath()
+      gfx.moveTo(arc[0][0], arc[0][1])
+      gfx.lineTo(arc[1][0], arc[1][1])
+      gfx.lineTo(arc[2][0], arc[2][1])
+      gfx.strokePath()
+    })
+
+    gfx.generateTexture('thunder-ball', 34, 30)
+    gfx.destroy()
+  }
+
+  // 魔物被雷劈中后的眩晕标记：头上转的三个小点
+  private makeStunMark() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0xffe066, 1)
+    gfx.fillCircle(3, 5, 1.5)
+    gfx.fillCircle(8, 2, 1.5)
+    gfx.fillCircle(13, 5, 1.5)
+
+    gfx.generateTexture('monster-stun', 16, 9)
+    gfx.destroy()
+  }
+
   // 岩刺造物：背后一层贴在建筑上的岩壳，前面收成锥口，口上一点金。
   // 贴图画的是「朝下」，贴天花板直接用，贴左墙 / 右墙靠旋转
   private makeSpikeLauncher() {
