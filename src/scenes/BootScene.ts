@@ -142,7 +142,9 @@ export class BootScene extends Phaser.Scene {
     this.makeTouchArmor()
     this.makeTouchThunder()
 
-    this.makeThunderHorns()
+    this.makeThunderRod()
+    this.makeThunderCooledSlime()
+    this.makePolarityMarks()
     this.makeThunderBall()
     this.makeStunMark()
     this.makeMonsterBrute()
@@ -2373,7 +2375,21 @@ export class BootScene extends Phaser.Scene {
       { w: 8, h: 6, alpha: 0.9 },
     ]
 
-    if (key === 'rock') {
+    if (key === 'thunder') {
+      // 雷鸣充满时的雷史莱姆：浑身黄紫渐变 —— 正上偏金黄，往下过渡到紫，
+      // 和"冷却中"那版（一整个紫）区分开，玩家一眼就知道雷鸣能不能放
+      for (let y = 3; y <= 27; y++) {
+        const t = (15 - y) / 11.5
+        const color =
+          t >= 0
+            ? this.mixColor(0xf2c14e, 0xd9a8ff, Math.min(1, t))
+            : this.mixColor(0xd9a8ff, 0x7a4fd0, Math.min(1, -t))
+        const half = 15 * Math.sqrt(Math.max(0, 1 - t * t))
+
+        gfx.fillStyle(color, 1)
+        gfx.fillRect(16 - half, y, half * 2, 1)
+      }
+    } else if (key === 'rock') {
       // 三档取色：正上=岩脊色，正中=土色，正下=浅黄。整体比原来更往金色偏一档
       // （原来的土黄偏褐，加上头顶一层泥沼，离璃月的金太远了）。
       // 逐行铺满椭圆，横向宽度按椭圆公式收，所以四周不会再有单独的白边
@@ -2955,68 +2971,128 @@ export class BootScene extends Phaser.Scene {
     bolt.destroy()
   }
 
-  // 雷史莱姆头顶的两根雷晶：左右各一根竖着往上，底下压一段和本体一样的渐变，
-  // 所以底边永远跟脑袋接得上（岩脊是连着三个峰，雷就是两根更瘦更尖的晶柱）。
-  // 贴图 24x26，身体圆心在这个贴图里落在 (12, 21)
-  private makeThunderHorns() {
-    const cx = 12
-    const centerY = 21
-    const bodyTop = (x: number) => {
-      const offset = Math.min(1, Math.abs(x - cx) / 15)
-
-      return centerY - 11.5 * Math.sqrt(Math.max(0, 1 - offset * offset))
-    }
-
+  // 雷鸣冷却中的雷史莱姆：整个身子是紫的（一点黄都没有），和"充满"那版区分开
+  private makeThunderCooledSlime() {
     const gfx = this.add.graphics()
 
-    // 一根晶柱：下宽上窄、尖顶，稍微往外斜
-    const horn = (x: number, tilt: number, height: number, width: number) => {
-      const base = bodyTop(x) + 2
+    gfx.fillStyle(0x14141f, 1)
+    gfx.fillEllipse(16, 15, 32, 25)
+    gfx.fillStyle(0xffffff, 1)
+    gfx.fillEllipse(16, 15, 30, 23)
 
-      gfx.fillPoints(
-        [
-          new Phaser.Math.Vector2(x - width / 2, base),
-          new Phaser.Math.Vector2(x - width / 2 + tilt, base - height),
-          new Phaser.Math.Vector2(x + width / 2 + tilt, base - height),
-          new Phaser.Math.Vector2(x + width / 2, base),
-        ],
-        true
-      )
+    for (let y = 3; y <= 27; y++) {
+      const t = (15 - y) / 11.5
+      const color =
+        t >= 0
+          ? this.mixColor(0xb388ff, 0x8a5cf0, Math.min(1, t))
+          : this.mixColor(0x8a5cf0, 0x6b3fd0, Math.min(1, -t))
+      const half = 15 * Math.sqrt(Math.max(0, 1 - t * t))
+
+      gfx.fillStyle(color, 1)
+      gfx.fillRect(16 - half, y, half * 2, 1)
     }
 
-    // 三档色：外圈深紫 → 中间亮紫 → 芯里近白，做出晶体感
-    gfx.fillStyle(0x4b2a78, 1)
-    horn(6, -1, 12, 7)
-    horn(18, 1, 12, 7)
-
-    gfx.fillStyle(0x8a5cf0, 1)
-    horn(6.4, -1, 9.5, 4.6)
-    horn(17.6, 1, 9.5, 4.6)
-
-    gfx.fillStyle(0xe6dcff, 1)
-    horn(6.8, -1, 6, 2)
-    horn(17.2, 1, 6, 2)
-
-    // 底边：抄本体那套同心椭圆渐变，接缝看不出来
-    const layers = [
-      { w: 28, h: 21, alpha: 0.35 },
-      { w: 25, h: 18, alpha: 0.5 },
-      { w: 21, h: 15, alpha: 0.6 },
-      { w: 17, h: 12, alpha: 0.7 },
-      { w: 13, h: 9, alpha: 0.8 },
-      { w: 8, h: 6, alpha: 0.9 },
-    ]
-
-    gfx.fillStyle(0xffffff, 1)
-    gfx.fillEllipse(cx, centerY, 30, 23)
-
-    layers.forEach((layer) => {
-      gfx.fillStyle(ELEMENTS.thunder.color, layer.alpha)
-      gfx.fillEllipse(cx, centerY, layer.w, layer.h)
-    })
-
-    gfx.generateTexture('thunder-horns', 24, 26)
+    gfx.generateTexture('slime-thunder-cd', 32, 26)
     gfx.destroy()
+  }
+
+  // 头顶那根雷极：一根弯杆，尾端（底下那头）是一颗雷球，杆子往上弯到一边去。
+  // 贴图 26x44，身体圆心落在 (13, 33)。黄紫那版是「雷鸣充满」，全紫那版是「冷却中」。
+  // + / - 两种极性的闪光是另外两张小贴图，运行时在杆子尖端闪
+  private makeThunderRod() {
+    const draw = (
+      gfx: Phaser.GameObjects.Graphics,
+      rodOuter: number,
+      rodInner: number,
+      ballOuter: number,
+      ballInner: number,
+      ballCore: number
+    ) => {
+      const cx = 13
+      const centerY = 33
+
+      // 杆子：从尾端那颗球往上，先竖着再往右弯出去
+      const spine: Array<[number, number]> = [
+        [13, 16],
+        [13, 9],
+        [16, 4],
+        [20, 2],
+        [22, 6],
+      ]
+
+      const trace = () => {
+        gfx.beginPath()
+        spine.forEach(([x, y], index) => {
+          if (index === 0) {
+            gfx.moveTo(x, y)
+          } else {
+            gfx.lineTo(x, y)
+          }
+        })
+        gfx.strokePath()
+      }
+
+      gfx.lineStyle(5, rodOuter, 1)
+      trace()
+      gfx.lineStyle(2, rodInner, 1)
+      trace()
+
+      // 尾端那颗雷球：坐在头顶上
+      gfx.fillStyle(ballOuter, 1)
+      gfx.fillCircle(cx, 19, 6)
+      gfx.fillStyle(ballInner, 1)
+      gfx.fillCircle(cx, 19, 4.2)
+      gfx.fillStyle(ballCore, 1)
+      gfx.fillCircle(cx - 1, 18, 1.8)
+
+      // 底边压一段和本体一样的渐变，接缝看不出来
+      gfx.fillStyle(0xffffff, 1)
+      gfx.fillEllipse(cx, centerY, 30, 23)
+
+      const layers = [
+        { w: 28, h: 21, alpha: 0.35 },
+        { w: 25, h: 18, alpha: 0.5 },
+        { w: 21, h: 15, alpha: 0.6 },
+        { w: 17, h: 12, alpha: 0.7 },
+        { w: 13, h: 9, alpha: 0.8 },
+        { w: 8, h: 6, alpha: 0.9 },
+      ]
+
+      layers.forEach((layer) => {
+        gfx.fillStyle(ELEMENTS.thunder.color, layer.alpha)
+        gfx.fillEllipse(cx, centerY, layer.w, layer.h)
+      })
+    }
+
+    // 雷鸣充满：杆子是黄紫两色，球是金芯
+    const lit = this.add.graphics()
+    draw(lit, 0x5b3fa8, 0xf2c14e, 0x8a5cf0, 0xf2c14e, 0xfff3d0)
+    lit.generateTexture('thunder-rod', 26, 44)
+    lit.destroy()
+
+    // 冷却中：整根都是紫的
+    const cooled = this.add.graphics()
+    draw(cooled, 0x4b2a78, 0x8a5cf0, 0x6b3fd0, 0xa07bff, 0xe6dcff)
+    cooled.generateTexture('thunder-rod-cd', 26, 44)
+    cooled.destroy()
+  }
+
+  // 雷极尖端间歇闪的极性符号
+  private makePolarityMarks() {
+    const plus = this.add.graphics()
+
+    plus.fillStyle(0xffffff, 1)
+    plus.fillRect(3, 0, 3, 9)
+    plus.fillRect(0, 3, 9, 3)
+    plus.generateTexture('polarity-plus', 9, 9)
+    plus.destroy()
+
+    const minus = this.add.graphics()
+
+    minus.fillStyle(0xffffff, 1)
+    minus.fillRect(0, 3, 9, 3)
+    minus.generateTexture('polarity-minus', 9, 9)
+    minus.destroy()
   }
 
   // 蓄力瞄准时史莱姆变成的那颗雷球（34x30）
@@ -3071,58 +3147,87 @@ export class BootScene extends Phaser.Scene {
     gfx.destroy()
   }
 
-  // 魔物（草稿）：丘丘人那种小个子 —— 兽皮围腰 + 骨面具 + 一根木棍。
-  // 底边贴地，贴图 30x36，关卡数据里的 y 就是脚底那条线
+  // 魔物：丘丘人。个头大约 1.5 个史莱姆高（贴图 34x42，底边贴地），
+  // 四肢、兽皮背心 + 围腰、骨面具、拎着的木棍都要能看清楚
   private makeMonsterBrute() {
     const gfx = this.add.graphics()
 
-    // 腿
-    gfx.fillStyle(0x5b3f28, 1)
-    gfx.fillRect(9, 26, 5, 10)
-    gfx.fillRect(17, 26, 5, 10)
+    // 脚下一点阴影，看着是站在地上
+    gfx.fillStyle(0x000000, 0.16)
+    gfx.fillEllipse(17, 40, 24, 5)
 
-    // 身体
-    gfx.fillStyle(0x8a6240, 1)
-    gfx.fillEllipse(15, 22, 21, 16)
-    gfx.fillStyle(0x6f4c31, 1)
-    gfx.fillEllipse(15, 25, 17, 9)
+    // 腿 + 脚
+    gfx.fillStyle(0x6b4a2f, 1)
+    gfx.fillRect(10, 29, 5, 10)
+    gfx.fillRect(19, 29, 5, 10)
+    gfx.fillStyle(0x543a24, 1)
+    gfx.fillRect(9, 38, 7, 4)
+    gfx.fillRect(18, 38, 7, 4)
 
-    // 兽皮围腰
+    // 兽皮围腰（梯形）+ 腰带
     gfx.fillStyle(0x4a3a2a, 1)
-    gfx.fillRect(7, 27, 16, 5)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(8, 28),
+        new Phaser.Math.Vector2(26, 28),
+        new Phaser.Math.Vector2(24, 35),
+        new Phaser.Math.Vector2(10, 35),
+      ],
+      true
+    )
+    gfx.fillStyle(0x5c4a34, 1)
+    gfx.fillRect(8, 28, 18, 2)
 
-    // 两条胳膊
+    // 上身：兽皮背心，胸腹压一层浅色
+    gfx.fillStyle(0x8a6240, 1)
+    gfx.fillEllipse(17, 21, 22, 17)
+    gfx.fillStyle(0x9b7150, 1)
+    gfx.fillEllipse(17, 20, 13, 12)
+    gfx.fillStyle(0x6f4c31, 1)
+    gfx.fillEllipse(17, 26, 18, 8)
+
+    // 手臂：左臂垂着、右臂举着木棍
     gfx.fillStyle(0x7a5537, 1)
-    gfx.fillRect(3, 18, 5, 9)
-    gfx.fillRect(22, 18, 5, 9)
+    gfx.fillRect(4, 16, 5, 11)
+    gfx.fillRect(25, 13, 5, 12)
+    gfx.fillStyle(0x8a6240, 1)
+    gfx.fillRect(4, 26, 5, 4)
+    gfx.fillRect(25, 22, 5, 4)
+
+    // 脖子
+    gfx.fillStyle(0x6f4c31, 1)
+    gfx.fillRect(15, 12, 5, 4)
 
     // 头 + 往外斜的大耳朵
     gfx.fillStyle(0x8a6240, 1)
-    gfx.fillEllipse(15, 12, 15, 14)
+    gfx.fillEllipse(17, 10, 17, 15)
     gfx.fillStyle(0x7a5537, 1)
-    gfx.fillTriangle(7, 8, 1, 3, 8, 13)
-    gfx.fillTriangle(23, 8, 29, 3, 22, 13)
+    gfx.fillTriangle(9, 6, 1, 0, 10, 12)
+    gfx.fillTriangle(25, 6, 33, 0, 24, 12)
 
     // 骨面具：上半亮、下半压一层灰，做出一点弧度
     gfx.fillStyle(0xe8e2d0, 1)
-    gfx.fillEllipse(15, 12, 12, 11)
+    gfx.fillEllipse(17, 10, 14, 13)
     gfx.fillStyle(0xc9c0a8, 1)
-    gfx.fillEllipse(15, 15, 12, 5)
+    gfx.fillEllipse(17, 14, 14, 6)
 
-    // 眼洞 + 眉心那道红纹
+    // 两个眼洞 + 眉心那道红纹
     gfx.fillStyle(0x2a2018, 1)
-    gfx.fillRect(11, 10, 3, 3)
-    gfx.fillRect(16, 10, 3, 3)
+    gfx.fillRect(12, 8, 4, 4)
+    gfx.fillRect(19, 8, 4, 4)
     gfx.fillStyle(0xb2402f, 1)
-    gfx.fillRect(14, 14, 2, 4)
+    gfx.fillRect(16, 13, 2, 5)
 
-    // 木棍（右手拎着，斜着）
+    // 木棍：一根带疙瘩的粗棒子
     gfx.fillStyle(0x8a6a3a, 1)
-    gfx.fillRect(24, 6, 3, 18)
+    gfx.fillRect(27, 4, 3, 20)
     gfx.fillStyle(0x9c7a44, 1)
-    gfx.fillRect(23, 4, 5, 5)
+    gfx.fillRect(25, 1, 7, 7)
+    gfx.fillStyle(0x6b5228, 1)
+    gfx.fillRect(26, 3, 2, 2)
+    gfx.fillRect(29, 5, 2, 2)
 
-    gfx.generateTexture('monster-brute', 30, 36)
+    gfx.generateTexture('monster-brute', 34, 42)
     gfx.destroy()
   }
 

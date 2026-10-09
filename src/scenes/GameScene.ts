@@ -112,8 +112,11 @@ const THUNDER_STEPS = [70, 140, 210]
 const THUNDER_GAP = 0.18
 const THUNDER_COOLDOWN = 5
 const THUNDER_SNAP = 26
+// 每道雷的判定半宽。36 > 相邻两道之间的一半间隔（35），
+// 所以三道雷的判定区是连成一片的，不是三个孤立的柱子
+const THUNDER_HIT_W = 36
 // 魔物被雷劈中后眩晕多久（眩晕里它不动、碰到玩家也不致死）
-const THUNDER_STUN = 3
+const THUNDER_STUN = 5
 
 // 魔物：来回巡逻的怪。碰到即死，被雷鸣劈中晕 3 秒
 type MonsterRef = {
@@ -731,8 +734,6 @@ export class GameScene extends Phaser.Scene {
   // 雷闪：电荷 + 瞄准状态
   private blinkCharges = BLINK_CHARGE_MAX
   private blinkChargeTimer = 0
-  private blinkGrounded = true
-  private blinkAirTime = 0
   private blinkLockout = 0
   private blinkHeld = false
   private blinkHold = 0
@@ -747,7 +748,13 @@ export class GameScene extends Phaser.Scene {
   // 手机上按着雷闪键的那根手指（-1 = 没有）
   private blinkPointerId = -1
   // 雷史莱姆头顶那两根雷晶（和岩脊一个位置、一个挂法）
-  private thunderHorns!: Phaser.GameObjects.Image
+  // 雷史莱姆头顶那根雷极（和岩脊一个挂法：单独一张贴图，能长得比身体高）
+  private thunderRod!: Phaser.GameObjects.Image
+  // 身上的电：雷鸣好了是闪电、冷却中是静电；雷极尖端时不时闪一下极性符号
+  private thunderFx!: Phaser.GameObjects.Graphics
+  private thunderFxTimer = 0
+  private polarityMark!: Phaser.GameObjects.Image
+  private polarityTimer = 0.8
   // 关卡里的魔物
   private monsterList: MonsterRef[] = []
   private armorKey!: Phaser.Input.Keyboard.Key
@@ -1846,7 +1853,10 @@ export class GameScene extends Phaser.Scene {
     this.wingRight = this.add.image(0, 0, 'wing')
     this.rockCrown = this.add.image(0, 0, 'rock-crown').setDepth(9).setVisible(false)
     this.armorPlate = this.add.image(0, 0, 'armor-plate').setDepth(9).setVisible(false)
-    this.thunderHorns = this.add.image(0, 0, 'thunder-horns').setDepth(9).setVisible(false)
+    this.thunderRod = this.add.image(0, 0, 'thunder-rod').setDepth(9).setVisible(false)
+    // 身上的电弧 / 静电画在身体上面一层（身体 10）
+    this.thunderFx = this.add.graphics().setDepth(10.5)
+    this.polarityMark = this.add.image(0, 0, 'polarity-plus').setDepth(11).setVisible(false)
     
     this.windTrails = [0, 1, 2].map((index) =>
       this.add
@@ -2966,6 +2976,8 @@ export class GameScene extends Phaser.Scene {
     this.element = key
     this.jumpPower = element.jump
     this.slimeArt.setTexture('slime-' + key)
+    // 雷史莱姆按「雷鸣攒好没」换皮：充满了是黄紫、冷却中是全紫
+    this.refreshThunderLook()
     this.refreshEyeTint()
     this.refreshHud()
   }
@@ -3418,7 +3430,9 @@ export class GameScene extends Phaser.Scene {
     this.slimeArt.setTexture('thunder-ball')
     this.eyes.forEach((eye) => eye.setVisible(false))
     this.rockCrown.setVisible(false)
-    this.thunderHorns.setVisible(false)
+    this.thunderRod.setVisible(false)
+    this.polarityMark.setVisible(false)
+    this.thunderFx.clear()
 
     this.blinkGhost?.destroy()
     this.blinkGhost = this.add.image(0, 0, 'thunder-ball').setAlpha(0.45).setDepth(8)
@@ -3440,6 +3454,7 @@ export class GameScene extends Phaser.Scene {
 
     this.slimeArt.setTexture('slime-' + this.element)
     this.eyes.forEach((eye) => eye.setVisible(true))
+    this.refreshThunderLook()
 
     this.blinkGhost?.destroy()
     this.blinkGhost = null
@@ -3639,42 +3654,25 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // 电荷：落地立刻回一格，站在地上每 BLINK_CHARGE_TIME 秒再回一格
+  // 电荷：只有「跑起来」才充，站着不动一点电都攒不到（用户设定）。
+  // 不动的时候只是暂停计时，跑来跑去攒的进度保留着
   private updateBlinkCharges(dt: number) {
     if (this.blinkLockout > 0) {
       this.blinkLockout -= dt
     }
 
-    // 瞄准时人是被冻住的（重力都关了），不算「在空中」：
-    // 不这么挡一下，松开闪完落回地面会被当成"刚落地"，白白还一格电荷
-    if (this.blinkAiming) {
-      this.blinkAirTime = 0
-      return
-    }
-
-    if (this.blinkCharges >= BLINK_CHARGE_MAX) {
+    // 满了就不用再攒；瞄准时人是被冻住的，也不算在移动
+    if (this.blinkCharges >= BLINK_CHARGE_MAX || this.blinkAiming) {
       this.blinkChargeTimer = 0
       return
     }
 
     const grounded = (this.slime.body as Phaser.Physics.Arcade.Body).blocked.down
+    const speed = Math.abs((this.slime.body as Phaser.Physics.Arcade.Body).velocity.x)
 
-    if (!grounded) {
-      this.blinkAirTime += dt
-      this.blinkChargeTimer = 0
-      this.blinkGrounded = false
+    if (!grounded || speed < 10) {
       return
     }
-
-    // 落地回一格。这里要求「在空中待够一会儿」——闪现是直接把人挪到地上的，
-    // 落地那一帧身体被 reset 过、blocked 会空一拍，不这么卡一下的话
-    // 每闪一次都会被当成"刚落地"立刻还一格，等于白嫖
-    if (!this.blinkGrounded && this.blinkAirTime > 0.25) {
-      this.addBlinkCharge()
-    }
-
-    this.blinkGrounded = true
-    this.blinkAirTime = 0
 
     this.blinkChargeTimer += dt
 
@@ -3694,6 +3692,96 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ── 雷鸣（C）───────────────────────────────────────────────
+  // 雷鸣攒好了没有：好了头上的雷极是黄紫的、身上也是黄紫渐变；
+  // 刚放完（冷却中）整套只剩紫色，远远一眼就能看出能不能放
+  private thunderReady() {
+    return this.thunderCooldown <= 0
+  }
+
+  private refreshThunderLook() {
+    if (this.element !== 'thunder' || this.blinkAiming) {
+      return
+    }
+
+    const ready = this.thunderReady()
+
+    this.slimeArt.setTexture(ready ? 'slime-thunder' : 'slime-thunder-cd')
+    this.thunderRod.setTexture(ready ? 'thunder-rod' : 'thunder-rod-cd')
+  }
+
+  // 身上的电：雷鸣攒好了是几道小闪电，冷却中是噼啪的静电点；
+  // 雷极尖端每隔一会儿闪一下正极 / 负极
+  private updateThunderFx(dt: number) {
+    if (this.element !== 'thunder' || this.blinkAiming) {
+      this.thunderFx.clear()
+      this.polarityMark.setVisible(false)
+      return
+    }
+
+    this.thunderFxTimer -= dt
+
+    if (this.thunderFxTimer <= 0) {
+      this.thunderFxTimer = 0.09
+      this.thunderFx.clear()
+
+      const cx = this.slime.x
+      const cy = this.slime.y
+
+      if (this.thunderReady()) {
+        // 闪电：从头顶往身体两侧劈几道短短的折线
+        for (let i = 0; i < 3; i++) {
+          const fromX = cx + Phaser.Math.Between(-10, 10)
+          const fromY = cy - Phaser.Math.Between(12, 18)
+          const toX = fromX + Phaser.Math.Between(-16, 16)
+          const toY = fromY + Phaser.Math.Between(10, 20)
+          const midX = (fromX + toX) / 2 + Phaser.Math.Between(-4, 4)
+          const midY = (fromY + toY) / 2
+          const trace = () => {
+            this.thunderFx.beginPath()
+            this.thunderFx.moveTo(fromX, fromY)
+            this.thunderFx.lineTo(midX, midY)
+            this.thunderFx.lineTo(toX, toY)
+            this.thunderFx.strokePath()
+          }
+
+          this.thunderFx.lineStyle(3, 0xf2c14e, 0.3)
+          trace()
+          this.thunderFx.lineStyle(1.4, 0xfff3d0, 0.9)
+          trace()
+        }
+      } else {
+        // 静电：身体边上跳几粒小点
+        for (let i = 0; i < 6; i++) {
+          const angle = Phaser.Math.FloatBetween(0, Math.PI * 2)
+
+          this.thunderFx.fillStyle(0xd9c9ff, Phaser.Math.FloatBetween(0.4, 0.95))
+          this.thunderFx.fillCircle(
+            cx + 16 * Math.cos(angle),
+            cy + 12 * Math.sin(angle),
+            Phaser.Math.Between(1, 2)
+          )
+        }
+      }
+    }
+
+    this.polarityTimer -= dt
+
+    if (this.polarityTimer <= 0) {
+      if (this.polarityMark.visible) {
+        this.polarityMark.setVisible(false)
+        this.polarityTimer = Phaser.Math.FloatBetween(0.7, 1.4)
+      } else {
+        const plus = Math.random() < 0.5
+
+        this.polarityMark
+          .setTexture(plus ? 'polarity-plus' : 'polarity-minus')
+          .setTint(plus ? 0xffe066 : 0xd9c9ff)
+          .setVisible(true)
+        this.polarityTimer = 0.45
+      }
+    }
+  }
+
   private castThunder() {
     if (this.thunderCooldown > 0) {
       this.showMessage('雷鸣还在充能')
@@ -3701,6 +3789,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.thunderCooldown = THUNDER_COOLDOWN
+    this.refreshThunderLook()
 
     const dirX = this.slime.flipX ? -1 : 1
     const originX = this.slime.x
@@ -3768,7 +3857,8 @@ export class GameScene extends Phaser.Scene {
     stroke(2, 0xe6dcff, 0.95)
 
     const flash = this.add
-      .rectangle(targetX, (top + bottom) / 2, 20, bottom - top, 0xd9c9ff, 0.18)
+      // 光柱的宽度就是判定宽度：一眼能看出这一片都在雷里
+      .rectangle(targetX, (top + bottom) / 2, THUNDER_HIT_W * 2, bottom - top, 0xd9c9ff, 0.16)
       .setDepth(7)
 
     this.tweens.add({
@@ -3790,14 +3880,14 @@ export class GameScene extends Phaser.Scene {
         return
       }
 
-      if (Math.abs(monument.pillar.x - targetX) <= 20) {
+      if (Math.abs(monument.pillar.x - targetX) <= THUNDER_HIT_W) {
         this.touchMonument(monument)
       }
     })
 
     // 魔物：雷劈不死，只眩晕（晕的这几秒它不动，玩家碰到它也不会死）
     this.monsterList.forEach((monster) => {
-      if (Math.abs(monster.sprite.x - targetX) > 22) {
+      if (Math.abs(monster.sprite.x - targetX) > THUNDER_HIT_W) {
         return
       }
 
@@ -3807,7 +3897,7 @@ export class GameScene extends Phaser.Scene {
 
       monster.stun = THUNDER_STUN
       monster.sprite.setTint(0xc8b4ff)
-      monster.stunMark.setVisible(true).setPosition(monster.sprite.x, monster.sprite.y - 44)
+      monster.stunMark.setVisible(true).setPosition(monster.sprite.x, monster.sprite.y - 50)
     })
   }
 
@@ -3818,7 +3908,7 @@ export class GameScene extends Phaser.Scene {
     ;(this.level.monsters ?? []).forEach((def) => {
       const sprite = this.add.image(def.x, def.y, 'monster-brute').setOrigin(0.5, 1).setDepth(4)
       const stunMark = this.add
-        .image(def.x, def.y - 44, 'monster-stun')
+        .image(def.x, def.y - 50, 'monster-stun')
         .setDepth(5)
         .setVisible(false)
 
@@ -3867,9 +3957,10 @@ export class GameScene extends Phaser.Scene {
       }
 
       const dx = Math.abs(this.slime.x - monster.sprite.x)
-      const dy = Math.abs(this.slime.y - (monster.def.y - 16))
+      const dy = Math.abs(this.slime.y - (monster.def.y - 20))
 
-      if (dx < 24 && dy < 24) {
+      // 魔物 42 高（约 1.5 个史莱姆），判定盒跟着放大
+      if (dx < 26 && dy < 26) {
         this.die('monster')
       }
     })
@@ -4495,7 +4586,7 @@ export class GameScene extends Phaser.Scene {
     this.wingRight.setDepth(back ? 1.1 : 9)
     this.rockCrown.setDepth(back ? 1.1 : 9)
     this.armorPlate.setDepth(back ? 1.15 : 9)
-    this.thunderHorns.setDepth(back ? 1.1 : 9)
+    this.thunderRod.setDepth(back ? 1.1 : 9)
     this.windTrails.forEach((trail) => trail.setDepth(back ? 1.1 : 9))
     this.eyes.forEach((eye) => eye.setDepth(back ? 1.3 : 11))
 
@@ -5007,16 +5098,24 @@ export class GameScene extends Phaser.Scene {
       this.rockCrown.setPosition(this.slime.x, this.slime.y - growLift - lift * scaleY)
     }
 
-    // 雷史莱姆的两根雷晶：和岩脊一个挂法（贴图 24x26，身体圆心在贴图 (12,21)，
-    // 所以往上提 8 像素，底边就正好压在头顶那条弧线上）
+    // 雷史莱姆的雷极：和岩脊一个挂法（贴图 26x44，身体圆心在贴图 (13,33)，
+    // 往上提 9 像素，尾端那颗雷球就正好坐在头顶）
     const isThunder = this.element === 'thunder'
 
-    this.thunderHorns.setVisible(isThunder)
+    const showRod = isThunder && !this.blinkAiming
 
-    if (isThunder) {
-      this.thunderHorns.setScale(scaleX, scaleY)
-      this.thunderHorns.setFlipX(this.slime.flipX)
-      this.thunderHorns.setPosition(this.slime.x, this.slime.y - growLift - 8 * scaleY)
+    this.thunderRod.setVisible(showRod)
+
+    if (showRod) {
+      this.thunderRod.setScale(scaleX, scaleY)
+      this.thunderRod.setFlipX(this.slime.flipX)
+      this.thunderRod.setPosition(this.slime.x, this.slime.y - growLift - 9 * scaleY)
+
+      // 极性符号闪在杆子尖端（贴图里尖端在 (22,2)，相对贴图中心 (13,22) 是 (+9,-20)）
+      this.polarityMark.setPosition(
+        this.slime.x + (this.slime.flipX ? -9 : 9) * scaleX,
+        this.thunderRod.y - 20 * scaleY
+      )
     }
 
     if (hasWing) {
@@ -6550,6 +6649,11 @@ export class GameScene extends Phaser.Scene {
 
     if (this.thunderCooldown > 0) {
       this.thunderCooldown -= dt
+      // 冷却一归零就换回「黄紫」那套：雷极和身上一起变
+      if (this.thunderCooldown <= 0) {
+        this.thunderCooldown = 0
+        this.refreshThunderLook()
+      }
     }
 
     if (!this.inputLocked) {
@@ -6559,6 +6663,7 @@ export class GameScene extends Phaser.Scene {
       this.updateBlinkCharges(dt)
       this.updateBlinkAim()
       this.updateMonsters(dt)
+      this.updateThunderFx(dt)
     }
 
     // 飘花不吃输入锁：过场动画里也照飘
