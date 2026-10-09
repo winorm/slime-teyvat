@@ -2376,15 +2376,17 @@ export class BootScene extends Phaser.Scene {
     ]
 
     if (key === 'thunder') {
-      // 雷鸣充满时的雷史莱姆：浑身黄紫渐变 —— 正上偏金黄，往下过渡到紫，
-      // 和"冷却中"那版（一整个紫）区分开，玩家一眼就知道雷鸣能不能放
+      // 雷鸣充满时的雷史莱姆：浑身是黄紫交替的多段渐变（不是"上半黄、下半紫"两截），
+      // 沿着身体高度铺六段色标，黄 → 紫 → 黄 → 紫 循环着过渡过去
+      const stops = [0xf7d76a, 0xb98cf0, 0xf2c14e, 0x9a6cf0, 0xffe08a, 0x8a5cf0]
+
       for (let y = 3; y <= 27; y++) {
-        const t = (15 - y) / 11.5
-        const color =
-          t >= 0
-            ? this.mixColor(0xf2c14e, 0xd9a8ff, Math.min(1, t))
-            : this.mixColor(0xd9a8ff, 0x7a4fd0, Math.min(1, -t))
-        const half = 15 * Math.sqrt(Math.max(0, 1 - t * t))
+        const t = (y - 3) / 24
+        const u = (y - 15) / 11.5
+        const span = (stops.length - 1) * t
+        const index = Math.min(stops.length - 2, Math.floor(span))
+        const color = this.mixColor(stops[index], stops[index + 1], span - index)
+        const half = 15 * Math.sqrt(Math.max(0, 1 - u * u))
 
         gfx.fillStyle(color, 1)
         gfx.fillRect(16 - half, y, half * 2, 1)
@@ -2980,13 +2982,16 @@ export class BootScene extends Phaser.Scene {
     gfx.fillStyle(0xffffff, 1)
     gfx.fillEllipse(16, 15, 30, 23)
 
+    // 冷却中：全是紫的，也是多段渐变（深浅交替），不糊成一坨
+    const stops = [0xc8b4ff, 0x8a5cf0, 0xb388ff, 0x7a4fd0, 0xa07bff, 0x6b3fd0]
+
     for (let y = 3; y <= 27; y++) {
-      const t = (15 - y) / 11.5
-      const color =
-        t >= 0
-          ? this.mixColor(0xb388ff, 0x8a5cf0, Math.min(1, t))
-          : this.mixColor(0x8a5cf0, 0x6b3fd0, Math.min(1, -t))
-      const half = 15 * Math.sqrt(Math.max(0, 1 - t * t))
+      const t = (y - 3) / 24
+      const u = (y - 15) / 11.5
+      const span = (stops.length - 1) * t
+      const index = Math.min(stops.length - 2, Math.floor(span))
+      const color = this.mixColor(stops[index], stops[index + 1], span - index)
+      const half = 15 * Math.sqrt(Math.max(0, 1 - u * u))
 
       gfx.fillStyle(color, 1)
       gfx.fillRect(16 - half, y, half * 2, 1)
@@ -3011,13 +3016,12 @@ export class BootScene extends Phaser.Scene {
       const cx = 13
       const centerY = 33
 
-      // 杆子：从尾端那颗球往上，先竖着再往右弯出去
+      // 杆子：从头顶立起来，先竖着再往右弯出去，弯到顶上是那颗雷球
       const spine: Array<[number, number]> = [
-        [13, 16],
-        [13, 9],
-        [16, 4],
-        [20, 2],
-        [22, 6],
+        [13, 28],
+        [13, 19],
+        [14, 13],
+        [17, 8],
       ]
 
       const trace = () => {
@@ -3037,13 +3041,13 @@ export class BootScene extends Phaser.Scene {
       gfx.lineStyle(2, rodInner, 1)
       trace()
 
-      // 尾端那颗雷球：坐在头顶上
+      // 尾端那颗雷球：长在杆子的顶上
       gfx.fillStyle(ballOuter, 1)
-      gfx.fillCircle(cx, 19, 6)
+      gfx.fillCircle(19, 5, 6)
       gfx.fillStyle(ballInner, 1)
-      gfx.fillCircle(cx, 19, 4.2)
+      gfx.fillCircle(19, 5, 4.2)
       gfx.fillStyle(ballCore, 1)
-      gfx.fillCircle(cx - 1, 18, 1.8)
+      gfx.fillCircle(18, 4, 1.8)
 
       // 底边压一段和本体一样的渐变，接缝看不出来
       gfx.fillStyle(0xffffff, 1)

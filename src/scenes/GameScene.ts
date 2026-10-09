@@ -5111,10 +5111,12 @@ export class GameScene extends Phaser.Scene {
       this.thunderRod.setFlipX(this.slime.flipX)
       this.thunderRod.setPosition(this.slime.x, this.slime.y - growLift - 9 * scaleY)
 
-      // 极性符号闪在杆子尖端（贴图里尖端在 (22,2)，相对贴图中心 (13,22) 是 (+9,-20)）
+      // 极性符号闪在顶上那颗雷球旁边（贴图里球心在 (19,5)，相对贴图中心 (13,22) 是 (+6,-17)）
+      const side = this.slime.flipX ? -1 : 1
+
       this.polarityMark.setPosition(
-        this.slime.x + (this.slime.flipX ? -9 : 9) * scaleX,
-        this.thunderRod.y - 20 * scaleY
+        this.thunderRod.x + (6 + 8) * side * scaleX,
+        this.thunderRod.y - 19 * scaleY
       )
     }
 
