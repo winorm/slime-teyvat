@@ -744,6 +744,8 @@ export class GameScene extends Phaser.Scene {
   // 雷闪的电能格：左上角一块小电池，三格，正在充的那格从左边慢慢涨
   private chargeBattery!: Phaser.GameObjects.Image
   private chargeCells: Phaser.GameObjects.Image[] = []
+  // 手机端雷闪键下面那三个充能点（沿按键下缘的弧线摆）
+  private blinkDots: Phaser.GameObjects.Image[] = []
 
   // 雷鸣的冷却
   private thunderCooldown = 0
@@ -2735,6 +2737,21 @@ export class GameScene extends Phaser.Scene {
       r: (armorFill.width * TOUCH_SCALE) / 2,
       base: 0.75,
     })
+
+    // 雷闪键下缘的三个充能点：135° / 90° / 45°（屏幕坐标 y 朝下，所以这是下缘的
+    // 左下、正下、右下），亮着几颗就代表还有几格电
+    this.blinkDots = [135, 90, 45].map((degree) => {
+      const rad = (degree * Math.PI) / 180
+      const dot = this.add
+        .image(armorX + Math.cos(rad) * 19, armorY + Math.sin(rad) * 19, 'charge-dot')
+        .setScrollFactor(0)
+        .setDepth(102)
+        .setVisible(false)
+
+      this.touchButtons.push({ image: dot, x: dot.x, y: dot.y, r: 3.5, base: 0.95 })
+
+      return dot
+    })
   }
 
   // 按当前的「移动方式」铺控件：左右箭头键 / 浮动摇杆
@@ -2899,16 +2916,19 @@ export class GameScene extends Phaser.Scene {
 
     if (showThunderSkills) {
       this.touchPillarButton?.setTexture('touch-thunder')
-      this.touchArmorDim?.setTexture('touch-blink')
+      // 底下那张永远是灰版，亮的那张（亮版）按充能进度从下往上露出来
+      this.touchArmorDim?.setTexture('touch-blink-dim')
+      this.touchArmorFill?.setTexture('touch-blink')
     } else {
       this.touchPillarButton?.setTexture('touch-pillar')
       this.touchArmorDim?.setTexture('touch-armor-dim')
+      this.touchArmorFill?.setTexture('touch-armor')
     }
 
     this.touchPillarButton?.setVisible(showRockSkills || showThunderSkills)
     this.touchArmorDim?.setVisible(showRockSkills || showThunderSkills)
-    // 冷却用的灰底 + 亮底那一对只有岩化用，雷鸣的冷却画在别处
-    this.touchArmorFill?.setVisible(showRockSkills)
+    // 灰底 + 亮底那一对两边都用：岩化看冷却，雷闪看充能
+    this.touchArmorFill?.setVisible(showRockSkills || showThunderSkills)
 
     // 雷闪的电能电池
     this.chargeBattery.setVisible(showThunderSkills)
@@ -3705,7 +3725,7 @@ export class GameScene extends Phaser.Scene {
   // 电能格：满的那几格是满的，正在充的那格按进度从左边慢慢涨 ——
   // 不是"啪"地亮一格，所以每帧都要刷一次
   private updateChargeHud() {
-    const progress = Phaser.Math.Clamp(this.blinkChargeTimer / BLINK_CHARGE_TIME, 0, 1)
+    const progress = this.chargeFraction()
 
     this.chargeCells.forEach((cell, index) => {
       const full = index < this.blinkCharges
@@ -3720,6 +3740,15 @@ export class GameScene extends Phaser.Scene {
       cell.setDisplaySize(Math.max(1, 8 * amount), 10)
       cell.setTint(full ? 0xd9c9ff : 0xa07bff)
     })
+  }
+
+  // 正在充的那一格充到哪儿了（满电时算 0：没有"正在充的那一格"）
+  private chargeFraction() {
+    if (this.blinkCharges >= BLINK_CHARGE_MAX) {
+      return 0
+    }
+
+    return Phaser.Math.Clamp(this.blinkChargeTimer / BLINK_CHARGE_TIME, 0, 1)
   }
 
   // ── 雷鸣（C）───────────────────────────────────────────────
@@ -3884,12 +3913,13 @@ export class GameScene extends Phaser.Scene {
       bolt.strokePath()
     }
 
-    stroke(5, 0x6b3fd0, 0.3)
-    stroke(2, 0xe6dcff, 0.95)
+    // 外面那圈别太扎眼：淡紫、细一点、透明度低一点，像一层晕开的光
+    stroke(4, 0xb388ff, 0.2)
+    stroke(2, 0xe6dcff, 0.9)
 
     const flash = this.add
       // 光柱的宽度就是判定宽度：一眼能看出这一片都在雷里
-      .rectangle(targetX, (top + bottom) / 2, THUNDER_HIT_W * 2, bottom - top, 0xd9c9ff, 0.16)
+      .rectangle(targetX, (top + bottom) / 2, THUNDER_HIT_W * 2, bottom - top, 0xd9c9ff, 0.12)
       .setDepth(7)
 
     this.tweens.add({
@@ -7296,10 +7326,17 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.touchArmorFill) {
-      const ready = this.armorCooldown <= 0
-      const ratio = ready ? 1 : Math.max(0, 1 - this.armorCooldown / ARMOR_COOLDOWN)
-      // 只有当前是岩史莱姆时，才在按键上画冷却回充
-      const show = this.rockAvailable && this.element === 'rock' && ratio > 0.002
+      const showRock = this.rockAvailable && this.element === 'rock'
+      // 雷闪那套：充能进度 = （已有格数 + 正在充的那一格）÷ 总格数
+      const showThunder = this.chargeBattery.visible
+      const ratio = showRock
+        ? this.armorCooldown <= 0
+          ? 1
+          : Math.max(0, 1 - this.armorCooldown / ARMOR_COOLDOWN)
+        : showThunder
+          ? (this.blinkCharges + this.chargeFraction()) / BLINK_CHARGE_MAX
+          : 0
+      const show = (showRock || showThunder) && ratio > 0.002
 
       if (show) {
         // setCrop 的原点在贴图左上角：裁出下面这一块，就是自下而上回充。
@@ -7311,6 +7348,17 @@ export class GameScene extends Phaser.Scene {
 
       this.touchArmorFill.setVisible(show)
     }
+
+    // 雷闪键下缘那三个点：亮着的就是还剩的格数
+    const showDots = this.chargeBattery.visible
+
+    this.blinkDots.forEach((dot, index) => {
+      dot.setVisible(showDots)
+
+      if (showDots) {
+        dot.setTint(index < this.blinkCharges ? 0xffd54f : 0x3a3a4a)
+      }
+    })
 
     const camera = this.cameras.main
     const screenX = this.slime.x - camera.scrollX
@@ -7338,7 +7386,14 @@ export class GameScene extends Phaser.Scene {
         Math.abs(screenY - button.y) < button.r + 22
 
       // 靠近史莱姆时淡一点，但别淡到看不见（原来 ×0.3 太虚了）
-      button.image.setAlpha(near ? button.base * 0.45 : button.base)
+      let alpha = near ? button.base * 0.45 : button.base
+
+      // 雷闪键的底色：还有电的时候只是"变浅"（0.4），一格都没有才是那种灰（0.72）
+      if (button.image === this.touchArmorDim && this.chargeBattery.visible) {
+        alpha = near ? 0.3 : this.blinkCharges > 0 ? 0.4 : 0.72
+      }
+
+      button.image.setAlpha(alpha)
     })
 
     if (this.touchArmorFill) {

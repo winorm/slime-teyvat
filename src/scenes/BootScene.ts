@@ -2907,36 +2907,69 @@ export class BootScene extends Phaser.Scene {
     dim.generateTexture('touch-armor-dim', 50, 50)
     dim.destroy()
   }
-  // 测试关卡专属：雷闪 / 雷鸣两个键（雷史莱姆时盖掉岩化 / 岩柱那两张）
+  // 雷闪 / 雷鸣两个键（雷史莱姆时盖掉岩化 / 岩柱那两张）
   private makeTouchThunder() {
-    // 雷闪（X）：雷元素色的底盘 + 一颗带电的球往右窜，后面拖三条速度线
+    // 雷闪（X）：雷史莱姆闪出去那一瞬间 —— 左下是正在闪的那只（脚下带阴影、
+    // 身后拖着两道淡影），右上是落点处史莱姆的背影（一颗没脸的剪影 + 头上的雷极），
+    // 中间一小串点是它划过去的轨迹
+    const drawBlink = (
+      gfx: Phaser.GameObjects.Graphics,
+      backingOuter: number,
+      backingMid: number,
+      ring: number,
+      bodyTop: number,
+      body: number,
+      ghost: number
+    ) => {
+      const center = 25
+
+      gfx.fillStyle(0x1c1c28, 0.55)
+      gfx.fillCircle(center, center, 24)
+      gfx.fillStyle(backingOuter, 1)
+      gfx.fillCircle(center, center, 22)
+      gfx.fillStyle(backingMid, 1)
+      gfx.fillCircle(center, center, 18)
+      this.pixelRing(gfx, center, center, 21, ring, 0.6, 2)
+
+      // 落点：史莱姆的背影（只有轮廓，没有眼睛）
+      gfx.fillStyle(ghost, 1)
+      gfx.fillEllipse(36, 16, 15, 13)
+      gfx.fillRect(34, 5, 3, 8)
+      gfx.fillRect(38, 3, 3, 10)
+
+      // 划过去的轨迹
+      gfx.fillStyle(ghost, 0.75)
+      gfx.fillCircle(21, 29, 1.5)
+      gfx.fillCircle(26, 25, 1.5)
+      gfx.fillCircle(31, 21, 1.5)
+
+      // 正在闪的那只：脚下的阴影 + 身后两道淡影
+      gfx.fillStyle(0x241a3d, 0.7)
+      gfx.fillEllipse(15, 41, 18, 4)
+      gfx.fillStyle(body, 0.35)
+      gfx.fillEllipse(8, 33, 11, 9)
+      gfx.fillStyle(body, 0.18)
+      gfx.fillEllipse(3, 34, 9, 7)
+
+      gfx.fillStyle(bodyTop, 1)
+      gfx.fillEllipse(15, 32, 17, 14)
+      gfx.fillStyle(body, 1)
+      gfx.fillEllipse(15, 35, 15, 9)
+    }
+
     const blink = this.add.graphics()
-    const center = 25
-
-    blink.fillStyle(0x1c1c28, 0.55)
-    blink.fillCircle(center, center, 24)
-    blink.fillStyle(0x3b2a66, 1)
-    blink.fillCircle(center, center, 22)
-    blink.fillStyle(0x5b3fa8, 1)
-    blink.fillCircle(center, center, 18)
-    this.pixelRing(blink, center, center, 21, 0xb388ff, 0.6, 2)
-
-    blink.fillStyle(0xd9c9ff, 0.85)
-    blink.fillRect(6, 19, 10, 2)
-    blink.fillRect(4, 24, 12, 2)
-    blink.fillRect(6, 29, 10, 2)
-
-    blink.fillStyle(0x6b3fd0, 1)
-    blink.fillCircle(32, 24, 10)
-    blink.fillStyle(0xa07bff, 1)
-    blink.fillCircle(32, 24, 7)
-    blink.fillStyle(0xe6dcff, 1)
-    blink.fillCircle(32, 24, 3)
-
+    drawBlink(blink, 0x3b2a66, 0x5b3fa8, 0xb388ff, 0xe6dcff, 0xb388ff, 0x1a1030)
     blink.generateTexture('touch-blink', 50, 50)
     blink.destroy()
 
-    // 雷鸣（C）：底盘 + 雷电图标
+    // 一格电都没有时用的灰版
+    const blinkDim = this.add.graphics()
+    drawBlink(blinkDim, 0x3a3a44, 0x55555f, 0x8a8a94, 0x9a9aa4, 0x8a8a94, 0x3a3a44)
+    blinkDim.generateTexture('touch-blink-dim', 50, 50)
+    blinkDim.destroy()
+
+    // 雷鸣（C）：就是把游戏里那道雷电缩小放进按键里 —— 外面一层淡紫的光，
+    // 里面一条亮的芯，上下一路折线
     const bolt = this.add.graphics()
 
     bolt.fillStyle(0x1c1c28, 0.5)
@@ -2947,14 +2980,27 @@ export class BootScene extends Phaser.Scene {
     bolt.fillCircle(21, 21, 14)
     this.pixelRing(bolt, 21, 21, 17, 0xb388ff, 0.6, 2)
 
-    bolt.fillStyle(0xe6dcff, 1)
-    ICON_THUNDER.forEach((row, y) => {
-      for (let x = 0; x < row.length; x++) {
-        if (row[x] === '#') {
-          bolt.fillRect(8 + x * 1.6, 8 + y * 1.6, 2, 2)
-        }
+    const spine: Array<[number, number]> = [
+      [22, 5],
+      [17, 15],
+      [22, 21],
+      [15, 30],
+      [19, 37],
+    ]
+    const stroke = (width: number, color: number, alpha: number) => {
+      bolt.lineStyle(width, color, alpha)
+      bolt.beginPath()
+      bolt.moveTo(spine[0][0], spine[0][1])
+
+      for (let i = 1; i < spine.length; i++) {
+        bolt.lineTo(spine[i][0], spine[i][1])
       }
-    })
+
+      bolt.strokePath()
+    }
+
+    stroke(6, 0xb388ff, 0.3)
+    stroke(2.5, 0xe6dcff, 0.95)
 
     bolt.generateTexture('touch-thunder', 42, 42)
     bolt.destroy()
@@ -3176,6 +3222,16 @@ export class BootScene extends Phaser.Scene {
 
     gfx.generateTexture('charge-battery', 36, 14)
     gfx.destroy()
+
+    // 按键下缘那三个充能点：白芯 + 黑圈（黑的一圈烤进贴图，运行时 setTint 染不动它）
+    const dot = this.add.graphics()
+
+    dot.fillStyle(0x000000, 1)
+    dot.fillCircle(3.5, 3.5, 3.5)
+    dot.fillStyle(0xffffff, 1)
+    dot.fillCircle(3.5, 3.5, 2)
+    dot.generateTexture('charge-dot', 7, 7)
+    dot.destroy()
   }
 
   // 蓄力瞄准时史莱姆变成的那颗雷球（34x30）
