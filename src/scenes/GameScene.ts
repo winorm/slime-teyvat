@@ -3664,8 +3664,8 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // 电荷：只有「跑起来」才充，站着不动一点电都攒不到（用户设定）。
-  // 不动的时候只是暂停计时，跑来跑去攒的进度保留着
+  // 电荷：只有「横向在动」才充（地上跑、空中横着走都算），站着不动一点电都攒不到
+  // （用户设定）。不动的时候只是暂停计时，跑来跑去攒的进度保留着
   private updateBlinkCharges(dt: number) {
     if (this.blinkLockout > 0) {
       this.blinkLockout -= dt
@@ -3677,10 +3677,11 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
-    const grounded = (this.slime.body as Phaser.Physics.Arcade.Body).blocked.down
+    // 判「在移动」只看横向速度：跳起来在空中横着走 / 飘着也算，
+    // 原地不动（哪怕在空中垂直下落）就不充
     const speed = Math.abs((this.slime.body as Phaser.Physics.Arcade.Body).velocity.x)
 
-    if (!grounded || speed < 10) {
+    if (speed < 10) {
       return
     }
 

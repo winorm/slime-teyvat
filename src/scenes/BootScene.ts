@@ -3110,22 +3110,39 @@ export class BootScene extends Phaser.Scene {
     cooled.destroy()
   }
 
-  // 雷极顶上那颗球里间歇闪的极性符号（7x7，正好塞在球心）
+  // 雷极顶上那颗球里间歇闪的极性符号（芯 7x7 + 1 像素黑描边，总共 9x9）。
+  // 黑边是烤进贴图的：贴图本身是白的，运行时 setTint 只染白的那部分，
+  // 黑的乘什么色都还是黑的，所以描边一直清楚
   private makePolarityMarks() {
-    const plus = this.add.graphics()
+    const draw = (key: string, vertical: boolean) => {
+      const gfx = this.add.graphics()
 
-    plus.fillStyle(0xffffff, 1)
-    plus.fillRect(2, 0, 3, 7)
-    plus.fillRect(0, 2, 7, 3)
-    plus.generateTexture('polarity-plus', 7, 7)
-    plus.destroy()
+      // 描边：把芯的形状往四个方向各错开 1 像素铺一层黑
+      gfx.fillStyle(0x000000, 1)
 
-    const minus = this.add.graphics()
+      const ink = (dx: number, dy: number) => {
+        if (vertical) {
+          gfx.fillRect(3 + dx, 1 + dy, 3, 7)
+        }
 
-    minus.fillStyle(0xffffff, 1)
-    minus.fillRect(0, 2, 7, 3)
-    minus.generateTexture('polarity-minus', 7, 7)
-    minus.destroy()
+        gfx.fillRect(1 + dx, 3 + dy, 7, 3)
+      }
+
+      ink(-1, 0)
+      ink(1, 0)
+      ink(0, -1)
+      ink(0, 1)
+
+      // 芯
+      gfx.fillStyle(0xffffff, 1)
+      ink(0, 0)
+
+      gfx.generateTexture(key, 9, 9)
+      gfx.destroy()
+    }
+
+    draw('polarity-plus', true)
+    draw('polarity-minus', false)
   }
 
   // 雷闪的电能：左上角一块小电池（三格），外壳上亮下暗做出厚度，
