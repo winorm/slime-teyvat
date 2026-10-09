@@ -25,6 +25,8 @@ export class DeadScene extends Phaser.Scene {
       title = '被岩刺钉了个对穿……'
     } else if (this.cause === 'crush') {
       title = '被崩塌吞没了……'
+    } else if (this.cause === 'monster') {
+      title = '被魔物扑倒了……'
     }
     
     this.add.rectangle(0, 0, 480, 270, 0x000000).setOrigin(0, 0).setAlpha(0.75)

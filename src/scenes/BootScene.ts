@@ -145,6 +145,7 @@ export class BootScene extends Phaser.Scene {
     this.makeThunderHorns()
     this.makeThunderBall()
     this.makeStunMark()
+    this.makeMonsterBrute()
 
     this.makeEyeGlow()
 
@@ -3067,6 +3068,61 @@ export class BootScene extends Phaser.Scene {
     gfx.fillCircle(13, 5, 1.5)
 
     gfx.generateTexture('monster-stun', 16, 9)
+    gfx.destroy()
+  }
+
+  // 魔物（草稿）：丘丘人那种小个子 —— 兽皮围腰 + 骨面具 + 一根木棍。
+  // 底边贴地，贴图 30x36，关卡数据里的 y 就是脚底那条线
+  private makeMonsterBrute() {
+    const gfx = this.add.graphics()
+
+    // 腿
+    gfx.fillStyle(0x5b3f28, 1)
+    gfx.fillRect(9, 26, 5, 10)
+    gfx.fillRect(17, 26, 5, 10)
+
+    // 身体
+    gfx.fillStyle(0x8a6240, 1)
+    gfx.fillEllipse(15, 22, 21, 16)
+    gfx.fillStyle(0x6f4c31, 1)
+    gfx.fillEllipse(15, 25, 17, 9)
+
+    // 兽皮围腰
+    gfx.fillStyle(0x4a3a2a, 1)
+    gfx.fillRect(7, 27, 16, 5)
+
+    // 两条胳膊
+    gfx.fillStyle(0x7a5537, 1)
+    gfx.fillRect(3, 18, 5, 9)
+    gfx.fillRect(22, 18, 5, 9)
+
+    // 头 + 往外斜的大耳朵
+    gfx.fillStyle(0x8a6240, 1)
+    gfx.fillEllipse(15, 12, 15, 14)
+    gfx.fillStyle(0x7a5537, 1)
+    gfx.fillTriangle(7, 8, 1, 3, 8, 13)
+    gfx.fillTriangle(23, 8, 29, 3, 22, 13)
+
+    // 骨面具：上半亮、下半压一层灰，做出一点弧度
+    gfx.fillStyle(0xe8e2d0, 1)
+    gfx.fillEllipse(15, 12, 12, 11)
+    gfx.fillStyle(0xc9c0a8, 1)
+    gfx.fillEllipse(15, 15, 12, 5)
+
+    // 眼洞 + 眉心那道红纹
+    gfx.fillStyle(0x2a2018, 1)
+    gfx.fillRect(11, 10, 3, 3)
+    gfx.fillRect(16, 10, 3, 3)
+    gfx.fillStyle(0xb2402f, 1)
+    gfx.fillRect(14, 14, 2, 4)
+
+    // 木棍（右手拎着，斜着）
+    gfx.fillStyle(0x8a6a3a, 1)
+    gfx.fillRect(24, 6, 3, 18)
+    gfx.fillStyle(0x9c7a44, 1)
+    gfx.fillRect(23, 4, 5, 5)
+
+    gfx.generateTexture('monster-brute', 30, 36)
     gfx.destroy()
   }
 

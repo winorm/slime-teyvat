@@ -8,6 +8,7 @@ import {
   type PlatformDef,
   type PickupDef,
   type RepairDef,
+  type MonsterDef,
 } from '../data/levels'
 import {
   progress,
@@ -111,6 +112,17 @@ const THUNDER_STEPS = [70, 140, 210]
 const THUNDER_GAP = 0.18
 const THUNDER_COOLDOWN = 5
 const THUNDER_SNAP = 26
+// 魔物被雷劈中后眩晕多久（眩晕里它不动、碰到玩家也不致死）
+const THUNDER_STUN = 3
+
+// 魔物：来回巡逻的怪。碰到即死，被雷鸣劈中晕 3 秒
+type MonsterRef = {
+  def: MonsterDef
+  sprite: Phaser.GameObjects.Image
+  stunMark: Phaser.GameObjects.Image
+  dir: number
+  stun: number
+}
 
 type PillarTarget = {
   x: number
@@ -359,6 +371,8 @@ function devAbilityRoom(): DevLevelDef {
   ]
 
   level.monuments = [{ x: 2320, y: 638, element: 'thunder', id: 'ah1' }]
+  // 墙那头放一只魔物：碰一下就死，站远点用雷鸣劈晕了再走过去
+  level.monsters = [{ x: 2500, y: DEV_GROUND_TOP, range: 60 }]
 
   level.stairs = [
     { from: { x: 1050, y: DEV_GROUND_TOP }, to: { x: 1250, y: 700 }, layer: 'front' },
@@ -379,6 +393,7 @@ function devAbilityRoom(): DevLevelDef {
     { x: 2150, y: 700, text: '碎裂平台' },
     { x: 2180, y: 780, text: '雷闪：X 键长按瞄准，松开闪出' },
     { x: 2320, y: 592, text: '雷方碑（够不着，用雷鸣劈）' },
+    { x: 2500, y: 760, text: '魔物：碰到即死，雷鸣劈中晕 3 秒' },
   ]
 
   return level
@@ -733,6 +748,8 @@ export class GameScene extends Phaser.Scene {
   private blinkPointerId = -1
   // 雷史莱姆头顶那两根雷晶（和岩脊一个位置、一个挂法）
   private thunderHorns!: Phaser.GameObjects.Image
+  // 关卡里的魔物
+  private monsterList: MonsterRef[] = []
   private armorKey!: Phaser.Input.Keyboard.Key
   private rockKey!: Phaser.Input.Keyboard.Key
 
@@ -1788,6 +1805,8 @@ export class GameScene extends Phaser.Scene {
       orb.setTint(ELEMENTS[def.element].color)
       orb.setData('element', def.element)
     })
+
+    this.buildMonsters()
 
     const goal = this.level.goal
     const goalColor = goal.grants ? ELEMENTS[goal.grants].color : 0xffffff
@@ -3700,7 +3719,7 @@ export class GameScene extends Phaser.Scene {
 
   // 一道雷：从天上一路折线劈到地面，命中的雷元素物件按"用雷元素碰了一下"算
   private strikeThunder(x: number, baseY: number) {
-    // 落点往最近的方碑吸一点：差几个像素不该判空
+    // 落点往最近的目标（方碑 / 魔物）吸一点：差几个像素不该判空
     let targetX = x
     let best = THUNDER_SNAP
 
@@ -3710,6 +3729,15 @@ export class GameScene extends Phaser.Scene {
       if (distance < best) {
         best = distance
         targetX = monument.pillar.x
+      }
+    })
+
+    this.monsterList.forEach((monster) => {
+      const distance = Math.abs(monster.sprite.x - x)
+
+      if (distance < best) {
+        best = distance
+        targetX = monster.sprite.x
       }
     })
 
@@ -3764,6 +3792,85 @@ export class GameScene extends Phaser.Scene {
 
       if (Math.abs(monument.pillar.x - targetX) <= 20) {
         this.touchMonument(monument)
+      }
+    })
+
+    // 魔物：雷劈不死，只眩晕（晕的这几秒它不动，玩家碰到它也不会死）
+    this.monsterList.forEach((monster) => {
+      if (Math.abs(monster.sprite.x - targetX) > 22) {
+        return
+      }
+
+      if (monster.stun <= 0) {
+        playSfx(this, 'sfx-interact', 0.3, 0.8)
+      }
+
+      monster.stun = THUNDER_STUN
+      monster.sprite.setTint(0xc8b4ff)
+      monster.stunMark.setVisible(true).setPosition(monster.sprite.x, monster.sprite.y - 44)
+    })
+  }
+
+  // ── 魔物 ──────────────────────────────────────────────────
+  private buildMonsters() {
+    this.monsterList = []
+
+    ;(this.level.monsters ?? []).forEach((def) => {
+      const sprite = this.add.image(def.x, def.y, 'monster-brute').setOrigin(0.5, 1).setDepth(4)
+      const stunMark = this.add
+        .image(def.x, def.y - 44, 'monster-stun')
+        .setDepth(5)
+        .setVisible(false)
+
+      this.monsterList.push({ def, sprite, stunMark, dir: 1, stun: 0 })
+    })
+  }
+
+  private updateMonsters(dt: number) {
+    this.monsterList.forEach((monster) => {
+      if (monster.stun > 0) {
+        monster.stun -= dt
+
+        if (monster.stun <= 0) {
+          monster.stun = 0
+          monster.sprite.clearTint()
+          monster.stunMark.setVisible(false)
+        } else {
+          // 头上那三个小点转圈
+          monster.stunMark.setAngle(monster.stunMark.angle + dt * 420)
+        }
+      } else {
+        const speed = monster.def.speed ?? 30
+        const left = monster.def.x - monster.def.range
+        const right = monster.def.x + monster.def.range
+
+        monster.sprite.x += monster.dir * speed * dt
+
+        if (monster.sprite.x <= left) {
+          monster.sprite.x = left
+          monster.dir = 1
+        }
+
+        if (monster.sprite.x >= right) {
+          monster.sprite.x = right
+          monster.dir = -1
+        }
+
+        monster.sprite.setFlipX(monster.dir < 0)
+      }
+
+      monster.stunMark.setX(monster.sprite.x)
+
+      // 碰到即死。眩晕里碰到不算；雷闪的无敌 / 岩壳也照样能挡（都走 die 的判定）
+      if (monster.stun > 0 || this.dying || this.finished) {
+        return
+      }
+
+      const dx = Math.abs(this.slime.x - monster.sprite.x)
+      const dy = Math.abs(this.slime.y - (monster.def.y - 16))
+
+      if (dx < 24 && dy < 24) {
+        this.die('monster')
       }
     })
   }
@@ -6451,6 +6558,7 @@ export class GameScene extends Phaser.Scene {
       this.updatePillarPreview()
       this.updateBlinkCharges(dt)
       this.updateBlinkAim()
+      this.updateMonsters(dt)
     }
 
     // 飘花不吃输入锁：过场动画里也照飘

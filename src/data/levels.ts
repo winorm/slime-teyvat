@@ -20,6 +20,14 @@ export type PlatformDef = {
 
 }
 
+// 关卡里的魔物：会来回巡逻，碰到即死；被雷鸣劈中眩晕 3 秒（眩晕里不动、碰到不死）
+export type MonsterDef = {
+  x: number
+  y: number        // 底边贴地那条线（地面顶面）
+  range: number    // 以 x 为中心，左右各巡逻多远
+  speed?: number   // 不写就是 30 像素/秒
+}
+
 // 木楼梯：从下层地面一级一级走到上层地面。
 // from 是最下面一级搭脚的地方（贴下层地面的顶面），to 是楼梯顶端踩到的上层地面顶面。
 export type StairDef = {
@@ -161,8 +169,8 @@ export type LevelDef = {
   repairs?: RepairDef[]
   orbs: OrbDef[]
   gems: { x: number; y: number; layer?: 'front' | 'back' }[]
-                                        // layer：这颗原石属于哪一层。写 'back' 的挂在树干之后，
-                                        // 只有史莱姆也在树后层、透视洞把它露出来时才看得到、捡得到
+  // layer：这颗原石属于哪一层。写 'back' 的挂在树干之后，
+  // 只有史莱姆也在树后层、透视洞把它露出来时才看得到、捡得到
   blessings: { x: number; y: number }[]
   blessingEndX?: number
   hazards: HazardDef[]
@@ -192,6 +200,7 @@ export type LevelDef = {
   launchers?: LauncherDef[]
   chase?: boolean
   hints: HintDef[]
+  monsters?: MonsterDef[]
 }
 
 export type HazardDef = {
