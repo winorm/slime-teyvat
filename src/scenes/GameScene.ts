@@ -274,8 +274,10 @@ function devTrapRoom(): DevLevelDef {
     { x: 1200, y: DEV_GROUND_TOP + 20, width: 2400, height: 40 },
     // 岩刺区头顶那块天花板：四个发射器贴在它底面往下打
     { x: 1300, y: 240, width: 620, height: 30 },
-    // 横向岩刺右边那堵墙：岩刺从墙左边打出来，玩家得用岩柱（C）挡
-    { x: 1750, y: 700, width: 40, height: 320 },
+    // 横向岩刺：两段矮墙隔开一段空档，机关装在右边那段的左面，横着打过来。
+    // 矮墙刚好一人多高（能跳过去，走过去会被挡住），岩刺在中间飞，玩家得用岩柱（C）挡
+    { x: 1660, y: 840, width: 18, height: 40 },
+    { x: 1900, y: 840, width: 18, height: 40 },
   ]
 
   level.monuments = [
@@ -298,14 +300,14 @@ function devTrapRoom(): DevLevelDef {
     { x: 1250, y: 262, interval: 2.2 },
     { x: 1400, y: 262, interval: 2.2 },
     { x: 1550, y: 262, interval: 2.2 },
-    { x: 1700, y: 760, dir: 'left', interval: 2 },
+    { x: 1886, y: 845, dir: 'left', interval: 2 },
   ]
 
   level.hints = [
     { x: 380, y: 780, text: '方碑 ①' },
     { x: 860, y: 780, text: '方碑 ② → 石门' },
     { x: 1300, y: 180, text: '天花板岩刺 ×4' },
-    { x: 1660, y: 700, text: '横向岩刺 ← 岩柱能挡' },
+    { x: 1780, y: 780, text: '横向岩刺：两段矮墙中间，岩柱能挡' },
     { x: 1990, y: 790, text: '压力板 ×2（岩柱 / 岩化触发）→ 铁栅栏' },
   ]
 
@@ -436,6 +438,14 @@ const DEV_START_ROOM = (() => {
   const index = raw === null ? -1 : Number.parseInt(raw, 10)
 
   return Number.isInteger(index) && index >= 0 && index < DEV_ROOMS.length ? index : -1
+})()
+
+// 长房间（造物机关 2400 宽）想直接看中间某一处时：地址上再带 at=1700 就出生在那一列
+const DEV_SPAWN_X = (() => {
+  const raw = new URLSearchParams(location.search).get('at')
+  const x = raw === null ? Number.NaN : Number.parseFloat(raw)
+
+  return Number.isFinite(x) ? x : null
 })()
 
 const DEV_HUB: DevLevelDef = {
@@ -795,11 +805,15 @@ export class GameScene extends Phaser.Scene {
         : DEV_HUB
       : LEVELS[progress.levelIndex]
 
-    // 从展厅回大厅时站回刚才那扇门的右边一点：不站门上，起身就不会又提示按 F
-    const spawnPoint =
-      this.devLevel && this.devRoom < 0 && this.devReturnX > 0
-        ? { x: this.devReturnX + 48, y: 820 }
-        : this.level.spawn
+    // 出生点：正常用关卡自己写的；测试关卡从展厅回大厅时站回刚才那扇门的右边一点
+    // （不站门上，起身就不会又提示按 F）；地址上带 ?at=1700 时直接出生在那一列
+    let spawnPoint = this.level.spawn
+
+    if (this.devLevel && DEV_SPAWN_X !== null) {
+      spawnPoint = { x: DEV_SPAWN_X, y: 820 }
+    } else if (this.devLevel && this.devRoom < 0 && this.devReturnX > 0) {
+      spawnPoint = { x: this.devReturnX + 48, y: 820 }
+    }
 
     this.touchMode = touchMode()
     this.finished = false
