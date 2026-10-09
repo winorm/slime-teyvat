@@ -5113,7 +5113,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private die(cause: string) {
-    if (this.dying || this.invulnTimer > 0) {
+    // 无敌帧不挡「摔出世界」：雷闪能穿过障碍、能顶掉岩刺，但救不了掉下去
+    if (this.dying || (this.invulnTimer > 0 && cause !== 'fall')) {
       return
     }
 
