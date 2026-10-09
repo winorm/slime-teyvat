@@ -145,6 +145,7 @@ export class BootScene extends Phaser.Scene {
     this.makeThunderRod()
     this.makeThunderCooledSlime()
     this.makePolarityMarks()
+    this.makeChargeBattery()
     this.makeThunderBall()
     this.makeStunMark()
     this.makeMonsterBrute()
@@ -2376,21 +2377,7 @@ export class BootScene extends Phaser.Scene {
     ]
 
     if (key === 'thunder') {
-      // 雷鸣充满时的雷史莱姆：浑身是黄紫交替的多段渐变（不是"上半黄、下半紫"两截），
-      // 沿着身体高度铺六段色标，黄 → 紫 → 黄 → 紫 循环着过渡过去
-      const stops = [0xf7d76a, 0xb98cf0, 0xf2c14e, 0x9a6cf0, 0xffe08a, 0x8a5cf0]
-
-      for (let y = 3; y <= 27; y++) {
-        const t = (y - 3) / 24
-        const u = (y - 15) / 11.5
-        const span = (stops.length - 1) * t
-        const index = Math.min(stops.length - 2, Math.floor(span))
-        const color = this.mixColor(stops[index], stops[index + 1], span - index)
-        const half = 15 * Math.sqrt(Math.max(0, 1 - u * u))
-
-        gfx.fillStyle(color, 1)
-        gfx.fillRect(16 - half, y, half * 2, 1)
-      }
+      this.paintThunderBody(gfx, true)
     } else if (key === 'rock') {
       // 三档取色：正上=岩脊色，正中=土色，正下=浅黄。整体比原来更往金色偏一档
       // （原来的土黄偏褐，加上头顶一层泥沼，离璃月的金太远了）。
@@ -2982,23 +2969,65 @@ export class BootScene extends Phaser.Scene {
     gfx.fillStyle(0xffffff, 1)
     gfx.fillEllipse(16, 15, 30, 23)
 
-    // 冷却中：全是紫的，也是多段渐变（深浅交替），不糊成一坨
-    const stops = [0xc8b4ff, 0x8a5cf0, 0xb388ff, 0x7a4fd0, 0xa07bff, 0x6b3fd0]
-
-    for (let y = 3; y <= 27; y++) {
-      const t = (y - 3) / 24
-      const u = (y - 15) / 11.5
-      const span = (stops.length - 1) * t
-      const index = Math.min(stops.length - 2, Math.floor(span))
-      const color = this.mixColor(stops[index], stops[index + 1], span - index)
-      const half = 15 * Math.sqrt(Math.max(0, 1 - u * u))
-
-      gfx.fillStyle(color, 1)
-      gfx.fillRect(16 - half, y, half * 2, 1)
-    }
+    // 冷却中：全是紫的，同样揉成柔和的斑（深浅紫之间渗）
+    this.paintThunderBody(gfx, false)
 
     gfx.generateTexture('slime-thunder-cd', 32, 26)
     gfx.destroy()
+  }
+
+  // 雷史莱姆身上的黄紫：像淤青那样柔和地一块块渗开，不是一条一条色带 ——
+  // 先用一个上下渐变打底，再叠几团软软的斑（越靠斑心越明显），
+  // 最后把参数过一遍 smoothstep，所以任何两色之间都找不到硬边。
+  // ready = 雷鸣充满（金 ↔ 紫），否则只有紫（浅紫 ↔ 深紫）
+  private paintThunderBody(gfx: Phaser.GameObjects.Graphics, ready: boolean) {
+    // x, y, 半径, 强度（正数往金色推，负数往紫色推）
+    const blobs: Array<[number, number, number, number]> = [
+      [22, 8, 11, -0.5],
+      [9, 12, 10, 0.45],
+      [20, 20, 9, 0.5],
+      [10, 22, 9, -0.45],
+      [16, 14, 8, -0.2],
+    ]
+
+    const lowA = ready ? 0xf2c14e : 0xb388ff
+    const lowB = ready ? 0xd9a8ff : 0x8a5cf0
+    const highA = ready ? 0xd9a8ff : 0x8a5cf0
+    const highB = ready ? 0x8a5cf0 : 0x6b3fd0
+
+    for (let y = 3; y <= 27; y++) {
+      for (let x = 1; x <= 31; x++) {
+        const ux = (x - 16) / 15
+        const uy = (y - 15) / 11.5
+
+        if (ux * ux + uy * uy > 1) {
+          continue
+        }
+
+        let k = (y - 3) / 24
+
+        blobs.forEach(([bx, by, radius, strength]) => {
+          const dx = x - bx
+          const dy = y - by
+          const d2 = (dx * dx + dy * dy) / (radius * radius)
+
+          if (d2 < 1) {
+            k += strength * (1 - d2) * (1 - d2)
+          }
+        })
+
+        k = Phaser.Math.Clamp(k, 0, 1)
+        k = k * k * (3 - 2 * k)
+
+        const color =
+          k < 0.5
+            ? this.mixColor(lowA, lowB, k * 2)
+            : this.mixColor(highA, highB, (k - 0.5) * 2)
+
+        gfx.fillStyle(color, 1)
+        gfx.fillRect(x, y, 1, 1)
+      }
+    }
   }
 
   // 头顶那根雷极：一根弯杆，尾端（底下那头）是一颗雷球，杆子往上弯到一边去。
@@ -3081,22 +3110,55 @@ export class BootScene extends Phaser.Scene {
     cooled.destroy()
   }
 
-  // 雷极尖端间歇闪的极性符号
+  // 雷极顶上那颗球里间歇闪的极性符号（7x7，正好塞在球心）
   private makePolarityMarks() {
     const plus = this.add.graphics()
 
     plus.fillStyle(0xffffff, 1)
-    plus.fillRect(3, 0, 3, 9)
-    plus.fillRect(0, 3, 9, 3)
-    plus.generateTexture('polarity-plus', 9, 9)
+    plus.fillRect(2, 0, 3, 7)
+    plus.fillRect(0, 2, 7, 3)
+    plus.generateTexture('polarity-plus', 7, 7)
     plus.destroy()
 
     const minus = this.add.graphics()
 
     minus.fillStyle(0xffffff, 1)
-    minus.fillRect(0, 3, 9, 3)
-    minus.generateTexture('polarity-minus', 9, 9)
+    minus.fillRect(0, 2, 7, 3)
+    minus.generateTexture('polarity-minus', 7, 7)
     minus.destroy()
+  }
+
+  // 雷闪的电能：左上角一块小电池（三格），外壳上亮下暗做出厚度，
+  // 里面一口井，两片隔板把井分成三格 —— 电是从最左边那格开始涨的
+  private makeChargeBattery() {
+    const gfx = this.add.graphics()
+
+    // 正极那小疙瘩
+    gfx.fillStyle(0x55637a, 1)
+    gfx.fillRect(32, 4, 4, 6)
+    gfx.fillStyle(0x39435a, 1)
+    gfx.fillRect(32, 8, 4, 2)
+
+    // 外壳：外圈压暗、上左打光，看着像有厚度
+    gfx.fillStyle(0x0a0d14, 1)
+    gfx.fillRect(0, 0, 32, 14)
+    gfx.fillStyle(0x55637a, 1)
+    gfx.fillRect(0, 0, 32, 1)
+    gfx.fillRect(0, 0, 1, 14)
+    gfx.fillStyle(0x1b2230, 1)
+    gfx.fillRect(1, 1, 30, 12)
+
+    // 里面那口井
+    gfx.fillStyle(0x0d1018, 1)
+    gfx.fillRect(2, 2, 28, 10)
+
+    // 两片隔板：三格各 8 宽
+    gfx.fillStyle(0x39435a, 1)
+    gfx.fillRect(10, 2, 2, 10)
+    gfx.fillRect(20, 2, 2, 10)
+
+    gfx.generateTexture('charge-battery', 36, 14)
+    gfx.destroy()
   }
 
   // 蓄力瞄准时史莱姆变成的那颗雷球（34x30）

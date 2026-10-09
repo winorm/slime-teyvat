@@ -741,7 +741,9 @@ export class GameScene extends Phaser.Scene {
   private blinkDir = { x: 1, y: 0 }
   private blinkGhost: Phaser.GameObjects.Image | null = null
   private blinkGfx: Phaser.GameObjects.Graphics | null = null
-  private blinkBolts: Phaser.GameObjects.Rectangle[] = []
+  // 雷闪的电能格：左上角一块小电池，三格，正在充的那格从左边慢慢涨
+  private chargeBattery!: Phaser.GameObjects.Image
+  private chargeCells: Phaser.GameObjects.Image[] = []
 
   // 雷鸣的冷却
   private thunderCooldown = 0
@@ -2199,12 +2201,21 @@ export class GameScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(HUD_DEPTH)
 
-    // 雷闪的电荷：三个小格，挂在元素图标那一排下面（只有雷史莱姆时露出来）
-    this.blinkBolts = [0, 1, 2].map((_index, i) =>
+    // 雷闪的电能：元素图标下面一块小电池（三格）。
+    // 电池贴图 36x14，外壳里面那口井在 (2,2)-(30,12)，三格各 8 宽、隔板 2 宽
+    this.chargeBattery = this.add
+      .image(10, 52, 'charge-battery')
+      .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setDepth(HUD_DEPTH)
+      .setVisible(false)
+
+    this.chargeCells = [0, 1, 2].map((_value, index) =>
       this.add
-        .rectangle(18 + i * 12, 56, 9, 5, 0xb388ff, 1)
+        .image(12 + index * 10, 59, 'pixel')
+        .setOrigin(0, 0.5)
         .setScrollFactor(0)
-        .setDepth(HUD_DEPTH)
+        .setDepth(HUD_DEPTH + 1)
         .setVisible(false)
     )
 
@@ -2899,11 +2910,10 @@ export class GameScene extends Phaser.Scene {
     // 冷却用的灰底 + 亮底那一对只有岩化用，雷鸣的冷却画在别处
     this.touchArmorFill?.setVisible(showRockSkills)
 
-    // 雷闪的电荷：三个小格，亮着的是还有的
-    this.blinkBolts.forEach((pip, index) => {
-      pip.setVisible(showThunderSkills)
-      pip.setAlpha(index < this.blinkCharges ? 1 : 0.22)
-    })
+    // 雷闪的电能电池
+    this.chargeBattery.setVisible(showThunderSkills)
+    this.chargeCells.forEach((cell) => cell.setVisible(showThunderSkills))
+    this.updateChargeHud()
 
     unlocked.forEach((key, index) => {
       const icon = this.elementIcons[index]
@@ -3689,6 +3699,26 @@ export class GameScene extends Phaser.Scene {
 
     this.blinkCharges += 1
     this.refreshHud()
+  }
+
+  // 电能格：满的那几格是满的，正在充的那格按进度从左边慢慢涨 ——
+  // 不是"啪"地亮一格，所以每帧都要刷一次
+  private updateChargeHud() {
+    const progress = Phaser.Math.Clamp(this.blinkChargeTimer / BLINK_CHARGE_TIME, 0, 1)
+
+    this.chargeCells.forEach((cell, index) => {
+      const full = index < this.blinkCharges
+      const amount = full ? 1 : index === this.blinkCharges ? progress : 0
+
+      if (amount <= 0 || !this.chargeBattery.visible) {
+        cell.setVisible(false)
+        return
+      }
+
+      cell.setVisible(true)
+      cell.setDisplaySize(Math.max(1, 8 * amount), 10)
+      cell.setTint(full ? 0xd9c9ff : 0xa07bff)
+    })
   }
 
   // ── 雷鸣（C）───────────────────────────────────────────────
@@ -5111,12 +5141,13 @@ export class GameScene extends Phaser.Scene {
       this.thunderRod.setFlipX(this.slime.flipX)
       this.thunderRod.setPosition(this.slime.x, this.slime.y - growLift - 9 * scaleY)
 
-      // 极性符号闪在顶上那颗雷球旁边（贴图里球心在 (19,5)，相对贴图中心 (13,22) 是 (+6,-17)）
+      // 极性符号严格闪在顶上那颗雷球里（贴图里球心在 (19,5)，相对贴图中心 (13,22) 是 (+6,-17)；
+      // 符号本身 7x7，正好落在球的芯里）
       const side = this.slime.flipX ? -1 : 1
 
       this.polarityMark.setPosition(
-        this.thunderRod.x + (6 + 8) * side * scaleX,
-        this.thunderRod.y - 19 * scaleY
+        this.thunderRod.x + 6 * side * scaleX,
+        this.thunderRod.y - 17 * scaleY
       )
     }
 
@@ -6663,6 +6694,7 @@ export class GameScene extends Phaser.Scene {
       this.updateLaunchers(dt)
       this.updatePillarPreview()
       this.updateBlinkCharges(dt)
+      this.updateChargeHud()
       this.updateBlinkAim()
       this.updateMonsters(dt)
       this.updateThunderFx(dt)
