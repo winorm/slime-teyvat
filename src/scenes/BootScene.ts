@@ -2909,17 +2909,18 @@ export class BootScene extends Phaser.Scene {
   }
   // 雷闪 / 雷鸣两个键（雷史莱姆时盖掉岩化 / 岩柱那两张）
   private makeTouchThunder() {
-    // 雷闪（X）：雷史莱姆闪出去那一瞬间 —— 左下是正在闪的那只（脚下带阴影、
-    // 身后拖着两道淡影），右上是落点处史莱姆的背影（一颗没脸的剪影 + 头上的雷极），
-    // 中间一小串点是它划过去的轨迹
+    // 雷闪（X）：横着一排史莱姆剪影，从左到右一个比一个实，
+    // 最后一个是雷史莱姆本人（本体 + 头顶那根带球的雷极）—— 就是它一路闪过去的样子
     const drawBlink = (
       gfx: Phaser.GameObjects.Graphics,
       backingOuter: number,
       backingMid: number,
       ring: number,
+      ghost: number,
       bodyTop: number,
       body: number,
-      ghost: number
+      rod: number,
+      ball: number
     ) => {
       const center = 25
 
@@ -2931,40 +2932,34 @@ export class BootScene extends Phaser.Scene {
       gfx.fillCircle(center, center, 18)
       this.pixelRing(gfx, center, center, 21, ring, 0.6, 2)
 
-      // 落点：史莱姆的背影（只有轮廓，没有眼睛）
-      gfx.fillStyle(ghost, 1)
-      gfx.fillEllipse(36, 16, 15, 13)
-      gfx.fillRect(34, 5, 3, 8)
-      gfx.fillRect(38, 3, 3, 10)
+      // 前面两道剪影：越往左越淡（就是它闪过来的残影）
+      gfx.fillStyle(ghost, 0.3)
+      gfx.fillEllipse(10, 33, 13, 10)
+      gfx.fillStyle(ghost, 0.6)
+      gfx.fillEllipse(22, 33, 14, 11)
 
-      // 划过去的轨迹
-      gfx.fillStyle(ghost, 0.75)
-      gfx.fillCircle(21, 29, 1.5)
-      gfx.fillCircle(26, 25, 1.5)
-      gfx.fillCircle(31, 21, 1.5)
-
-      // 正在闪的那只：脚下的阴影 + 身后两道淡影
-      gfx.fillStyle(0x241a3d, 0.7)
-      gfx.fillEllipse(15, 41, 18, 4)
-      gfx.fillStyle(body, 0.35)
-      gfx.fillEllipse(8, 33, 11, 9)
-      gfx.fillStyle(body, 0.18)
-      gfx.fillEllipse(3, 34, 9, 7)
-
+      // 最后一个是雷史莱姆：先画头顶那根雷极，再画本体，最后点两只眼睛
+      gfx.fillStyle(rod, 1)
+      gfx.fillRect(36, 18, 3, 9)
+      gfx.fillStyle(ball, 1)
+      gfx.fillCircle(37, 17, 3.5)
       gfx.fillStyle(bodyTop, 1)
-      gfx.fillEllipse(15, 32, 17, 14)
+      gfx.fillEllipse(36, 33, 18, 14)
       gfx.fillStyle(body, 1)
-      gfx.fillEllipse(15, 35, 15, 9)
+      gfx.fillEllipse(36, 35, 16, 10)
+      gfx.fillStyle(0x2a2440, 1)
+      gfx.fillRect(33, 31, 2, 2)
+      gfx.fillRect(38, 31, 2, 2)
     }
 
     const blink = this.add.graphics()
-    drawBlink(blink, 0x3b2a66, 0x5b3fa8, 0xb388ff, 0xe6dcff, 0xb388ff, 0x1a1030)
+    drawBlink(blink, 0x3b2a66, 0x5b3fa8, 0xb388ff, 0x2a1f45, 0xd9c9ff, 0xa07bff, 0xf2c14e, 0xfff3d0)
     blink.generateTexture('touch-blink', 50, 50)
     blink.destroy()
 
     // 一格电都没有时用的灰版
     const blinkDim = this.add.graphics()
-    drawBlink(blinkDim, 0x3a3a44, 0x55555f, 0x8a8a94, 0x9a9aa4, 0x8a8a94, 0x3a3a44)
+    drawBlink(blinkDim, 0x3a3a44, 0x55555f, 0x8a8a94, 0x2a2a34, 0x9a9aa4, 0x7a7a86, 0x9a9aa4, 0xb0b0bc)
     blinkDim.generateTexture('touch-blink-dim', 50, 50)
     blinkDim.destroy()
 
