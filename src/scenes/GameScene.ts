@@ -1357,6 +1357,23 @@ export class GameScene extends Phaser.Scene {
         .setDepth(12)
     }
 
+    // 画在玩家前面的摆件（港口的牌楼前层、停在近景水里的船之类）：
+    // 数据字段 `foreground` 还在用户手里，这里按同名可选字段读
+    const foreground = (
+      this.level as LevelDef & {
+        foreground?: { x: number; y: number; key: string; scale?: number; alpha?: number }[]
+      }
+    ).foreground
+
+    ;(foreground ?? []).forEach((item) => {
+      this.add
+        .image(item.x, item.y, item.key)
+        .setOrigin(0.5, 1)
+        .setScale(item.scale ?? 1)
+        .setAlpha(item.alpha ?? 1)
+        .setDepth(13)
+    })
+
     // 矮的关卡照旧用平铺（有限的高度里不会绕回）；高的关卡上面已经用整幅图铺好了
     if (!tallOutdoor) {
       this.bgFar = this.add

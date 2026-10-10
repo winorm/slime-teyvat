@@ -1,0 +1,215 @@
+《第八关 · 可疑人员》数据 —— 直接粘到 levels.ts
+================================================
+一共三块：
+  【A】levels.ts 的类型/配色补充（加一次就够，以后新关不用再加）
+  【B】第八关那条关卡数据（粘到 LEVELS 数组最后，第七关后面）
+  【C】粘完要检查的几件事
+
+（这份文件只是给你复制用的，粘完可以删。）
+
+
+【A】levels.ts 里的类型与配色补充
+------------------------------------------------
+
+① BgTheme 加一个 'harbor'：
+
+export type BgTheme = 'beach' | 'field' | 'church' | 'sky' | 'tower' | 'liyue' | 'harbor'
+
+
+② THEME_COLORS 里加一行（放在 liyue 后面）：
+
+  // 璃月·港口：白天的石岸与木栈桥，危险的蓝偏亮一点（水色）
+  harbor: { ground: 0x8a6a4a, oneWay: 0xb09068, crumble: 0x9a5a44, hazard: 0x2f6f8f },
+
+
+③ 类型（放在 MonsterDef 后面）：
+
+// 千岩军：巡逻 + 扇形视野（视野朝斜下方）。看见玩家 2.5 秒转追击，追击撞到障碍就放弃
+export type GuardDef = {
+  x: number
+  y: number        // 底边贴地那条线
+  range: number    // 以 x 为中心左右各巡逻多远
+  speed?: number   // 巡逻速度，默认 26
+  facing?: 1 | -1  // 开局朝向，默认朝右
+  vision?: number  // 视野半径，默认 170
+}
+
+// 画在玩家前面的摆件：牌楼前层、停在水里的船、前景灯笼之类
+export type ForegroundDef = {
+  x: number
+  y: number        // 底边那条线
+  key: string
+  scale?: number
+  alpha?: number
+}
+
+
+④ LevelDef 里加这几个问号字段（放在 `hints: HintDef[]` 后面）：
+
+  guards?: GuardDef[]
+  foreground?: ForegroundDef[]
+  chaseAt?: number          // 走过这条线：演出一下、立刻生成追击小队
+  squadCount?: number       // 小队人数，默认 3
+  squadSpeed?: number       // 追击速度，默认 92（玩家全速 100）
+  squadSpawnGap?: number    // 生成在玩家身后多少像素，默认 260
+  squadStop?: number        // 跑过这条线就甩掉他们
+  chaseCause?: string       // 被抓时的死因，默认 'guard'（死亡界面会写"被千岩军抓住了……"）
+
+  说明：其实这几条我已经按"同名可选字段"读了，不加也能跑；加进类型是为了你写数据时有提示、typo 也能被 tsc 抓到。
+
+
+【B】第八关数据（整条粘到 LEVELS 末尾）
+------------------------------------------------
+坐标是"第一遍骨架"：先保证能从头走到尾、六个段落都在，细节（房子的疏密、灯笼位置）我们边玩边调。
+分段：
+  ① 0~2100     码头 + 集市街（地面顶面 1160）
+  ② 2150~3550  三段石阶上行（1160 → 1112 → 1064 → 1016），中间一道岩柱压力板 + 铁栅栏
+  ③ 3550~4400  玉京台前广场（顶面 1016）：两名千岩军巡逻
+  ④ 4000~4400  请仙典仪的位置（演出以后再加）
+  ⑤ 4400~5600  逃脱跑酷（从屋顶一路跳回码头），4400 触发追击，5480 甩掉
+
+  {
+    name: '第八关 · 可疑人员',
+    intro:
+      '走了三天，终于看见璃月港了。\n今天码头上格外热闹 —— 赶上了一年一度的请仙典仪。\n先去玉京台那边看看，说不定能问出回家的路。',
+
+    width: 5600,
+    height: 1200,
+    // 岩是上一关带过来的；雷是本关新给的（雷神像还没画，先用 unlocks 顶着）
+    startElement: 'rock',
+    unlocks: ['wind', 'thunder'],
+    spawn: { x: 60, y: 1120 },
+    bg: 'harbor',
+    // 混出港区：跑到最右边把箱子开了
+    goal: { x: 5520, y: 1146, kind: 'chest', prompt: '打开' },
+
+    platforms: [
+      // ① 码头那一段石岸（顶面 1160）
+      { x: 1050, y: 1180, width: 2100, height: 40, brick: true },
+      // 码头上的货箱（48 高：站着能挡视线、跳一下能翻过去）
+      { x: 300, y: 1136, width: 60, height: 48, plank: true },
+      { x: 760, y: 1136, width: 60, height: 48, plank: true },
+      // 集市街上的摊位台子（当踏板用）
+      { x: 1250, y: 1136, width: 70, height: 48, plank: true },
+      { x: 1720, y: 1136, width: 70, height: 48, plank: true },
+
+      // ② 石阶的三层平台（每级抬 48，跳得上去）
+      { x: 2550, y: 1115, width: 400, height: 6, brick: true },   // 顶面 1112
+      { x: 3150, y: 1067, width: 400, height: 6, brick: true },   // 顶面 1064
+      // ② 藏着原石的那道矮通道：净空 22（要跳起来往右挤才能钻过去）
+      { x: 2700, y: 1124, width: 200, height: 28, brick: true },  // 底面 1138 → 净空 22
+
+      // ③ 玉京台前广场（顶面 1016）
+      { x: 3975, y: 1019, width: 850, height: 6, brick: true },
+      // 广场上给千岩军当掩体的箱子
+      { x: 3700, y: 992, width: 60, height: 48, plank: true },
+      { x: 4080, y: 992, width: 60, height: 48, plank: true },
+      // 通往演仪台的一小段台阶
+      { x: 4300, y: 1015, width: 120, height: 6, brick: true },
+
+      // ⑤ 逃脱跑酷：从广场一路往下跳回码头
+      { x: 4600, y: 1067, width: 180, height: 6, plank: true },   // 顶面 1064
+      { x: 4890, y: 1115, width: 160, height: 6, plank: true },   // 顶面 1112
+      { x: 5170, y: 1163, width: 200, height: 6, plank: true },   // 顶面 1160
+      // 最后一段码头（顶面 1160）
+      { x: 5450, y: 1180, width: 500, height: 40, brick: true },
+    ],
+
+    // 三段石阶（from 是最下边一级、to 是踩到的上一层顶面）
+    stairs: [
+      { from: { x: 2150, y: 1160 }, to: { x: 2350, y: 1112 }, layer: 'front' },
+      { from: { x: 2780, y: 1112 }, to: { x: 2980, y: 1064 }, layer: 'front' },
+      { from: { x: 3380, y: 1064 }, to: { x: 3580, y: 1016 }, layer: 'front' },
+    ],
+
+    // ② 石阶中间那道机关：压力板只有岩柱 / 岩化能压住，压住才开铁栅栏
+    plates: [{ x: 2600, y: 1112, id: 'h1' }],
+    doors: [{ x: 2900, y: 1062, width: 80, height: 100, needs: ['h1'], texture: 'iron-gate' }],
+
+    // ③ 广场上巡逻的两名千岩军（视野朝斜下方，正前方看不见）
+    guards: [
+      { x: 3700, y: 1016, range: 140 },
+      { x: 4150, y: 1016, range: 180, facing: -1 },
+    ],
+
+    // ⑤ 逃脱：走过 4400 触发"被发现了"的演出 + 生成三名千岩军，5480 甩掉
+    chaseAt: 4400,
+    squadCount: 3,
+    squadSpeed: 92,
+    squadSpawnGap: 240,
+    squadStop: 5480,
+    chaseCause: 'guard',
+
+    orbs: [],
+    gems: [
+      { x: 2760, y: 1150 },   // 那道矮通道里面（净空 22，要挤进去）
+      { x: 4650, y: 1040 },   // 逃脱第一段屋顶上
+      { x: 5200, y: 1136 },   // 最后一段码头上
+    ],
+    blessings: [],
+    hazards: [],
+    monuments: [],
+    notes: [
+      {
+        x: 2500,
+        y: 1136,
+        prompt: '阅读',
+        text:
+          '码头告示：\n今日请仙典仪，玉京台一带\n闲人止步。\n（听说老屋底下有一道缝，\n瘦一点的能钻过去……）',
+      },
+    ],
+
+    // 背景摆件（图层在玩家后面）
+    decor: [
+      // 远岸那排房子由引擎按 bg: 'harbor' 自动铺，不用在这儿摆；
+      // 这里摆的是街面上贴着地面的那些：集市摊位、人群、停在跟前的船
+      { x: 1180, y: 1160, key: 'harbor-stall' },
+      { x: 1420, y: 1160, key: 'harbor-slime-crowd' },
+      { x: 1650, y: 1160, key: 'harbor-stall', scale: 0.9 },
+      { x: 1980, y: 1160, key: 'harbor-slime-crowd', scale: 0.8 },
+      { x: 2450, y: 1160, key: 'harbor-house-c' },
+      { x: 3300, y: 1016, key: 'harbor-house-b' },
+      { x: 4400, y: 1016, key: 'harbor-house-d' },
+      // 牌楼（背层）—— 前层在下面的 foreground 里
+      { x: 1750, y: 1160, key: 'harbor-paifang' },
+      { x: 3620, y: 1016, key: 'harbor-paifang' },
+      // 灯笼串挂几处
+      { x: 1050, y: 1090, key: 'harbor-lanterns' },
+      { x: 1850, y: 1090, key: 'harbor-lanterns' },
+      { x: 3950, y: 946, key: 'harbor-lanterns' },
+    ],
+
+    // 画在玩家前面的摆件：牌楼前层（那两根柱子压着史莱姆）+ 停在近景水里的船
+    foreground: [
+      { x: 1750, y: 1160, key: 'harbor-paifang-front' },
+      { x: 3620, y: 1016, key: 'harbor-paifang-front' },
+      { x: 480, y: 1230, key: 'harbor-boat-b', scale: 1.1 },
+      { x: 900, y: 1240, key: 'harbor-boat-a', scale: 1.2 },
+      { x: 5050, y: 1230, key: 'harbor-boat-c', scale: 1 },
+    ],
+
+    hints: [
+      { x: 160, y: 1100, text: '往右走：码头 → 集市街 → 玉京台的石阶' },
+      { x: 1350, y: 1080, text: '集市街：摊位能踩、史莱姆人群只是背景' },
+      { x: 2500, y: 1080, text: '老屋底下那道缝能钻过去（净空 22）' },
+      { x: 2600, y: 1060, text: '压力板：只有岩柱 / 岩化能压住' },
+      { x: 3700, y: 960, text: '千岩军：别站进他的视野；岩化不动他不会发现' },
+      { x: 4300, y: 960, text: '前面就是请仙典仪' },
+      { x: 4420, y: 960, text: '往右跑！被盯上了' },
+      { x: 5400, y: 1100, text: '跑到尽头把箱子开了就算混出去了' },
+    ],
+  },
+
+
+【C】粘完检查这几件事
+------------------------------------------------
+
+1. 打开 `npm run build` —— 类型没错就说明 A 的字段加对了。
+2. 进第八关（选关界面会多出"第八关"，或者地址带 `?fresh=1` 之后换关）走一遍：
+   码头 → 集市街 → 爬石阶（中途用岩柱压板开铁栅栏）→ 广场躲两名千岩军 →
+   （后面是逃脱）跑过 x=4400 触发追击 → 跑到 5480 甩掉 → 最右边开箱。
+3. 三个原石的位置：矮通道里那颗要"跳起来往右挤"才拿得到；另两颗在逃脱的屋顶和终点码头上。
+4. 觉得哪一段太挤/太空，告诉我段号（①~⑤）+ 想加什么，我改坐标；新美术（房子/牌楼/灯笼/摊位/人群/船）
+   使用之前都在测试关「港口」厅里过过目了。
+
+（另外：`?dev=1` 的测试关入口、港口厅这些都不影响正式关卡；`DEV_MODE` 打包前记得改回 false。）
