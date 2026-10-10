@@ -5262,8 +5262,9 @@ export class GameScene extends Phaser.Scene {
     const from = def.from
     const to = def.to
     const dir = to.x >= from.x ? 1 : -1
-    // 斜坡要切得细一点：踏步落差小，人走上去才是"沿着坡滑上去"而不是一级一级弹
-    const tread = style === 'ramp' ? STAIR_TREAD / 3 : STAIR_TREAD
+    // 踏步切细一点：台阶看着更细致，人走上去也更顺
+    // （斜坡还要更细，不然一级一级地弹）
+    const tread = style === 'ramp' ? STAIR_TREAD / 3 : 12
     const count = Math.max(1, Math.round(Math.abs(to.x - from.x) / tread))
     const run = Math.abs(to.x - from.x) / count
     const rise = (from.y - to.y) / count
@@ -5274,31 +5275,47 @@ export class GameScene extends Phaser.Scene {
     const stoneTop = 0x8a765f
     const stoneDark = 0x4a3f33
 
-    // ① 实心台体：起点 → 终点 → 垂直落到这一跑的底边
+    // ① 实心台体：每一级踏面**一直填到这一跑的底边**，一级挨一级，中间不留缝
+    //    （台阶就是一块块垒起来的砖石，不是空架子；斜坡则是一整块梯形）
     gfx.fillStyle(stoneFace, 1)
-    gfx.fillPoints(
-      [
-        new Phaser.Math.Vector2(from.x, from.y),
-        new Phaser.Math.Vector2(to.x, to.y),
-        new Phaser.Math.Vector2(to.x, baseY),
-      ],
-      true
-    )
 
-    // ② 砖缝：横着一道道砌，竖缝错开（都裁在台体那三条边里，不会画到外面去）
-    const slopeX = (y: number) =>
-      from.y === to.y ? from.x : from.x + ((from.y - y) / (from.y - to.y)) * (to.x - from.x)
+    if (style === 'brick') {
+      for (let i = 0; i < count; i++) {
+        const near = from.x + dir * run * i
+        const top = from.y - rise * (i + 1)
+        const left = dir > 0 ? near : near - run
 
-    for (let y = baseY - 10; y > to.y + 4; y -= 13) {
-      const a = slopeX(y)
-      const left = Math.min(a, to.x)
-      const right = Math.max(a, to.x)
+        gfx.fillRect(left, top, run, baseY - top)
+      }
+    } else {
+      gfx.fillPoints(
+        [
+          new Phaser.Math.Vector2(from.x, from.y),
+          new Phaser.Math.Vector2(to.x, to.y),
+          new Phaser.Math.Vector2(to.x, baseY),
+          new Phaser.Math.Vector2(from.x, baseY),
+        ],
+        true
+      )
+    }
 
-      gfx.fillStyle(stoneDark, 0.35)
-      gfx.fillRect(left + 1, y, Math.max(0, right - left - 2), 1)
+    // ② 砖缝：每一级的柱子自己砌自己的（横缝 + 错开的竖缝），踏面下沿压一道暗边
+    for (let i = 0; i < count; i++) {
+      const near = from.x + dir * run * i
+      const top = from.y - rise * (i + 1)
+      const left = dir > 0 ? near : near - run
+      const course = Math.max(6, Math.round(run / 2))
 
-      for (let x = left + 10; x < right - 4; x += 22) {
-        gfx.fillRect(x, y - 13, 1, 13)
+      gfx.fillStyle(stoneDark, 0.3)
+
+      for (let y = top + course; y < baseY - 1; y += course) {
+        gfx.fillRect(left + 1, y, run - 2, 1)
+      }
+
+      gfx.fillStyle(stoneDark, 0.22)
+
+      for (let y = top + course, k = 0; y < baseY - 1; y += course, k++) {
+        gfx.fillRect(left + (k % 2 === 0 ? 1 : run - 2), y - course, 1, course)
       }
     }
 

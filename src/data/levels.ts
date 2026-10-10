@@ -835,12 +835,13 @@ export const LEVELS: LevelDef[] = [
       // ③ 玉京台：占两段打包背景那么宽（x 2300 → 3220）。
       //    台面顶面 880 —— 比地面高 280，就是那栋三层楼房的高度。
       { x: 2760, y: 900, width: 920, height: 40, brick: true },     // 台面 880
-      // 台体：从台面一直落到地面（920 → 1160）。solid: false —— 它只是楼梯后面的那面墙（背景），
-      // 不挡人，史莱姆可以贴着它走过去；真正挡人的只有台面楼板和两级楼梯
-      { x: 2760, y: 1040, width: 460, height: 240, brick: true, solid: false },
-      // 两条楼梯半层处的小平台（转身 + 放判定区的地方，顶面也是 1020）
-      { x: 2300, y: 1023, width: 90, height: 6, brick: true },
-      { x: 3220, y: 1023, width: 90, height: 6, brick: true },
+      // 台体：和台面一样宽的一整面砖墙（920 → 1160），楼梯的背后就是它。
+      // solid: false —— 只画不挡人，史莱姆贴着墙走过去、从楼梯下面穿都没问题；
+      // 真正挡人的只有台面楼板和两级楼梯
+      { x: 2760, y: 1040, width: 920, height: 240, brick: true, solid: false },
+      // 半层小平台：紧贴玉京台的最左 / 最右，一点不越到两边的打包景里（顶面 1020）
+      { x: 2325, y: 1023, width: 50, height: 6, brick: true },
+      { x: 3195, y: 1023, width: 50, height: 6, brick: true },
     ],
 
     // ③ 玉京台的两条双层楼梯（一跑一半高，两跑一样高，在台体两边的空档里）：
@@ -848,10 +849,10 @@ export const LEVELS: LevelDef[] = [
     //    所以在地面上从楼梯下面穿过去也没问题；走到半层小平台，判定区把图层翻到「后层」，
     //    上跑（后层）就能正常通行，从左到右上到台面；上跑的栏杆画在史莱姆图层上（revealRails 透视）
     stairs: [
-      { from: { x: 2530, y: 1160 }, to: { x: 2300, y: 1020 }, style: 'brick', layer: 'front', railDepth: 1.4 },
-      { from: { x: 2300, y: 1020 }, to: { x: 2530, y: 880 }, style: 'brick', layer: 'back', rail: 'none' },
-      { from: { x: 2990, y: 1160 }, to: { x: 3220, y: 1020 }, style: 'ramp', layer: 'front', railDepth: 1.4 },
-      { from: { x: 3220, y: 1020 }, to: { x: 2990, y: 880 }, style: 'ramp', layer: 'back', rail: 'none' },
+      { from: { x: 2530, y: 1160 }, to: { x: 2350, y: 1020 }, style: 'brick', layer: 'front', railDepth: 1.4 },
+      { from: { x: 2350, y: 1020 }, to: { x: 2530, y: 880 }, style: 'brick', layer: 'back', rail: 'none' },
+      { from: { x: 2990, y: 1160 }, to: { x: 3170, y: 1020 }, style: 'ramp', layer: 'front', railDepth: 1.4 },
+      { from: { x: 3170, y: 1020 }, to: { x: 2990, y: 880 }, style: 'ramp', layer: 'back', rail: 'none' },
     ],
 
     // 分层判定线：脚底过了 1010（也就是踩上上跑）就自动切到后层，回到下跑/地面就是前层。
@@ -862,8 +863,8 @@ export const LEVELS: LevelDef[] = [
     // 史莱姆走到栏杆后面时在它身上擦一个透视洞，和第七关那棵树一个做法
     revealRails: [
       { from: { x: 2300, y: 880 }, to: { x: 3220, y: 880 } },
-      { from: { x: 2530, y: 994 }, to: { x: 2300, y: 854 }, key: 'rail-band' },
-      { from: { x: 2990, y: 994 }, to: { x: 3220, y: 854 }, key: 'rail-band' },
+      { from: { x: 2530, y: 994 }, to: { x: 2350, y: 854 }, key: 'rail-band' },
+      { from: { x: 2990, y: 994 }, to: { x: 3170, y: 854 }, key: 'rail-band' },
     ],
 
     orbs: [],
