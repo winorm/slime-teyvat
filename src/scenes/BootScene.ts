@@ -5012,47 +5012,56 @@ export class BootScene extends Phaser.Scene {
     harborMid.generateTexture('bg-harbor-mid', 480, 270)
     harborMid.destroy()
 
-    // 近（-10）：我们这一侧的岸边 —— 石砌堤岸 + 一道护栏 + 系缆桩（最靠镜头的一层）
+    // 近（-10）：**紧挨着岸边的那片水** —— 波纹 + 泡在水里的系缆桩
+    // （玩家脚下那块"岸边"是关卡地面，不画在背景里；护栏是另一张前景贴图，压在玩家前面）
     const harborNear = this.add.graphics()
 
-    // 堤岸：两层石色剪影
-    this.drawRidge(harborNear, 480, 270, 0x8a7f6a, [3, 7], 12, 214)
-    this.drawRidge(harborNear, 480, 270, 0x6f6455, [4, 9], 7, 228)
-    harborNear.fillStyle(0x5a5040, 1)
-    harborNear.fillRect(0, 236, 480, 34)
-    // 岸沿压一条亮边
-    harborNear.fillStyle(0xb0a184, 1)
-    harborNear.fillRect(0, 212, 480, 2)
+    // 近处的水：比中层亮一点，密一点的波纹
+    harborNear.fillStyle(0x4a86b4, 1)
+    harborNear.fillRect(0, 206, 480, 64)
+    harborNear.fillStyle(0x6fa8cf, 1)
+    harborNear.fillRect(0, 206, 480, 2)
+    harborNear.fillStyle(0xdff2ff, 0.3)
 
-    // 护栏：立柱 + 上下两道横杆（离镜头最近）
-    for (let index = 0; index < 13; index++) {
-      const x = 8 + index * 38
+    for (let index = 0; index < 26; index++) {
+      const x = (index * 53) % 460
+      const width = 20 + (index % 4) * 8
 
-      harborNear.fillStyle(0x8a7458, 1)
-      harborNear.fillRect(x, 190, 5, 30)
-      harborNear.fillStyle(0x5a4a38, 1)
-      harborNear.fillRect(x + 3, 190, 2, 30)
+      harborNear.fillRect(x, 214 + ((index * 17) % 46), width, 2)
     }
 
-    harborNear.fillStyle(0xa08a68, 1)
-    harborNear.fillRect(0, 192, 480, 4)
-    harborNear.fillRect(0, 204, 480, 4)
-    harborNear.fillStyle(0x6f5c44, 1)
-    harborNear.fillRect(0, 195, 480, 2)
-    harborNear.fillRect(0, 207, 480, 2)
-
-    // 系缆桩
+    // 泡在水里的系缆桩（桩顶露在水面上）
     for (let index = 0; index < 3; index++) {
-      const x = 90 + index * 150
+      const x = 96 + index * 152
 
-      harborNear.fillStyle(0x6f5c44, 1)
-      harborNear.fillRect(x, 206, 10, 26)
-      harborNear.fillStyle(0x8a7458, 1)
-      harborNear.fillRect(x - 2, 204, 14, 5)
+      harborNear.fillStyle(0x5a4a38, 1)
+      harborNear.fillRect(x, 192, 12, 40)
+      harborNear.fillStyle(0x3f3428, 1)
+      harborNear.fillRect(x + 8, 192, 4, 40)
+      harborNear.fillStyle(0x7a6448, 1)
+      harborNear.fillRect(x - 3, 188, 18, 6)
     }
 
     harborNear.generateTexture('bg-harbor-near', 480, 270)
     harborNear.destroy()
+
+    // 前景用的护栏（可平铺，48 宽一段：一根立柱 + 上下两道横杆）。
+    // 摆的时候贴在地面顶面、图层放在史莱姆上面（11），就是"镜头最前面的码头护栏"
+    const railing = this.add.graphics()
+
+    railing.fillStyle(0xa08a68, 1)
+    railing.fillRect(0, 4, 48, 6)
+    railing.fillRect(0, 18, 48, 5)
+    railing.fillStyle(0x6f5c44, 1)
+    railing.fillRect(0, 8, 48, 2)
+    railing.fillRect(0, 21, 48, 2)
+    railing.fillStyle(0x8a7458, 1)
+    railing.fillRect(20, 4, 7, 40)
+    railing.fillStyle(0x5a4a38, 1)
+    railing.fillRect(25, 4, 2, 40)
+
+    railing.generateTexture('harbor-railing', 48, 44)
+    railing.destroy()
   }
 
   // 望舒客栈：一根很高的岩柱，顶上压着一栋木楼，檐下挂着灯笼。

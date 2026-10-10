@@ -1314,6 +1314,22 @@ export class GameScene extends Phaser.Scene {
     // 「环树」系数：这关往上爬的时候，背景横向也一起流，做出绕着树转的感觉
     this.bgSpin = this.level.bgSpin ?? 0
 
+    // 港口的码头护栏：世界坐标里沿着关卡铺满一整条，底边贴在地面顶面上，
+    // 图层放在史莱姆（10）之上 —— 这就是"镜头最前面的那道护栏"。
+    // 稍微透一点，免得史莱姆走到岸边时整个人被挡住
+    if (theme === 'harbor') {
+      const harborGroundTop = this.level.platforms.reduce(
+        (lowest, item) => Math.max(lowest, item.y - item.height / 2),
+        Number.NEGATIVE_INFINITY
+      )
+
+      this.add
+        .tileSprite(0, harborGroundTop - 34, this.level.width, 34, 'harbor-railing')
+        .setOrigin(0, 0)
+        .setAlpha(0.78)
+        .setDepth(11)
+    }
+
     // 矮的关卡照旧用平铺（有限的高度里不会绕回）；高的关卡上面已经用整幅图铺好了
     if (!tallOutdoor) {
       this.bgFar = this.add
