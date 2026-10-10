@@ -237,6 +237,16 @@ const CHASE = {
   stopX: 1450,
 }
 
+// 追击（封锁线）的关卡参数：第三关用上面那套默认值，第八关可以在数据里单独给。
+// 这几个字段还没写进 levels.ts（那是用户的文件），这里按同名可选字段读
+type ChaseTuning = {
+  chaseAt?: number
+  chaseStop?: number
+  chaseSpeed?: number
+  chaseTint?: number
+  chaseCause?: string
+}
+
 // ─────────────────────────────────────────────────────────────
 // 测试关卡（只有 DEV_MODE + ?dev=1 进得来）：大厅 + 分类展示间
 //
@@ -541,6 +551,63 @@ function devStealthRoom(): DevLevelDef {
   return level
 }
 
+// ⑧ 追击：走过触发点先放一段"被发现了"的演出，然后一道封锁线从后面压上来，
+// 剩下那一整段是不同高度的跑酷（一级一级往上爬再跳下来），掉进水里不会死、
+// 但大概率会被追上 —— 第八关"逃出璃月港"那段的手感先在这儿试
+function devChaseRoom(): DevLevelDef {
+  const level = devRoomShell(
+    '测试 · 追击',
+    '追击测试：\n往右跑，走过 x=380 会触发追击。\n剩下全是不同高度的跑酷，\n掉进水里不会死，但会被追上。',
+    2600
+  )
+
+  // 高一点的关卡：下面要留出水面
+  level.height = 960
+
+  level.platforms = [
+    // 出发点：一小段实地
+    { x: 250, y: 880, width: 500, height: 40 },
+    // 底下那片水：掉下来浮在水面上不会死。水面只比出发点低 12 像素 ——
+    // 这样从水里能跳回最矮的那几级（跳高 56，最矮的台子顶面 821 离水面 51），
+    // 落水是"掉一段节奏"而不是死路
+    { x: 1600, y: 892, width: 2600, height: 40, water: true },
+
+    // 跑酷路线：一级比一级高一点点（每级不超过 48，跳得上去）
+    { x: 600, y: 838, width: 120, height: 34, plank: true },
+    { x: 760, y: 806, width: 120, height: 34, plank: true },
+    { x: 920, y: 782, width: 140, height: 34, plank: true },
+    // 屋顶那一段可以一直跑
+    { x: 1150, y: 782, width: 300, height: 34, plank: true },
+    { x: 1440, y: 830, width: 120, height: 34, plank: true },
+    { x: 1620, y: 800, width: 100, height: 34, plank: true },
+    // 最后跳上一条船，再上岸
+    { x: 1810, y: 790, width: 220, height: 30, plank: true },
+    { x: 2060, y: 812, width: 140, height: 34, plank: true },
+    { x: 2350, y: 838, width: 400, height: 40, plank: true },
+    // 落水之后的救援台阶：贴着水面，能一级一级爬回路线
+    { x: 2280, y: 880, width: 100, height: 30, plank: true },
+  ]
+
+  level.chase = true
+
+  const tuning = level as DevLevelDef & ChaseTuning
+
+  tuning.chaseAt = 380
+  tuning.chaseStop = 2450
+  tuning.chaseSpeed = 70
+  tuning.chaseTint = 0x7a2f2a
+  tuning.chaseCause = 'guard'
+
+  level.hints = [
+    { x: 200, y: 780, text: '往右跑 —— 走过 x=380 会触发追击' },
+    { x: 900, y: 690, text: '一级一级往上跳' },
+    { x: 1500, y: 830, text: '掉进水里不会死，但会被追上' },
+    { x: 2350, y: 760, text: '跑到尽头就安全了' },
+  ]
+
+  return level
+}
+
 // 大厅里那一排门。x 是门中心，间距 230；最后一扇通向原来那个「一关走完全部机关」的旧沙盒
 const DEV_ROOMS: DevRoomDef[] = [
   { label: '七天神像', level: devStatueRoom() },
@@ -550,6 +617,7 @@ const DEV_ROOMS: DevRoomDef[] = [
   { label: '地形与建材', level: devTerrainRoom() },
   { label: '预留', level: devReserveRoom() },
   { label: '潜行', level: devStealthRoom() },
+  { label: '追击', level: devChaseRoom() },
   { label: '综合沙盒', level: DEV_LEVEL },
 ]
 
@@ -579,8 +647,8 @@ const DEV_SPAWN_X = (() => {
 const DEV_HUB: DevLevelDef = {
   ...devRoomShell(
     '测试关卡 · 大厅',
-    '测试关卡 · 大厅\n七扇门各通一间展厅，\n站到门前按 F 进去。',
-    2000
+    '测试关卡 · 大厅\n一排门各通一间展厅，\n站到门前按 F 进去。',
+    2400
   ),
   spawn: { x: 90, y: 820 },
   hints: [{ x: 90, y: 740, text: '开发用的测试大厅（正式关卡里没有）' }],
@@ -854,6 +922,10 @@ export class GameScene extends Phaser.Scene {
 
   private chase!: Phaser.Physics.Arcade.Image
   private chased = false
+  // 这一次追击的参数（第三关用默认值，第八关可以按关卡给）
+  private chaseDef: { triggerX: number; stopX: number; speed: number; cause: string } | null = null
+  // 跟着封锁线一起走的千岩军（装饰）
+  private chaseCrew: Phaser.GameObjects.Image[] = []
 
   private interactKey!: Phaser.Input.Keyboard.Key
   private goalSprite!: Phaser.Physics.Arcade.Sprite
@@ -1095,6 +1167,8 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setZoom(1)
 
     this.chased = false
+    this.chaseDef = null
+    this.chaseCrew = []
     this.platforms = this.physics.add.staticGroup()
     this.pillars = this.physics.add.staticGroup()
     this.orbs = this.physics.add.staticGroup()
@@ -2494,16 +2568,35 @@ export class GameScene extends Phaser.Scene {
     playMusic(this, this.level.music ?? 'music-field')
 
     if (this.level.chase) {
+      const tuning = this.level as LevelDef & ChaseTuning
+
+      this.chaseDef = {
+        triggerX: tuning.chaseAt ?? CHASE.triggerX,
+        stopX: tuning.chaseStop ?? CHASE.stopX,
+        speed: tuning.chaseSpeed ?? CHASE.speed,
+        cause: tuning.chaseCause ?? 'crush',
+      }
+
       this.chase = this.physics.add.image(-40, this.level.height / 2, 'pixel')
       this.chase.setDisplaySize(60, this.level.height)
-      this.chase.setTint(palette.crumble)
+      this.chase.setTint(tuning.chaseTint ?? palette.crumble)
 
       const chaseBody = this.chase.body as Phaser.Physics.Arcade.Body
       chaseBody.setAllowGravity(false)
 
       this.physics.add.overlap(this.slime, this.chase, () => {
-        this.die('crush')
+        this.die(this.chaseDef!.cause)
       })
+
+      // 封锁线上站着的千岩军（纯装饰，跟着线一起走）
+      this.chaseCrew = [0, 1, 2, 3].map((index) =>
+        this.add
+          .image(0, 0, 'guard-millelith')
+          .setOrigin(0.5, 1)
+          .setDepth(5)
+          .setVisible(false)
+          .setData('slot', index)
+      )
     }
     this.input.keyboard!.on('keydown-ESC', () => {
       this.scene.pause()
@@ -5760,6 +5853,50 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
+  // 追击开场：镜头往回拉一点看封锁线一眼、闪一下红、喊一声，然后把控制交回玩家
+  private startChase() {
+    this.chased = true
+    this.inputLocked = true
+    this.physics.world.pause()
+
+    const camera = this.cameras.main
+
+    camera.stopFollow()
+    camera.zoomTo(1.5, 450, 'Sine.easeInOut')
+    camera.pan(
+      (this.slime.x + (this.chase?.x ?? this.slime.x)) / 2,
+      this.slime.y - 20,
+      600,
+      'Sine.easeInOut'
+    )
+
+    const flash = this.add
+      .rectangle(0, 0, 480, 270, 0xc0392b, 1)
+      .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setDepth(60)
+      .setAlpha(0)
+
+    this.tweens.add({
+      targets: flash,
+      alpha: 0.32,
+      duration: 200,
+      yoyo: true,
+      hold: 140,
+      onComplete: () => flash.destroy(),
+    })
+
+    this.showMessage('被发现了！往回一看全是千岩军，快跑！')
+
+    this.time.delayedCall(1500, () => {
+      camera.zoomTo(1, 400, 'Sine.easeInOut')
+      camera.startFollow(this.slime, true, 0.12, 0.12)
+      this.physics.world.resume()
+      this.inputLocked = false
+      playSfx(this, 'sfx-die', 0.35, 1.2)
+    })
+  }
+
   private die(cause: string) {
     // 无敌帧不挡「摔出世界」：雷闪能穿过障碍、能顶掉岩刺，但救不了掉下去
     if (this.dying || (this.invulnTimer > 0 && cause !== 'fall')) {
@@ -7531,19 +7668,30 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    if (this.level.chase) {
-      if (!this.chased && this.slime.x > CHASE.triggerX) {
-        this.chased = true
+    if (this.chaseDef) {
+      // 走过触发点：先放一段"被发现了"的演出，再把封锁线放出来
+      if (!this.chased && this.slime.x > this.chaseDef.triggerX) {
+        this.startChase()
       }
 
       if (this.chased) {
         const chaseBody = this.chase.body as Phaser.Physics.Arcade.Body
 
-        if (this.chase.x >= CHASE.stopX) {
+        if (this.chase.x >= this.chaseDef.stopX) {
           chaseBody.setVelocityX(0)
         } else {
-          chaseBody.setVelocityX(CHASE.speed)
+          chaseBody.setVelocityX(this.chaseDef.speed)
         }
+
+        // 跟着线走的千岩军：贴着封锁线前沿，一路小跑
+        this.chaseCrew.forEach((guard, index) => {
+          guard.setVisible(true)
+          guard.setPosition(
+            this.chase.x + 18 + index * 4,
+            this.slime.y + 20 + (index % 2 === 0 ? 0 : 3)
+          )
+          guard.setDepth(5 + index * 0.01)
+        })
       }
     }
 
