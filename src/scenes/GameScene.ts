@@ -279,6 +279,12 @@ const DEV_GROUND_TOP = 860
 // 再高就得靠"跳起来顶住侧面往右挤"那条缝隙了
 const STEP_LAB = [16, 24, 40, 51, 54, 58, 62, 66, 70]
 
+// 矮通道实验台（「矮通道」厅）：一排"平台底面离地多高"的通道，用来量**净空**那条边界 ——
+// 史莱姆碰撞盒高 26，净空小于 26 时正常走不进去，但跳到空中同时往右挤，可能会被
+// 引擎按"最浅方向"往下压、从而钻过去。这里的数字都是**净空**（不含平台板厚）
+const GAP_LAB = [12, 16, 20, 22, 24, 26, 30]
+const GAP_TINT = 0x8a4a6a
+
 // 展品：展示间里「同一类东西」中的一个。
 // statue 是已经画好的神像（没做过贴图的元素会自动退回一块灰牌），slot 是纯预留位
 type DevExhibit =
@@ -532,23 +538,31 @@ function devTerrainRoom(): DevLevelDef {
   return level
 }
 
-// ⑥ 预留：以后新元素、新机关往这儿摆（现在先留五个空位）
-function devReserveRoom(): DevLevelDef {
+// ⑥ 矮通道：量"平台底下多矮还能钻过去"（净空），第八关可以用它做暗道 / 藏东西
+function devGapRoom(): DevLevelDef {
   const level = devRoomShell(
-    '测试 · 预留',
-    '预留展厅：\n以后新元素、新机关\n按 240 的间距往右接。\n现在先留五个空位。',
-    1600
+    '测试 · 矮通道',
+    '矮通道实验台：\n每块平台底面离地多少写在牌子上。\n站在左边只按右会被挡住，\n跳起来同时按右挤，就能看出哪几档钻得过去。',
+    2600
   )
 
-  level.devExhibits = [
-    { kind: 'slot', x: 400, label: '雷 · 待设计' },
-    { kind: 'slot', x: 640, label: '草 · 待设计' },
-    { kind: 'slot', x: 880, label: '水 · 待设计' },
-    { kind: 'slot', x: 1120, label: '火 · 待设计' },
-    { kind: 'slot', x: 1360, label: '冰 · 待设计' },
+  level.platforms = [
+    { x: 1300, y: DEV_GROUND_TOP + 20, width: 2600, height: 40 },
+    // 每块板底面离地 = gap（板本身 20 厚），间距 300，板宽 200
+    ...GAP_LAB.map((gap, index) => ({
+      x: 500 + index * 300,
+      y: DEV_GROUND_TOP - gap - 10,
+      width: 200,
+      height: 20,
+      tint: GAP_TINT,
+    })),
   ]
 
-  level.hints = [{ x: 800, y: 760, text: '新展品按 240 的间距往右接' }]
+  level.hints = GAP_LAB.map((gap, index) => ({
+    x: 500 + index * 300,
+    y: DEV_GROUND_TOP - gap - 36,
+    text: '净空 ' + gap + ' 像素',
+  }))
 
   return level
 }
@@ -651,7 +665,7 @@ const DEV_ROOMS: DevRoomDef[] = [
   { label: '造物机关', level: devTrapRoom() },
   { label: '能力测试', level: devAbilityRoom() },
   { label: '地形与建材', level: devTerrainRoom() },
-  { label: '预留', level: devReserveRoom() },
+  { label: '矮通道', level: devGapRoom() },
   { label: '潜行', level: devStealthRoom() },
   { label: '追击', level: devChaseRoom() },
   { label: '综合沙盒', level: DEV_LEVEL },
