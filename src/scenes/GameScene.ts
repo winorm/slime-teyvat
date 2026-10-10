@@ -127,6 +127,36 @@ type MonsterRef = {
   stun: number
 }
 
+// 千岩军（第八关潜行要用）：巡逻 + 一个扇形视野。看见你 1.2 秒算"被发现"，
+// 被发现就朝你追过来；甩掉他的视线 3 秒，他才回到巡逻。
+// 注意：正式的字段还没写进 levels.ts（那是用户的文件），这里先按同名可选字段读，
+// 以后他把 `guards?: GuardDef[]` 加进 LevelDef，这段不用改
+const GUARD_VISION = { range: 170, halfAngle: 50 }
+const GUARD_AWARENESS_UP = 1 / 1.2
+const GUARD_AWARENESS_DOWN = 1 / 2
+const GUARD_LOSE_TIME = 3
+const GUARD_CHASE_SPEED = 72
+const GUARD_TOUCH = 20
+
+type GuardDef = {
+  x: number
+  y: number
+  range: number
+  speed?: number
+  facing?: 1 | -1
+  vision?: number
+}
+
+type GuardRef = {
+  def: GuardDef
+  sprite: Phaser.GameObjects.Image
+  mark: Phaser.GameObjects.Image
+  dir: number
+  awareness: number
+  alerted: boolean
+  loseTimer: number
+}
+
 type PillarTarget = {
   x: number
   landTop: number
@@ -209,7 +239,7 @@ type DevExhibit =
   | { kind: 'statue'; x: number; element: ElementKey; label: string; playable?: boolean }
   | { kind: 'slot'; x: number; label: string }
 
-type DevLevelDef = LevelDef & { devExhibits?: DevExhibit[] }
+type DevLevelDef = LevelDef & { devExhibits?: DevExhibit[]; guards?: GuardDef[] }
 
 type DevRoomDef = { label: string; level: DevLevelDef }
 
@@ -462,7 +492,39 @@ function devReserveRoom(): DevLevelDef {
   return level
 }
 
-// 大厅里那七扇门。x 是门中心，间距 230；最后一扇通向原来那个「一关走完全部机关」的旧沙盒
+// ⑦ 潜行：千岩军巡逻 + 几摞木箱当掩体 —— 第八关「可疑人员」的核心玩法先在这儿试
+function devStealthRoom(): DevLevelDef {
+  const level = devRoomShell(
+    '测试 · 潜行',
+    '潜行测试：\n千岩军的视野是一个扇形。\n躲在木箱后面他看不见你，\n被看见 1.2 秒他就会追过来。',
+    1900
+  )
+
+  level.platforms = [
+    { x: 950, y: DEV_GROUND_TOP + 20, width: 1900, height: 40 },
+    // 掩体：三摞木箱。48 高 —— 站着能挡住视线，跳一下又能翻过去
+    { x: 420, y: 836, width: 76, height: 48, plank: true },
+    { x: 980, y: 836, width: 76, height: 48, plank: true },
+    { x: 1500, y: 836, width: 76, height: 48, plank: true },
+  ]
+
+  level.guards = [
+    { x: 640, y: DEV_GROUND_TOP, range: 150 },
+    { x: 1150, y: DEV_GROUND_TOP, range: 200, facing: -1 },
+    { x: 1650, y: DEV_GROUND_TOP, range: 120 },
+  ]
+
+  level.hints = [
+    { x: 160, y: 780, text: '走到右边去：别走进扇形视野' },
+    { x: 420, y: 770, text: '木箱后面看不见你' },
+    { x: 980, y: 770, text: '掩体' },
+    { x: 1500, y: 770, text: '掩体' },
+  ]
+
+  return level
+}
+
+// 大厅里那一排门。x 是门中心，间距 230；最后一扇通向原来那个「一关走完全部机关」的旧沙盒
 const DEV_ROOMS: DevRoomDef[] = [
   { label: '七天神像', level: devStatueRoom() },
   { label: '元素方碑', level: devMonumentRoom() },
@@ -470,6 +532,7 @@ const DEV_ROOMS: DevRoomDef[] = [
   { label: '能力测试', level: devAbilityRoom() },
   { label: '地形与建材', level: devTerrainRoom() },
   { label: '预留', level: devReserveRoom() },
+  { label: '潜行', level: devStealthRoom() },
   { label: '综合沙盒', level: DEV_LEVEL },
 ]
 
@@ -761,6 +824,9 @@ export class GameScene extends Phaser.Scene {
   private polarityTimer = 0.8
   // 关卡里的魔物
   private monsterList: MonsterRef[] = []
+  // 关卡里的千岩军（潜行用）+ 所有人的视野扇形（画在同一张 Graphics 上）
+  private guardList: GuardRef[] = []
+  private guardVisionGfx!: Phaser.GameObjects.Graphics
   private armorKey!: Phaser.Input.Keyboard.Key
   private rockKey!: Phaser.Input.Keyboard.Key
 
@@ -1818,6 +1884,7 @@ export class GameScene extends Phaser.Scene {
     })
 
     this.buildMonsters()
+    this.buildGuards()
 
     const goal = this.level.goal
     const goalColor = goal.grants ? ELEMENTS[goal.grants].color : 0xffffff
@@ -1861,6 +1928,8 @@ export class GameScene extends Phaser.Scene {
     // 身上的电弧 / 静电画在身体上面一层（身体 10）
     this.thunderFx = this.add.graphics().setDepth(10.5)
     this.polarityMark = this.add.image(0, 0, 'polarity-plus').setDepth(11).setVisible(false)
+    // 视野扇形画在地面和人物之间（3.5），压在掩体下面、人上面看不到遮挡关系
+    this.guardVisionGfx = this.add.graphics().setDepth(3.5)
     
     this.windTrails = [0, 1, 2].map((index) =>
       this.add
@@ -3975,6 +4044,221 @@ export class GameScene extends Phaser.Scene {
 
       this.monsterList.push({ def, sprite, stunMark, dir: 1, stun: 0 })
     })
+  }
+
+  // ── 千岩军与潜行 ────────────────────────────────────────────
+  private buildGuards() {
+    this.guardList = []
+
+    const defs = (this.level as LevelDef & { guards?: GuardDef[] }).guards ?? []
+
+    defs.forEach((def) => {
+      const sprite = this.add.image(def.x, def.y, 'guard-millelith').setOrigin(0.5, 1).setDepth(4)
+      const mark = this.add.image(def.x, def.y - 56, 'alert-mark').setDepth(5).setVisible(false)
+      const dir = def.facing ?? 1
+
+      sprite.setFlipX(dir < 0)
+
+      this.guardList.push({ def, sprite, mark, dir, awareness: 0, alerted: false, loseTimer: 0 })
+    })
+  }
+
+  private updateGuards(dt: number) {
+    this.guardVisionGfx.clear()
+
+    this.guardList.forEach((guard) => {
+      const sees = this.guardSees(guard)
+
+      if (sees) {
+        guard.awareness = Math.min(1, guard.awareness + GUARD_AWARENESS_UP * dt)
+        guard.loseTimer = 0
+      } else {
+        guard.awareness = Math.max(0, guard.awareness - GUARD_AWARENESS_DOWN * dt)
+      }
+
+      // 警觉攒满 = 被发现：掉头朝你走，甩掉视线 3 秒才回到巡逻
+      if (!guard.alerted && guard.awareness >= 1) {
+        guard.alerted = true
+        guard.loseTimer = 0
+        playSfx(this, 'sfx-interact', 0.5, 0.7)
+        this.showMessage('被千岩军发现了！')
+      }
+
+      if (guard.alerted) {
+        if (sees) {
+          guard.loseTimer = 0
+        } else {
+          guard.loseTimer += dt
+
+          if (guard.loseTimer >= GUARD_LOSE_TIME) {
+            guard.alerted = false
+            guard.awareness = 0
+            guard.loseTimer = 0
+          }
+        }
+
+        guard.dir = this.slime.x < guard.sprite.x ? -1 : 1
+        guard.sprite.x += guard.dir * GUARD_CHASE_SPEED * dt
+      } else {
+        const speed = guard.def.speed ?? 26
+        const left = guard.def.x - guard.def.range
+        const right = guard.def.x + guard.def.range
+
+        guard.sprite.x += guard.dir * speed * dt
+
+        if (guard.sprite.x <= left) {
+          guard.sprite.x = left
+          guard.dir = 1
+        }
+
+        if (guard.sprite.x >= right) {
+          guard.sprite.x = right
+          guard.dir = -1
+        }
+      }
+
+      guard.sprite.setFlipX(guard.dir < 0)
+
+      // 头顶的提示：警觉中一个问号、发现了感叹号
+      const showMark = guard.awareness > 0.08
+
+      guard.mark.setVisible(showMark)
+
+      if (showMark) {
+        guard.mark
+          .setTexture(guard.alerted ? 'alert-exclaim' : 'alert-mark')
+          .setTint(guard.alerted ? 0xff6b6b : 0xffe066)
+          .setPosition(guard.sprite.x, guard.sprite.y - 56)
+      }
+
+      this.drawGuardVision(guard)
+
+      // 被发现之后碰到即死（雷闪的无敌、岩壳照样能挡，走的是 die 那一套判定）
+      if (!guard.alerted || this.dying || this.finished) {
+        return
+      }
+
+      const dx = Math.abs(this.slime.x - guard.sprite.x)
+      const dy = Math.abs(this.slime.y - (guard.sprite.y - 22))
+
+      if (dx < GUARD_TOUCH && dy < GUARD_TOUCH) {
+        this.die('guard')
+      }
+    })
+  }
+
+  // 眼睛的锚点：贴图 46 高，眼睛大致在底边往上 34
+  private guardEyeY(guard: GuardRef) {
+    return guard.sprite.y - 34
+  }
+
+  private guardSees(guard: GuardRef) {
+    // 离太远直接不算（省得每帧给每个守卫做一遍连线判定）
+    if (Math.abs(this.slime.x - guard.sprite.x) > GUARD_VISION.range + 60) {
+      return false
+    }
+
+    const range = guard.def.vision ?? GUARD_VISION.range
+    const eyeY = this.guardEyeY(guard)
+    const dx = this.slime.x - guard.sprite.x
+    const dy = this.slime.y - eyeY
+    const distance = Math.hypot(dx, dy)
+
+    if (distance > range) {
+      return false
+    }
+
+    const base = guard.dir > 0 ? 0 : Math.PI
+    const diff = Math.abs(Phaser.Math.Angle.Wrap(Math.atan2(dy, dx) - base))
+
+    if (diff > (GUARD_VISION.halfAngle * Math.PI) / 180) {
+      return false
+    }
+
+    return this.sightClear(guard.sprite.x, eyeY, this.slime.x, this.slime.y)
+  }
+
+  // 眼睛到史莱姆之间有没有实心东西挡着：箱子、墙、关着的门都能当掩体
+  private sightClear(fromX: number, fromY: number, toX: number, toY: number) {
+    const dx = toX - fromX
+    const dy = toY - fromY
+    const length = Math.hypot(dx, dy)
+    const steps = Math.max(2, Math.floor(length / 8))
+
+    for (let index = 1; index < steps; index++) {
+      const t = index / steps
+      const distance = t * length
+
+      // 贴着两头的那几段跳过：不然掩体紧挨着人时会被判成"挡住了"（人其实露在外面）
+      if (distance < 14 || length - distance < 16) {
+        continue
+      }
+
+      if (this.solidAt(fromX + dx * t, fromY + dy * t)) {
+        return false
+      }
+    }
+
+    return true
+  }
+
+  private solidAt(x: number, y: number) {
+    let hit = false
+
+    const scan = (child: Phaser.GameObjects.GameObject) => {
+      const body = (child as Phaser.Physics.Arcade.Sprite).body as Phaser.Physics.Arcade.StaticBody
+
+      if (!body || !body.enable) {
+        return
+      }
+
+      if (x > body.left && x < body.right && y > body.top && y < body.bottom) {
+        hit = true
+      }
+    }
+
+    this.platforms.getChildren().forEach(scan)
+    this.gates.getChildren().forEach(scan)
+    this.pillars.getChildren().forEach(scan)
+
+    return hit
+  }
+
+  // 视野扇形：边界射线撞到掩体就停在那儿，所以"躲箱子后面"看得出来
+  private drawGuardVision(guard: GuardRef) {
+    if (Math.abs(this.slime.x - guard.sprite.x) > 460) {
+      return
+    }
+
+    const gfx = this.guardVisionGfx
+    const range = guard.def.vision ?? GUARD_VISION.range
+    const eyeY = this.guardEyeY(guard)
+    const base = guard.dir > 0 ? 0 : Math.PI
+    const half = (GUARD_VISION.halfAngle * Math.PI) / 180
+    const rays = 13
+    const points: Phaser.Math.Vector2[] = [new Phaser.Math.Vector2(guard.sprite.x, eyeY)]
+
+    for (let index = 0; index <= rays; index++) {
+      const angle = base - half + (half * 2 * index) / rays
+      const dirX = Math.cos(angle)
+      const dirY = Math.sin(angle)
+      let reach = range
+
+      for (let step = 10; step <= range; step += 10) {
+        if (this.solidAt(guard.sprite.x + dirX * step, eyeY + dirY * step)) {
+          reach = step - 10
+          break
+        }
+      }
+
+      points.push(new Phaser.Math.Vector2(guard.sprite.x + dirX * reach, eyeY + dirY * reach))
+    }
+
+    const tint = guard.alerted ? 0xff6b6b : guard.awareness > 0.08 ? 0xffd54f : 0xdfe8f4
+    const alpha = guard.alerted ? 0.24 : 0.1 + guard.awareness * 0.14
+
+    gfx.fillStyle(tint, alpha)
+    gfx.fillPoints(points, true)
   }
 
   private updateMonsters(dt: number) {
@@ -6728,6 +7012,7 @@ export class GameScene extends Phaser.Scene {
       this.updateChargeHud()
       this.updateBlinkAim()
       this.updateMonsters(dt)
+      this.updateGuards(dt)
       this.updateThunderFx(dt)
     }
 

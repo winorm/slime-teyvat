@@ -149,6 +149,7 @@ export class BootScene extends Phaser.Scene {
     this.makeThunderBall()
     this.makeStunMark()
     this.makeMonsterBrute()
+    this.makeGuardMillelith()
 
     this.makeEyeGlow()
 
@@ -3363,6 +3364,137 @@ export class BootScene extends Phaser.Scene {
 
     gfx.generateTexture('monster-brute', 34, 42)
     gfx.destroy()
+  }
+
+  // 千岩军（草稿）：璃月的官军 —— 金红甲、红缨盔、面甲上一条黑缝，
+  // 右手一杆长枪（枪尖 + 红缨）。贴图 32x46，底边贴地，约 1.75 个史莱姆高
+  private makeGuardMillelith() {
+    const gfx = this.add.graphics()
+
+    // 脚下阴影
+    gfx.fillStyle(0x000000, 0.16)
+    gfx.fillEllipse(15, 44, 22, 5)
+
+    // 长枪：枪杆 + 枪尖 + 红缨（竖在右手边）
+    gfx.fillStyle(0x6b4a2a, 1)
+    gfx.fillRect(27, 6, 2, 40)
+    gfx.fillStyle(0xc9d1dc, 1)
+    gfx.fillTriangle(24, 8, 28, 0, 32, 8)
+    gfx.fillStyle(0x8f9aa8, 1)
+    gfx.fillTriangle(25, 8, 28, 3, 31, 8)
+    gfx.fillStyle(0xc0392b, 1)
+    gfx.fillRect(26, 8, 4, 6)
+    gfx.fillRect(25, 11, 6, 3)
+
+    // 腿 + 靴
+    gfx.fillStyle(0x3a3a46, 1)
+    gfx.fillRect(10, 36, 5, 7)
+    gfx.fillRect(17, 36, 5, 7)
+    gfx.fillStyle(0x2a2a34, 1)
+    gfx.fillRect(9, 42, 7, 3)
+    gfx.fillRect(16, 42, 7, 3)
+
+    // 甲裙：深红底 + 金边
+    gfx.fillStyle(0x7a2f2a, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(8, 28),
+        new Phaser.Math.Vector2(23, 28),
+        new Phaser.Math.Vector2(25, 38),
+        new Phaser.Math.Vector2(6, 38),
+      ],
+      true
+    )
+    gfx.fillStyle(0xd9a441, 1)
+    gfx.fillRect(6, 36, 19, 2)
+
+    // 胸甲 + 护腰
+    gfx.fillStyle(0xd9a441, 1)
+    gfx.fillEllipse(15, 24, 20, 16)
+    gfx.fillStyle(0xb0852f, 1)
+    gfx.fillEllipse(15, 27, 18, 10)
+    gfx.fillStyle(0x7a2f2a, 1)
+    gfx.fillRect(9, 28, 12, 2)
+
+    // 两片肩甲
+    gfx.fillStyle(0xd9a441, 1)
+    gfx.fillEllipse(6, 20, 11, 8)
+    gfx.fillEllipse(24, 20, 11, 8)
+    gfx.fillStyle(0xb0852f, 1)
+    gfx.fillEllipse(6, 22, 9, 4)
+    gfx.fillEllipse(24, 22, 9, 4)
+
+    // 头盔 + 红缨
+    gfx.fillStyle(0xc0392b, 1)
+    gfx.fillRect(13, 0, 4, 5)
+    gfx.fillRect(11, 2, 8, 4)
+    gfx.fillStyle(0xd9a441, 1)
+    gfx.fillEllipse(15, 11, 18, 15)
+    gfx.fillStyle(0xb0852f, 1)
+    gfx.fillEllipse(15, 14, 18, 7)
+
+    // 面甲：一条黑缝 + 两侧金边
+    gfx.fillStyle(0x1a1a22, 1)
+    gfx.fillRect(8, 11, 14, 4)
+    gfx.fillStyle(0xffe9a8, 1)
+    gfx.fillRect(10, 12, 3, 2)
+    gfx.fillRect(17, 12, 3, 2)
+
+    gfx.generateTexture('guard-millelith', 32, 46)
+    gfx.destroy()
+
+    // 头顶那两个提示：警觉中一个问号、发现了感叹号（白芯 + 黑描边，同样烤进贴图）
+    const mark = (key: string, rows: string[]) => {
+      const g = this.add.graphics()
+
+      const ink = (dx: number, dy: number, color: number) => {
+        g.fillStyle(color, 1)
+        rows.forEach((row, y) => {
+          for (let x = 0; x < row.length; x++) {
+            if (row[x] === '#') {
+              g.fillRect(x + dx, y + dy, 1, 1)
+            }
+          }
+        })
+      }
+
+      ink(-1, 0, 0x000000)
+      ink(1, 0, 0x000000)
+      ink(0, -1, 0x000000)
+      ink(0, 1, 0x000000)
+      ink(0, 0, 0xffffff)
+
+      g.generateTexture(key, 9, 13)
+      g.destroy()
+    }
+
+    mark('alert-mark', [
+      '..#####..',
+      '.##...##.',
+      '.##...##.',
+      '......##.',
+      '.....##..',
+      '....##...',
+      '...##....',
+      '...##....',
+      '.........',
+      '...##....',
+      '...##....',
+    ])
+
+    mark('alert-exclaim', [
+      '...##....',
+      '...##....',
+      '...##....',
+      '...##....',
+      '...##....',
+      '...##....',
+      '...##....',
+      '...##....',
+      '.........',
+      '...##....',
+      '...##....',
+    ])
   }
 
   // 岩刺造物：背后一层贴在建筑上的岩壳，前面收成锥口，口上一点金。
