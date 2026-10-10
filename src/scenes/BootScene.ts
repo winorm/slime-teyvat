@@ -4936,131 +4936,62 @@ export class BootScene extends Phaser.Scene {
     harborFar.generateTexture('bg-harbor-far', 480, 270)
     harborFar.destroy()
 
-    // 中（-20）：海面 + 对岸的房子（房子坐在海平线上）
-    const harborMid = this.add.graphics()
-    const horizon = 170
+    // 中层和近层都不画水、不画对岸的房子 —— 用户定的：**背景里只有建筑物 → 高山 → 天空**，
+    // 水和护栏一样都属于**前景**：
+    //   建筑物 = 关卡里用 harbor-house-a/b/c/d 那几张（我前面设计的那四栋）摆出来的远岸城市
+    //   水 = 下面这张可平铺的前景水面
+    //   护栏 = 前景最前面那一道（harbor-railing）
+    // 所以这里只留下 bg-harbor-far 一张，bg-harbor-mid / bg-harbor-near 都不生成了
+    //（引擎那边对不存在的近景贴图会自己跳过，不用改）
 
-    // 白天的海：比黄昏那版亮一档
-    harborMid.fillStyle(0x3f7ba8, 1)
-    harborMid.fillRect(0, horizon, 480, 270 - horizon)
-    harborMid.fillStyle(0x8fc4de, 1)
-    harborMid.fillRect(0, horizon, 480, 2)
-    // 水面的反光
-    harborMid.fillStyle(0xdff2ff, 0.35)
+    // 前景的水：可平铺（96 宽一段），水线在贴图顶边，往下越来越深
+    const water = this.add.graphics()
 
-    for (let index = 0; index < 12; index++) {
-      const width = 36 - (index % 4) * 6
+    water.fillStyle(0x4a86b4, 1)
+    water.fillRect(0, 0, 96, 60)
 
-      harborMid.fillRect(400 - width / 2 + ((index % 3) - 1) * 10, horizon + 6 + index * 5, width, 2)
+    for (let y = 0; y < 60; y++) {
+      const t = y / 60
+
+      water.fillStyle(this.mixColor(0x6fa8cf, 0x2f5f86, t), 0.5)
+      water.fillRect(0, y, 96, 1)
     }
 
-    const roofline = [
-      // 白天：对岸的房子做"雾化的中景" —— 用偏蓝灰的浅色，不是剪影
-      { x: -24, w: 96, top: 104, tile: 0x7d8b99 },
-      { x: 64, w: 74, top: 122, tile: 0x8a97a3 },
-      { x: 128, w: 112, top: 92, tile: 0x71808f },
-      { x: 232, w: 84, top: 112, tile: 0x8a97a3 },
-      { x: 306, w: 118, top: 82, tile: 0x71808f },
-      { x: 416, w: 96, top: 108, tile: 0x7d8b99 },
-    ]
+    water.fillStyle(0xdff2ff, 0.55)
+    water.fillRect(0, 0, 96, 2)
+    // 波纹（密一点，铺开就是一片亮闪闪的水面）
+    for (let index = 0; index < 7; index++) {
+      const x = (index * 29) % 80
+      const width = 14 + (index % 3) * 8
 
-    roofline.forEach((roof) => {
-      const half = roof.w / 2
-      const cx = roof.x + half
-      const bodyTop = roof.top + 18
-
-      // 飞檐
-      harborMid.fillStyle(roof.tile, 1)
-      harborMid.fillPoints(
-        [
-          new Phaser.Math.Vector2(roof.x, roof.top + 16),
-          new Phaser.Math.Vector2(roof.x + half * 0.34, roof.top),
-          new Phaser.Math.Vector2(roof.x + roof.w - half * 0.34, roof.top),
-          new Phaser.Math.Vector2(roof.x + roof.w, roof.top + 16),
-        ],
-        true
-      )
-      harborMid.fillStyle(this.mixColor(roof.tile, 0xffffff, 0.18), 1)
-      harborMid.fillRect(roof.x, roof.top + 14, roof.w, 4)
-      harborMid.fillStyle(this.mixColor(roof.tile, 0x000000, 0.35), 1)
-      harborMid.fillTriangle(roof.x, roof.top + 18, roof.x - 5, roof.top + 8, roof.x + 6, roof.top + 12)
-      harborMid.fillTriangle(
-        roof.x + roof.w,
-        roof.top + 18,
-        roof.x + roof.w + 5,
-        roof.top + 8,
-        roof.x + roof.w - 6,
-        roof.top + 12
-      )
-      // 屋身：一直画到海平线，房子就"站在对岸"
-      harborMid.fillStyle(0x6a7683, 1)
-      harborMid.fillRect(roof.x + 6, bodyTop, roof.w - 12, horizon - bodyTop + 4)
-      harborMid.fillStyle(0x7b8794, 1)
-      harborMid.fillRect(roof.x + 6, bodyTop, roof.w - 12, 3)
-      // 白天窗里不点灯，只留几扇暗窗
-      for (let index = 0; index < 3; index++) {
-        harborMid.fillStyle(0x54606d, 0.9)
-        harborMid.fillRect(roof.x + 14 + index * 22, bodyTop + 14 + (index % 2) * 18, 8, 10)
-      }
-      // 屋檐下的红灯笼
-      harborMid.fillStyle(0xc0392b, 1)
-      harborMid.fillEllipse(cx, roof.top + 24, 12, 12)
-      harborMid.fillStyle(0xd9a441, 1)
-      harborMid.fillRect(cx - 4, roof.top + 18, 8, 2)
-    })
-
-    harborMid.generateTexture('bg-harbor-mid', 480, 270)
-    harborMid.destroy()
-
-    // 近（-10）：**紧挨着岸边的那片水** —— 波纹 + 泡在水里的系缆桩
-    // （玩家脚下那块"岸边"是关卡地面，不画在背景里；护栏是另一张前景贴图，压在玩家前面）
-    const harborNear = this.add.graphics()
-
-    // 近处的水：比中层亮一点，密一点的波纹
-    harborNear.fillStyle(0x4a86b4, 1)
-    harborNear.fillRect(0, 206, 480, 64)
-    harborNear.fillStyle(0x6fa8cf, 1)
-    harborNear.fillRect(0, 206, 480, 2)
-    harborNear.fillStyle(0xdff2ff, 0.3)
-
-    for (let index = 0; index < 26; index++) {
-      const x = (index * 53) % 460
-      const width = 20 + (index % 4) * 8
-
-      harborNear.fillRect(x, 214 + ((index * 17) % 46), width, 2)
+      water.fillStyle(0xdff2ff, 0.35)
+      water.fillRect(x, 8 + index * 7, width, 2)
     }
 
-    // 泡在水里的系缆桩（桩顶露在水面上）
-    for (let index = 0; index < 3; index++) {
-      const x = 96 + index * 152
+    water.generateTexture('harbor-water', 96, 60)
+    water.destroy()
 
-      harborNear.fillStyle(0x5a4a38, 1)
-      harborNear.fillRect(x, 192, 12, 40)
-      harborNear.fillStyle(0x3f3428, 1)
-      harborNear.fillRect(x + 8, 192, 4, 40)
-      harborNear.fillStyle(0x7a6448, 1)
-      harborNear.fillRect(x - 3, 188, 18, 6)
-    }
-
-    harborNear.generateTexture('bg-harbor-near', 480, 270)
-    harborNear.destroy()
-
-    // 前景用的护栏（可平铺，48 宽一段：一根立柱 + 上下两道横杆）。
-    // 摆的时候贴在地面顶面、图层放在史莱姆上面（11），就是"镜头最前面的码头护栏"
+    // 前景的护栏（可平铺，48 宽一段：一根立柱 + 上下两道横杆）。
+    // 高度 24 —— 比史莱姆矮（史莱姆 26 高），不会把史莱姆整个盖住；
+    // 颜色比背景亮、还加了深色描边，和远处的建筑区分开
     const railing = this.add.graphics()
 
-    railing.fillStyle(0xa08a68, 1)
-    railing.fillRect(0, 4, 48, 6)
-    railing.fillRect(0, 18, 48, 5)
-    railing.fillStyle(0x6f5c44, 1)
+    railing.fillStyle(0xc9b083, 1)
+    railing.fillRect(0, 2, 48, 6)
+    railing.fillRect(0, 14, 48, 5)
+    railing.fillStyle(0x6b543a, 1)
+    railing.fillRect(0, 0, 48, 2)
     railing.fillRect(0, 8, 48, 2)
-    railing.fillRect(0, 21, 48, 2)
-    railing.fillStyle(0x8a7458, 1)
-    railing.fillRect(20, 4, 7, 40)
-    railing.fillStyle(0x5a4a38, 1)
-    railing.fillRect(25, 4, 2, 40)
+    railing.fillRect(0, 12, 48, 2)
+    railing.fillRect(0, 19, 48, 2)
+    railing.fillStyle(0xe0c795, 1)
+    railing.fillRect(20, 2, 7, 22)
+    railing.fillStyle(0x6b543a, 1)
+    railing.fillRect(19, 0, 2, 24)
+    railing.fillRect(27, 0, 2, 24)
+    railing.fillRect(19, 22, 10, 2)
 
-    railing.generateTexture('harbor-railing', 48, 44)
+    railing.generateTexture('harbor-railing', 48, 24)
     railing.destroy()
   }
 

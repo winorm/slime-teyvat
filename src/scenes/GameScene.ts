@@ -1314,20 +1314,47 @@ export class GameScene extends Phaser.Scene {
     // 「环树」系数：这关往上爬的时候，背景横向也一起流，做出绕着树转的感觉
     this.bgSpin = this.level.bgSpin ?? 0
 
-    // 港口的码头护栏：世界坐标里沿着关卡铺满一整条，底边贴在地面顶面上，
-    // 图层放在史莱姆（10）之上 —— 这就是"镜头最前面的那道护栏"。
-    // 稍微透一点，免得史莱姆走到岸边时整个人被挡住
+    // 港口的三层前景/中景（用户定的构图：镜头往外 —— 护栏 → 近处的水 → 岸边(关卡地面) →
+    // 建筑物 → 高山 → 天空）：
+    //   · 远处的城市直接用我前面设计的 harbor-house-a/b/c/d 摆出来（有视差，比地面慢）
+    //   · 近处的水 = harbor-water 平铺，图层 11
+    //   · 最前面的护栏 = harbor-railing 平铺，图层 12，高度 24（比史莱姆矮）
     if (theme === 'harbor') {
       const harborGroundTop = this.level.platforms.reduce(
         (lowest, item) => Math.max(lowest, item.y - item.height / 2),
         Number.NEGATIVE_INFINITY
       )
 
+      // 远岸的城市：四种房子轮着摆，带雾化色调；视差 0.45（比地面慢，看着远）
+      const houseKeys = ['harbor-house-a', 'harbor-house-b', 'harbor-house-c', 'harbor-house-d']
+
+      for (let x = -200; x < this.level.width * 0.6; x += 170) {
+        const key = houseKeys[Math.floor((x + 200) / 170) % houseKeys.length]
+        // 纵向定在屏幕上（scrollFactorY = 0）：远岸的城市不跟着镜头上下动，
+        // 底边落在"远处的岸线"那一带（比近处地面线高 50 左右）
+        const image = this.add.image(x, 180, key)
+
+        image
+          .setOrigin(0.5, 1)
+          .setScale(0.72 + ((x + 200) % 3) * 0.04)
+          .setScrollFactor(0.45, 0)
+          .setDepth(-16)
+          .setTint(0xc8d8e8)
+      }
+
+      // 近处的水：水线比岸沿低一点，看着是"岸边外侧那片水"
       this.add
-        .tileSprite(0, harborGroundTop - 34, this.level.width, 34, 'harbor-railing')
+        .tileSprite(0, harborGroundTop + 6, this.level.width, 60, 'harbor-water')
         .setOrigin(0, 0)
-        .setAlpha(0.78)
+        .setAlpha(0.9)
         .setDepth(11)
+
+      // 最前面的护栏：底边贴地面顶面，只有 24 高
+      this.add
+        .tileSprite(0, harborGroundTop - 24, this.level.width, 24, 'harbor-railing')
+        .setOrigin(0, 0)
+        .setAlpha(0.95)
+        .setDepth(12)
     }
 
     // 矮的关卡照旧用平铺（有限的高度里不会绕回）；高的关卡上面已经用整幅图铺好了
