@@ -131,12 +131,17 @@ type MonsterRef = {
 // 被发现就朝你追过来；甩掉他的视线 3 秒，他才回到巡逻。
 // 注意：正式的字段还没写进 levels.ts（那是用户的文件），这里先按同名可选字段读，
 // 以后他把 `guards?: GuardDef[]` 加进 LevelDef，这段不用改
-const GUARD_VISION = { range: 170, halfAngle: 50 }
-const GUARD_AWARENESS_UP = 1 / 1.2
+// 视野是"朝斜下方"的一个扇形：中心在水平下方 50°，张角 ±40° ——
+// 上边界 = 水平下方 10°，所以正前方（眼睛那条水平线）他是看不见的
+const GUARD_VISION = { range: 170, center: 50, halfAngle: 40 }
+// 疑惑 5 秒才变成"发现"（用户要求）
+const GUARD_AWARENESS_UP = 1 / 5
 const GUARD_AWARENESS_DOWN = 1 / 2
 const GUARD_LOSE_TIME = 3
 const GUARD_CHASE_SPEED = 72
 const GUARD_TOUCH = 20
+// 眼睛（面甲那条缝）在贴图底边往上 36 的位置
+const GUARD_EYE_LIFT = 36
 
 type GuardDef = {
   x: number
@@ -827,6 +832,8 @@ export class GameScene extends Phaser.Scene {
   // 关卡里的千岩军（潜行用）+ 所有人的视野扇形（画在同一张 Graphics 上）
   private guardList: GuardRef[] = []
   private guardVisionGfx!: Phaser.GameObjects.Graphics
+  // 疑惑度的圆圈进度条（画在头顶问号外面那一圈）
+  private guardAlertGfx!: Phaser.GameObjects.Graphics
   private armorKey!: Phaser.Input.Keyboard.Key
   private rockKey!: Phaser.Input.Keyboard.Key
 
@@ -1930,6 +1937,8 @@ export class GameScene extends Phaser.Scene {
     this.polarityMark = this.add.image(0, 0, 'polarity-plus').setDepth(11).setVisible(false)
     // 视野扇形画在地面和人物之间（3.5），压在掩体下面、人上面看不到遮挡关系
     this.guardVisionGfx = this.add.graphics().setDepth(3.5)
+    // 头顶的疑惑环画在人和提示标之上
+    this.guardAlertGfx = this.add.graphics().setDepth(6)
     
     this.windTrails = [0, 1, 2].map((index) =>
       this.add
@@ -4065,9 +4074,14 @@ export class GameScene extends Phaser.Scene {
 
   private updateGuards(dt: number) {
     this.guardVisionGfx.clear()
+    this.guardAlertGfx.clear()
+
+    // 岩化 + 站着不动 = 一颗石头：他不认，也就不算看见（但已经在追的时候这招没用）
+    const body = this.slime.body as Phaser.Physics.Arcade.Body
+    const disguised = this.armored && Math.abs(body.velocity.x) < 10
 
     this.guardList.forEach((guard) => {
-      const sees = this.guardSees(guard)
+      const sees = (!disguised || guard.alerted) && this.guardSees(guard)
 
       if (sees) {
         guard.awareness = Math.min(1, guard.awareness + GUARD_AWARENESS_UP * dt)
@@ -4097,14 +4111,27 @@ export class GameScene extends Phaser.Scene {
           }
         }
 
-        guard.dir = this.slime.x < guard.sprite.x ? -1 : 1
-        guard.sprite.x += guard.dir * GUARD_CHASE_SPEED * dt
+        // 追的时候前面撞上箱子 / 岩柱就放弃：停下、掉头，回去按反方向巡逻
+        if (guard.alerted && this.guardBlocked(guard)) {
+          guard.alerted = false
+          guard.awareness = 0
+          guard.loseTimer = 0
+          guard.dir = -guard.dir
+        } else {
+          guard.dir = this.slime.x < guard.sprite.x ? -1 : 1
+          guard.sprite.x += guard.dir * GUARD_CHASE_SPEED * dt
+        }
       } else {
         const speed = guard.def.speed ?? 26
         const left = guard.def.x - guard.def.range
         const right = guard.def.x + guard.def.range
 
-        guard.sprite.x += guard.dir * speed * dt
+        // 前面顶着实心东西就别硬挤（岩化装石头的时候他就从这块"石头"前掉头）
+        if (this.guardBlocked(guard)) {
+          guard.dir = -guard.dir
+        } else {
+          guard.sprite.x += guard.dir * speed * dt
+        }
 
         if (guard.sprite.x <= left) {
           guard.sprite.x = left
@@ -4132,6 +4159,7 @@ export class GameScene extends Phaser.Scene {
       }
 
       this.drawGuardVision(guard)
+      this.drawGuardAlert(guard)
 
       // 被发现之后碰到即死（雷闪的无敌、岩壳照样能挡，走的是 die 那一套判定）
       if (!guard.alerted || this.dying || this.finished) {
@@ -4149,7 +4177,21 @@ export class GameScene extends Phaser.Scene {
 
   // 眼睛的锚点：贴图 46 高，眼睛大致在底边往上 34
   private guardEyeY(guard: GuardRef) {
-    return guard.sprite.y - 34
+    return guard.sprite.y - GUARD_EYE_LIFT
+  }
+
+  // 视野扇形的中心方向：朝斜下方。dir=1（朝右）是 +50°，dir=-1（朝左）是 180°-50°
+  private guardLookAngle(guard: GuardRef) {
+    const center = (GUARD_VISION.center * Math.PI) / 180
+
+    return guard.dir > 0 ? center : Math.PI - center
+  }
+
+  // 前面一步远的地方有没有实心东西（箱子、岩柱、关着的门都算）
+  private guardBlocked(guard: GuardRef) {
+    const ahead = guard.sprite.x + guard.dir * 22
+
+    return this.solidAt(ahead, guard.sprite.y - 24) || this.solidAt(ahead, guard.sprite.y - 6)
   }
 
   private guardSees(guard: GuardRef) {
@@ -4168,8 +4210,7 @@ export class GameScene extends Phaser.Scene {
       return false
     }
 
-    const base = guard.dir > 0 ? 0 : Math.PI
-    const diff = Math.abs(Phaser.Math.Angle.Wrap(Math.atan2(dy, dx) - base))
+    const diff = Math.abs(Phaser.Math.Angle.Wrap(Math.atan2(dy, dx) - this.guardLookAngle(guard)))
 
     if (diff > (GUARD_VISION.halfAngle * Math.PI) / 180) {
       return false
@@ -4233,7 +4274,7 @@ export class GameScene extends Phaser.Scene {
     const gfx = this.guardVisionGfx
     const range = guard.def.vision ?? GUARD_VISION.range
     const eyeY = this.guardEyeY(guard)
-    const base = guard.dir > 0 ? 0 : Math.PI
+    const base = this.guardLookAngle(guard)
     const half = (GUARD_VISION.halfAngle * Math.PI) / 180
     const rays = 13
     const points: Phaser.Math.Vector2[] = [new Phaser.Math.Vector2(guard.sprite.x, eyeY)]
@@ -4259,6 +4300,30 @@ export class GameScene extends Phaser.Scene {
 
     gfx.fillStyle(tint, alpha)
     gfx.fillPoints(points, true)
+  }
+
+  // 头顶的疑惑环：在问号外面套一圈，长满一整圈就是"发现"，开始追
+  private drawGuardAlert(guard: GuardRef) {
+    if (guard.awareness <= 0.02) {
+      return
+    }
+
+    const gfx = this.guardAlertGfx
+    const cx = guard.sprite.x
+    const cy = guard.sprite.y - 56
+    const radius = 12
+    const from = -Math.PI / 2
+
+    // 底圈：让进度看得出来
+    gfx.lineStyle(3, 0x1a1a22, 0.5)
+    gfx.beginPath()
+    gfx.arc(cx, cy, radius, 0, Math.PI * 2)
+    gfx.strokePath()
+
+    gfx.lineStyle(2.4, guard.alerted ? 0xff6b6b : 0xffe066, 0.95)
+    gfx.beginPath()
+    gfx.arc(cx, cy, radius, from, from + Math.PI * 2 * guard.awareness)
+    gfx.strokePath()
   }
 
   private updateMonsters(dt: number) {
@@ -5672,8 +5737,8 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
-    // 岩化能挡一次"造物伤害"（红闸门、崩塌的墙），摔落不算
-    if (this.armored && cause !== 'fall') {
+    // 岩化能挡一次"造物伤害"（红闸门、崩塌的墙）—— 摔落不算，千岩军抓人也不算
+    if (this.armored && cause !== 'fall' && cause !== 'guard') {
       this.setArmored(false)
       this.invulnTimer = 1.2
       this.showMessage('岩壳替你挡下了一击')

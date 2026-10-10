@@ -3366,81 +3366,122 @@ export class BootScene extends Phaser.Scene {
     gfx.destroy()
   }
 
-  // 千岩军（草稿）：璃月的官军 —— 金红甲、红缨盔、面甲上一条黑缝，
-  // 右手一杆长枪（枪尖 + 红缨）。贴图 32x46，底边贴地，约 1.75 个史莱姆高
+  // 千岩军（草稿第二版，更中式）：圆领战袍 + 甲片胸铠 + 宽腰带玉扣 + 百褶战裙（云纹镶边），
+  // 两片云纹肩甲、脑后一块顿项，头盔是金顶 + 红盔缨，右手一杆带红缨长枪。
+  // 贴图 34x48，底边贴地，约 1.85 个史莱姆高；眼睛（面甲那条缝）在底边往上 36
   private makeGuardMillelith() {
     const gfx = this.add.graphics()
 
     // 脚下阴影
     gfx.fillStyle(0x000000, 0.16)
-    gfx.fillEllipse(15, 44, 22, 5)
+    gfx.fillEllipse(16, 45, 24, 5)
 
     // 长枪：枪杆 + 枪尖 + 红缨（竖在右手边）
     gfx.fillStyle(0x6b4a2a, 1)
-    gfx.fillRect(27, 6, 2, 40)
+    gfx.fillRect(30, 6, 2, 42)
     gfx.fillStyle(0xc9d1dc, 1)
-    gfx.fillTriangle(24, 8, 28, 0, 32, 8)
+    gfx.fillTriangle(27, 8, 31, 0, 35, 8)
     gfx.fillStyle(0x8f9aa8, 1)
-    gfx.fillTriangle(25, 8, 28, 3, 31, 8)
+    gfx.fillTriangle(28, 8, 31, 3, 34, 8)
     gfx.fillStyle(0xc0392b, 1)
-    gfx.fillRect(26, 8, 4, 6)
-    gfx.fillRect(25, 11, 6, 3)
+    gfx.fillRect(29, 8, 4, 6)
+    gfx.fillRect(28, 11, 6, 3)
 
     // 腿 + 靴
     gfx.fillStyle(0x3a3a46, 1)
-    gfx.fillRect(10, 36, 5, 7)
-    gfx.fillRect(17, 36, 5, 7)
+    gfx.fillRect(11, 36, 5, 8)
+    gfx.fillRect(18, 36, 5, 8)
     gfx.fillStyle(0x2a2a34, 1)
-    gfx.fillRect(9, 42, 7, 3)
-    gfx.fillRect(16, 42, 7, 3)
+    gfx.fillRect(10, 43, 7, 4)
+    gfx.fillRect(17, 43, 7, 4)
 
-    // 甲裙：深红底 + 金边
+    // 百褶战裙：深红底 + 三道褶 + 金色下摆
     gfx.fillStyle(0x7a2f2a, 1)
     gfx.fillPoints(
       [
         new Phaser.Math.Vector2(8, 28),
-        new Phaser.Math.Vector2(23, 28),
-        new Phaser.Math.Vector2(25, 38),
-        new Phaser.Math.Vector2(6, 38),
+        new Phaser.Math.Vector2(25, 28),
+        new Phaser.Math.Vector2(27, 40),
+        new Phaser.Math.Vector2(6, 40),
       ],
       true
     )
+    gfx.fillStyle(0x5e211e, 1)
+    gfx.fillRect(12, 29, 2, 10)
+    gfx.fillRect(17, 29, 2, 10)
+    gfx.fillRect(22, 29, 2, 10)
     gfx.fillStyle(0xd9a441, 1)
-    gfx.fillRect(6, 36, 19, 2)
+    gfx.fillRect(6, 38, 22, 2)
+    gfx.fillRect(14, 32, 6, 1)
 
-    // 胸甲 + 护腰
+    // 宽腰带 + 玉扣
+    gfx.fillStyle(0x2f3a46, 1)
+    gfx.fillRect(7, 25, 20, 4)
     gfx.fillStyle(0xd9a441, 1)
-    gfx.fillEllipse(15, 24, 20, 16)
+    gfx.fillRect(15, 25, 4, 4)
+    gfx.fillStyle(0x7fd6b8, 1)
+    gfx.fillRect(16, 26, 2, 2)
+
+    // 上身：圆领战袍 + 三排甲片
+    gfx.fillStyle(0x8a2f2a, 1)
+    gfx.fillEllipse(16, 21, 21, 18)
     gfx.fillStyle(0xb0852f, 1)
-    gfx.fillEllipse(15, 27, 18, 10)
-    gfx.fillStyle(0x7a2f2a, 1)
-    gfx.fillRect(9, 28, 12, 2)
 
-    // 两片肩甲
+    for (let row = 0; row < 3; row++) {
+      for (let col = 0; col < 5; col++) {
+        gfx.fillRect(9 + col * 4, 15 + row * 4, 3, 3)
+      }
+    }
+
+    // 交领：中间一块深青内襟，两边金边
+    gfx.fillStyle(0x2f3a46, 1)
+    gfx.fillTriangle(12, 13, 21, 13, 16, 21)
     gfx.fillStyle(0xd9a441, 1)
-    gfx.fillEllipse(6, 20, 11, 8)
-    gfx.fillEllipse(24, 20, 11, 8)
-    gfx.fillStyle(0xb0852f, 1)
-    gfx.fillEllipse(6, 22, 9, 4)
-    gfx.fillEllipse(24, 22, 9, 4)
+    gfx.fillTriangle(11, 12, 16, 20, 14, 20)
+    gfx.fillTriangle(22, 12, 17, 20, 19, 20)
 
-    // 头盔 + 红缨
-    gfx.fillStyle(0xc0392b, 1)
-    gfx.fillRect(13, 0, 4, 5)
-    gfx.fillRect(11, 2, 8, 4)
+    // 两片云纹肩甲
     gfx.fillStyle(0xd9a441, 1)
-    gfx.fillEllipse(15, 11, 18, 15)
+    gfx.fillEllipse(5, 19, 13, 10)
+    gfx.fillEllipse(27, 19, 13, 10)
     gfx.fillStyle(0xb0852f, 1)
-    gfx.fillEllipse(15, 14, 18, 7)
-
-    // 面甲：一条黑缝 + 两侧金边
-    gfx.fillStyle(0x1a1a22, 1)
-    gfx.fillRect(8, 11, 14, 4)
+    gfx.fillEllipse(5, 22, 11, 4)
+    gfx.fillEllipse(27, 22, 11, 4)
     gfx.fillStyle(0xffe9a8, 1)
-    gfx.fillRect(10, 12, 3, 2)
-    gfx.fillRect(17, 12, 3, 2)
+    gfx.fillRect(4, 18, 2, 2)
+    gfx.fillRect(26, 18, 2, 2)
 
-    gfx.generateTexture('guard-millelith', 32, 46)
+    // 顿项（脖子后面那块护甲）
+    gfx.fillStyle(0x2f3a46, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(8, 11),
+        new Phaser.Math.Vector2(25, 11),
+        new Phaser.Math.Vector2(23, 20),
+        new Phaser.Math.Vector2(10, 20),
+      ],
+      true
+    )
+
+    // 头盔：金顶 + 盔缨 + 盔沿
+    gfx.fillStyle(0xc0392b, 1)
+    gfx.fillEllipse(16, 3, 12, 5)
+    gfx.fillRect(15, 0, 3, 5)
+    gfx.fillStyle(0xd9a441, 1)
+    gfx.fillEllipse(16, 11, 20, 16)
+    gfx.fillStyle(0xb0852f, 1)
+    gfx.fillEllipse(16, 15, 20, 7)
+    gfx.fillStyle(0xffe9a8, 1)
+    gfx.fillRect(16, 8, 2, 2)
+
+    // 面甲：一条黑缝 + 两道金色眼光
+    gfx.fillStyle(0x1a1a22, 1)
+    gfx.fillRect(9, 11, 15, 4)
+    gfx.fillStyle(0xffe9a8, 1)
+    gfx.fillRect(11, 12, 4, 2)
+    gfx.fillRect(19, 12, 4, 2)
+
+    gfx.generateTexture('guard-millelith', 34, 48)
     gfx.destroy()
 
     // 头顶那两个提示：警觉中一个问号、发现了感叹号（白芯 + 黑描边，同样烤进贴图）
