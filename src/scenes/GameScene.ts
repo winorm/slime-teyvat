@@ -133,15 +133,25 @@ type MonsterRef = {
 // 以后他把 `guards?: GuardDef[]` 加进 LevelDef，这段不用改
 // 视野是"朝斜下方"的一个扇形：中心在水平下方 50°，张角 ±40° ——
 // 上边界 = 水平下方 10°，所以正前方（眼睛那条水平线）他是看不见的
-const GUARD_VISION = { range: 170, center: 50, halfAngle: 40 }
-// 疑惑 5 秒才变成"发现"（用户要求）
-const GUARD_AWARENESS_UP = 1 / 5
-const GUARD_AWARENESS_DOWN = 1 / 2
+const GUARD_VISION = { range: 170, center: 50, halfAngle: 45 }
+// 疑惑 2.5 秒攒满（用户要求）；消得慢 —— 每秒掉 20%（满进度算 100%）
+const GUARD_AWARENESS_UP = 1 / 2.5
+const GUARD_AWARENESS_DOWN = 0.2
 const GUARD_LOSE_TIME = 3
 const GUARD_CHASE_SPEED = 72
 const GUARD_TOUCH = 20
+// 追击被挡下来、疑惑也清空之后，自己走回巡逻路线的速度
+const GUARD_RETURN_SPEED = 40
 // 眼睛（面甲那条缝）在贴图底边往上 36 的位置
 const GUARD_EYE_LIFT = 36
+
+// 千岩军的五个状态：
+//   patrol     在自己那段范围里来回走
+//   suspicious 看见人了（还没满）—— 呆在原地不动，疑惑慢慢攒
+//   chase      疑惑满了，朝你追
+//   recover    追击被打断（撞障碍 / 跟丢）—— 也呆在原地，疑惑慢慢消
+//   return     疑惑清空了，自己走回原巡逻路线最近的一点（无视障碍、从图层下方过）
+type GuardState = 'patrol' | 'suspicious' | 'chase' | 'recover' | 'return'
 
 type GuardDef = {
   x: number
@@ -158,7 +168,7 @@ type GuardRef = {
   mark: Phaser.GameObjects.Image
   dir: number
   awareness: number
-  alerted: boolean
+  state: GuardState
   loseTimer: number
 }
 
@@ -4070,7 +4080,7 @@ export class GameScene extends Phaser.Scene {
 
       sprite.setFlipX(dir < 0)
 
-      this.guardList.push({ def, sprite, mark, dir, awareness: 0, alerted: false, loseTimer: 0 })
+      this.guardList.push({ def, sprite, mark, dir, awareness: 0, state: 'patrol', loseTimer: 0 })
     })
   }
 
@@ -4083,7 +4093,11 @@ export class GameScene extends Phaser.Scene {
     const disguised = this.armored && Math.abs(body.velocity.x) < 10
 
     this.guardList.forEach((guard) => {
-      const sees = (!disguised || guard.alerted) && this.guardSees(guard)
+      // 岩化静止能骗过巡逻 / 疑惑中的他，但骗不过正在追你的他
+      const sees = disguised && guard.state !== 'chase' ? false : this.guardSees(guard)
+      const speed = guard.def.speed ?? 26
+      const left = guard.def.x - guard.def.range
+      const right = guard.def.x + guard.def.range
 
       if (sees) {
         guard.awareness = Math.min(1, guard.awareness + GUARD_AWARENESS_UP * dt)
@@ -4092,59 +4106,73 @@ export class GameScene extends Phaser.Scene {
         guard.awareness = Math.max(0, guard.awareness - GUARD_AWARENESS_DOWN * dt)
       }
 
-      // 警觉攒满 = 被发现：掉头朝你走，甩掉视线 3 秒才回到巡逻
-      if (!guard.alerted && guard.awareness >= 1) {
-        guard.alerted = true
+      // 疑惑攒满 = 发现：不管当时在干嘛（巡逻 / 疑惑 / 回程）都转成追击
+      if (guard.awareness >= 1 && guard.state !== 'chase') {
+        guard.state = 'chase'
         guard.loseTimer = 0
         playSfx(this, 'sfx-interact', 0.5, 0.7)
         this.showMessage('被千岩军发现了！')
       }
 
-      if (guard.alerted) {
+      if (guard.state === 'patrol') {
+        if (sees) {
+          // 一被看见就停下开始疑惑（疑惑期间呆在原地不动）
+          guard.state = 'suspicious'
+        } else {
+          // 巡逻就是巡逻：只在自己那段范围的两头掉头，路上有什么一概不管
+          guard.sprite.x += guard.dir * speed * dt
+
+          if (guard.sprite.x <= left) {
+            guard.sprite.x = left
+            guard.dir = 1
+          }
+
+          if (guard.sprite.x >= right) {
+            guard.sprite.x = right
+            guard.dir = -1
+          }
+        }
+      } else if (guard.state === 'suspicious' || guard.state === 'recover') {
+        // 站着不动：疑惑掉到 0 就算完事（疑惑态回巡逻，被挡下来的先回原路线）
+        if (guard.awareness <= 0) {
+          guard.state = guard.state === 'recover' ? 'return' : 'patrol'
+        }
+      } else if (guard.state === 'chase') {
         if (sees) {
           guard.loseTimer = 0
         } else {
           guard.loseTimer += dt
 
           if (guard.loseTimer >= GUARD_LOSE_TIME) {
-            guard.alerted = false
-            guard.awareness = 0
             guard.loseTimer = 0
+            guard.state = 'recover'
           }
         }
 
-        // 追的时候前面撞上箱子 / 岩柱就放弃：停下、掉头，回去按反方向巡逻
-        if (guard.alerted && this.guardBlocked(guard)) {
-          guard.alerted = false
-          guard.awareness = 0
+        // 前面撞上箱子 / 岩柱就放弃追击：停在原地消疑惑，消完自己回巡逻路线
+        if (guard.state === 'chase' && this.guardBlocked(guard)) {
           guard.loseTimer = 0
-          guard.dir = -guard.dir
-        } else {
+          guard.state = 'recover'
+        } else if (guard.state === 'chase') {
           guard.dir = this.slime.x < guard.sprite.x ? -1 : 1
           guard.sprite.x += guard.dir * GUARD_CHASE_SPEED * dt
         }
       } else {
-        const speed = guard.def.speed ?? 26
-        const left = guard.def.x - guard.def.range
-        const right = guard.def.x + guard.def.range
+        // return：走回原巡逻路线上离自己最近的那一点（无视障碍，从图层下方过）
+        const homeX = Phaser.Math.Clamp(guard.sprite.x, left, right)
 
-        // 巡逻就是巡逻：只在自己那段范围的两头掉头，路上有什么（箱子、岩柱、
-        // 岩化装出来的那块石头）一概不管 —— 用户要求"直接忽视、按原来的巡逻逻辑走"，
-        // 这样玩家才能靠岩化静止躲在原地，等他从身上走过去
-        guard.sprite.x += guard.dir * speed * dt
-
-        if (guard.sprite.x <= left) {
-          guard.sprite.x = left
-          guard.dir = 1
-        }
-
-        if (guard.sprite.x >= right) {
-          guard.sprite.x = right
-          guard.dir = -1
+        if (Math.abs(homeX - guard.sprite.x) < 2) {
+          guard.sprite.x = homeX
+          guard.state = 'patrol'
+        } else {
+          guard.dir = homeX < guard.sprite.x ? -1 : 1
+          guard.sprite.x += guard.dir * GUARD_RETURN_SPEED * dt
         }
       }
 
       guard.sprite.setFlipX(guard.dir < 0)
+      // 回程的时候从图层下方走：压在道具下面，看着像从建筑背后绕回去
+      guard.sprite.setDepth(guard.state === 'return' ? 1.5 : 4)
 
       // 头顶的提示：警觉中一个问号、发现了感叹号
       const showMark = guard.awareness > 0.08
@@ -4153,16 +4181,16 @@ export class GameScene extends Phaser.Scene {
 
       if (showMark) {
         guard.mark
-          .setTexture(guard.alerted ? 'alert-exclaim' : 'alert-mark')
-          .setTint(guard.alerted ? 0xff6b6b : 0xffe066)
+          .setTexture(guard.state === 'chase' ? 'alert-exclaim' : 'alert-mark')
+          .setTint(guard.state === 'chase' ? 0xff6b6b : 0xffe066)
           .setPosition(guard.sprite.x, guard.sprite.y - 56)
       }
 
       this.drawGuardVision(guard)
       this.drawGuardAlert(guard)
 
-      // 被发现之后碰到即死（雷闪的无敌、岩壳照样能挡，走的是 die 那一套判定）
-      if (!guard.alerted || this.dying || this.finished) {
+      // 正在追你的时候碰到即死（雷闪的无敌能挡，岩壳挡不了）
+      if (guard.state !== 'chase' || this.dying || this.finished) {
         return
       }
 
@@ -4295,8 +4323,9 @@ export class GameScene extends Phaser.Scene {
       points.push(new Phaser.Math.Vector2(guard.sprite.x + dirX * reach, eyeY + dirY * reach))
     }
 
-    const tint = guard.alerted ? 0xff6b6b : guard.awareness > 0.08 ? 0xffd54f : 0xdfe8f4
-    const alpha = guard.alerted ? 0.24 : 0.1 + guard.awareness * 0.14
+    const alert = guard.state === 'chase'
+    const tint = alert ? 0xff6b6b : guard.awareness > 0.08 ? 0xffd54f : 0xdfe8f4
+    const alpha = alert ? 0.24 : 0.1 + guard.awareness * 0.14
 
     gfx.fillStyle(tint, alpha)
     gfx.fillPoints(points, true)
@@ -4320,7 +4349,7 @@ export class GameScene extends Phaser.Scene {
     gfx.arc(cx, cy, radius, 0, Math.PI * 2)
     gfx.strokePath()
 
-    gfx.lineStyle(2.4, guard.alerted ? 0xff6b6b : 0xffe066, 0.95)
+    gfx.lineStyle(2.4, guard.state === 'chase' ? 0xff6b6b : 0xffe066, 0.95)
     gfx.beginPath()
     gfx.arc(cx, cy, radius, from, from + Math.PI * 2 * guard.awareness)
     gfx.strokePath()
