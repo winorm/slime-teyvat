@@ -86,24 +86,18 @@ export type ForegroundDef = {
     platforms: [
       // ① 码头那一段石岸（顶面 1160）
       { x: 1050, y: 1180, width: 2100, height: 40, brick: true },
-      // 码头上的货箱（48 高：站着能挡视线、跳一下能翻过去）
-      { x: 300, y: 1136, width: 60, height: 48, plank: true },
-      { x: 760, y: 1136, width: 60, height: 48, plank: true },
-      // 集市街上的摊位台子（当踏板用）
-      { x: 1250, y: 1136, width: 70, height: 48, plank: true },
-      { x: 1720, y: 1136, width: 70, height: 48, plank: true },
+      // （木箱 / 摊位台子这些小块障碍由用户自己手动放：48 高那种刚好"站着能挡视线、
+      //   跳一下能翻过去"，两边都兼顾）
 
       // ② 石阶的三层平台（每级抬 48，跳得上去）
-      { x: 2550, y: 1115, width: 400, height: 6, brick: true },   // 顶面 1112
-      { x: 3150, y: 1067, width: 400, height: 6, brick: true },   // 顶面 1064
+      { x: 2550, y: 1115, width: 400, height: 6, brick: true, pillars: 2 },   // 顶面 1112
+      { x: 3150, y: 1067, width: 400, height: 6, brick: true, pillars: 2 },   // 顶面 1064
       // ② 藏着原石的那道矮通道：净空 22（要跳起来往右挤才能钻过去）
       { x: 2700, y: 1124, width: 200, height: 28, brick: true },  // 底面 1138 → 净空 22
 
       // ③ 玉京台前广场（顶面 1016）
-      { x: 3975, y: 1019, width: 850, height: 6, brick: true },
-      // 广场上给千岩军当掩体的箱子
-      { x: 3700, y: 992, width: 60, height: 48, plank: true },
-      { x: 4080, y: 992, width: 60, height: 48, plank: true },
+      { x: 3975, y: 1019, width: 850, height: 6, brick: true, pillars: 3 },
+      // （广场上给千岩军当掩体的箱子也由用户自己摆）
       // 通往演仪台的一小段台阶
       { x: 4300, y: 1015, width: 120, height: 6, brick: true },
 
