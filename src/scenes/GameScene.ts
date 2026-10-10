@@ -1348,11 +1348,6 @@ export class GameScene extends Phaser.Scene {
     //   · 近处的水 = harbor-water 平铺，图层 11
     //   · 最前面的护栏 = harbor-railing 平铺，图层 12，高度 24（比史莱姆矮）
     if (theme === 'harbor') {
-      const harborGroundTop = this.level.platforms.reduce(
-        (lowest, item) => Math.max(lowest, item.y - item.height / 2),
-        Number.NEGATIVE_INFINITY
-      )
-
       // 远岸的城市：四种房子轮着摆，带雾化色调；视差 0.45（比地面慢，看着远）
       const houseKeys = ['harbor-house-a', 'harbor-house-b', 'harbor-house-c', 'harbor-house-d']
 
@@ -1400,10 +1395,16 @@ export class GameScene extends Phaser.Scene {
           return
         }
 
+        // 这一段的落脚线：取段中间那一列脚下最高的那块平台顶面，
+        // 所以同一套打包在码头（1160）、石阶（1112 / 1064）、玉京台（1016）都能用
+        const blockGround = this.harborGroundAt(block.at + HARBOR_BLOCK_WIDTH / 2)
+
         // 后景：在史莱姆后面
         pack.decor.forEach((piece) => {
+          const ground = this.harborGroundAt(block.at + piece.dx)
+
           this.add
-            .image(block.at + piece.dx, harborGroundTop + (piece.dy ?? 0), piece.key)
+            .image(block.at + piece.dx, ground + (piece.dy ?? 0), piece.key)
             .setOrigin(0.5, 1)
             .setScale(piece.scale ?? 1)
             .setDepth(-5)
@@ -1412,15 +1413,17 @@ export class GameScene extends Phaser.Scene {
         // 前景：水面（只有码头有）
         if (pack.water) {
           this.add
-            .tileSprite(block.at, harborGroundTop + 12, HARBOR_BLOCK_WIDTH + 30, 60, 'harbor-water')
+            .tileSprite(block.at, blockGround + 12, HARBOR_BLOCK_WIDTH + 30, 60, 'harbor-water')
             .setOrigin(0, 0)
             .setAlpha(0.9)
             .setDepth(11)
         }
 
         pack.front.forEach((piece) => {
+          const ground = this.harborGroundAt(block.at + piece.dx)
+
           this.add
-            .image(block.at + piece.dx, harborGroundTop + (piece.dy ?? 0), piece.key)
+            .image(block.at + piece.dx, ground + (piece.dy ?? 0), piece.key)
             .setOrigin(0.5, 1)
             .setScale(piece.scale ?? 1)
             .setAlpha(piece.alpha ?? 1)
@@ -1430,7 +1433,7 @@ export class GameScene extends Phaser.Scene {
         // 最前面的护栏：只有码头那一类有（上街以后就没有了），底边压到地面线下面 8 像素
         if (pack.railing) {
           this.add
-            .tileSprite(block.at, harborGroundTop - 8, HARBOR_BLOCK_WIDTH + 30, 24, 'harbor-railing')
+            .tileSprite(block.at, blockGround - 8, HARBOR_BLOCK_WIDTH + 30, 24, 'harbor-railing')
             .setOrigin(0, 0)
             .setAlpha(0.95)
             .setDepth(12)
@@ -4406,6 +4409,21 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ── 千岩军与潜行 ────────────────────────────────────────────
+  // 港口打包用：某一列脚下最高的那块平台顶面（那一列没有平台就退回关卡底部往上 40）
+  private harborGroundAt(x: number) {
+    let best = Number.POSITIVE_INFINITY
+
+    this.level.platforms.forEach((item) => {
+      const top = item.y - item.height / 2
+
+      if (x >= item.x - item.width / 2 && x <= item.x + item.width / 2 && top < best) {
+        best = top
+      }
+    })
+
+    return Number.isFinite(best) ? best : this.level.height - 40
+  }
+
   private buildGuards() {
     this.guardList = []
 
