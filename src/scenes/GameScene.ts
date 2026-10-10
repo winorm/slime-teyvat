@@ -513,10 +513,12 @@ function devStealthRoom(): DevLevelDef {
     { x: 1500, y: 836, width: 76, height: 48, plank: true },
   ]
 
+  // 巡逻范围特意错开那三摞木箱（382~458 / 942~1018 / 1462~1538）——
+  // 现在巡逻不再因为障碍掉头了，范围要是不错开，他会从箱子里穿过去
   level.guards = [
-    { x: 640, y: DEV_GROUND_TOP, range: 150 },
-    { x: 1150, y: DEV_GROUND_TOP, range: 200, facing: -1 },
-    { x: 1650, y: DEV_GROUND_TOP, range: 120 },
+    { x: 700, y: DEV_GROUND_TOP, range: 120 },
+    { x: 1250, y: DEV_GROUND_TOP, range: 150, facing: -1 },
+    { x: 1700, y: DEV_GROUND_TOP, range: 110 },
   ]
 
   level.hints = [
@@ -4126,12 +4128,10 @@ export class GameScene extends Phaser.Scene {
         const left = guard.def.x - guard.def.range
         const right = guard.def.x + guard.def.range
 
-        // 前面顶着实心东西就别硬挤（岩化装石头的时候他就从这块"石头"前掉头）
-        if (this.guardBlocked(guard)) {
-          guard.dir = -guard.dir
-        } else {
-          guard.sprite.x += guard.dir * speed * dt
-        }
+        // 巡逻就是巡逻：只在自己那段范围的两头掉头，路上有什么（箱子、岩柱、
+        // 岩化装出来的那块石头）一概不管 —— 用户要求"直接忽视、按原来的巡逻逻辑走"，
+        // 这样玩家才能靠岩化静止躲在原地，等他从身上走过去
+        guard.sprite.x += guard.dir * speed * dt
 
         if (guard.sprite.x <= left) {
           guard.sprite.x = left
