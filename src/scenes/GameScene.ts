@@ -342,50 +342,52 @@ const HARBOR_BLOCKS: Record<
   'dock' | 'street' | 'suburb',
   { decor: HarborPiece[]; front: HarborPiece[]; water?: boolean; railing?: boolean }
 > = {
-  // 码头：前景有水和护栏，摊位的背面摆在岸边，后景是成排的房子 + 卖鱼肉的摊位 + 人群
+  // 码头：前景有水和护栏，摊位的背面摆在岸边，后景是成排的房子 + 卖鱼肉的摊位 + 街边零散两只史莱姆
+  // 房子一律 146~238 宽（贴图放大 1.4 倍），摊位还是 110 宽，所以一段里只塞得下三栋左右
+  // 正 / 背向摊位不许同框：正面摊位在 dx 230，背面摊位就摆在左边的 dx 95，中间空出一大段
   dock: {
     water: true,
     railing: true,
     decor: [
-      // 房子挨着放（屋檐允许互相叠一点，主体紧贴着），人群压在房子前面
-      { dx: 60, key: 'harbor-house-a' },
-      { dx: 160, key: 'harbor-house-c' },
-      { dx: 265, key: 'harbor-stall', dy: -2 },                       // 正面摊位：在人物下面
-      { dx: 350, key: 'harbor-slime-crowd', scale: 0.85, depth: -4, randomScale: 0.16 },
-      { dx: 430, key: 'harbor-house-b' },
+      // 房子挨着放（屋檐允许互相叠一点，主体紧贴着），史莱姆压在房子前面、两只隔开
+      { dx: 75, key: 'harbor-house-c' },
+      { dx: 230, key: 'harbor-stall', dy: -2 },                        // 正面摊位：在人物下面
+      { dx: 385, key: 'harbor-house-a' },
+      { dx: 155, key: 'harbor-slime-a', depth: -4, randomScale: 0.12 },
+      { dx: 300, key: 'harbor-slime-c', depth: -4, randomScale: 0.12 },
     ],
     front: [
       // 背面摊位：在人物上面；船抬到水面上，能看见船底
-      { dx: 110, key: 'harbor-stall-back' },
-      { dx: 300, key: 'harbor-stall-back', scale: 0.95 },
+      { dx: 95, key: 'harbor-stall-back' },
       { dx: 400, key: 'harbor-boat-a', scale: 1.1, dy: 30 },
     ],
   },
-  // 街市：没有水和护栏，前景换成"街边房屋的背面"（带透视）和摊位背面，后景是连排的房子和各种摊位
+  // 街市：没有水和护栏，前景换成"街边房屋的背面"，后景是房子 + 街上的摊位
+  // 背向的房子不许和正向的房子同框：后排排到 dx 80 的房子 + 245 的摊位为止，
+  // 背向那栋单独摆在右边 385（那里后排是空的），透明度先不动，透视回头一起做
   street: {
     decor: [
       // 后景：房子连着排（主体相邻，屋檐可以叠），街上卖的是青菜 / 果子 / 蒸笼
-      { dx: 40, key: 'harbor-house-b' },
-      { dx: 145, key: 'harbor-house-d' },
-      { dx: 275, key: 'harbor-stall-street', dy: -2 },
-      { dx: 355, key: 'harbor-slime-crowd', scale: 0.8, depth: -4, randomScale: 0.18 },
-      { dx: 435, key: 'harbor-house-a' },
+      { dx: 80, key: 'harbor-house-a' },
+      { dx: 245, key: 'harbor-stall-street', dy: -2 },
+      { dx: 170, key: 'harbor-slime-d', depth: -4, randomScale: 0.12 },
+      { dx: 285, key: 'harbor-slime-b', depth: -4, randomScale: 0.12 },
     ],
     front: [
-      // 前景的东西专门摆在后面那排的空当里 —— 只让屋檐叠一点，主体不重复
-      { dx: 215, key: 'harbor-stall-back' },
-      { dx: 395, key: 'harbor-house-back', alpha: 0.72 },
+      // 前景只留那栋背向的房子，摆在后面那排够不着的地方
+      { dx: 385, key: 'harbor-house-back' },
     ],
   },
   // 郊区：房子稀疏、没有水和护栏，摊位也少，多留些空地给远景
   suburb: {
     decor: [
-      // 郊区：房子两栋、人零散放一撮就够，别热闹
-      { dx: 90, key: 'harbor-house-c' },
+      // 郊区：房子两栋、史莱姆两只、离得远一点，别热闹
+      { dx: 100, key: 'harbor-house-c' },
       { dx: 420, key: 'harbor-house-c', scale: 0.92 },
-      { dx: 255, key: 'harbor-slime-crowd', scale: 0.55, depth: -4, randomScale: 0.12 },
+      { dx: 180, key: 'harbor-slime-a', scale: 0.85, depth: -4, randomScale: 0.12 },
+      { dx: 350, key: 'harbor-slime-b', depth: -4, randomScale: 0.12 },
     ],
-    front: [{ dx: 320, key: 'harbor-stall-back', scale: 0.9 }],
+    front: [{ dx: 265, key: 'harbor-stall-back', scale: 0.95 }],
   },
 }
 
@@ -800,7 +802,7 @@ function devHarborBlockRoom(): DevLevelDef {
   level.hints = [
     { x: 300, y: 700, text: '港口 ①：水面 + 护栏 + 摊位背面 + 船' },
     { x: 1180, y: 700, text: '港口 ②：和上一段一模一样（复制粘贴）' },
-    { x: 1730, y: 700, text: '街道：没有水和护栏，街屋背面半透明' },
+    { x: 1730, y: 700, text: '街道：没有水和护栏，右边那栋是街屋背面' },
     { x: 2430, y: 700, text: '郊区 ①：房子稀疏、人群少' },
     { x: 2760, y: 700, text: '郊区 ②' },
   ]

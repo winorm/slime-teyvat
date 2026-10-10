@@ -3659,97 +3659,102 @@ export class BootScene extends Phaser.Scene {
       }
     }
 
-    // ① 楼房 A：两层商铺（104x160），二层腰线 + 竖招牌
+    // 房子统一按 HOUSE_K 放大 —— 摊位的尺寸不动，让"房子明显比摊位大得多"。
+    // 基准稿还是原来那套坐标，想再调大小只改这一个数
+    const HOUSE_K = 1.4
+    const hk = (value: number) => Math.round(value * HOUSE_K)
+
+    // ① 楼房 A：两层商铺（基准 104x160），二层腰线 + 竖招牌
     const houseA = this.add.graphics()
 
     houseA.fillStyle(WOOD, 1)
-    houseA.fillRect(16, 46, 72, 104)
+    houseA.fillRect(hk(16), hk(46), hk(72), hk(104))
     houseA.fillStyle(WOOD_LIGHT, 1)
-    houseA.fillRect(16, 46, 72, 3)
+    houseA.fillRect(hk(16), hk(46), hk(72), hk(3))
     houseA.fillStyle(WOOD_DARK, 1)
-    houseA.fillRect(16, 142, 72, 10)
-    houseA.fillRect(12, 98, 80, 4)
-    latticeWindow(houseA, 26, 62, 24, 26)
-    latticeWindow(houseA, 56, 62, 24, 26)
-    latticeWindow(houseA, 24, 110, 20, 22)
+    houseA.fillRect(hk(16), hk(142), hk(72), hk(10))
+    houseA.fillRect(hk(12), hk(98), hk(80), hk(4))
+    latticeWindow(houseA, hk(26), hk(62), hk(24), hk(26))
+    latticeWindow(houseA, hk(56), hk(62), hk(24), hk(26))
+    latticeWindow(houseA, hk(24), hk(110), hk(20), hk(22))
     houseA.fillStyle(INK, 1)
-    houseA.fillRect(54, 116, 22, 36)
+    houseA.fillRect(hk(54), hk(116), hk(22), hk(36))
     houseA.fillStyle(GOLD, 1)
-    houseA.fillRect(56, 118, 18, 2)
+    houseA.fillRect(hk(56), hk(118), hk(18), hk(2))
     // 竖招牌
     houseA.fillStyle(WOOD_DARK, 1)
-    houseA.fillRect(4, 104, 10, 36)
+    houseA.fillRect(hk(4), hk(104), hk(10), hk(36))
     houseA.fillStyle(GOLD, 1)
-    houseA.fillRect(5, 106, 8, 32)
+    houseA.fillRect(hk(5), hk(106), hk(8), hk(32))
     houseA.fillStyle(INK, 1)
-    houseA.fillRect(7, 111, 4, 4)
-    houseA.fillRect(7, 119, 4, 4)
-    houseA.fillRect(7, 127, 4, 4)
-    roof(houseA, 52, 49, 52, 30)
-    houseA.generateTexture('harbor-house-a', 104, 160)
+    houseA.fillRect(hk(7), hk(111), hk(4), hk(4))
+    houseA.fillRect(hk(7), hk(119), hk(4), hk(4))
+    houseA.fillRect(hk(7), hk(127), hk(4), hk(4))
+    roof(houseA, hk(52), hk(49), hk(52), hk(30))
+    houseA.generateTexture('harbor-house-a', hk(104), hk(160))
     houseA.destroy()
 
-    // ① 楼房 B：单层大厅（170x120），三开间 + 门楣匾
+    // ① 楼房 B：单层大厅（基准 170x120），三开间 + 门楣匾
     const houseB = this.add.graphics()
 
     houseB.fillStyle(WOOD, 1)
-    houseB.fillRect(16, 44, 138, 66)
+    houseB.fillRect(hk(16), hk(44), hk(138), hk(66))
     houseB.fillStyle(WOOD_LIGHT, 1)
-    houseB.fillRect(16, 44, 138, 3)
+    houseB.fillRect(hk(16), hk(44), hk(138), hk(3))
     houseB.fillStyle(WOOD_DARK, 1)
-    houseB.fillRect(16, 102, 138, 10)
-    latticeWindow(houseB, 26, 62, 26, 26)
-    latticeWindow(houseB, 122, 62, 26, 26)
+    houseB.fillRect(hk(16), hk(102), hk(138), hk(10))
+    latticeWindow(houseB, hk(26), hk(62), hk(26), hk(26))
+    latticeWindow(houseB, hk(122), hk(62), hk(26), hk(26))
     houseB.fillStyle(INK, 1)
-    houseB.fillRect(70, 74, 30, 36)
+    houseB.fillRect(hk(70), hk(74), hk(30), hk(36))
     houseB.fillStyle(GOLD, 1)
-    houseB.fillRect(72, 76, 26, 2)
-    houseB.fillRect(64, 56, 42, 12)
+    houseB.fillRect(hk(72), hk(76), hk(26), hk(2))
+    houseB.fillRect(hk(64), hk(56), hk(42), hk(12))
     houseB.fillStyle(INK, 1)
-    houseB.fillRect(66, 58, 38, 8)
+    houseB.fillRect(hk(66), hk(58), hk(38), hk(8))
     houseB.fillStyle(GOLD, 1)
-    houseB.fillRect(70, 60, 4, 4)
-    houseB.fillRect(79, 60, 4, 4)
-    houseB.fillRect(88, 60, 4, 4)
-    roof(houseB, 85, 47, 84, 32)
-    houseB.generateTexture('harbor-house-b', 170, 120)
+    houseB.fillRect(hk(70), hk(60), hk(4), hk(4))
+    houseB.fillRect(hk(79), hk(60), hk(4), hk(4))
+    houseB.fillRect(hk(88), hk(60), hk(4), hk(4))
+    roof(houseB, hk(85), hk(47), hk(84), hk(32))
+    houseB.generateTexture('harbor-house-b', hk(170), hk(120))
     houseB.destroy()
 
-    // ① 楼房 C：小屋（86x96）
+    // ① 楼房 C：小屋（基准 86x96）
     const houseC = this.add.graphics()
 
     houseC.fillStyle(WOOD, 1)
-    houseC.fillRect(14, 36, 58, 52)
+    houseC.fillRect(hk(14), hk(36), hk(58), hk(52))
     houseC.fillStyle(WOOD_DARK, 1)
-    houseC.fillRect(14, 80, 58, 8)
-    latticeWindow(houseC, 22, 50, 18, 18)
+    houseC.fillRect(hk(14), hk(80), hk(58), hk(8))
+    latticeWindow(houseC, hk(22), hk(50), hk(18), hk(18))
     houseC.fillStyle(INK, 1)
-    houseC.fillRect(48, 58, 18, 30)
-    roof(houseC, 43, 39, 42, 24)
-    houseC.generateTexture('harbor-house-c', 86, 96)
+    houseC.fillRect(hk(48), hk(58), hk(18), hk(30))
+    roof(houseC, hk(43), hk(39), hk(42), hk(24))
+    houseC.generateTexture('harbor-house-c', hk(86), hk(96))
     houseC.destroy()
 
-    // ① 楼房 D：三层高铺（96x200）
+    // ① 楼房 D：三层高铺（基准 96x200）
     const houseD = this.add.graphics()
 
     houseD.fillStyle(WOOD, 1)
-    houseD.fillRect(18, 40, 60, 152)
+    houseD.fillRect(hk(18), hk(40), hk(60), hk(152))
     houseD.fillStyle(WOOD_LIGHT, 1)
-    houseD.fillRect(18, 40, 60, 3)
+    houseD.fillRect(hk(18), hk(40), hk(60), hk(3))
     houseD.fillStyle(WOOD_DARK, 1)
-    houseD.fillRect(18, 184, 60, 8)
+    houseD.fillRect(hk(18), hk(184), hk(60), hk(8))
 
     for (let floor = 0; floor < 3; floor++) {
-      const y = 54 + floor * 46
+      const y = hk(54) + floor * hk(46)
 
       houseD.fillStyle(WOOD_DARK, 1)
-      houseD.fillRect(14, y + 34, 68, 3)
-      latticeWindow(houseD, 24, y, 20, 26)
-      latticeWindow(houseD, 52, y, 20, 26)
+      houseD.fillRect(hk(14), y + hk(34), hk(68), hk(3))
+      latticeWindow(houseD, hk(24), y, hk(20), hk(26))
+      latticeWindow(houseD, hk(52), y, hk(20), hk(26))
     }
 
-    roof(houseD, 48, 43, 48, 26)
-    houseD.generateTexture('harbor-house-d', 96, 200)
+    roof(houseD, hk(48), hk(43), hk(48), hk(26))
+    houseD.generateTexture('harbor-house-d', hk(96), hk(200))
     houseD.destroy()
 
     // ② 牌楼（背面那层）：左边两根柱子 + 枋 + 匾额（背后有背板）+ 两层瓦顶
@@ -3829,7 +3834,7 @@ export class BootScene extends Phaser.Scene {
     lanterns.generateTexture('harbor-lanterns', 140, 80)
     lanterns.destroy()
 
-    // ④ 摊位：木篷 + 四根立柱 + 木案，卖的是鱼和肉（110x86）
+    // ④ 摊位：木篷 + 四根立柱 + 木案，卖的是鱼和肉（110x86，尺寸保持原样不动）
     const stall = this.add.graphics()
 
     // 后面两根柱子（浅）
@@ -3972,68 +3977,74 @@ export class BootScene extends Phaser.Scene {
     const houseBack = this.add.graphics()
 
     houseBack.fillStyle(0x5f2c24, 1)
-    houseBack.fillRect(16, 46, 72, 104)
+    houseBack.fillRect(hk(16), hk(46), hk(72), hk(104))
     houseBack.fillStyle(0x4a2018, 1)
-    houseBack.fillRect(16, 46, 72, 3)
-    houseBack.fillRect(16, 142, 72, 10)
+    houseBack.fillRect(hk(16), hk(46), hk(72), hk(3))
+    houseBack.fillRect(hk(16), hk(142), hk(72), hk(10))
     // 后门（关着的一块板）
     houseBack.fillStyle(0x4a3a2a, 1)
-    houseBack.fillRect(46, 104, 24, 46)
+    houseBack.fillRect(hk(46), hk(104), hk(24), hk(46))
     houseBack.fillStyle(0x6b543a, 1)
-    houseBack.fillRect(48, 106, 20, 3)
+    houseBack.fillRect(hk(48), hk(106), hk(20), hk(3))
     // 屋檐：和正面那几栋同一套，但整条压暗一点
     const roofGfx = houseBack
 
-    roof(roofGfx, 52, 49, 52, 30)
+    roof(roofGfx, hk(52), hk(49), hk(52), hk(30))
     // 屋脊压一道后墙的暗色，表示看到的是背面
     houseBack.fillStyle(0x2a1a16, 0.25)
-    houseBack.fillRect(16, 46, 72, 104)
+    houseBack.fillRect(hk(16), hk(46), hk(72), hk(104))
 
-    houseBack.generateTexture('harbor-house-back', 104, 160)
+    houseBack.generateTexture('harbor-house-back', hk(104), hk(160))
     houseBack.destroy()
 
-    // ⑤ 人群：五个史莱姆（160x42）—— 中间那个和玩家一样大，两边小一点；
-    // 朝向混着来：有的正面（两只眼）、有的侧身（一只眼）、有的背过去（不画眼睛）
-    const crowd = this.add.graphics()
-    const slimes: Array<[number, number, 'front' | 'side' | 'back', number]> = [
-      // x, 缩放（1 = 和玩家一样大：本体椭圆 30x23）, 朝向, 颜色
-      // 大小拉开档次、身子允许互相叠一点，看着才热闹；只有"中等身材"（缩放 1）才和主角一样大
-      [16, 0.55, 'front', 0x8f8f9f],
-      [42, 0.8, 'back', 0x74d0b0],
-      [80, 1, 'front', 0xd9a441],
-      [118, 1.15, 'side', 0x7bc86c],
-      [148, 0.68, 'back', 0xb388ff],
-    ]
-
-    slimes.forEach(([x, scale, facing, color]) => {
+    // ⑤ 街上的史莱姆：一张图一只（以前是五只挤在一长条里，太挤了）。
+    // 大小 1 的那只和主角一样大；朝向有正面对镜头的、有侧身的、有背过去的。
+    // 每一段里只摆两只，而且隔开摆 —— 见 GameScene 里的 HARBOR_BLOCKS
+    const makeHarborSlime = (
+      key: string,
+      color: number,
+      facing: 'front' | 'side' | 'back',
+      scale: number
+    ) => {
+      const gfx = this.add.graphics()
       const w = 30 * scale
       const h = 23 * scale
-      const cy = 42 - h / 2 - 1
+      const canvasW = Math.ceil(w) + 6
+      const canvasH = Math.ceil(h) + 6
+      const cx = canvasW / 2
+      const cy = canvasH - 3 - h / 2
 
-      crowd.fillStyle(0x14141f, 1)
-      crowd.fillEllipse(x, cy, w + 2, h + 2)
-      crowd.fillStyle(color, 1)
-      crowd.fillEllipse(x, cy, w, h)
+      gfx.fillStyle(0x14141f, 1)
+      gfx.fillEllipse(cx, cy, w + 2, h + 2)
+      gfx.fillStyle(color, 1)
+      gfx.fillEllipse(cx, cy, w, h)
       // 顶部高光：背过去的也留一点，看着还是圆润的史莱姆
-      crowd.fillStyle(0xffffff, 0.42)
-      crowd.fillEllipse(x - w * 0.16, cy - h * 0.28, w * 0.3, h * 0.25)
+      gfx.fillStyle(0xffffff, 0.42)
+      gfx.fillEllipse(cx - w * 0.16, cy - h * 0.28, w * 0.3, h * 0.25)
 
       if (facing === 'front') {
-        crowd.fillStyle(0x1a1a22, 1)
-        crowd.fillRect(x - 5 * scale, cy - 1, 3, 3)
-        crowd.fillRect(x + 2 * scale, cy - 1, 3, 3)
+        // 正面：两只眼
+        gfx.fillStyle(0x1a1a22, 1)
+        gfx.fillRect(cx - 5 * scale, cy - 1, 3 * scale, 3 * scale)
+        gfx.fillRect(cx + 2 * scale, cy - 1, 3 * scale, 3 * scale)
       } else if (facing === 'side') {
-        crowd.fillStyle(0x1a1a22, 1)
-        crowd.fillRect(x + 2 * scale, cy - 1, 3, 3)
+        // 侧身：一只眼
+        gfx.fillStyle(0x1a1a22, 1)
+        gfx.fillRect(cx + 2 * scale, cy - 1, 3 * scale, 3 * scale)
       } else {
         // 背过去：只在背上压一小块暗色，表示是背面
-        crowd.fillStyle(0x000000, 0.16)
-        crowd.fillEllipse(x, cy + h * 0.18, w * 0.55, h * 0.3)
+        gfx.fillStyle(0x000000, 0.16)
+        gfx.fillEllipse(cx, cy + h * 0.18, w * 0.55, h * 0.3)
       }
-    })
 
-    crowd.generateTexture('harbor-slime-crowd', 160, 42)
-    crowd.destroy()
+      gfx.generateTexture(key, canvasW, canvasH)
+      gfx.destroy()
+    }
+
+    makeHarborSlime('harbor-slime-a', 0xd9a441, 'front', 1)
+    makeHarborSlime('harbor-slime-b', 0x74d0b0, 'back', 0.8)
+    makeHarborSlime('harbor-slime-c', 0x7bc86c, 'side', 1.15)
+    makeHarborSlime('harbor-slime-d', 0xb388ff, 'back', 0.68)
 
     // ⑥ 船：三种 —— 船壳 + 桅杆 + 方帆（方帆挑高）+ 船头灯笼，大的还带船舱
     const hull = (
