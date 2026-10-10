@@ -4043,7 +4043,8 @@ export class BootScene extends Phaser.Scene {
 
     makeHarborSlime('harbor-slime-a', 0xd9a441, 'front', 1)
     makeHarborSlime('harbor-slime-b', 0x74d0b0, 'back', 0.8)
-    makeHarborSlime('harbor-slime-c', 0x7bc86c, 'side', 1.15)
+    // 绿色这只原来画的是侧身（一只眼），看着像坏了 —— 改成正面两只眼
+    makeHarborSlime('harbor-slime-c', 0x7bc86c, 'front', 1.15)
     makeHarborSlime('harbor-slime-d', 0xb388ff, 'back', 0.68)
 
     // ⑥ 船：三种 —— 船壳 + 桅杆 + 方帆（方帆挑高）+ 船头灯笼，大的还带船舱

@@ -338,57 +338,103 @@ function harborBottomPad(scene: Phaser.Scene, key: string) {
   return pad
 }
 
+// 每类打包都有两版（用户要求两版都会用上）。数据里写 { at, kind, variant }，
+// 不写 variant 就是第一版。两版通用的规矩：
+//   · 房子 / 摊位都按贴图真正画到的那一行贴地（harborBottomPad）
+//   · 同一段里不放"正面摊位 + 背面摊位"同框
+//   · 背向房子只摆在后排房子够不着的地方，先不做半透明（透视以后一起做）
+//   · 史莱姆一段最多两只，而且隔开摆
+// 房子贴图放大 1.4 倍后一段（460 宽）只塞得下三件左右，摆位都是按这个算的
 const HARBOR_BLOCKS: Record<
   'dock' | 'street' | 'suburb',
-  { decor: HarborPiece[]; front: HarborPiece[]; water?: boolean; railing?: boolean }
+  { decor: HarborPiece[]; front: HarborPiece[]; water?: boolean; railing?: boolean }[]
 > = {
-  // 码头：前景有水和护栏，摊位的背面摆在岸边，后景是成排的房子 + 卖鱼肉的摊位 + 街边零散两只史莱姆
-  // 房子一律 146~238 宽（贴图放大 1.4 倍），摊位还是 110 宽，所以一段里只塞得下三栋左右
-  // 正 / 背向摊位不许同框：正面摊位在 dx 230，背面摊位就摆在左边的 dx 95，中间空出一大段
-  dock: {
-    water: true,
-    railing: true,
-    decor: [
-      // 房子挨着放（屋檐允许互相叠一点，主体紧贴着），史莱姆压在房子前面、两只隔开
-      { dx: 75, key: 'harbor-house-c' },
-      { dx: 230, key: 'harbor-stall', dy: -2 },                        // 正面摊位：在人物下面
-      { dx: 385, key: 'harbor-house-a' },
-      { dx: 155, key: 'harbor-slime-a', depth: -4, randomScale: 0.12 },
-      { dx: 300, key: 'harbor-slime-c', depth: -4, randomScale: 0.12 },
-    ],
-    front: [
-      // 背面摊位：在人物上面；船抬到水面上，能看见船底
-      { dx: 95, key: 'harbor-stall-back' },
-      { dx: 400, key: 'harbor-boat-a', scale: 1.1, dy: 30 },
-    ],
-  },
-  // 街市：没有水和护栏，前景换成"街边房屋的背面"，后景是房子 + 街上的摊位
-  // 背向的房子不许和正向的房子同框：后排排到 dx 80 的房子 + 245 的摊位为止，
-  // 背向那栋单独摆在右边 385（那里后排是空的），透明度先不动，透视回头一起做
-  street: {
-    decor: [
-      // 后景：房子连着排（主体相邻，屋檐可以叠），街上卖的是青菜 / 果子 / 蒸笼
-      { dx: 80, key: 'harbor-house-a' },
-      { dx: 245, key: 'harbor-stall-street', dy: -2 },
-      { dx: 170, key: 'harbor-slime-d', depth: -4, randomScale: 0.12 },
-      { dx: 285, key: 'harbor-slime-b', depth: -4, randomScale: 0.12 },
-    ],
-    front: [
-      // 前景只留那栋背向的房子，摆在后面那排够不着的地方
-      { dx: 385, key: 'harbor-house-back' },
-    ],
-  },
-  // 郊区：房子稀疏、没有水和护栏，摊位也少，多留些空地给远景
-  suburb: {
-    decor: [
-      // 郊区：房子两栋、史莱姆两只、离得远一点，别热闹
-      { dx: 100, key: 'harbor-house-c' },
-      { dx: 420, key: 'harbor-house-c', scale: 0.92 },
-      { dx: 180, key: 'harbor-slime-a', scale: 0.85, depth: -4, randomScale: 0.12 },
-      { dx: 350, key: 'harbor-slime-b', depth: -4, randomScale: 0.12 },
-    ],
-    front: [{ dx: 265, key: 'harbor-stall-back', scale: 0.95 }],
-  },
+  // ── 码头 ──────────────────────────────────────────────────
+  dock: [
+    {
+      // 第一版：水面 + 护栏；后景是房子 + 卖鱼肉的正面摊位，岸边摆一个背面摊位，水里停一条小船
+      // 正 / 背向摊位不同框：正面摊位在 230，背面摊位在左边的 95
+      water: true,
+      railing: true,
+      decor: [
+        { dx: 75, key: 'harbor-house-c' },
+        { dx: 230, key: 'harbor-stall', dy: -2 },
+        { dx: 385, key: 'harbor-house-a' },
+        { dx: 155, key: 'harbor-slime-a', depth: -4, randomScale: 0.12 },
+        { dx: 300, key: 'harbor-slime-c', depth: -4, randomScale: 0.12 },
+      ],
+      front: [
+        { dx: 95, key: 'harbor-stall-back' },
+        { dx: 400, key: 'harbor-boat-a', scale: 1.1, dy: 30 },
+      ],
+    },
+    {
+      // 第二版：中间立一座牌楼 —— 左两根柱子在后层、右两根在前层，史莱姆能从底下穿过去；
+      // 牌楼旁边挂一串灯笼，水里换一只高帆渔船
+      water: true,
+      railing: true,
+      decor: [
+        { dx: 55, key: 'harbor-house-c' },
+        { dx: 225, key: 'harbor-paifang' },
+        { dx: 380, key: 'harbor-house-a' },
+        { dx: 135, key: 'harbor-slime-b', depth: -4, randomScale: 0.12 },
+        { dx: 350, key: 'harbor-slime-a', scale: 0.85, depth: -4, randomScale: 0.12 },
+      ],
+      front: [
+        { dx: 225, key: 'harbor-paifang-front' },                       // 牌楼的前两根柱子
+        { dx: 90, key: 'harbor-lanterns', dy: -150 },                   // 灯笼串（挂高一点）
+        { dx: 385, key: 'harbor-boat-a', scale: 1.1, dy: 30 },
+      ],
+    },
+  ],
+  // ── 街市 ──────────────────────────────────────────────────
+  street: [
+    {
+      // 第一版：后景房子 + 街上摊位（青菜 / 果子 / 蒸笼）；背向房子单独摆在右边空当里
+      decor: [
+        { dx: 80, key: 'harbor-house-a' },
+        { dx: 245, key: 'harbor-stall-street', dy: -2 },
+        { dx: 170, key: 'harbor-slime-d', depth: -4, randomScale: 0.12 },
+        { dx: 285, key: 'harbor-slime-b', depth: -4, randomScale: 0.12 },
+      ],
+      front: [{ dx: 385, key: 'harbor-house-back' }],
+    },
+    {
+      // 第二版：高铺 + 小屋挤在一起（屋檐叠、主体相连），摊位挪到右边；
+      // 背面摊位改摆在左边的房子前面，和正面摊位隔着 80 像素
+      decor: [
+        { dx: 90, key: 'harbor-house-d' },
+        { dx: 215, key: 'harbor-house-c' },
+        { dx: 340, key: 'harbor-stall-street', dy: -2 },
+        { dx: 240, key: 'harbor-slime-a', scale: 0.85, depth: -4, randomScale: 0.12 },
+        { dx: 430, key: 'harbor-slime-b', depth: -4, randomScale: 0.12 },
+      ],
+      front: [{ dx: 150, key: 'harbor-stall-back' }],
+    },
+  ],
+  // ── 郊区 ──────────────────────────────────────────────────
+  // 房子稀疏、没有水和护栏，中间留大片空地给远景
+  suburb: [
+    {
+      decor: [
+        { dx: 100, key: 'harbor-house-c' },
+        { dx: 420, key: 'harbor-house-c', scale: 0.92 },
+        { dx: 180, key: 'harbor-slime-a', scale: 0.85, depth: -4, randomScale: 0.12 },
+        { dx: 350, key: 'harbor-slime-b', depth: -4, randomScale: 0.12 },
+      ],
+      front: [{ dx: 265, key: 'harbor-stall-back', scale: 0.95 }],
+    },
+    {
+      // 第二版：左边一栋单层大厅、右边一个小屋，路边摊摆在前景左边
+      decor: [
+        { dx: 90, key: 'harbor-house-b' },
+        { dx: 390, key: 'harbor-house-c' },
+        { dx: 250, key: 'harbor-slime-d', depth: -4, randomScale: 0.12 },
+        { dx: 415, key: 'harbor-slime-a', scale: 0.85, depth: -4, randomScale: 0.12 },
+      ],
+      front: [{ dx: 150, key: 'harbor-stall-back' }],
+    },
+  ],
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -788,36 +834,38 @@ function devChaseRoom(): DevLevelDef {
 }
 
 // 大厅里那一排门。x 是门中心，间距 230；最后一扇通向原来那个「一关走完全部机关」的旧沙盒
-// ⑩ 港口打包预览：三类打包各摆一段（用户要求先在测试关里看效果，再拿去第八关铺）
+// ⑩ 港口打包预览：三类打包各摆两段（第一版 + 第二版，用户要求先在测试关里看效果，再拿去第八关铺）
 function devHarborBlockRoom(): DevLevelDef {
   const level = devRoomShell(
     '测试 · 港口打包',
-    '港口打包预览：\n每一段单独放，中间留空。\n从左到右：港口 ×2、街道、郊区 ×2。\n每段 460 宽。',
-    3400
+    '港口打包预览：\n每一段单独放，中间留空。\n从左到右：港口 ① ②、街道 ① ②、郊区 ① ②。\n每段 460 宽。',
+    4600
   )
 
   // 用港口主题，水面 / 护栏 / 白天天空和随机远山才会出来
   level.bg = 'harbor'
 
   level.hints = [
-    { x: 300, y: 700, text: '港口 ①：水面 + 护栏 + 摊位背面 + 船' },
-    { x: 1180, y: 700, text: '港口 ②：和上一段一模一样（复制粘贴）' },
-    { x: 1730, y: 700, text: '街道：没有水和护栏，右边那栋是街屋背面' },
-    { x: 2430, y: 700, text: '郊区 ①：房子稀疏、人群少' },
-    { x: 2760, y: 700, text: '郊区 ②' },
+    { x: 300, y: 700, text: '港口 第一版：水面 + 护栏 + 一正一背两个摊位 + 小船' },
+    { x: 1100, y: 700, text: '港口 第二版：牌楼（能从底下走过去）+ 灯笼串' },
+    { x: 1830, y: 700, text: '街道 第一版：房子 + 街上摊位，右边是背向的房子' },
+    { x: 2630, y: 700, text: '街道 第二版：高铺 + 小屋 + 左侧背向摊位' },
+    { x: 3430, y: 700, text: '郊区 第一版：两栋小屋、人少' },
+    { x: 4230, y: 700, text: '郊区 第二版：大厅 + 小屋、路边摊' },
   ]
 
   const tuning = level as DevLevelDef & {
-    harborBlocks?: { at: number; kind: 'dock' | 'street' | 'suburb' }[]
+    harborBlocks?: { at: number; kind: 'dock' | 'street' | 'suburb'; variant?: number }[]
   }
 
   tuning.harborBlocks = [
     // 每段之间空 340（段宽 460），这样一眼能看出"一段到哪儿结束"
     { at: 70, kind: 'dock' },
-    { at: 870, kind: 'dock' },
-    { at: 1500, kind: 'street' },
-    { at: 2200, kind: 'suburb' },
-    { at: 2700, kind: 'suburb' },
+    { at: 870, kind: 'dock', variant: 2 },
+    { at: 1600, kind: 'street' },
+    { at: 2400, kind: 'street', variant: 2 },
+    { at: 3200, kind: 'suburb' },
+    { at: 4000, kind: 'suburb', variant: 2 },
   ]
 
   return level
@@ -1451,12 +1499,14 @@ export class GameScene extends Phaser.Scene {
       // 引擎按打包把这一段的装饰一段一段盖上去 —— 栅栏、水面只在 dock 那类里出现
       const harborBlocks = (
         this.level as LevelDef & {
-          harborBlocks?: { at: number; kind: 'dock' | 'street' | 'suburb' }[]
+          harborBlocks?: { at: number; kind: 'dock' | 'street' | 'suburb'; variant?: number }[]
         }
       ).harborBlocks ?? []
 
       harborBlocks.forEach((block) => {
-        const pack = HARBOR_BLOCKS[block.kind]
+        // 第一版 / 第二版：数据里不写 variant 就当第一版
+        const variants = HARBOR_BLOCKS[block.kind]
+        const pack = variants?.[Math.max(0, (block.variant ?? 1) - 1)] ?? variants?.[0]
 
         if (!pack) {
           return

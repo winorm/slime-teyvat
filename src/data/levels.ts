@@ -222,7 +222,8 @@ export type LevelDef = {
 
   guards?: GuardDef[]
   foreground?: ForegroundDef[]
-  harborBlocks?: { at: number; kind: 'dock' | 'street' | 'suburb' }[]
+  // 港口背景打包：一段 460 宽，kind 选港口 / 街道 / 郊区，variant 选第一版还是第二版（不写＝第一版）
+  harborBlocks?: { at: number; kind: 'dock' | 'street' | 'suburb'; variant?: 1 | 2 }[]
   chaseAt?: number          // 走过这条线：演出一下、立刻生成追击小队
   squadCount?: number       // 小队人数，默认 3
   squadSpeed?: number       // 追击速度，默认 92（玩家全速 100）
@@ -871,18 +872,19 @@ export const LEVELS: LevelDef[] = [
     ],
 
     // 港口背景打包：一段 460，想要长一点就多复制几段。kind = dock 港口 / street 街道 / suburb 郊区
+    // variant 不写就是第一版；两版轮着铺，街景才不重复
     harborBlocks: [
       { at: 0, kind: 'dock' },      // 码头：有水面、船只、护栏
-      { at: 460, kind: 'dock' },
+      { at: 460, kind: 'dock', variant: 2 },
       { at: 920, kind: 'street' },  // 上街：水面和护栏自动消失
-      { at: 1380, kind: 'street' },
+      { at: 1380, kind: 'street', variant: 2 },
       { at: 1840, kind: 'street' },
       { at: 2300, kind: 'suburb' }, // 郊区：房子稀疏、摊位也少
-      { at: 2760, kind: 'suburb' },
-      { at: 3220, kind: 'street' },
+      { at: 2760, kind: 'suburb', variant: 2 },
+      { at: 3220, kind: 'street', variant: 2 },
       { at: 3680, kind: 'street' },
-      { at: 4140, kind: 'street' },
-      { at: 4600, kind: 'suburb' }, // 逃脱段也铺上，跑酷时不至于空荡
+      { at: 4140, kind: 'street', variant: 2 },
+      { at: 4600, kind: 'suburb', variant: 2 }, // 逃脱段也铺上，跑酷时不至于空荡
       { at: 5060, kind: 'dock' },   // 最后一段又回到码头
     ],
 
