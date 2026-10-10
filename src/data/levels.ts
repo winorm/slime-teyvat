@@ -20,6 +20,24 @@ export type PlatformDef = {
 
 }
 
+// 画在玩家前面的摆件：牌楼前层、停在水里的船、前景灯笼之类
+export type ForegroundDef = {
+  x: number
+  y: number        // 底边那条线
+  key: string
+  scale?: number
+  alpha?: number
+}
+
+// 千岩军：巡逻 + 扇形视野（视野朝斜下方）。看见玩家 2.5 秒转追击，追击撞到障碍就放弃
+export type GuardDef = {
+  x: number
+  y: number        // 底边贴地那条线
+  range: number    // 以 x 为中心左右各巡逻多远
+  speed?: number   // 巡逻速度，默认 26
+  facing?: 1 | -1  // 开局朝向，默认朝右
+  vision?: number  // 视野半径，默认 170
+}
 // 关卡里的魔物：会来回巡逻，碰到即死；被雷鸣劈中眩晕 3 秒（眩晕里不动、碰到不死）
 export type MonsterDef = {
   x: number
@@ -134,7 +152,7 @@ export type DomeDef = {
   thickness: number  // 穹顶壳厚
 }
 
-export type BgTheme = 'beach' | 'field' | 'church' | 'sky' | 'tower' | 'liyue'
+export type BgTheme = 'beach' | 'field' | 'church' | 'sky' | 'tower' | 'liyue' | 'harbor'
 
 export type ThemeColor = {
   ground: number
@@ -152,6 +170,7 @@ export const THEME_COLORS: Record<BgTheme, ThemeColor> = {
   tower: { ground: 0x39405a, oneWay: 0x4c5470, crumble: 0x7a5648, hazard: 0xb03a3a },
   // 璃月·荻花洲：岩土色的地面，黄昏里偏暖
   liyue: { ground: 0x8a6a4a, oneWay: 0xb09068, crumble: 0x9a5a44, hazard: 0x2f6f8f },
+  harbor: { ground: 0x8a6a4a, oneWay: 0xb09068, crumble: 0x9a5a44, hazard: 0x2f6f8f },
 }
 
 export type LevelDef = {
@@ -200,6 +219,17 @@ export type LevelDef = {
   launchers?: LauncherDef[]
   chase?: boolean
   hints: HintDef[]
+
+  guards?: GuardDef[]
+  foreground?: ForegroundDef[]
+  harborBlocks?: { at: number; kind: 'dock' | 'street' | 'suburb' }[]
+  chaseAt?: number          // 走过这条线：演出一下、立刻生成追击小队
+  squadCount?: number       // 小队人数，默认 3
+  squadSpeed?: number       // 追击速度，默认 92（玩家全速 100）
+  squadSpawnGap?: number    // 生成在玩家身后多少像素，默认 260
+  squadStop?: number        // 跑过这条线就甩掉他们
+  chaseCause?: string       // 被抓时的死因，默认 'guard'（死亡界面会写"被千岩军抓住了……"）
+
   monsters?: MonsterDef[]
 }
 
@@ -525,7 +555,7 @@ export const LEVELS: LevelDef[] = [
   {
     name: '第六关 · 岩之国度',
     intro:
-      '这里就是风神提到的璃月吧。\n荻花洲的芦苇在晚风里摇，远处那座岩柱上的木楼就是望舒客栈。\n天快黑了，先摸一摸路边的神像，再上去歇一晚。',
+      '这里就是风神提到的璃月吧。\n荻花洲的芦苇在晚风里摇，远处那座岩柱上的木楼就是望舒客栈。\n天快黑了，先去歇一晚。',
 
     width: 3500,
     height: 540,
@@ -754,6 +784,118 @@ export const LEVELS: LevelDef[] = [
       { x: 620, y: 2160, id: 'blossom' },
     ],
     hints: [],
+  },
+
+ {
+    name: '第八关 · 可疑人员',
+    intro:
+      '走了三天，终于看见璃月港了。\n今天码头上格外热闹 —— 赶上了一年一度的请仙典仪。\n先去玉京台那边看看，说不定能问出回家的路。',
+
+    width: 5600,
+    height: 1200,
+    // 岩是上一关带过来的；雷是本关新给的（雷神像还没画，先用 unlocks 顶着）
+    startElement: 'rock',
+    unlocks: ['wind', 'thunder'],
+    spawn: { x: 60, y: 1120 },
+    bg: 'harbor',
+    // 混出港区：跑到最右边把箱子开了
+    goal: { x: 5520, y: 1146, kind: 'chest', prompt: '打开' },
+
+    platforms: [
+      // ① 码头那一段石岸（顶面 1160）
+      { x: 1050, y: 1180, width: 2100, height: 40, brick: true },
+      // （木箱 / 摊位台子这些小障碍由用户自己手动摆：48 高那种刚好"站着能挡视线、
+      //   跳一下能翻过去"，两边都兼顾）
+
+      { x: 2550, y: 1115, width: 400, height: 6, brick: true, pillars: 2 },   // 顶面 1112
+      { x: 3150, y: 1067, width: 400, height: 6, brick: true, pillars: 2 },
+      // ② 藏着原石的那道矮通道：净空 22（要跳起来往右挤才能钻过去）
+      { x: 2700, y: 1124, width: 200, height: 28, brick: true },  // 底面 1138 → 净空 22
+
+      // ③ 玉京台前广场（顶面 1016）
+      { x: 3975, y: 1019, width: 850, height: 6, brick: true, pillars: 3 },
+      // （广场上给千岩军当掩体的箱子也由用户自己摆）
+      // 通往演仪台的一小段台阶
+      { x: 4300, y: 1015, width: 120, height: 6, brick: true },
+
+      // ⑤ 逃脱跑酷：从广场一路往下跳回码头
+      { x: 4600, y: 1067, width: 180, height: 6, plank: true },   // 顶面 1064
+      { x: 4890, y: 1115, width: 160, height: 6, plank: true },   // 顶面 1112
+      { x: 5170, y: 1163, width: 200, height: 6, plank: true },   // 顶面 1160
+      // 最后一段码头（顶面 1160）
+      { x: 5450, y: 1180, width: 500, height: 40, brick: true },
+    ],
+
+    // 三段石阶（from 是最下边一级、to 是踩到的上一层顶面）
+    stairs: [
+      { from: { x: 2150, y: 1160 }, to: { x: 2350, y: 1112 }, layer: 'front' },
+      { from: { x: 2780, y: 1112 }, to: { x: 2980, y: 1064 }, layer: 'front' },
+      { from: { x: 3380, y: 1064 }, to: { x: 3580, y: 1016 }, layer: 'front' },
+    ],
+
+    // ② 石阶中间那道机关：压力板只有岩柱 / 岩化能压住，压住才开铁栅栏
+    plates: [{ x: 2600, y: 1112, id: 'h1' }],
+    doors: [{ x: 2900, y: 1062, width: 80, height: 100, needs: ['h1'], texture: 'iron-gate' }],
+
+    // ③ 广场上巡逻的两名千岩军（视野朝斜下方，正前方看不见）
+    guards: [
+      { x: 3700, y: 1016, range: 140 },
+      { x: 4150, y: 1016, range: 180, facing: -1 },
+    ],
+
+    // ⑤ 逃脱：走过 4400 触发"被发现了"的演出 + 生成三名千岩军，5480 甩掉
+    chaseAt: 4400,
+    squadCount: 3,
+    squadSpeed: 92,
+    squadSpawnGap: 240,
+    squadStop: 5480,
+    chaseCause: 'guard',
+
+    orbs: [],
+    gems: [
+      { x: 2760, y: 1150 },   // 那道矮通道里面（净空 22，要挤进去）
+      { x: 4650, y: 1040 },   // 逃脱第一段屋顶上
+      { x: 5200, y: 1136 },   // 最后一段码头上
+    ],
+    blessings: [],
+    hazards: [],
+    monuments: [],
+    notes: [
+      {
+        x: 2500,
+        y: 1136,
+        prompt: '阅读',
+        text:
+          '码头告示：\n今日请仙典仪，玉京台一带\n闲人止步。\n（听说老屋底下有一道缝，\n瘦一点的能钻过去……）',
+      },
+    ],
+
+    // 港口背景打包：一段 460，想要长一点就多复制几段。kind = dock 港口 / street 街道 / suburb 郊区
+    harborBlocks: [
+      { at: 0, kind: 'dock' },      // 码头：有水面、船只、护栏
+      { at: 460, kind: 'dock' },
+      { at: 920, kind: 'street' },  // 上街：水面和护栏自动消失
+      { at: 1380, kind: 'street' },
+      { at: 1840, kind: 'street' },
+      { at: 2300, kind: 'suburb' }, // 郊区：房子稀疏、摊位也少
+      { at: 2760, kind: 'suburb' },
+      { at: 3220, kind: 'street' },
+      { at: 3680, kind: 'street' },
+      { at: 4140, kind: 'street' },
+      { at: 4600, kind: 'suburb' }, // 逃脱段也铺上，跑酷时不至于空荡
+      { at: 5060, kind: 'dock' },   // 最后一段又回到码头
+    ],
+
+    hints: [
+      { x: 160, y: 1100, text: '往右走：码头 → 集市街 → 玉京台的石阶' },
+      { x: 1350, y: 1080, text: '集市街：摊位能踩、史莱姆人群只是背景' },
+      { x: 2500, y: 1080, text: '老屋底下那道缝能钻过去（净空 22）' },
+      { x: 2600, y: 1060, text: '压力板：只有岩柱 / 岩化能压住' },
+      { x: 3700, y: 960, text: '千岩军：别站进他的视野；岩化不动他不会发现' },
+      { x: 4300, y: 960, text: '前面就是请仙典仪' },
+      { x: 4420, y: 960, text: '往右跑！被盯上了' },
+      { x: 5400, y: 1100, text: '跑到尽头把箱子开了就算混出去了' },
+    ],
   },
 
 ]
