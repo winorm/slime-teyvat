@@ -369,21 +369,38 @@ const HARBOR_BLOCKS: Record<
       ],
     },
     {
-      // 第二版：中间立一座牌楼 —— 左两根柱子在后层、右两根在前层，史莱姆能从底下穿过去；
-      // 牌楼旁边挂一串灯笼，水里换一只高帆渔船
+      // 第二版：左边两栋楼房底部相连（屋檐相接），灯笼串正好牵在它们的屋檐下 ——
+      // 绳子两头分别落在这两栋的屋檐里，才挂得住；右边立一座牌楼
+      //（左两根柱子在后层、右两根在前层，史莱姆能从底下穿过去）
       water: true,
       railing: true,
       decor: [
-        { dx: 55, key: 'harbor-house-c' },
-        { dx: 225, key: 'harbor-paifang' },
-        { dx: 380, key: 'harbor-house-a' },
-        { dx: 135, key: 'harbor-slime-b', depth: -4, randomScale: 0.12 },
-        { dx: 350, key: 'harbor-slime-a', scale: 0.85, depth: -4, randomScale: 0.12 },
+        { dx: 73, key: 'harbor-house-a' },
+        { dx: 219, key: 'harbor-house-a' },                              // 和上一栋底部相连
+        { dx: 362, key: 'harbor-paifang' },
+        // 灯笼：dx 卡在两栋的接缝上、高度卡在它们的屋檐下（绳子两头都在屋檐里）
+        { dx: 146, key: 'harbor-lanterns', dy: -83, depth: -4 },
+        { dx: 250, key: 'harbor-slime-a', scale: 0.85, depth: -4, randomScale: 0.12 },
+        { dx: 400, key: 'harbor-slime-b', depth: -4, randomScale: 0.12 },
       ],
       front: [
-        { dx: 225, key: 'harbor-paifang-front' },                       // 牌楼的前两根柱子
-        { dx: 90, key: 'harbor-lanterns', dy: -150 },                   // 灯笼串（挂高一点）
-        { dx: 385, key: 'harbor-boat-a', scale: 1.1, dy: 30 },
+        { dx: 362, key: 'harbor-paifang-front' },                        // 牌楼的前两根柱子
+        { dx: 30, key: 'harbor-boat-a', scale: 1.1, dy: 30 },
+      ],
+    },
+    {
+      // 第三版：宽厅 + 小屋，岸边停一条高帆渔船；摊位只有岸边那个背向的
+      water: true,
+      railing: true,
+      decor: [
+        { dx: 140, key: 'harbor-house-b' },
+        { dx: 370, key: 'harbor-house-c' },
+        { dx: 60, key: 'harbor-slime-c', depth: -4, randomScale: 0.12 },
+        { dx: 290, key: 'harbor-slime-d', depth: -4, randomScale: 0.12 },
+      ],
+      front: [
+        { dx: 100, key: 'harbor-stall-back' },
+        { dx: 250, key: 'harbor-boat-b', scale: 0.9, dy: 45 },
       ],
     },
   ],
@@ -411,6 +428,16 @@ const HARBOR_BLOCKS: Record<
       ],
       front: [{ dx: 150, key: 'harbor-stall-back' }],
     },
+    {
+      // 第三版：两栋房子 + 右边一个背向摊位（这一段里没有正面摊位，不存在同框问题）
+      decor: [
+        { dx: 90, key: 'harbor-house-c' },
+        { dx: 280, key: 'harbor-house-a' },
+        { dx: 180, key: 'harbor-slime-d', depth: -4, randomScale: 0.12 },
+        { dx: 390, key: 'harbor-slime-b', depth: -4, randomScale: 0.12 },
+      ],
+      front: [{ dx: 430, key: 'harbor-stall-back' }],
+    },
   ],
   // ── 郊区 ──────────────────────────────────────────────────
   // 房子稀疏、没有水和护栏，中间留大片空地给远景
@@ -433,6 +460,16 @@ const HARBOR_BLOCKS: Record<
         { dx: 415, key: 'harbor-slime-a', scale: 0.85, depth: -4, randomScale: 0.12 },
       ],
       front: [{ dx: 150, key: 'harbor-stall-back' }],
+    },
+    {
+      // 第三版：最空的一版 —— 一栋两层楼房 + 一个小屋，中间大片空地，前景什么都不摆
+      decor: [
+        { dx: 120, key: 'harbor-house-a' },
+        { dx: 380, key: 'harbor-house-c' },
+        { dx: 60, key: 'harbor-slime-c', depth: -4, randomScale: 0.12 },
+        { dx: 250, key: 'harbor-slime-a', scale: 0.85, depth: -4, randomScale: 0.12 },
+      ],
+      front: [],
     },
   ],
 }
@@ -834,24 +871,27 @@ function devChaseRoom(): DevLevelDef {
 }
 
 // 大厅里那一排门。x 是门中心，间距 230；最后一扇通向原来那个「一关走完全部机关」的旧沙盒
-// ⑩ 港口打包预览：三类打包各摆两段（第一版 + 第二版，用户要求先在测试关里看效果，再拿去第八关铺）
+// ⑩ 港口打包预览：三类打包各摆三段（第一 / 二 / 三版，用户要求先在测试关里看效果，再拿去第八关铺）
 function devHarborBlockRoom(): DevLevelDef {
   const level = devRoomShell(
     '测试 · 港口打包',
-    '港口打包预览：\n每一段单独放，中间留空。\n从左到右：港口 ① ②、街道 ① ②、郊区 ① ②。\n每段 460 宽。',
-    4600
+    '港口打包预览：\n每一段单独放，中间留空。\n从左到右：港口 ①②③、街道 ①②③、郊区 ①②③。\n每段 460 宽。',
+    6300
   )
 
   // 用港口主题，水面 / 护栏 / 白天天空和随机远山才会出来
   level.bg = 'harbor'
 
   level.hints = [
-    { x: 300, y: 700, text: '港口 第一版：水面 + 护栏 + 一正一背两个摊位 + 小船' },
-    { x: 1100, y: 700, text: '港口 第二版：牌楼（能从底下走过去）+ 灯笼串' },
-    { x: 1830, y: 700, text: '街道 第一版：房子 + 街上摊位，右边是背向的房子' },
-    { x: 2630, y: 700, text: '街道 第二版：高铺 + 小屋 + 左侧背向摊位' },
-    { x: 3430, y: 700, text: '郊区 第一版：两栋小屋、人少' },
-    { x: 4230, y: 700, text: '郊区 第二版：大厅 + 小屋、路边摊' },
+    { x: 300, y: 700, text: '港口 第一版：一正一背两个摊位 + 小船' },
+    { x: 1000, y: 700, text: '港口 第二版：两栋相连的楼房 + 灯笼串 + 牌楼' },
+    { x: 1700, y: 700, text: '港口 第三版：宽厅 + 小屋 + 高帆渔船' },
+    { x: 2400, y: 700, text: '街道 第一版：房子 + 街上摊位，右边是背向的房子' },
+    { x: 3100, y: 700, text: '街道 第二版：高铺 + 小屋 + 左侧背向摊位' },
+    { x: 3800, y: 700, text: '街道 第三版：两栋房子 + 右边背向摊位' },
+    { x: 4500, y: 700, text: '郊区 第一版：两栋小屋、人少' },
+    { x: 5200, y: 700, text: '郊区 第二版：大厅 + 小屋、路边摊' },
+    { x: 5900, y: 700, text: '郊区 第三版：最空的一版，前景不摆东西' },
   ]
 
   const tuning = level as DevLevelDef & {
@@ -859,13 +899,16 @@ function devHarborBlockRoom(): DevLevelDef {
   }
 
   tuning.harborBlocks = [
-    // 每段之间空 340（段宽 460），这样一眼能看出"一段到哪儿结束"
+    // 每段之间空 240（段宽 460），这样一眼能看出"一段到哪儿结束"
     { at: 70, kind: 'dock' },
-    { at: 870, kind: 'dock', variant: 2 },
-    { at: 1600, kind: 'street' },
-    { at: 2400, kind: 'street', variant: 2 },
-    { at: 3200, kind: 'suburb' },
-    { at: 4000, kind: 'suburb', variant: 2 },
+    { at: 770, kind: 'dock', variant: 2 },
+    { at: 1470, kind: 'dock', variant: 3 },
+    { at: 2170, kind: 'street' },
+    { at: 2870, kind: 'street', variant: 2 },
+    { at: 3570, kind: 'street', variant: 3 },
+    { at: 4270, kind: 'suburb' },
+    { at: 4970, kind: 'suburb', variant: 2 },
+    { at: 5670, kind: 'suburb', variant: 3 },
   ]
 
   return level

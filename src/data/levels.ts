@@ -222,8 +222,8 @@ export type LevelDef = {
 
   guards?: GuardDef[]
   foreground?: ForegroundDef[]
-  // 港口背景打包：一段 460 宽，kind 选港口 / 街道 / 郊区，variant 选第一版还是第二版（不写＝第一版）
-  harborBlocks?: { at: number; kind: 'dock' | 'street' | 'suburb'; variant?: 1 | 2 }[]
+  // 港口背景打包：一段 460 宽，kind 选港口 / 街道 / 郊区，variant 选第几版（不写＝第一版）
+  harborBlocks?: { at: number; kind: 'dock' | 'street' | 'suburb'; variant?: 1 | 2 | 3 }[]
   chaseAt?: number          // 走过这条线：演出一下、立刻生成追击小队
   squadCount?: number       // 小队人数，默认 3
   squadSpeed?: number       // 追击速度，默认 92（玩家全速 100）
