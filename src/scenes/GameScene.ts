@@ -665,19 +665,26 @@ function devHarborRoom(): DevLevelDef {
   const level = devRoomShell(
     '测试 · 港口',
     '港口展厅（草稿）：\n中式飞檐楼、牌楼、灯笼串、\n摊位、人群剪影、船。\n先把外观定下来再做第八关。',
-    2200
+    3100
   )
 
   level.devExhibits = [
-    { kind: 'prop', x: 240, key: 'harbor-house', label: '楼房（飞檐 + 格子窗）', depth: -5 },
-    { kind: 'prop', x: 520, key: 'harbor-paifang', label: '牌楼（三间四柱 + 匾额）', depth: -5 },
-    { kind: 'prop', x: 760, key: 'harbor-lanterns', label: '灯笼串（会轻轻晃）', depth: -5, sway: true },
-    { kind: 'prop', x: 1000, key: 'harbor-stall', label: '摊位（布篷 + 货）', depth: 4 },
-    { kind: 'prop', x: 1240, key: 'harbor-crowd', label: '人群剪影（背景用）', depth: -5 },
-    { kind: 'prop', x: 1560, key: 'harbor-boat', label: '船（船壳 + 方帆 + 船头灯笼）', depth: 4 },
+    { kind: 'prop', x: 220, key: 'harbor-house-a', label: '楼房 A：两层商铺', depth: -5 },
+    { kind: 'prop', x: 420, key: 'harbor-house-b', label: '楼房 B：单层大厅', depth: -5 },
+    { kind: 'prop', x: 600, key: 'harbor-house-c', label: '楼房 C：小屋', depth: -5 },
+    { kind: 'prop', x: 760, key: 'harbor-house-d', label: '楼房 D：三层高铺', depth: -5 },
+    // 牌楼拆成两层：背面（左两根柱 + 匾额）在史莱姆后面，正面（右两根柱）压在他上面
+    { kind: 'prop', x: 1060, key: 'harbor-paifang', label: '牌楼（背层）', depth: -5 },
+    { kind: 'prop', x: 1060, key: 'harbor-paifang-front', label: '牌楼（前层：右两根柱）', depth: 11 },
+    { kind: 'prop', x: 1400, key: 'harbor-lanterns', label: '灯笼串（带流苏，会晃）', depth: -5, sway: true },
+    { kind: 'prop', x: 1660, key: 'harbor-stall', label: '摊位（木篷 + 鱼和肉）', depth: 4 },
+    { kind: 'prop', x: 1880, key: 'harbor-slime-crowd', label: '人群：五只史莱姆', depth: -5 },
+    { kind: 'prop', x: 2160, key: 'harbor-boat-a', label: '船 A：小舢板', depth: 4 },
+    { kind: 'prop', x: 2420, key: 'harbor-boat-b', label: '船 B：渔船（高方帆）', depth: 4 },
+    { kind: 'prop', x: 2760, key: 'harbor-boat-c', label: '船 C：带船舱的货船', depth: 4 },
   ]
 
-  level.hints = [{ x: 200, y: 700, text: '这六样都是草稿，先说哪几样要改' }]
+  level.hints = [{ x: 160, y: 700, text: '这一版都改过一轮了，看哪儿还要调' }]
 
   return level
 }
