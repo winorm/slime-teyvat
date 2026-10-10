@@ -2113,6 +2113,13 @@ export class GameScene extends Phaser.Scene {
       // 分层：古树的后层楼梯给 1（会被树干挡住），前层给 3；不写就是原来的 0
       platform.setDepth(def.depth ?? 0)
 
+      // 只画不挡人的台体（玉京台下面那道墙）：不参与碰撞，人从它前面走过去
+      if (def.solid === false) {
+        const ghostBody = platform.body as Phaser.Physics.Arcade.StaticBody
+
+        ghostBody.enable = false
+      }
+
       // 只在某一层存在的楼板补片：视觉交给下面的 RenderTexture（一直画、只擦透视洞），
       // 自带的矩形就不画了；碰撞仍然靠 collider 的过滤函数按 layer 决定
       if (def.layer) {
@@ -5679,6 +5686,18 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateDepthGates(body: Phaser.Physics.Arcade.Body) {
+    // 玉京台那种「按高度切层」：脚底过了这条线就是后层，回来就切回前层。
+    // 比判定区稳 —— 上跑下跑来回走都不会翻错
+    const layerLine = this.level.layerLine
+
+    if (layerLine) {
+      const want: 'front' | 'back' = body.bottom < layerLine.y ? 'back' : 'front'
+
+      if (want !== this.playerLayer) {
+        this.setPlayerLayer(want)
+      }
+    }
+
     const gates = this.level.depthGates
 
     if (!gates) {

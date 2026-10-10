@@ -13,6 +13,9 @@ export type PlatformDef = {
   plank?: boolean   // 表面盖一层木板（木桥用，同样只做画面）
   tint?: number     // 覆盖主题配色：村庄断墙、矿洞岩壁这类要单独上色的块
   depth?: number    // 画在哪一层：古树的后层楼梯给 1（会被树干挡住），前层给 3
+  // 只画不挡人：台体、基座这类"当背景看的墙"用（玉京台下面那道墙就是它）。
+  // 画面照旧画，但不参与碰撞，史莱姆可以从它前面走过去
+  solid?: boolean   // 不写＝参与碰撞
   rail?: boolean    // 平台边缘画一道护栏（和楼梯护栏同高，用来接上）
   pillars?: number   // 楼板下面画几根立柱（从楼板底面撑到下一层楼板，没有就往下 60 像素）
   layer?: 'front' | 'back'   // 只在「树前」或「树后」某一层存在的补片（第七关楼板上的活板）：
@@ -202,6 +205,9 @@ export type LevelDef = {
   platforms: PlatformDef[]
   stairs?: StairDef[]
   revealRails?: RevealRailDef[]            // 带透视的栏杆（玉京台那种：画在玩家前面，靠近时擦洞）
+  // 按高度自动切「前层 / 后层」（玉京台那种两层楼梯用）：脚底在这条线**以上**算后层、
+  // 以下算前层。走到半层平台就自动翻层，不用踩判定区，来回走也不会翻错
+  layerLine?: { y: number }
   depthGates?: DepthGateDef[]
   pickups?: PickupDef[]
   repairs?: RepairDef[]
@@ -829,7 +835,9 @@ export const LEVELS: LevelDef[] = [
       // ③ 玉京台：占两段打包背景那么宽（x 2300 → 3220）。
       //    台面顶面 880 —— 比地面高 280，就是那栋三层楼房的高度。
       { x: 2760, y: 900, width: 920, height: 40, brick: true },     // 台面 880
-      { x: 2760, y: 1040, width: 460, height: 240, brick: true },   // 台体：从台面一直落到地面（920 → 1160）
+      // 台体：从台面一直落到地面（920 → 1160）。solid: false —— 它只是楼梯后面的那面墙（背景），
+      // 不挡人，史莱姆可以贴着它走过去；真正挡人的只有台面楼板和两级楼梯
+      { x: 2760, y: 1040, width: 460, height: 240, brick: true, solid: false },
       // 两条楼梯半层处的小平台（转身 + 放判定区的地方，顶面也是 1020）
       { x: 2300, y: 1023, width: 90, height: 6, brick: true },
       { x: 3220, y: 1023, width: 90, height: 6, brick: true },
@@ -846,14 +854,9 @@ export const LEVELS: LevelDef[] = [
       { from: { x: 3220, y: 1020 }, to: { x: 2990, y: 880 }, style: 'ramp', layer: 'back', rail: 'none' },
     ],
 
-    // 半层小平台上的判定区：上楼（往中间走）翻到后层，下楼（往外走）翻回前层。
-    // 左边上楼是往右、下楼往左；右边反过来
-    depthGates: [
-      { x: 2335, y: 1004, width: 46, height: 34, dir: 1 },
-      { x: 2265, y: 1004, width: 46, height: 34, dir: -1 },
-      { x: 3185, y: 1004, width: 46, height: 34, dir: -1 },
-      { x: 3255, y: 1004, width: 46, height: 34, dir: 1 },
-    ],
+    // 分层判定线：脚底过了 1010（也就是踩上上跑）就自动切到后层，回到下跑/地面就是前层。
+    // 用高度判定比判定区稳：上跑下跑来回走都不会翻错层
+    layerLine: { y: 1010 },
 
     // 台面沿口的栏杆（在玩家图层上）＋ 两条上跑的斜栏杆：都画在玩家前面，
     // 史莱姆走到栏杆后面时在它身上擦一个透视洞，和第七关那棵树一个做法
