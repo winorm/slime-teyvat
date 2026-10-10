@@ -1,6 +1,8 @@
 ﻿import Phaser from 'phaser'
 import { ELEMENTS, ELEMENT_ORDER, type ElementKey } from '../data/elements'
 import { DEV_LEVEL_MODE } from '../data/devLevel'
+import { LEVELS } from '../data/levels'
+import { DEV_MODE, progress } from '../state/progress'
 
 const ICON_NONE = [
   '................',
@@ -104,6 +106,18 @@ export class BootScene extends Phaser.Scene {
   create() {
     this.makeTextures()
     this.scene.launch('achievement')
+    // 开发用：地址上带 ?level=8 就直接进第八关（和 ?dev=1 一样，只有 DEV_MODE 开着时才有）
+    const levelParam = new URLSearchParams(location.search).get('level')
+    const levelIndex = levelParam === null ? Number.NaN : Number.parseInt(levelParam, 10) - 1
+
+    if (DEV_MODE && Number.isInteger(levelIndex) && levelIndex >= 0 && levelIndex < LEVELS.length) {
+      progress.levelIndex = levelIndex
+      progress.maxLevel = Math.max(progress.maxLevel, levelIndex)
+      progress.unlocked = [...ELEMENT_ORDER]
+      this.scene.start('game')
+      return
+    }
+
     // 带 ?dev=1（并且 DEV_MODE 开着）时跳过主菜单，直接进测试沙盒
     this.scene.start(DEV_LEVEL_MODE ? 'game' : 'menu')
   }
@@ -4143,6 +4157,41 @@ export class BootScene extends Phaser.Scene {
     sail(boatC, 144, 12, 60, 88)
     boatC.generateTexture('harbor-boat-c', 220, 150)
     boatC.destroy()
+
+    // ⑦ 玉京台的石栏杆，两张：
+    //   · rail-stone：一整段栏杆（上下两道横杆 + 一根立柱 + 柱头），横向平铺就是一道栏杆
+    //   · rail-band：只有一道横杆，给斜着的楼梯栏杆用（斜着摆放不会露馅）
+    const stoneRail = this.add.graphics()
+
+    stoneRail.fillStyle(0x7c6a56, 1)
+    stoneRail.fillRect(0, 0, 24, 5)          // 上横杆
+    stoneRail.fillStyle(0x4a3f33, 1)
+    stoneRail.fillRect(0, 5, 24, 1)
+    stoneRail.fillStyle(0x6a5a48, 1)
+    stoneRail.fillRect(0, 17, 24, 4)         // 下横杆
+    stoneRail.fillStyle(0x8a765f, 1)
+    stoneRail.fillRect(0, 17, 24, 1)
+    stoneRail.fillStyle(0x4a3f33, 1)
+    stoneRail.fillRect(0, 21, 24, 1)
+    stoneRail.fillStyle(0x6a5a48, 1)         // 立柱
+    stoneRail.fillRect(9, 3, 6, 23)
+    stoneRail.fillStyle(0x8a765f, 1)         // 柱头
+    stoneRail.fillRect(7, 0, 10, 3)
+    stoneRail.fillStyle(0x4a3f33, 1)
+    stoneRail.fillRect(9, 25, 6, 1)
+    stoneRail.generateTexture('rail-stone', 24, 26)
+    stoneRail.destroy()
+
+    const stoneBand = this.add.graphics()
+
+    stoneBand.fillStyle(0x7c6a56, 1)
+    stoneBand.fillRect(0, 0, 32, 4)
+    stoneBand.fillStyle(0x8a765f, 1)
+    stoneBand.fillRect(0, 0, 32, 1)
+    stoneBand.fillStyle(0x4a3f33, 1)
+    stoneBand.fillRect(0, 4, 32, 2)
+    stoneBand.generateTexture('rail-band', 32, 6)
+    stoneBand.destroy()
   }
 
   // 岩刺造物：背后一层贴在建筑上的岩壳，前面收成锥口，口上一点金。

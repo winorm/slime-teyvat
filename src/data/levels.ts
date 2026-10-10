@@ -53,6 +53,21 @@ export type StairDef = {
   to: { x: number; y: number }
   depth?: number    // 不写就是 3（画在树干前面）
   layer?: 'front' | 'back'   // 画在树干前面（front，默认）还是树干后面（back）
+  // 楼梯样式：wood = 原来的木楼梯（第七关客栈那种），
+  // brick = 砖石台阶（底下是实心台体），ramp = 砖石斜坡（同样是实心，只是面是平的）
+  style?: 'wood' | 'brick' | 'ramp'
+  // 自带的木扶栏画不画：不写就画；none = 不画（改用 revealRails 里那种带透视的石栏杆）
+  rail?: 'normal' | 'none'
+}
+
+// 带透视的栏杆：画在玩家前面（depth 12），玩家走到它后面时在它身上擦一个洞，
+// 于是史莱姆不会被栏杆挡死 —— 和第七关那棵古树用的是同一套做法。
+// 每段是 from → to 的一条直线（水平的、倾斜的都行），样式取 'rail-stone' 这张贴图
+export type RevealRailDef = {
+  from: { x: number; y: number }
+  to: { x: number; y: number }
+  key?: string      // 不写就用 'rail-stone'
+  height?: number   // 栏杆贴图的高度，默认按贴图本身
 }
 
 // 进出「树的图层」的判定区：玩家踩进去就把自己的图层切成 layer。
@@ -183,6 +198,7 @@ export type LevelDef = {
   goal: GoalDef
   platforms: PlatformDef[]
   stairs?: StairDef[]
+  revealRails?: RevealRailDef[]            // 带透视的栏杆（玉京台那种：画在玩家前面，靠近时擦洞）
   depthGates?: DepthGateDef[]
   pickups?: PickupDef[]
   repairs?: RepairDef[]
@@ -803,10 +819,34 @@ export const LEVELS: LevelDef[] = [
     // 等玉京台和新流程定下来再改位置和触发方式
     goal: { x: 5520, y: 1146, kind: 'chest', prompt: '打开' },
 
-    // 这一关在重建中：只留一条从最左到最右的平地面（顶面 1160，x 0 → 5600），
-    // 机关 / 千岩军 / 追兵 / 空中的平台 / 可交互的东西全部清空，
-    // 想摆什么（木箱、摊位台子、压力板……）都由用户后面自己往里加
-    platforms: [{ x: 2800, y: 1180, width: 5600, height: 40, brick: true }],
+    platforms: [
+      // 一整条平地面（顶面 1160，x 0 → 5600）
+      { x: 2800, y: 1180, width: 5600, height: 40, brick: true },
+
+      // ③ 玉京台：占两段打包背景那么宽（x 2300 → 3220）。
+      //    台面顶面 880 —— 比地面高 280，就是那栋三层楼房的高度。
+      { x: 2760, y: 900, width: 920, height: 40, brick: true },     // 台面 880
+      { x: 2760, y: 1040, width: 460, height: 240, brick: true },   // 台体：从台面一直落到地面（920 → 1160）
+    ],
+
+    // ③ 玉京台的两条双层楼梯（都是一跑一半高，两跑一样高，在台体两边的空档里）：
+    //    左边那条先往右上半层、到墙根转身，再往左上到台面；右边那条方向反过来，
+    //    而且是斜坡不是台阶。两跑都是砖石实心台体。
+    //    下跑画在玩家图层下（back），上跑画在玩家图层上、栏杆交给 revealRails 做透视
+    stairs: [
+      { from: { x: 2300, y: 1160 }, to: { x: 2530, y: 1020 }, style: 'brick', layer: 'back' },
+      { from: { x: 2530, y: 1020 }, to: { x: 2300, y: 880 }, style: 'brick', layer: 'front', rail: 'none' },
+      { from: { x: 3220, y: 1160 }, to: { x: 2990, y: 1020 }, style: 'ramp', layer: 'back' },
+      { from: { x: 2990, y: 1020 }, to: { x: 3220, y: 880 }, style: 'ramp', layer: 'front', rail: 'none' },
+    ],
+
+    // 台面沿口的栏杆（在玩家图层上）＋ 两条上跑的斜栏杆：都画在玩家前面，
+    // 史莱姆走到栏杆后面时在它身上擦一个透视洞，和第七关那棵树一个做法
+    revealRails: [
+      { from: { x: 2300, y: 880 }, to: { x: 3220, y: 880 } },
+      { from: { x: 2530, y: 994 }, to: { x: 2300, y: 854 }, key: 'rail-band' },
+      { from: { x: 2990, y: 994 }, to: { x: 3220, y: 854 }, key: 'rail-band' },
+    ],
 
     orbs: [],
     gems: [],
@@ -823,11 +863,11 @@ export const LEVELS: LevelDef[] = [
       { at: 920, kind: 'dock', variant: 2 },   // 港口②：两栋相连的楼房 + 灯笼串 + 牌楼
       { at: 1380, kind: 'street', variant: 2 },// 街道②：高铺 + 小屋 + 左侧背向摊位
       { at: 1840, kind: 'street' },            // 街道①：房子 + 街上摊位 + 背向的房子
-      // 2300 那一段是玉京台（背景单独做）
-      { at: 2760, kind: 'street', variant: 3 },// 街道③：两栋房子 + 右侧背向摊位
-      { at: 3220, kind: 'suburb', variant: 3 },// 郊区③：最空的一版
-      { at: 3680, kind: 'suburb', variant: 2 },// 郊区②：大厅 + 小屋 + 路边摊
-      { at: 4140, kind: 'suburb' },            // 郊区①：两栋小屋
+      // 2300 → 3220 这两段是玉京台（背景单独做），后面几段顺着往右让开
+      { at: 3220, kind: 'street', variant: 3 },// 街道③：两栋房子 + 右侧背向摊位
+      { at: 3680, kind: 'suburb', variant: 3 },// 郊区③：最空的一版
+      { at: 4140, kind: 'suburb', variant: 2 },// 郊区②：大厅 + 小屋 + 路边摊
+      { at: 4600, kind: 'suburb' },            // 郊区①：两栋小屋
     ],
 
     hints: [],

@@ -9,6 +9,7 @@ import {
   type PickupDef,
   type RepairDef,
   type MonsterDef,
+  type StairDef,
 } from '../data/levels'
 import {
   progress,
@@ -1021,6 +1022,12 @@ export class GameScene extends Phaser.Scene {
   // 史莱姆走到树后层时在它附近擦一个透视洞
   private spindleRT: Phaser.GameObjects.RenderTexture | null = null
   private spindleDrawn = { x: -99999, y: -99999, layer: '' as string }
+  // 玉京台那种「画在玩家前面的栏杆」：整片栏杆画在一张 RenderTexture 上，
+  // 玩家走到栏杆后面时在身上擦一个透视洞（和树桩同一套做法），
+  // 于是史莱姆不会被栏杆挡死
+  private revealRailRT: Phaser.GameObjects.RenderTexture | null = null
+  private revealRailBox = { left: 0, top: 0, width: 0, height: 0 }
+  private revealRailDrawn = { x: -99999, y: -99999 }
   private gateFired: boolean[] = []
   // 只在「树前」或「树后」某一层存在的楼板补片（第七关整层楼板中间那块"活板"）。
   // 贴图搬在 RenderTexture 上，跟树干同一套做法：楼板**一直画着**，史莱姆在另一层时
@@ -1357,6 +1364,9 @@ export class GameScene extends Phaser.Scene {
 
     if (this.devLevel && DEV_SPAWN_X !== null) {
       spawnPoint = { x: DEV_SPAWN_X, y: 820 }
+    } else if (!this.devLevel && DEV_SPAWN_X !== null) {
+      // 正式关卡也认 ?at=：调试时想直接站到某一列就用它（出生高度沿用关卡自己的）
+      spawnPoint = { x: DEV_SPAWN_X, y: this.level.spawn.y }
     } else if (this.devLevel && this.devRoom < 0 && this.devReturnX > 0) {
       spawnPoint = { x: this.devReturnX + 48, y: 820 }
     }
@@ -2325,6 +2335,7 @@ export class GameScene extends Phaser.Scene {
     })
 
     this.buildStairs()
+    this.buildRevealRails()
 
     if (this.level.dome) {
       const dome = this.level.dome
@@ -5230,6 +5241,149 @@ export class GameScene extends Phaser.Scene {
   // 木楼梯：一级一级木踏板（三角形切面）+ 底下斜撑的木梁 + 斜扶栏和立柱。
   // 画面全都画在 Graphics 上；挡人的只有每级踏面顶上那条 run×rise 的碰撞盒。
   // 碰撞盒收进 this.stairs，往前走的时候 tryAutoStep() 会把人一级级抬上去，不用跳。
+  //
+  // 砖石楼梯 / 斜坡（玉京台那种）：底下是**一整块实心台体**（三角楔形，坐在地面或下层平台上），
+  // 上头按级画出踏面和踢面；ramp 只是把面画平、每一级切得更细，走上去不会一格一格地跳。
+  // 栏杆另外算：rail: 'none' 就不画（改用 revealRails 里那种带透视的石栏杆）
+  private buildStoneStair(
+    gfx: Phaser.GameObjects.Graphics,
+    def: StairDef,
+    stairIndex: number,
+    layer: 'front' | 'back',
+    style: 'brick' | 'ramp'
+  ) {
+    const from = def.from
+    const to = def.to
+    const dir = to.x >= from.x ? 1 : -1
+    // 斜坡要切得细一点：踏步落差小，人走上去才是"沿着坡滑上去"而不是一级一级弹
+    const tread = style === 'ramp' ? STAIR_TREAD / 3 : STAIR_TREAD
+    const count = Math.max(1, Math.round(Math.abs(to.x - from.x) / tread))
+    const run = Math.abs(to.x - from.x) / count
+    const rise = (from.y - to.y) / count
+    const baseY = Math.max(from.y, to.y)
+
+    const stoneFace = 0x6a5a48
+    const stoneLight = 0x7c6a56
+    const stoneTop = 0x8a765f
+    const stoneDark = 0x4a3f33
+
+    // ① 实心台体：起点 → 终点 → 垂直落到这一跑的底边
+    gfx.fillStyle(stoneFace, 1)
+    gfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(from.x, from.y),
+        new Phaser.Math.Vector2(to.x, to.y),
+        new Phaser.Math.Vector2(to.x, baseY),
+      ],
+      true
+    )
+
+    // ② 砖缝：横着一道道砌，竖缝错开（都裁在台体那三条边里，不会画到外面去）
+    const slopeX = (y: number) =>
+      from.y === to.y ? from.x : from.x + ((from.y - y) / (from.y - to.y)) * (to.x - from.x)
+
+    for (let y = baseY - 10; y > to.y + 4; y -= 13) {
+      const a = slopeX(y)
+      const left = Math.min(a, to.x)
+      const right = Math.max(a, to.x)
+
+      gfx.fillStyle(stoneDark, 0.35)
+      gfx.fillRect(left + 1, y, Math.max(0, right - left - 2), 1)
+
+      for (let x = left + 10; x < right - 4; x += 22) {
+        gfx.fillRect(x, y - 13, 1, 13)
+      }
+    }
+
+    // ③ 踏面 / 坡面
+    if (style === 'brick') {
+      for (let i = 0; i < count; i++) {
+        const near = from.x + dir * run * i
+        const top = from.y - rise * (i + 1)
+        const left = dir > 0 ? near : near - run
+
+        // 踢面压暗、踏面挑亮，砖石台阶才有立体感
+        gfx.fillStyle(stoneLight, 1)
+        gfx.fillRect(dir > 0 ? near + run - 2 : near, top, 2, rise)
+        gfx.fillStyle(stoneTop, 1)
+        gfx.fillRect(left, top, run, 2)
+        gfx.fillStyle(stoneDark, 1)
+        gfx.fillRect(left, top + 2, run, 1)
+      }
+    } else {
+      // 斜坡：沿着坡面压一条亮边（竖直厚度 3，看着就是一条顺下来的石棱）
+      gfx.fillStyle(stoneTop, 1)
+      gfx.fillPoints(
+        [
+          new Phaser.Math.Vector2(from.x, from.y - 3),
+          new Phaser.Math.Vector2(to.x, to.y - 3),
+          new Phaser.Math.Vector2(to.x, to.y),
+          new Phaser.Math.Vector2(from.x, from.y),
+        ],
+        true
+      )
+    }
+
+    // ④ 碰撞：每级一个 run×rise 的小盒子，进 this.stairs 给 tryAutoStep 抬人
+    for (let i = 0; i < count; i++) {
+      const near = from.x + dir * run * i
+      const top = from.y - rise * (i + 1)
+      const step = this.platforms.create(
+        near + (dir * run) / 2,
+        top + rise / 2,
+        'pixel'
+      ) as Phaser.Physics.Arcade.Sprite
+
+      step.setDisplaySize(run, rise)
+      step.setVisible(false)
+      step.refreshBody()
+      step.setData('stair', true)
+      step.setData('layer', layer)
+      step.setData('flight', stairIndex)
+
+      const stepBody = step.body as Phaser.Physics.Arcade.StaticBody
+
+      stepBody.checkCollision.down = false
+
+      if (dir > 0) {
+        stepBody.checkCollision.right = false
+      } else {
+        stepBody.checkCollision.left = false
+      }
+
+      this.stairs.push(step)
+    }
+
+    // ⑤ 石栏杆：默认沿着坡面往上 26 画一道横杆；rail: 'none' 就留给 revealRails
+    if (def.rail === 'none') {
+      return
+    }
+
+    const railGfx = this.add.graphics().setDepth(layer === 'back' ? 1.4 : 12)
+
+    this.stairRails[stairIndex] = railGfx
+    railGfx.fillStyle(stoneLight, 1)
+    railGfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(from.x, from.y - 26),
+        new Phaser.Math.Vector2(to.x, to.y - 26),
+        new Phaser.Math.Vector2(to.x, to.y - 22),
+        new Phaser.Math.Vector2(from.x, from.y - 22),
+      ],
+      true
+    )
+    railGfx.fillStyle(stoneDark, 1)
+    railGfx.fillPoints(
+      [
+        new Phaser.Math.Vector2(from.x, from.y - 22),
+        new Phaser.Math.Vector2(to.x, to.y - 22),
+        new Phaser.Math.Vector2(to.x, to.y - 21),
+        new Phaser.Math.Vector2(from.x, from.y - 21),
+      ],
+      true
+    )
+  }
+
   private buildStairs(only?: number) {
     const woodFace = 0x8a6034
     const woodTop = 0xa8794a
@@ -5265,6 +5419,12 @@ export class GameScene extends Phaser.Scene {
       // 树后面的那一跑画在树干（depth 2）之后，玩家走上去时会被树挡住
       const gfx = this.add.graphics().setDepth(def.depth ?? (layer === 'back' ? 1 : 3))
       this.stairGfx[stairIndex] = gfx
+
+      // 砖石楼梯 / 斜坡（玉京台那种）走另一套画法：实心台体 + 砖缝 + 石栏杆
+      if (def.style === 'brick' || def.style === 'ramp') {
+        this.buildStoneStair(gfx, def, stairIndex, layer, def.style)
+        return
+      }
 
       // 这一跑是不是"站在地面上起步"的（起点就在最低那块楼板的顶面上）
       const groundTop = this.level.platforms.reduce(
@@ -5573,6 +5733,7 @@ export class GameScene extends Phaser.Scene {
     this.updateTrunk()
     this.updateRoot()
     this.updateSpindle()
+    this.updateRevealRails()
   }
 
   // 层补片（活板）的透视：楼板照常画着，只在史莱姆附近擦掉一个椭圆。
@@ -5903,6 +6064,97 @@ export class GameScene extends Phaser.Scene {
     rt.render()
 
     this.spindleDrawn = { x: px, y: py, layer: this.playerLayer }
+  }
+
+  // ── 带透视的栏杆（玉京台） ──────────────────────────────────
+  // 数据里的 revealRails 每段是一条直线栏杆。整片栏杆先画在一张 RenderTexture 上，
+  // 每帧在玩家位置擦一个洞 —— 和第七关那棵树完全同一套做法
+  private buildRevealRails() {
+    const rails = this.level.revealRails ?? []
+
+    if (rails.length === 0) {
+      return
+    }
+
+    let left = Number.POSITIVE_INFINITY
+    let top = Number.POSITIVE_INFINITY
+    let right = Number.NEGATIVE_INFINITY
+    let bottom = Number.NEGATIVE_INFINITY
+
+    rails.forEach((rail) => {
+      const key = rail.key ?? 'rail-stone'
+      const texture = this.textures.get(key).getSourceImage()
+      const height = rail.height ?? texture.height
+
+      ;[rail.from, rail.to].forEach((point) => {
+        left = Math.min(left, point.x - 16)
+        right = Math.max(right, point.x + 16)
+        top = Math.min(top, point.y - height - 4)
+        bottom = Math.max(bottom, point.y + 4)
+      })
+    })
+
+    this.revealRailBox = { left, top, width: right - left, height: bottom - top }
+    this.revealRailRT = this.add
+      .renderTexture(left, top, this.revealRailBox.width, this.revealRailBox.height)
+      .setOrigin(0, 0)
+      .setDepth(12)
+  }
+
+  private updateRevealRails() {
+    const rt = this.revealRailRT
+    const rails = this.level.revealRails ?? []
+
+    if (!rt || rails.length === 0) {
+      return
+    }
+
+    const px = this.slime.x
+    const py = this.slime.y
+    const last = this.revealRailDrawn
+
+    if (Math.abs(px - last.x) < 1 && Math.abs(py - last.y) < 1) {
+      return
+    }
+
+    const { left, top } = this.revealRailBox
+
+    rt.clear()
+
+    rails.forEach((rail) => {
+      const key = rail.key ?? 'rail-stone'
+      const dx = rail.to.x - rail.from.x
+      const dy = rail.to.y - rail.from.y
+      const length = Math.hypot(dx, dy)
+
+      if (length < 1) {
+        return
+      }
+
+      const angle = Phaser.Math.RadToDeg(Math.atan2(dy, dx))
+      // 每 20 像素戳一片，桩距正好接上（贴图本身 24 宽）
+      const step = 20
+
+      for (let d = 0; d <= length + 0.5; d += step) {
+        const t = Math.min(1, d / length)
+        const x = rail.from.x + dx * t
+        const y = rail.from.y + dy * t
+
+        rt.stamp(key, undefined, x - left, y - top, {
+          originX: 0.5,
+          originY: 1,
+          angle,
+        })
+      }
+    })
+
+    // 玩家贴到栏杆后面时，在他身上擦一个洞（和树桩一模一样的做法）
+    rt.erase('reveal-blob', px - left, py - top)
+
+    // RenderTexture 是先记命令，最后必须 render() 一次才真正画进去
+    rt.render()
+
+    this.revealRailDrawn = { x: px, y: py }
   }
 
   private updateTrunk() {
@@ -7641,6 +7893,8 @@ export class GameScene extends Phaser.Scene {
     this.updateSpindle()
     // 活板（层补片）上的透视圈：楼板一直画着，只擦史莱姆附近那一块
     this.updateLayerReveals()
+    // 玉京台那种画在玩家前面的栏杆：也在玩家身上擦透视洞
+    this.updateRevealRails()
     // 水利电梯：轿厢跟到当前高度，站在上面的人跟着走
     this.updateLift()
 
