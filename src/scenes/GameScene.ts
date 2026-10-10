@@ -288,8 +288,6 @@ const HARBOR_BLOCKS: Record<
       { dx: 250, key: 'harbor-stall' },
       { dx: 330, key: 'harbor-slime-crowd', scale: 0.9 },
       { dx: 420, key: 'harbor-house-b' },
-      { dx: 120, key: 'harbor-crate', dy: -2 },
-      { dx: 300, key: 'harbor-crate', dy: -2 },
     ],
     front: [
       { dx: 90, key: 'harbor-stall-back' },
@@ -307,7 +305,6 @@ const HARBOR_BLOCKS: Record<
       { dx: 110, key: 'harbor-stall' },
       { dx: 250, key: 'harbor-slime-crowd', scale: 0.85 },
       { dx: 360, key: 'harbor-stall', scale: 0.95 },
-      { dx: 210, key: 'harbor-crate', dy: -2 },
     ],
     front: [
       // 街边房屋的背面先给 0.72 的半透明（史莱姆走到后面能看见），
@@ -321,7 +318,6 @@ const HARBOR_BLOCKS: Record<
     decor: [
       { dx: 60, key: 'harbor-house-c' },
       { dx: 240, key: 'harbor-house-c', scale: 0.92 },
-      { dx: 380, key: 'harbor-crate', dy: -2 },
       { dx: 150, key: 'harbor-slime-crowd', scale: 0.7 },
     ],
     front: [{ dx: 300, key: 'harbor-stall-back', scale: 0.9 }],
@@ -1348,38 +1344,6 @@ export class GameScene extends Phaser.Scene {
     //   · 近处的水 = harbor-water 平铺，图层 11
     //   · 最前面的护栏 = harbor-railing 平铺，图层 12，高度 24（比史莱姆矮）
     if (theme === 'harbor') {
-      // 远岸的城市：四种房子轮着摆，带雾化色调；视差 0.45（比地面慢，看着远）
-      const houseKeys = ['harbor-house-a', 'harbor-house-b', 'harbor-house-c', 'harbor-house-d']
-
-      let houseX = -220
-      let houseIndex = 0
-
-      while (houseX < this.level.width * 0.6) {
-        // 间隔性排布：每五栋空一格，间距也在 130~250 之间变化，别排成一堵实墙
-        if (houseIndex % 5 !== 4) {
-          const key = houseKeys[houseIndex % houseKeys.length]
-
-          this.add
-            .image(houseX, 180, key)
-            .setOrigin(0.5, 1)
-            .setScale(0.68 + ((houseIndex * 37) % 3) * 0.05)
-            .setScrollFactor(0.45, 0)
-            .setDepth(-16)
-            .setTint(0xc8d8e8)
-        }
-
-        houseX += 130 + ((houseIndex * 53) % 4) * 40
-        houseIndex++
-      }
-
-      // 城市脚下那条地：跟着同一套视差铺在房子底下，房子就不会飘着了
-      this.add
-        .tileSprite(0, 180, this.level.width * 0.6 + 480, 16, 'harbor-city-base')
-        .setOrigin(0, 0)
-        .setScrollFactor(0.45, 0)
-        .setDepth(-15.5)
-        .setTint(0xc8d8e8)
-
       // 港口"背景打包"：数据里写 harborBlocks: [{ at, kind }]（kind = dock / street / suburb），
       // 引擎按打包把这一段的装饰一段一段盖上去 —— 栅栏、水面只在 dock 那类里出现
       const harborBlocks = (
