@@ -274,6 +274,11 @@ type ChaserRef = {
 // ─────────────────────────────────────────────────────────────
 const DEV_GROUND_TOP = 860
 
+// 台阶高度实验台（能力测试厅最右边那一排）：从"走上去的上限"一路排到"跳起来挤上去的上限"，
+// 用来量三个阈值 —— 玩家正常走上台阶 ≤14（AUTO_STEP），干净起跳能上去 ≤ 约 56（跳高 260²/(2×600)），
+// 再高就得靠"跳起来顶住侧面往右挤"那条缝隙了
+const STEP_LAB = [16, 24, 40, 51, 54, 58, 62, 66, 70]
+
 // 展品：展示间里「同一类东西」中的一个。
 // statue 是已经画好的神像（没做过贴图的元素会自动退回一块灰牌），slot 是纯预留位
 type DevExhibit =
@@ -429,11 +434,11 @@ function devAbilityRoom(): DevLevelDef {
   const level = devRoomShell(
     '测试 · 能力测试',
     '能力测试：\n岩柱压板开铁栅栏、楼梯、\n水利电梯、单向平台、\n碎裂平台、雷闪的墙\n都在这儿。',
-    2680
+    4200
   )
 
   level.platforms = [
-    { x: 1340, y: DEV_GROUND_TOP + 20, width: 2680, height: 40 },
+    { x: 2100, y: DEV_GROUND_TOP + 20, width: 4200, height: 40 },
     // 楼梯顶端接的那层楼板（顶面 700），一直连到电梯井口
     { x: 1465, y: 703, width: 430, height: 6, plank: true },
     // 电梯的两站：地面（860）和这层（660）
@@ -443,6 +448,15 @@ function devAbilityRoom(): DevLevelDef {
     // 雷闪测试：一道 200 高的墙，跳不过去也绕不过去，只能闪过去；
     // 墙顶那块雷方碑够不着，只能站在左边用雷鸣劈
     { x: 2320, y: 760, width: 24, height: 200 },
+    // 台阶高度实验台：一排不同高度的台子，专门用来量「走上去 / 跳上去 / 跳起来挤上去」
+    // 三个阈值到底卡在哪 —— 每级 40 宽、间距 150，顶面高度写在标签上
+    ...STEP_LAB.map((height, index) => ({
+      x: 2650 + index * 150,
+      y: DEV_GROUND_TOP - height / 2,
+      width: 40,
+      height,
+      tint: 0x8a6a4a,
+    })),
   ]
 
   level.monuments = [{ x: 2320, y: 638, element: 'thunder', id: 'ah1' }]
@@ -469,6 +483,11 @@ function devAbilityRoom(): DevLevelDef {
     { x: 2180, y: 780, text: '雷闪：X 键长按瞄准，松开闪出' },
     { x: 2320, y: 592, text: '雷方碑（够不着，用雷鸣劈）' },
     { x: 2500, y: 760, text: '魔物：碰到即死，雷鸣劈中晕 3 秒' },
+    ...STEP_LAB.map((height, index) => ({
+      x: 2650 + index * 150,
+      y: DEV_GROUND_TOP - height - 16,
+      text: '台阶 ' + height,
+    })),
   ]
 
   return level
