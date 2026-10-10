@@ -4898,6 +4898,140 @@ export class BootScene extends Phaser.Scene {
 
     near.generateTexture('bg-liyue-near', 480, 270)
     near.destroy()
+
+    // ── 港口（第八关用）：天空 + 海面 / 城市屋顶群 / 码头近景三层 ──
+    // 远：黄昏天空 + 远岛 + 海平线
+    const harborFar = this.add.graphics()
+
+    for (let y = 0; y < 150; y++) {
+      const t = y / 150
+      const color = this.mixColor(0xf6c48a, 0xe8926a, t)
+
+      harborFar.fillStyle(color, 1)
+      harborFar.fillRect(0, y, 480, 1)
+    }
+
+    // 一轮落日 + 几道云
+    harborFar.fillStyle(0xffe0a8, 0.85)
+    harborFar.fillEllipse(372, 108, 46, 46)
+    harborFar.fillStyle(0xffd0a0, 0.4)
+    harborFar.fillEllipse(372, 108, 66, 66)
+    harborFar.fillStyle(0xffe3c0, 0.5)
+    harborFar.fillRect(40, 66, 120, 5)
+    harborFar.fillRect(150, 84, 90, 4)
+    harborFar.fillRect(250, 52, 70, 4)
+    // 远岛（两层剪影）
+    this.drawRidge(harborFar, 480, 270, 0x8a7396, [2, 5], 18, 122, 0.85)
+    this.drawRidge(harborFar, 480, 270, 0x5d5075, [1, 4], 22, 138)
+    // 海面
+    harborFar.fillStyle(0x3f5f7c, 1)
+    harborFar.fillRect(0, 150, 480, 120)
+    harborFar.fillStyle(0x6f8fa8, 1)
+    harborFar.fillRect(0, 150, 480, 2)
+    harborFar.fillStyle(0xffd9a0, 0.4)
+
+    for (let index = 0; index < 14; index++) {
+      const width = 40 - (index % 5) * 6
+
+      harborFar.fillRect(372 - width / 2 + ((index % 3) - 1) * 8, 156 + index * 4, width, 2)
+    }
+
+    harborFar.generateTexture('bg-harbor-far', 480, 270)
+    harborFar.destroy()
+
+    // 中：层层叠叠的屋顶（城市轮廓）+ 屋顶上零星的灯笼点
+    const harborMid = this.add.graphics()
+    const roofline = [
+      { x: -20, w: 90, top: 96, tile: 0x3f4a55 },
+      { x: 60, w: 70, top: 112, tile: 0x4a5560 },
+      { x: 120, w: 110, top: 84, tile: 0x39434d },
+      { x: 220, w: 80, top: 104, tile: 0x4a5560 },
+      { x: 290, w: 120, top: 74, tile: 0x39434d },
+      { x: 400, w: 100, top: 100, tile: 0x3f4a55 },
+    ]
+
+    roofline.forEach((roof) => {
+      const half = roof.w / 2
+      const cx = roof.x + half
+
+      // 飞檐：上窄下宽的梯形 + 两端翘角
+      harborMid.fillStyle(roof.tile, 1)
+      harborMid.fillPoints(
+        [
+          new Phaser.Math.Vector2(roof.x, roof.top + 16),
+          new Phaser.Math.Vector2(roof.x + half * 0.34, roof.top),
+          new Phaser.Math.Vector2(roof.x + roof.w - half * 0.34, roof.top),
+          new Phaser.Math.Vector2(roof.x + roof.w, roof.top + 16),
+        ],
+        true
+      )
+      harborMid.fillStyle(this.mixColor(roof.tile, 0xffffff, 0.18), 1)
+      harborMid.fillRect(roof.x, roof.top + 14, roof.w, 4)
+      harborMid.fillStyle(this.mixColor(roof.tile, 0x000000, 0.35), 1)
+      harborMid.fillTriangle(roof.x, roof.top + 18, roof.x - 5, roof.top + 8, roof.x + 6, roof.top + 12)
+      harborMid.fillTriangle(
+        roof.x + roof.w,
+        roof.top + 18,
+        roof.x + roof.w + 5,
+        roof.top + 8,
+        roof.x + roof.w - 6,
+        roof.top + 12
+      )
+      // 屋身（暗色，只做剪影）
+      harborMid.fillStyle(0x2f2a34, 1)
+      harborMid.fillRect(roof.x + 6, roof.top + 18, roof.w - 12, 74)
+      harborMid.fillStyle(0x3a3340, 1)
+      harborMid.fillRect(roof.x + 6, roof.top + 18, roof.w - 12, 3)
+      // 窗里透出来的灯
+      for (let index = 0; index < 3; index++) {
+        harborMid.fillStyle(0xffb457, 0.75)
+        harborMid.fillRect(roof.x + 14 + index * 22, roof.top + 32 + (index % 2) * 18, 8, 10)
+      }
+      // 屋檐下挂的灯笼
+      harborMid.fillStyle(0xc0392b, 1)
+      harborMid.fillEllipse(cx, roof.top + 24, 12, 12)
+      harborMid.fillStyle(0xd9a441, 1)
+      harborMid.fillRect(cx - 4, roof.top + 18, 8, 2)
+    })
+
+    // 城市脚下的水面（比远层的海面深一点，压住屋顶的底边）
+    harborMid.fillStyle(0x35526b, 1)
+    harborMid.fillRect(0, 168, 480, 102)
+    harborMid.fillStyle(0x4f6f8a, 0.5)
+
+    for (let index = 0; index < 18; index++) {
+      harborMid.fillRect((index * 37) % 460, 176 + ((index * 13) % 40), 26, 2)
+    }
+
+    harborMid.generateTexture('bg-harbor-mid', 480, 270)
+    harborMid.destroy()
+
+    // 近：码头的木桩 + 缆绳 + 栏杆（最暗的一层剪影）
+    const harborNear = this.add.graphics()
+
+    for (let index = 0; index < 7; index++) {
+      const x = 18 + index * 72
+
+      harborNear.fillStyle(0x2a2119, 1)
+      harborNear.fillRect(x, 196, 12, 74)
+      harborNear.fillStyle(0x1d1712, 1)
+      harborNear.fillRect(x + 8, 196, 4, 74)
+      harborNear.fillStyle(0x3a2c20, 1)
+      harborNear.fillRect(x - 3, 192, 18, 6)
+    }
+
+    // 缆绳：松松地垂下来
+    harborNear.lineStyle(2, 0x2a2119, 0.9)
+    harborNear.beginPath()
+    harborNear.moveTo(24, 190)
+    harborNear.lineTo(120, 202)
+    harborNear.lineTo(220, 190)
+    harborNear.lineTo(320, 204)
+    harborNear.lineTo(420, 190)
+    harborNear.strokePath()
+
+    harborNear.generateTexture('bg-harbor-near', 480, 270)
+    harborNear.destroy()
   }
 
   // 望舒客栈：一根很高的岩柱，顶上压着一栋木楼，檐下挂着灯笼。

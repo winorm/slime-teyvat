@@ -668,6 +668,12 @@ function devHarborRoom(): DevLevelDef {
     3100
   )
 
+  // 顺便把第八关要用的「港口」背景三层也挂上（bg: 'harbor'）——
+  // 名字还没登记进 levels.ts 的 THEME_COLORS，走 field 那套平台配色，不影响看背景
+  // 用 string 断言是因为 'harbor' 还没登记进 levels.ts 的 BgTheme（那是用户的文件）；
+  // 等他加上之后这句可以改成普通的 level.bg = 'harbor'
+  ;(level as unknown as { bg: string }).bg = 'harbor'
+
   level.devExhibits = [
     { kind: 'prop', x: 220, key: 'harbor-house-a', label: '楼房 A：两层商铺', depth: -5 },
     { kind: 'prop', x: 420, key: 'harbor-house-b', label: '楼房 B：单层大厅', depth: -5 },
@@ -1260,7 +1266,9 @@ export class GameScene extends Phaser.Scene {
     this.orbs = this.physics.add.staticGroup()
 
     const theme = this.level.bg ?? 'field'
-    const palette = THEME_COLORS[theme]
+    // 兜底：主题名要是还没登记进 THEME_COLORS（比如新关卡的主题先在测试关里试），
+    // 就拿 field 的配色顶上，别整个崩掉
+    const palette = THEME_COLORS[theme] ?? THEME_COLORS.field
 
     // 纵向视差：户外的天空/远山/湖面/芦苇是「远景」，纵向一律不跟着相机走，
     // 所以跳起来的时候整片背景不会上下滑动（横向的视差保留）。
