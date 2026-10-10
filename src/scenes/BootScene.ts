@@ -3877,34 +3877,46 @@ export class BootScene extends Phaser.Scene {
     stall.generateTexture('harbor-stall', 110, 86)
     stall.destroy()
 
-    // ⑤ 人群：五个高矮不一的史莱姆（当背景用，140x44）
+    // ⑤ 人群：五个史莱姆（160x42）—— 中间那个和玩家一样大，两边小一点；
+    // 朝向混着来：有的正面（两只眼）、有的侧身（一只眼）、有的背过去（不画眼睛）
     const crowd = this.add.graphics()
-    const slimes: Array<[number, number, number]> = [
-      // x, 缩放, 颜色
-      [18, 1, 0x8f8f9f],
-      [44, 1.1, 0x74d0b0],
-      [70, 0.9, 0xd9a441],
-      [96, 1.05, 0x7bc86c],
-      [122, 0.95, 0xb388ff],
+    const slimes: Array<[number, number, 'front' | 'side' | 'back', number]> = [
+      // x, 缩放（1 = 和玩家一样大：本体椭圆 30x23）, 朝向, 颜色
+      [18, 0.7, 'front', 0x8f8f9f],
+      [50, 0.85, 'back', 0x74d0b0],
+      [86, 1, 'front', 0xd9a441],
+      [122, 0.8, 'side', 0x7bc86c],
+      [148, 0.65, 'back', 0xb388ff],
     ]
 
-    slimes.forEach(([x, scale, color]) => {
-      const w = 20 * scale
-      const h = 15 * scale
-      const cy = 44 - h / 2 - 1
+    slimes.forEach(([x, scale, facing, color]) => {
+      const w = 30 * scale
+      const h = 23 * scale
+      const cy = 42 - h / 2 - 1
 
       crowd.fillStyle(0x14141f, 1)
       crowd.fillEllipse(x, cy, w + 2, h + 2)
       crowd.fillStyle(color, 1)
       crowd.fillEllipse(x, cy, w, h)
-      crowd.fillStyle(0xffffff, 0.45)
+      // 顶部高光：背过去的也留一点，看着还是圆润的史莱姆
+      crowd.fillStyle(0xffffff, 0.42)
       crowd.fillEllipse(x - w * 0.16, cy - h * 0.28, w * 0.3, h * 0.25)
-      crowd.fillStyle(0x1a1a22, 1)
-      crowd.fillRect(x - 4 * scale, cy - 1, 2, 2)
-      crowd.fillRect(x + 2 * scale, cy - 1, 2, 2)
+
+      if (facing === 'front') {
+        crowd.fillStyle(0x1a1a22, 1)
+        crowd.fillRect(x - 5 * scale, cy - 1, 3, 3)
+        crowd.fillRect(x + 2 * scale, cy - 1, 3, 3)
+      } else if (facing === 'side') {
+        crowd.fillStyle(0x1a1a22, 1)
+        crowd.fillRect(x + 2 * scale, cy - 1, 3, 3)
+      } else {
+        // 背过去：只在背上压一小块暗色，表示是背面
+        crowd.fillStyle(0x000000, 0.16)
+        crowd.fillEllipse(x, cy + h * 0.18, w * 0.55, h * 0.3)
+      }
     })
 
-    crowd.generateTexture('harbor-slime-crowd', 140, 44)
+    crowd.generateTexture('harbor-slime-crowd', 160, 42)
     crowd.destroy()
 
     // ⑥ 船：三种 —— 船壳 + 桅杆 + 方帆（方帆挑高）+ 船头灯笼，大的还带船舱
@@ -4970,6 +4982,23 @@ export class BootScene extends Phaser.Scene {
 
     water.generateTexture('harbor-water', 96, 60)
     water.destroy()
+
+    // 远岸城市脚下那条"地"，可平铺（48 宽一段）：让房子贴着它站，不至于飘在空中
+    const cityBase = this.add.graphics()
+
+    cityBase.fillStyle(0x6f7d8c, 1)
+    cityBase.fillRect(0, 0, 48, 16)
+    cityBase.fillStyle(0x8a97a3, 1)
+    cityBase.fillRect(0, 0, 48, 3)
+    cityBase.fillStyle(0x5a6673, 1)
+    cityBase.fillRect(0, 12, 48, 4)
+    // 岸上零星的矮墙 / 石阶
+    cityBase.fillStyle(0x7b8794, 1)
+    cityBase.fillRect(6, 4, 10, 6)
+    cityBase.fillRect(30, 6, 12, 4)
+
+    cityBase.generateTexture('harbor-city-base', 48, 16)
+    cityBase.destroy()
 
     // 前景的护栏（可平铺，48 宽一段：一根立柱 + 上下两道横杆）。
     // 高度 24 —— 比史莱姆矮（史莱姆 26 高），不会把史莱姆整个盖住；

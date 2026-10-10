@@ -1328,30 +1328,46 @@ export class GameScene extends Phaser.Scene {
       // 远岸的城市：四种房子轮着摆，带雾化色调；视差 0.45（比地面慢，看着远）
       const houseKeys = ['harbor-house-a', 'harbor-house-b', 'harbor-house-c', 'harbor-house-d']
 
-      for (let x = -200; x < this.level.width * 0.6; x += 170) {
-        const key = houseKeys[Math.floor((x + 200) / 170) % houseKeys.length]
-        // 纵向定在屏幕上（scrollFactorY = 0）：远岸的城市不跟着镜头上下动，
-        // 底边落在"远处的岸线"那一带（比近处地面线高 50 左右）
-        const image = this.add.image(x, 180, key)
+      let houseX = -220
+      let houseIndex = 0
 
-        image
-          .setOrigin(0.5, 1)
-          .setScale(0.72 + ((x + 200) % 3) * 0.04)
-          .setScrollFactor(0.45, 0)
-          .setDepth(-16)
-          .setTint(0xc8d8e8)
+      while (houseX < this.level.width * 0.6) {
+        // 间隔性排布：每五栋空一格，间距也在 130~250 之间变化，别排成一堵实墙
+        if (houseIndex % 5 !== 4) {
+          const key = houseKeys[houseIndex % houseKeys.length]
+
+          this.add
+            .image(houseX, 180, key)
+            .setOrigin(0.5, 1)
+            .setScale(0.68 + ((houseIndex * 37) % 3) * 0.05)
+            .setScrollFactor(0.45, 0)
+            .setDepth(-16)
+            .setTint(0xc8d8e8)
+        }
+
+        houseX += 130 + ((houseIndex * 53) % 4) * 40
+        houseIndex++
       }
 
-      // 近处的水：水线比岸沿低一点，看着是"岸边外侧那片水"
+      // 城市脚下那条地：跟着同一套视差铺在房子底下，房子就不会飘着了
       this.add
-        .tileSprite(0, harborGroundTop + 6, this.level.width, 60, 'harbor-water')
+        .tileSprite(0, 180, this.level.width * 0.6 + 480, 16, 'harbor-city-base')
+        .setOrigin(0, 0)
+        .setScrollFactor(0.45, 0)
+        .setDepth(-15.5)
+        .setTint(0xc8d8e8)
+
+      // 近处的水：水线压到地面线下面一点，视角像是偏斜下方看下去
+      this.add
+        .tileSprite(0, harborGroundTop + 12, this.level.width, 60, 'harbor-water')
         .setOrigin(0, 0)
         .setAlpha(0.9)
         .setDepth(11)
 
-      // 最前面的护栏：底边贴地面顶面，只有 24 高
+      // 最前面的护栏：整体压到地面线下面 8 像素（上面只压住史莱姆脚下一小截），
+      // 这样看着是"从斜上方往下看码头"，而不是平面正对
       this.add
-        .tileSprite(0, harborGroundTop - 24, this.level.width, 24, 'harbor-railing')
+        .tileSprite(0, harborGroundTop - 8, this.level.width, 24, 'harbor-railing')
         .setOrigin(0, 0)
         .setAlpha(0.95)
         .setDepth(12)
