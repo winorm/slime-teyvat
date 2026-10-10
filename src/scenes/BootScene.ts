@@ -4899,62 +4899,77 @@ export class BootScene extends Phaser.Scene {
     near.generateTexture('bg-liyue-near', 480, 270)
     near.destroy()
 
-    // ── 港口（第八关用）：天空 + 海面 / 城市屋顶群 / 码头近景三层 ──
-    // 远：黄昏天空 + 远岛 + 海平线
+    // ── 港口（第八关用）三层：**从镜头往外是「护栏 → 岸边 → 房子 → 高山 → 天空」**（用户定的）──
+    // 远（-30）：**白天**的天空 + 白云 + 高山（两层剪影，越高越淡）
     const harborFar = this.add.graphics()
 
-    for (let y = 0; y < 150; y++) {
-      const t = y / 150
-      const color = this.mixColor(0xf6c48a, 0xe8926a, t)
+    for (let y = 0; y < 200; y++) {
+      const t = y / 200
+      const color = this.mixColor(0x5aabe4, 0xcfe9f7, t)
 
       harborFar.fillStyle(color, 1)
       harborFar.fillRect(0, y, 480, 1)
     }
 
-    // 一轮落日 + 几道云
-    harborFar.fillStyle(0xffe0a8, 0.85)
-    harborFar.fillEllipse(372, 108, 46, 46)
-    harborFar.fillStyle(0xffd0a0, 0.4)
-    harborFar.fillEllipse(372, 108, 66, 66)
-    harborFar.fillStyle(0xffe3c0, 0.5)
-    harborFar.fillRect(40, 66, 120, 5)
-    harborFar.fillRect(150, 84, 90, 4)
-    harborFar.fillRect(250, 52, 70, 4)
-    // 远岛（两层剪影）
-    this.drawRidge(harborFar, 480, 270, 0x8a7396, [2, 5], 18, 122, 0.85)
-    this.drawRidge(harborFar, 480, 270, 0x5d5075, [1, 4], 22, 138)
-    // 海面
-    harborFar.fillStyle(0x3f5f7c, 1)
-    harborFar.fillRect(0, 150, 480, 120)
-    harborFar.fillStyle(0x6f8fa8, 1)
-    harborFar.fillRect(0, 150, 480, 2)
-    harborFar.fillStyle(0xffd9a0, 0.4)
-
-    for (let index = 0; index < 14; index++) {
-      const width = 40 - (index % 5) * 6
-
-      harborFar.fillRect(372 - width / 2 + ((index % 3) - 1) * 8, 156 + index * 4, width, 2)
+    // 白天的太阳（偏高处，周围一点白光）
+    harborFar.fillStyle(0xfff8e0, 0.95)
+    harborFar.fillEllipse(400, 40, 34, 34)
+    harborFar.fillStyle(0xfffdf0, 0.3)
+    harborFar.fillEllipse(400, 40, 62, 62)
+    // 白云：几团叠着的椭圆
+    const cloud = (x: number, y: number, scale: number) => {
+      harborFar.fillStyle(0xffffff, 0.85)
+      harborFar.fillEllipse(x, y, 46 * scale, 16 * scale)
+      harborFar.fillEllipse(x - 18 * scale, y + 4 * scale, 30 * scale, 12 * scale)
+      harborFar.fillEllipse(x + 20 * scale, y + 3 * scale, 34 * scale, 13 * scale)
+      harborFar.fillEllipse(x + 4 * scale, y - 7 * scale, 26 * scale, 12 * scale)
     }
+
+    cloud(70, 46, 1)
+    cloud(210, 30, 0.8)
+    cloud(330, 64, 0.9)
+    cloud(140, 84, 0.6)
+    // 高山：两根脊线，远的浅、近的深
+    this.drawRidge(harborFar, 480, 270, 0x8fa8bd, [2, 5], 52, 172, 0.95)
+    this.drawRidge(harborFar, 480, 270, 0x65808f, [1, 4], 66, 190)
 
     harborFar.generateTexture('bg-harbor-far', 480, 270)
     harborFar.destroy()
 
-    // 中：层层叠叠的屋顶（城市轮廓）+ 屋顶上零星的灯笼点
+    // 中（-20）：海面 + 对岸的房子（房子坐在海平线上）
     const harborMid = this.add.graphics()
+    const horizon = 170
+
+    // 白天的海：比黄昏那版亮一档
+    harborMid.fillStyle(0x3f7ba8, 1)
+    harborMid.fillRect(0, horizon, 480, 270 - horizon)
+    harborMid.fillStyle(0x8fc4de, 1)
+    harborMid.fillRect(0, horizon, 480, 2)
+    // 水面的反光
+    harborMid.fillStyle(0xdff2ff, 0.35)
+
+    for (let index = 0; index < 12; index++) {
+      const width = 36 - (index % 4) * 6
+
+      harborMid.fillRect(400 - width / 2 + ((index % 3) - 1) * 10, horizon + 6 + index * 5, width, 2)
+    }
+
     const roofline = [
-      { x: -20, w: 90, top: 96, tile: 0x3f4a55 },
-      { x: 60, w: 70, top: 112, tile: 0x4a5560 },
-      { x: 120, w: 110, top: 84, tile: 0x39434d },
-      { x: 220, w: 80, top: 104, tile: 0x4a5560 },
-      { x: 290, w: 120, top: 74, tile: 0x39434d },
-      { x: 400, w: 100, top: 100, tile: 0x3f4a55 },
+      // 白天：对岸的房子做"雾化的中景" —— 用偏蓝灰的浅色，不是剪影
+      { x: -24, w: 96, top: 104, tile: 0x7d8b99 },
+      { x: 64, w: 74, top: 122, tile: 0x8a97a3 },
+      { x: 128, w: 112, top: 92, tile: 0x71808f },
+      { x: 232, w: 84, top: 112, tile: 0x8a97a3 },
+      { x: 306, w: 118, top: 82, tile: 0x71808f },
+      { x: 416, w: 96, top: 108, tile: 0x7d8b99 },
     ]
 
     roofline.forEach((roof) => {
       const half = roof.w / 2
       const cx = roof.x + half
+      const bodyTop = roof.top + 18
 
-      // 飞檐：上窄下宽的梯形 + 两端翘角
+      // 飞檐
       harborMid.fillStyle(roof.tile, 1)
       harborMid.fillPoints(
         [
@@ -4977,58 +4992,64 @@ export class BootScene extends Phaser.Scene {
         roof.x + roof.w - 6,
         roof.top + 12
       )
-      // 屋身（暗色，只做剪影）
-      harborMid.fillStyle(0x2f2a34, 1)
-      harborMid.fillRect(roof.x + 6, roof.top + 18, roof.w - 12, 74)
-      harborMid.fillStyle(0x3a3340, 1)
-      harborMid.fillRect(roof.x + 6, roof.top + 18, roof.w - 12, 3)
-      // 窗里透出来的灯
+      // 屋身：一直画到海平线，房子就"站在对岸"
+      harborMid.fillStyle(0x6a7683, 1)
+      harborMid.fillRect(roof.x + 6, bodyTop, roof.w - 12, horizon - bodyTop + 4)
+      harborMid.fillStyle(0x7b8794, 1)
+      harborMid.fillRect(roof.x + 6, bodyTop, roof.w - 12, 3)
+      // 白天窗里不点灯，只留几扇暗窗
       for (let index = 0; index < 3; index++) {
-        harborMid.fillStyle(0xffb457, 0.75)
-        harborMid.fillRect(roof.x + 14 + index * 22, roof.top + 32 + (index % 2) * 18, 8, 10)
+        harborMid.fillStyle(0x54606d, 0.9)
+        harborMid.fillRect(roof.x + 14 + index * 22, bodyTop + 14 + (index % 2) * 18, 8, 10)
       }
-      // 屋檐下挂的灯笼
+      // 屋檐下的红灯笼
       harborMid.fillStyle(0xc0392b, 1)
       harborMid.fillEllipse(cx, roof.top + 24, 12, 12)
       harborMid.fillStyle(0xd9a441, 1)
       harborMid.fillRect(cx - 4, roof.top + 18, 8, 2)
     })
 
-    // 城市脚下的水面（比远层的海面深一点，压住屋顶的底边）
-    harborMid.fillStyle(0x35526b, 1)
-    harborMid.fillRect(0, 168, 480, 102)
-    harborMid.fillStyle(0x4f6f8a, 0.5)
-
-    for (let index = 0; index < 18; index++) {
-      harborMid.fillRect((index * 37) % 460, 176 + ((index * 13) % 40), 26, 2)
-    }
-
     harborMid.generateTexture('bg-harbor-mid', 480, 270)
     harborMid.destroy()
 
-    // 近：码头的木桩 + 缆绳 + 栏杆（最暗的一层剪影）
+    // 近（-10）：我们这一侧的岸边 —— 石砌堤岸 + 一道护栏 + 系缆桩（最靠镜头的一层）
     const harborNear = this.add.graphics()
 
-    for (let index = 0; index < 7; index++) {
-      const x = 18 + index * 72
+    // 堤岸：两层石色剪影
+    this.drawRidge(harborNear, 480, 270, 0x8a7f6a, [3, 7], 12, 214)
+    this.drawRidge(harborNear, 480, 270, 0x6f6455, [4, 9], 7, 228)
+    harborNear.fillStyle(0x5a5040, 1)
+    harborNear.fillRect(0, 236, 480, 34)
+    // 岸沿压一条亮边
+    harborNear.fillStyle(0xb0a184, 1)
+    harborNear.fillRect(0, 212, 480, 2)
 
-      harborNear.fillStyle(0x2a2119, 1)
-      harborNear.fillRect(x, 196, 12, 74)
-      harborNear.fillStyle(0x1d1712, 1)
-      harborNear.fillRect(x + 8, 196, 4, 74)
-      harborNear.fillStyle(0x3a2c20, 1)
-      harborNear.fillRect(x - 3, 192, 18, 6)
+    // 护栏：立柱 + 上下两道横杆（离镜头最近）
+    for (let index = 0; index < 13; index++) {
+      const x = 8 + index * 38
+
+      harborNear.fillStyle(0x8a7458, 1)
+      harborNear.fillRect(x, 190, 5, 30)
+      harborNear.fillStyle(0x5a4a38, 1)
+      harborNear.fillRect(x + 3, 190, 2, 30)
     }
 
-    // 缆绳：松松地垂下来
-    harborNear.lineStyle(2, 0x2a2119, 0.9)
-    harborNear.beginPath()
-    harborNear.moveTo(24, 190)
-    harborNear.lineTo(120, 202)
-    harborNear.lineTo(220, 190)
-    harborNear.lineTo(320, 204)
-    harborNear.lineTo(420, 190)
-    harborNear.strokePath()
+    harborNear.fillStyle(0xa08a68, 1)
+    harborNear.fillRect(0, 192, 480, 4)
+    harborNear.fillRect(0, 204, 480, 4)
+    harborNear.fillStyle(0x6f5c44, 1)
+    harborNear.fillRect(0, 195, 480, 2)
+    harborNear.fillRect(0, 207, 480, 2)
+
+    // 系缆桩
+    for (let index = 0; index < 3; index++) {
+      const x = 90 + index * 150
+
+      harborNear.fillStyle(0x6f5c44, 1)
+      harborNear.fillRect(x, 206, 10, 26)
+      harborNear.fillStyle(0x8a7458, 1)
+      harborNear.fillRect(x - 2, 204, 14, 5)
+    }
 
     harborNear.generateTexture('bg-harbor-near', 480, 270)
     harborNear.destroy()
