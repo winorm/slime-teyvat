@@ -272,7 +272,15 @@ type ChaserRef = {
 //                          少数街边房屋的背面（带透视，走到后面能看见史莱姆）
 const HARBOR_BLOCK_WIDTH = 460
 
-type HarborPiece = { dx: number; key: string; scale?: number; dy?: number; alpha?: number }
+type HarborPiece = {
+  dx: number
+  key: string
+  scale?: number
+  dy?: number
+  alpha?: number
+  depth?: number        // 后景默认 -5；人群压在房屋前面就给 -4 之类
+  randomScale?: number  // 每次盖上去随机缩放一点（人群用，显得热闹）
+}
 
 const HARBOR_BLOCKS: Record<
   'dock' | 'street' | 'suburb',
@@ -283,44 +291,45 @@ const HARBOR_BLOCKS: Record<
     water: true,
     railing: true,
     decor: [
-      { dx: 40, key: 'harbor-house-a' },
-      { dx: 150, key: 'harbor-house-c' },
-      { dx: 250, key: 'harbor-stall' },
-      { dx: 330, key: 'harbor-slime-crowd', scale: 0.9 },
-      { dx: 420, key: 'harbor-house-b' },
+      // 房子挨着放（屋檐允许互相叠一点，主体紧贴着），人群压在房子前面
+      { dx: 60, key: 'harbor-house-a' },
+      { dx: 160, key: 'harbor-house-c' },
+      { dx: 265, key: 'harbor-stall', dy: -2 },                       // 正面摊位：在人物下面
+      { dx: 350, key: 'harbor-slime-crowd', scale: 0.85, depth: -4, randomScale: 0.16 },
+      { dx: 430, key: 'harbor-house-b' },
     ],
     front: [
-      { dx: 90, key: 'harbor-stall-back' },
-      { dx: 250, key: 'harbor-stall-back', scale: 0.95 },
-      { dx: 380, key: 'harbor-boat-a', scale: 1.1, dy: 70 },
+      // 背面摊位：在人物上面；船抬到水面上，能看见船底
+      { dx: 110, key: 'harbor-stall-back' },
+      { dx: 300, key: 'harbor-stall-back', scale: 0.95 },
+      { dx: 400, key: 'harbor-boat-a', scale: 1.1, dy: 30 },
     ],
   },
   // 街市：没有水和护栏，前景换成"街边房屋的背面"（带透视）和摊位背面，后景是连排的房子和各种摊位
   street: {
     decor: [
-      { dx: 30, key: 'harbor-house-b' },
-      { dx: 170, key: 'harbor-house-d' },
-      { dx: 300, key: 'harbor-house-a' },
-      { dx: 420, key: 'harbor-house-c' },
-      { dx: 110, key: 'harbor-stall' },
-      { dx: 250, key: 'harbor-slime-crowd', scale: 0.85 },
-      { dx: 360, key: 'harbor-stall', scale: 0.95 },
+      // 后景：房子连着排（主体相邻，屋檐可以叠），街上卖的是青菜 / 果子 / 蒸笼
+      { dx: 40, key: 'harbor-house-b' },
+      { dx: 145, key: 'harbor-house-d' },
+      { dx: 275, key: 'harbor-stall-street', dy: -2 },
+      { dx: 355, key: 'harbor-slime-crowd', scale: 0.8, depth: -4, randomScale: 0.18 },
+      { dx: 435, key: 'harbor-house-a' },
     ],
     front: [
-      // 街边房屋的背面先给 0.72 的半透明（史莱姆走到后面能看见），
-      // 真正的"透视洞"（像第七关那棵树那样只在人周围透）下一步再做
-      { dx: 60, key: 'harbor-house-back', alpha: 0.72 },
-      { dx: 330, key: 'harbor-stall-back' },
+      // 前景的东西专门摆在后面那排的空当里 —— 只让屋檐叠一点，主体不重复
+      { dx: 215, key: 'harbor-stall-back' },
+      { dx: 395, key: 'harbor-house-back', alpha: 0.72 },
     ],
   },
   // 郊区：房子稀疏、没有水和护栏，摊位也少，多留些空地给远景
   suburb: {
     decor: [
-      { dx: 60, key: 'harbor-house-c' },
-      { dx: 240, key: 'harbor-house-c', scale: 0.92 },
-      { dx: 150, key: 'harbor-slime-crowd', scale: 0.7 },
+      // 郊区：房子两栋、人零散放一撮就够，别热闹
+      { dx: 90, key: 'harbor-house-c' },
+      { dx: 420, key: 'harbor-house-c', scale: 0.92 },
+      { dx: 255, key: 'harbor-slime-crowd', scale: 0.55, depth: -4, randomScale: 0.12 },
     ],
-    front: [{ dx: 300, key: 'harbor-stall-back', scale: 0.9 }],
+    front: [{ dx: 320, key: 'harbor-stall-back', scale: 0.9 }],
   },
 }
 
@@ -1402,12 +1411,13 @@ export class GameScene extends Phaser.Scene {
         // 后景：在史莱姆后面
         pack.decor.forEach((piece) => {
           const ground = this.harborGroundAt(block.at + piece.dx)
+          const jitter = piece.randomScale ? 1 + (Math.random() * 2 - 1) * piece.randomScale : 1
 
           this.add
             .image(block.at + piece.dx, ground + (piece.dy ?? 0), piece.key)
             .setOrigin(0.5, 1)
-            .setScale(piece.scale ?? 1)
-            .setDepth(-5)
+            .setScale((piece.scale ?? 1) * jitter)
+            .setDepth(piece.depth ?? -5)
         })
 
         // 前景：水面（只有码头有）

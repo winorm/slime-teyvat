@@ -3877,6 +3877,55 @@ export class BootScene extends Phaser.Scene {
     stall.generateTexture('harbor-stall', 110, 86)
     stall.destroy()
 
+    // 街上的摊位：结构和港口那个一样，但卖的东西不同 —— 码头卖鱼肉，
+    // 街上卖的是青菜（两把）、果子（一筐）、还有一摞蒸笼
+    const streetStall = this.add.graphics()
+
+    streetStall.fillStyle(WOOD_DARK, 1)
+    ;[16, 92].forEach((x) => streetStall.fillRect(x - 4, 16, 8, 62))
+    streetStall.fillStyle(WOOD, 1)
+    ;[34, 74].forEach((x) => streetStall.fillRect(x - 4, 20, 8, 58))
+    for (let plank = 0; plank < 3; plank++) {
+      streetStall.fillStyle(plank % 2 === 0 ? 0xc9b083 : 0x8a7458, 1)
+      streetStall.fillRect(2, 8 + plank * 5, 106, 4)
+    }
+    streetStall.fillStyle(WOOD_DARK, 1)
+    streetStall.fillRect(2, 22, 106, 4)
+    streetStall.fillStyle(WOOD, 1)
+    streetStall.fillRect(10, 50, 90, 7)
+    streetStall.fillStyle(WOOD_DARK, 1)
+    ;[14, 94].forEach((x) => streetStall.fillRect(x, 57, 4, 21))
+    ;[30, 78].forEach((x) => streetStall.fillRect(x, 57, 4, 18))
+    // 两把青菜（叶 + 白梗）
+    const greens = (x: number) => {
+      streetStall.fillStyle(0x6fae53, 1)
+      streetStall.fillEllipse(x, 42, 18, 12)
+      streetStall.fillStyle(0x8fd06a, 1)
+      streetStall.fillEllipse(x - 3, 40, 11, 8)
+      streetStall.fillStyle(0xe8e4d8, 1)
+      streetStall.fillRect(x - 2, 46, 4, 6)
+    }
+
+    greens(28)
+    greens(50)
+    // 一筐果子
+    streetStall.fillStyle(0xb0852f, 1)
+    streetStall.fillEllipse(78, 46, 26, 12)
+    streetStall.fillStyle(0xe08a3a, 1)
+    streetStall.fillEllipse(72, 42, 8, 7)
+    streetStall.fillEllipse(80, 41, 8, 7)
+    streetStall.fillEllipse(76, 37, 8, 7)
+    // 一摞蒸笼
+    streetStall.fillStyle(0xd9c9a0, 1)
+    streetStall.fillRect(96, 36, 12, 6)
+    streetStall.fillRect(96, 43, 12, 6)
+    streetStall.fillStyle(0xa89372, 1)
+    streetStall.fillRect(96, 41, 12, 2)
+    streetStall.fillRect(96, 48, 12, 2)
+
+    streetStall.generateTexture('harbor-stall-street', 110, 86)
+    streetStall.destroy()
+
     // 摊位的**背面**（前景用）：只能看到木篷的背面、两根立柱和案板边，
     // 挂在篷下的鱼和案上的肉都看不见了
     const stallBack = this.add.graphics()
@@ -3948,11 +3997,12 @@ export class BootScene extends Phaser.Scene {
     const crowd = this.add.graphics()
     const slimes: Array<[number, number, 'front' | 'side' | 'back', number]> = [
       // x, 缩放（1 = 和玩家一样大：本体椭圆 30x23）, 朝向, 颜色
-      [18, 0.7, 'front', 0x8f8f9f],
-      [50, 0.85, 'back', 0x74d0b0],
-      [86, 1, 'front', 0xd9a441],
-      [122, 0.8, 'side', 0x7bc86c],
-      [148, 0.65, 'back', 0xb388ff],
+      // 大小拉开档次、身子允许互相叠一点，看着才热闹；只有"中等身材"（缩放 1）才和主角一样大
+      [16, 0.55, 'front', 0x8f8f9f],
+      [42, 0.8, 'back', 0x74d0b0],
+      [80, 1, 'front', 0xd9a441],
+      [118, 1.15, 'side', 0x7bc86c],
+      [148, 0.68, 'back', 0xb388ff],
     ]
 
     slimes.forEach(([x, scale, facing, color]) => {
