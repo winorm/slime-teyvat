@@ -725,18 +725,19 @@ function devChaseRoom(): DevLevelDef {
 function devHarborBlockRoom(): DevLevelDef {
   const level = devRoomShell(
     '测试 · 港口打包',
-    '港口打包预览：\n从左到右依次是\n港口 ×2、街道、郊区。\n每段 460 宽。',
-    2200
+    '港口打包预览：\n每一段单独放，中间留空。\n从左到右：港口 ×2、街道、郊区 ×2。\n每段 460 宽。',
+    3400
   )
 
   // 用港口主题，水面 / 护栏 / 白天天空和随机远山才会出来
   level.bg = 'harbor'
 
   level.hints = [
-    { x: 200, y: 700, text: '港口 ①：水面 + 护栏 + 摊位背面 + 船' },
-    { x: 700, y: 700, text: '港口 ②' },
-    { x: 1150, y: 700, text: '街道：没有水和护栏，街屋背面半透明' },
-    { x: 1600, y: 700, text: '郊区：房子稀疏' },
+    { x: 300, y: 700, text: '港口 ①：水面 + 护栏 + 摊位背面 + 船' },
+    { x: 1180, y: 700, text: '港口 ②：和上一段一模一样（复制粘贴）' },
+    { x: 1730, y: 700, text: '街道：没有水和护栏，街屋背面半透明' },
+    { x: 2430, y: 700, text: '郊区 ①：房子稀疏、人群少' },
+    { x: 2760, y: 700, text: '郊区 ②' },
   ]
 
   const tuning = level as DevLevelDef & {
@@ -744,11 +745,12 @@ function devHarborBlockRoom(): DevLevelDef {
   }
 
   tuning.harborBlocks = [
-    { at: 60, kind: 'dock' },
-    { at: 520, kind: 'dock' },
-    { at: 980, kind: 'street' },
-    { at: 1440, kind: 'suburb' },
-    { at: 1900, kind: 'suburb' },
+    // 每段之间空 340（段宽 460），这样一眼能看出"一段到哪儿结束"
+    { at: 70, kind: 'dock' },
+    { at: 870, kind: 'dock' },
+    { at: 1500, kind: 'street' },
+    { at: 2200, kind: 'suburb' },
+    { at: 2700, kind: 'suburb' },
   ]
 
   return level
