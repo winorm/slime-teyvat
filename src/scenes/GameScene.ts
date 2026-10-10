@@ -721,6 +721,39 @@ function devChaseRoom(): DevLevelDef {
 }
 
 // 大厅里那一排门。x 是门中心，间距 230；最后一扇通向原来那个「一关走完全部机关」的旧沙盒
+// ⑩ 港口打包预览：三类打包各摆一段（用户要求先在测试关里看效果，再拿去第八关铺）
+function devHarborBlockRoom(): DevLevelDef {
+  const level = devRoomShell(
+    '测试 · 港口打包',
+    '港口打包预览：\n从左到右依次是\n港口 ×2、街道、郊区。\n每段 460 宽。',
+    2200
+  )
+
+  // 用港口主题，水面 / 护栏 / 白天天空和随机远山才会出来
+  level.bg = 'harbor'
+
+  level.hints = [
+    { x: 200, y: 700, text: '港口 ①：水面 + 护栏 + 摊位背面 + 船' },
+    { x: 700, y: 700, text: '港口 ②' },
+    { x: 1150, y: 700, text: '街道：没有水和护栏，街屋背面半透明' },
+    { x: 1600, y: 700, text: '郊区：房子稀疏' },
+  ]
+
+  const tuning = level as DevLevelDef & {
+    harborBlocks?: { at: number; kind: 'dock' | 'street' | 'suburb' }[]
+  }
+
+  tuning.harborBlocks = [
+    { at: 60, kind: 'dock' },
+    { at: 520, kind: 'dock' },
+    { at: 980, kind: 'street' },
+    { at: 1440, kind: 'suburb' },
+    { at: 1900, kind: 'suburb' },
+  ]
+
+  return level
+}
+
 const DEV_ROOMS: DevRoomDef[] = [
   { label: '七天神像', level: devStatueRoom() },
   { label: '元素方碑', level: devMonumentRoom() },
@@ -730,6 +763,7 @@ const DEV_ROOMS: DevRoomDef[] = [
   { label: '矮通道', level: devGapRoom() },
   { label: '潜行', level: devStealthRoom() },
   { label: '追击', level: devChaseRoom() },
+  { label: '港口打包', level: devHarborBlockRoom() },
   { label: '综合沙盒', level: DEV_LEVEL },
 ]
 
