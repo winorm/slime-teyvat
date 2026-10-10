@@ -872,20 +872,20 @@ export const LEVELS: LevelDef[] = [
     ],
 
     // 港口背景打包：一段 460，想要长一点就多复制几段。kind = dock 港口 / street 街道 / suburb 郊区
-    // variant 不写就是第一版；两版轮着铺，街景才不重复
+    // variant 不写就是第一版。从左到右的顺序（定稿）：
+    // 港口① → 港口③ → 港口② → 街道② → 街道① → 玉京台 → 街道③ → 郊区③ → 郊区② → 郊区①
+    // 玉京台那一段（at 2300）背景单独做，这里不铺打包
     harborBlocks: [
-      { at: 0, kind: 'dock' },      // 码头：有水面、船只、护栏
-      { at: 460, kind: 'dock', variant: 2 },
-      { at: 920, kind: 'street' },  // 上街：水面和护栏自动消失
-      { at: 1380, kind: 'street', variant: 2 },
-      { at: 1840, kind: 'street' },
-      { at: 2300, kind: 'suburb' }, // 郊区：房子稀疏、摊位也少
-      { at: 2760, kind: 'suburb', variant: 2 },
-      { at: 3220, kind: 'street', variant: 2 },
-      { at: 3680, kind: 'street' },
-      { at: 4140, kind: 'street', variant: 2 },
-      { at: 4600, kind: 'suburb', variant: 2 }, // 逃脱段也铺上，跑酷时不至于空荡
-      { at: 5060, kind: 'dock' },   // 最后一段又回到码头
+      { at: 0, kind: 'dock' },                 // 港口①：水面 / 护栏 / 一正一背两个摊位 + 小船
+      { at: 460, kind: 'dock', variant: 3 },   // 港口③：宽厅 + 小屋 + 高帆渔船
+      { at: 920, kind: 'dock', variant: 2 },   // 港口②：两栋相连的楼房 + 灯笼串 + 牌楼
+      { at: 1380, kind: 'street', variant: 2 },// 街道②：高铺 + 小屋 + 左侧背向摊位
+      { at: 1840, kind: 'street' },            // 街道①：房子 + 街上摊位 + 背向的房子
+      // 2300 那一段是玉京台（背景单独做，先留空）
+      { at: 2760, kind: 'street', variant: 3 },// 街道③：两栋房子 + 右侧背向摊位
+      { at: 3220, kind: 'suburb', variant: 3 },// 郊区③：最空的一版
+      { at: 3680, kind: 'suburb', variant: 2 },// 郊区②：大厅 + 小屋 + 路边摊
+      { at: 4140, kind: 'suburb' },            // 郊区①：两栋小屋
     ],
 
     hints: [
