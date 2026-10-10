@@ -5268,7 +5268,12 @@ export class GameScene extends Phaser.Scene {
     const count = Math.max(1, Math.round(Math.abs(to.x - from.x) / tread))
     const run = Math.abs(to.x - from.x) / count
     const rise = (from.y - to.y) / count
-    const baseY = Math.max(from.y, to.y)
+    // 楼梯下面的图要一直延到地面：底边取「这一跑的下端」和「整关最低那块平台的顶面」里更低的一个
+    const groundTop = this.level.platforms.reduce(
+      (lowest, item) => Math.max(lowest, item.y - item.height / 2),
+      Number.NEGATIVE_INFINITY
+    )
+    const baseY = Math.max(from.y, to.y, groundTop)
 
     const stoneFace = 0x6a5a48
     const stoneLight = 0x7c6a56

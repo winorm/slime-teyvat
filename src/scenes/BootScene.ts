@@ -4192,6 +4192,19 @@ export class BootScene extends Phaser.Scene {
     stoneBand.fillRect(0, 4, 32, 2)
     stoneBand.generateTexture('rail-band', 32, 6)
     stoneBand.destroy()
+
+    // 玉京台半层小平台用的"端头护栏"：一根带柱头的石柱（放在平台外沿那头）
+    const railEnd = this.add.graphics()
+
+    railEnd.fillStyle(0x7c6a56, 1)
+    railEnd.fillRect(3, 6, 8, 24)          // 柱身
+    railEnd.fillStyle(0x8a765f, 1)
+    railEnd.fillRect(1, 0, 12, 6)          // 柱头
+    railEnd.fillStyle(0x4a3f33, 1)
+    railEnd.fillRect(1, 6, 12, 2)          // 柱头下压一道暗线
+    railEnd.fillRect(3, 29, 8, 1)          // 柱础
+    railEnd.generateTexture('rail-end', 14, 30)
+    railEnd.destroy()
   }
 
   // 岩刺造物：背后一层贴在建筑上的岩壳，前面收成锥口，口上一点金。
