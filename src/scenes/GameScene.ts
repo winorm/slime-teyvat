@@ -237,14 +237,31 @@ const CHASE = {
   stopX: 1450,
 }
 
-// 追击（封锁线）的关卡参数：第三关用上面那套默认值，第八关可以在数据里单独给。
+// 追击小队（第八关那套）：走过触发线 → 演出 → 原地生成几个千岩军一路追你。
+// 第三关那种"压过来的墙"还是用上面的 CHASE + level.chase（那边一个字没动）。
 // 这几个字段还没写进 levels.ts（那是用户的文件），这里按同名可选字段读
 type ChaseTuning = {
-  chaseAt?: number
+  wallAt?: number
   chaseStop?: number
   chaseSpeed?: number
   chaseTint?: number
+  chaseAt?: number
   chaseCause?: string
+  squadCount?: number
+  squadSpeed?: number
+  squadSpawnGap?: number
+  squadStop?: number
+}
+
+// 追击小队的默认值：速度比玩家跑得慢一点（玩家全速 100），但不会停 ——
+// 一路不摔不卡才甩得掉。跳跃速度用的是玩家那套 (-260)，所以它们跳不过高墙 / 岩柱
+const SQUAD = { count: 3, speed: 92, gap: 260, jump: -260, jumpCooldown: 0.5 }
+
+type ChaserRef = {
+  sprite: Phaser.Physics.Arcade.Sprite
+  jumpCooldown: number
+  stuck: number
+  detour: number
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -588,21 +605,21 @@ function devChaseRoom(): DevLevelDef {
     { x: 2280, y: 880, width: 100, height: 30, plank: true },
   ]
 
-  level.chase = true
-
   const tuning = level as DevLevelDef & ChaseTuning
 
+  // 没有红色判定线了：走过 380 就演出一下、原地生成三个千岩军自己追
   tuning.chaseAt = 380
-  tuning.chaseStop = 2450
-  tuning.chaseSpeed = 70
-  tuning.chaseTint = 0x7a2f2a
+  tuning.squadCount = 3
+  tuning.squadSpeed = 92
+  tuning.squadSpawnGap = 240
+  tuning.squadStop = 2480
   tuning.chaseCause = 'guard'
 
   level.hints = [
-    { x: 200, y: 780, text: '往右跑 —— 走过 x=380 会触发追击' },
+    { x: 200, y: 780, text: '往右跑 —— 走过 x=380 会被千岩军盯上' },
     { x: 900, y: 690, text: '一级一级往上跳' },
-    { x: 1500, y: 830, text: '掉进水里不会死，但会被追上' },
-    { x: 2350, y: 760, text: '跑到尽头就安全了' },
+    { x: 1500, y: 830, text: '掉进水里不会死，但他们会追上来' },
+    { x: 2350, y: 760, text: '跑到尽头（x=2480）就甩掉他们了' },
   ]
 
   return level
@@ -924,8 +941,11 @@ export class GameScene extends Phaser.Scene {
   private chased = false
   // 这一次追击的参数（第三关用默认值，第八关可以按关卡给）
   private chaseDef: { triggerX: number; stopX: number; speed: number; cause: string } | null = null
-  // 跟着封锁线一起走的千岩军（装饰）
-  private chaseCrew: Phaser.GameObjects.Image[] = []
+  // 追击小队：真的会追人的千岩军（有物理、会跳、会找路）
+  private chaserGroup!: Phaser.Physics.Arcade.Group
+  private chaserList: ChaserRef[] = []
+  private squadDef: { at: number; count: number; speed: number; gap: number; stop: number; cause: string } | null =
+    null
 
   private interactKey!: Phaser.Input.Keyboard.Key
   private goalSprite!: Phaser.Physics.Arcade.Sprite
@@ -1168,7 +1188,8 @@ export class GameScene extends Phaser.Scene {
 
     this.chased = false
     this.chaseDef = null
-    this.chaseCrew = []
+    this.chaserList = []
+    this.squadDef = null
     this.platforms = this.physics.add.staticGroup()
     this.pillars = this.physics.add.staticGroup()
     this.orbs = this.physics.add.staticGroup()
@@ -2571,7 +2592,7 @@ export class GameScene extends Phaser.Scene {
       const tuning = this.level as LevelDef & ChaseTuning
 
       this.chaseDef = {
-        triggerX: tuning.chaseAt ?? CHASE.triggerX,
+        triggerX: tuning.wallAt ?? CHASE.triggerX,
         stopX: tuning.chaseStop ?? CHASE.stopX,
         speed: tuning.chaseSpeed ?? CHASE.speed,
         cause: tuning.chaseCause ?? 'crush',
@@ -2587,16 +2608,26 @@ export class GameScene extends Phaser.Scene {
       this.physics.add.overlap(this.slime, this.chase, () => {
         this.die(this.chaseDef!.cause)
       })
+    }
 
-      // 封锁线上站着的千岩军（纯装饰，跟着线一起走）
-      this.chaseCrew = [0, 1, 2, 3].map((index) =>
-        this.add
-          .image(0, 0, 'guard-millelith')
-          .setOrigin(0.5, 1)
-          .setDepth(5)
-          .setVisible(false)
-          .setData('slot', index)
-      )
+    // 追击小队（第八关那套）：参数按关卡给，走过触发点才生成
+    const squadTuning = this.level as LevelDef & ChaseTuning
+
+    if (squadTuning.chaseAt !== undefined) {
+      this.chaserGroup = this.physics.add.group()
+      this.squadDef = {
+        at: squadTuning.chaseAt,
+        count: squadTuning.squadCount ?? SQUAD.count,
+        speed: squadTuning.squadSpeed ?? SQUAD.speed,
+        gap: squadTuning.squadSpawnGap ?? SQUAD.gap,
+        stop: squadTuning.squadStop ?? Number.POSITIVE_INFINITY,
+        cause: squadTuning.chaseCause ?? 'guard',
+      }
+
+      this.physics.add.collider(this.chaserGroup, this.platforms)
+      this.physics.add.collider(this.chaserGroup, this.gates)
+      this.physics.add.collider(this.chaserGroup, this.pillars)
+      this.physics.add.overlap(this.slime, this.chaserGroup, () => this.die(this.squadDef!.cause))
     }
     this.input.keyboard!.on('keydown-ESC', () => {
       this.scene.pause()
@@ -5889,11 +5920,113 @@ export class GameScene extends Phaser.Scene {
     this.showMessage('被发现了！往回一看全是千岩军，快跑！')
 
     this.time.delayedCall(1500, () => {
+      // 动画一结束就把千岩军放到场上（不是外面滑一条线进来）
+      this.spawnChaseSquad()
+
       camera.zoomTo(1, 400, 'Sine.easeInOut')
       camera.startFollow(this.slime, true, 0.12, 0.12)
       this.physics.world.resume()
       this.inputLocked = false
       playSfx(this, 'sfx-die', 0.35, 1.2)
+    })
+  }
+
+  // 在玩家身后生成几个千岩军，让它们自己追
+  private spawnChaseSquad() {
+    const def = this.squadDef
+
+    if (!def) {
+      return
+    }
+
+    for (let index = 0; index < def.count; index++) {
+      const x = this.slime.x - def.gap - index * 28
+      const sprite = this.chaserGroup.create(
+        x,
+        this.slime.y - 40,
+        'guard-millelith'
+      ) as Phaser.Physics.Arcade.Sprite
+
+      sprite.setOrigin(0.5, 1).setDepth(4)
+      sprite.setCollideWorldBounds(true)
+
+      const body = sprite.body as Phaser.Physics.Arcade.Body
+
+      body.setSize(26, 44)
+
+      this.chaserList.push({ sprite, jumpCooldown: 0, stuck: 0, detour: 0 })
+    }
+  }
+
+  // 追人的 AI：朝玩家走；前面有矮障碍 / 玩家在上方 / 前面是沟就跳；
+  // 卡住超过 1.2 秒就往反方向挪一下找路（跳不过去的就真的过不去 ——
+  // 高墙、岩柱能挡住它们）
+  private updateChasers(dt: number) {
+    const def = this.squadDef
+
+    if (!def || this.chaserList.length === 0) {
+      return
+    }
+
+    // 跑过终点线就安全了：它们收队
+    if (this.slime.x > def.stop) {
+      if (this.chaserList.length > 0) {
+        this.chaserList.forEach((chaser) => chaser.sprite.destroy())
+        this.chaserList = []
+        this.showMessage('甩掉他们了')
+      }
+
+      return
+    }
+
+    this.chaserList.forEach((chaser) => {
+      const sprite = chaser.sprite
+
+      if (!sprite.active) {
+        return
+      }
+
+      const body = sprite.body as Phaser.Physics.Arcade.Body
+      const dir = this.slime.x < sprite.x ? -1 : 1
+      const onGround = body.blocked.down
+      const ahead = sprite.x + dir * 20
+      const blockedAhead = this.solidAt(ahead, sprite.y - 22) || this.solidAt(ahead, sprite.y - 6)
+      const gapAhead = !this.solidAt(ahead, sprite.y + 6)
+      const playerAbove = this.slime.y < sprite.y - 26
+      const far = Math.abs(this.slime.x - sprite.x) > 90
+
+      if (chaser.jumpCooldown > 0) {
+        chaser.jumpCooldown -= dt
+      }
+
+      if (chaser.detour > 0) {
+        chaser.detour -= dt
+      }
+
+      // 卡住的时候先往反方向挪一段（等于"换条路"），挪完继续追
+      const moveDir = chaser.detour > 0 ? -dir : dir
+
+      sprite.setVelocityX(moveDir * def.speed)
+      sprite.setFlipX(moveDir < 0)
+
+      if (onGround && chaser.jumpCooldown <= 0) {
+        if (blockedAhead || (playerAbove && far) || (gapAhead && far)) {
+          sprite.setVelocityY(SQUAD.jump)
+          chaser.jumpCooldown = SQUAD.jumpCooldown
+        }
+      }
+
+      // 想往玩家那边走却没在前进 = 卡住了
+      if (onGround && Math.abs(body.velocity.x) < 8) {
+        chaser.stuck += dt
+      } else {
+        chaser.stuck = Math.max(0, chaser.stuck - dt * 2)
+      }
+
+      if (chaser.stuck > 1.2 && chaser.detour <= 0) {
+        chaser.stuck = 0
+        chaser.detour = 0.9
+      }
     })
   }
 
@@ -7669,9 +7802,9 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.chaseDef) {
-      // 走过触发点：先放一段"被发现了"的演出，再把封锁线放出来
+      // 第三关那套：走过触发点，墙就开始压过来（和以前一模一样，没加演出）
       if (!this.chased && this.slime.x > this.chaseDef.triggerX) {
-        this.startChase()
+        this.chased = true
       }
 
       if (this.chased) {
@@ -7682,17 +7815,16 @@ export class GameScene extends Phaser.Scene {
         } else {
           chaseBody.setVelocityX(this.chaseDef.speed)
         }
-
-        // 跟着线走的千岩军：贴着封锁线前沿，一路小跑
-        this.chaseCrew.forEach((guard, index) => {
-          guard.setVisible(true)
-          guard.setPosition(
-            this.chase.x + 18 + index * 4,
-            this.slime.y + 20 + (index % 2 === 0 ? 0 : 3)
-          )
-          guard.setDepth(5 + index * 0.01)
-        })
       }
+    }
+
+    // 追击小队：走过触发线就演出一段、然后原地生成千岩军
+    if (this.squadDef) {
+      if (!this.chased && this.slime.x > this.squadDef.at) {
+        this.startChase()
+      }
+
+      this.updateChasers(dt)
     }
 
     if (
