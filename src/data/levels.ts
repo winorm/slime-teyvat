@@ -839,10 +839,10 @@ export const LEVELS: LevelDef[] = [
       // solid: false —— 只画不挡人，史莱姆贴着墙走过去、从楼梯下面穿都没问题；
       // 真正挡人的只有台面楼板和两级楼梯
       { x: 2760, y: 1040, width: 920, height: 240, brick: true, solid: false },
-      // 半层小平台：外沿紧贴玉京台的最左 / 最右（不越到两边的打包景里），往楼梯那侧加宽到 220。
-      // 上下两跑的交接点（左 2410 / 右 3110）不动，正好落在平台靠楼梯那一端
-      { x: 2410, y: 1023, width: 220, height: 6, brick: true },   // 2300 → 2520
-      { x: 3110, y: 1023, width: 220, height: 6, brick: true },   // 3000 → 3220
+      // 半层小平台：外沿紧贴玉京台的最左 / 最右，里端正好停在楼梯起步那一列（左 2410 / 右 3110）。
+      // 碰撞宽度＝看得见的宽度：再往里那截会被楼梯本体挡住，所以平台就到这里为止，不多铺
+      { x: 2355, y: 1023, width: 110, height: 6, brick: true },   // 2300 → 2410
+      { x: 3165, y: 1023, width: 110, height: 6, brick: true },   // 3110 → 3220
     ],
 
     // ③ 玉京台的两条双层楼梯（一跑一半高，两跑一样高，在台体两边的空档里）：
@@ -850,12 +850,12 @@ export const LEVELS: LevelDef[] = [
     //    在地面上从楼梯下面穿过去也没问题；踩上半层小平台、脚底过 1010 就自动切到「后层」，
     //    切层正好发生在靠楼梯那一端，上跑（后层）就能正常通行，上到台面
     stairs: [
-      // 每一侧的两跑在同一个 x 上交接（左 2410、右 3110），和小平台对齐：
-      // 下跑从外往内上半层、到点上转身，上跑再往外上到台面
-      { from: { x: 2590, y: 1160 }, to: { x: 2410, y: 1020 }, style: 'brick', layer: 'front', rail: 'none' },
-      { from: { x: 2410, y: 1020 }, to: { x: 2590, y: 880 }, style: 'brick', layer: 'back', rail: 'none' },
-      { from: { x: 2930, y: 1160 }, to: { x: 3110, y: 1020 }, style: 'ramp', layer: 'front', rail: 'none' },
-      { from: { x: 3110, y: 1020 }, to: { x: 2930, y: 880 }, style: 'ramp', layer: 'back', rail: 'none' },
+      // 每一侧的两跑在同一个 x 上交接（左 2410、右 3110），交接点不动；
+      // 楼梯往另一头加宽 —— 高度不变（还是半层 140），横向从 180 拉到 240，坡度更缓
+      { from: { x: 2650, y: 1160 }, to: { x: 2410, y: 1020 }, style: 'brick', layer: 'front', rail: 'none' },
+      { from: { x: 2410, y: 1020 }, to: { x: 2650, y: 880 }, style: 'brick', layer: 'back', rail: 'none' },
+      { from: { x: 2870, y: 1160 }, to: { x: 3110, y: 1020 }, style: 'ramp', layer: 'front', rail: 'none' },
+      { from: { x: 3110, y: 1020 }, to: { x: 2870, y: 880 }, style: 'ramp', layer: 'back', rail: 'none' },
     ],
 
     // 分层判定线：脚底过了 1010（也就是踩上上跑）就自动切到后层，回到下跑/地面就是前层。
