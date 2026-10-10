@@ -150,6 +150,7 @@ export class BootScene extends Phaser.Scene {
     this.makeStunMark()
     this.makeMonsterBrute()
     this.makeGuardMillelith()
+    this.makeHarborProps()
 
     this.makeEyeGlow()
 
@@ -3536,6 +3537,245 @@ export class BootScene extends Phaser.Scene {
       '...##....',
       '...##....',
     ])
+  }
+
+  // ── 璃月港用的六样新东西（2026/10/10 第一版草稿，等用户审外观）──
+  // 统一色调：灰蓝瓦 0x4a5560、暗红木 0x7a3a2e、金饰 0xd9a441、灯笼红 0xc0392b
+  private makeHarborProps() {
+    const TILE = 0x4a5560
+    const TILE_DARK = 0x333d47
+    const WOOD = 0x7a3a2e
+    const WOOD_DARK = 0x5a2a22
+    const GOLD = 0xd9a441
+    const LANTERN = 0xc0392b
+
+    // ① 楼房：灰蓝瓦的飞檐 + 暗红木墙 + 格子窗，当背景那一层用（120x104，底边贴地）
+    const house = this.add.graphics()
+
+    house.fillStyle(WOOD, 1)
+    house.fillRect(14, 40, 92, 56)
+    house.fillStyle(WOOD_DARK, 1)
+    house.fillRect(14, 88, 92, 8)
+    // 格子窗
+    house.fillStyle(GOLD, 1)
+    house.fillRect(30, 54, 26, 22)
+    house.fillRect(66, 54, 26, 22)
+    house.fillStyle(0x2a1a16, 1)
+    house.fillRect(33, 57, 20, 16)
+    house.fillRect(69, 57, 20, 16)
+    house.fillStyle(GOLD, 1)
+    house.fillRect(42, 57, 2, 16)
+    house.fillRect(78, 57, 2, 16)
+    // 门
+    house.fillStyle(0x2a1a16, 1)
+    house.fillRect(52, 74, 16, 22)
+    // 飞檐：两层瓦，两头上翘
+    const eave = (cx: number, cy: number, half: number, lift: number) => {
+      house.fillStyle(TILE, 1)
+      house.fillPoints(
+        [
+          new Phaser.Math.Vector2(cx - half, cy),
+          new Phaser.Math.Vector2(cx - half + 6, cy - lift),
+          new Phaser.Math.Vector2(cx + half - 6, cy - lift),
+          new Phaser.Math.Vector2(cx + half, cy),
+          new Phaser.Math.Vector2(cx + half - 4, cy - lift - 6),
+          new Phaser.Math.Vector2(cx - half + 4, cy - lift - 6),
+        ],
+        true
+      )
+      // 翘角
+      house.fillStyle(TILE_DARK, 1)
+      house.fillTriangle(cx - half, cy, cx - half - 4, cy - 7, cx - half + 5, cy - 3)
+      house.fillTriangle(cx + half, cy, cx + half + 4, cy - 7, cx + half - 5, cy - 3)
+      // 瓦棱
+      house.fillStyle(TILE_DARK, 1)
+
+      for (let x = cx - half + 10; x < cx + half - 6; x += 10) {
+        house.fillRect(x, cy - lift - 4, 2, lift + 2)
+      }
+    }
+
+    eave(60, 44, 58, 10)
+    eave(60, 22, 40, 9)
+    house.fillStyle(GOLD, 1)
+    house.fillRect(58, 8, 4, 6)
+
+    house.generateTexture('harbor-house', 120, 104)
+    house.destroy()
+
+    // ② 牌楼：三间四柱 + 匾额 + 两层瓦顶（140x118）
+    const gate = this.add.graphics()
+
+    gate.fillStyle(WOOD, 1)
+    ;[16, 58, 78, 124].forEach((x) => gate.fillRect(x - 4, 40, 8, 78))
+    gate.fillStyle(GOLD, 1)
+    ;[16, 58, 78, 124].forEach((x) => gate.fillRect(x - 6, 112, 12, 6))
+    gate.fillStyle(WOOD_DARK, 1)
+    gate.fillRect(6, 44, 128, 10)
+    gate.fillRect(46, 44, 44, 10)
+    // 匾额
+    gate.fillStyle(0x2f3a46, 1)
+    gate.fillRect(52, 24, 32, 20)
+    gate.fillStyle(GOLD, 1)
+    gate.fillRect(56, 31, 6, 6)
+    gate.fillRect(65, 31, 6, 6)
+    gate.fillRect(74, 31, 6, 6)
+    // 两层瓦顶
+    gate.fillStyle(TILE, 1)
+    gate.fillPoints(
+      [
+        new Phaser.Math.Vector2(4, 24),
+        new Phaser.Math.Vector2(20, 8),
+        new Phaser.Math.Vector2(120, 8),
+        new Phaser.Math.Vector2(136, 24),
+      ],
+      true
+    )
+    gate.fillStyle(TILE_DARK, 1)
+    gate.fillRect(4, 22, 132, 4)
+    gate.fillTriangle(4, 24, -4, 14, 12, 18)
+    gate.fillTriangle(136, 24, 144, 14, 128, 18)
+    gate.fillStyle(GOLD, 1)
+    gate.fillRect(68, 2, 4, 8)
+
+    gate.generateTexture('harbor-paifang', 140, 118)
+    gate.destroy()
+
+    // ③ 灯笼串：一根微微下垂的绳 + 四个红灯笼（120x54）
+    const lanterns = this.add.graphics()
+
+    lanterns.lineStyle(2, 0x2a1a16, 1)
+    lanterns.beginPath()
+    lanterns.moveTo(4, 6)
+    lanterns.lineTo(60, 14)
+    lanterns.lineTo(116, 6)
+    lanterns.strokePath()
+
+    ;[24, 58, 92].forEach((x, index) => {
+      const y = index === 1 ? 26 : 20
+
+      lanterns.fillStyle(0x2a1a16, 1)
+      lanterns.fillRect(x - 1, y - 12, 2, 12)
+      lanterns.fillStyle(GOLD, 1)
+      lanterns.fillRect(x - 6, y - 2, 12, 3)
+      lanterns.fillStyle(LANTERN, 1)
+      lanterns.fillEllipse(x, y + 9, 20, 20)
+      lanterns.fillStyle(0xff8a6a, 0.5)
+      lanterns.fillEllipse(x - 3, y + 6, 8, 8)
+      lanterns.fillStyle(GOLD, 1)
+      lanterns.fillRect(x - 6, y + 18, 12, 3)
+      lanterns.fillRect(x - 1, y + 21, 2, 4)
+    })
+
+    lanterns.generateTexture('harbor-lanterns', 120, 54)
+    lanterns.destroy()
+
+    // ④ 摊位：木案 + 布篷 + 两杆 + 上面的货（96x70）
+    const stall = this.add.graphics()
+
+    stall.fillStyle(WOOD_DARK, 1)
+    stall.fillRect(8, 44, 4, 26)
+    stall.fillRect(84, 44, 4, 26)
+    stall.fillStyle(WOOD, 1)
+    stall.fillRect(4, 36, 88, 9)
+    stall.fillRect(10, 45, 76, 4)
+    // 货：几个小筐小罐
+    stall.fillStyle(0xb0852f, 1)
+    stall.fillEllipse(22, 33, 14, 8)
+    stall.fillEllipse(44, 33, 14, 8)
+    stall.fillStyle(0x7fbf6a, 1)
+    stall.fillEllipse(66, 32, 14, 8)
+    stall.fillStyle(0xd94f3a, 1)
+    stall.fillEllipse(80, 33, 8, 6)
+    // 布篷：红白条纹，前低后高
+    const stripes = [0xc0392b, 0xe8e4d8]
+
+    for (let i = 0; i < 8; i++) {
+      stall.fillStyle(stripes[i % 2], 1)
+      stall.fillRect(2 + i * 11.5, 10, 11.5, 8)
+    }
+
+    stall.fillStyle(0x2a1a16, 1)
+    stall.fillRect(2, 18, 92, 3)
+    stall.fillStyle(WOOD_DARK, 1)
+    stall.fillRect(6, 8, 3, 12)
+    stall.fillRect(87, 8, 3, 12)
+
+    stall.generateTexture('harbor-stall', 96, 70)
+    stall.destroy()
+
+    // ⑤ 人群剪影：五个高矮不一的暗色身影（当背景用，112x44）
+    const crowd = this.add.graphics()
+    const people: Array<[number, number, number]> = [
+      [12, 26, 1],
+      [34, 30, 1.15],
+      [58, 24, 0.9],
+      [80, 28, 1.1],
+      [100, 22, 0.85],
+    ]
+
+    people.forEach(([x, headY, scale]) => {
+      crowd.fillStyle(0x2a2438, 1)
+      crowd.fillEllipse(x, headY, 9 * scale, 9 * scale)
+      crowd.fillPoints(
+        [
+          new Phaser.Math.Vector2(x - 8 * scale, 44),
+          new Phaser.Math.Vector2(x - 6 * scale, headY + 6 * scale),
+          new Phaser.Math.Vector2(x + 6 * scale, headY + 6 * scale),
+          new Phaser.Math.Vector2(x + 8 * scale, 44),
+        ],
+        true
+      )
+    })
+
+    crowd.generateTexture('harbor-crowd', 112, 44)
+    crowd.destroy()
+
+    // ⑥ 船：船壳 + 桅杆 + 方帆 + 船头灯笼（168x96，吃水线在底边）
+    const boat = this.add.graphics()
+
+    boat.fillStyle(WOOD_DARK, 1)
+    boat.fillPoints(
+      [
+        new Phaser.Math.Vector2(6, 66),
+        new Phaser.Math.Vector2(160, 66),
+        new Phaser.Math.Vector2(146, 88),
+        new Phaser.Math.Vector2(24, 88),
+      ],
+      true
+    )
+    boat.fillStyle(WOOD, 1)
+    boat.fillRect(10, 62, 148, 6)
+    boat.fillStyle(0x3a2a20, 1)
+    boat.fillRect(16, 74, 136, 3)
+    boat.fillRect(20, 81, 128, 3)
+    // 桅杆 + 帆
+    boat.fillStyle(WOOD_DARK, 1)
+    boat.fillRect(82, 8, 4, 56)
+    boat.fillStyle(0xe8e4d8, 1)
+    boat.fillPoints(
+      [
+        new Phaser.Math.Vector2(86, 12),
+        new Phaser.Math.Vector2(134, 20),
+        new Phaser.Math.Vector2(134, 54),
+        new Phaser.Math.Vector2(86, 58),
+      ],
+      true
+    )
+    boat.fillStyle(0xc9bfae, 1)
+    boat.fillRect(86, 12, 48, 2)
+    boat.fillRect(108, 16, 2, 40)
+    // 船头灯笼
+    boat.fillStyle(WOOD_DARK, 1)
+    boat.fillRect(24, 46, 3, 18)
+    boat.fillStyle(LANTERN, 1)
+    boat.fillEllipse(26, 44, 16, 16)
+    boat.fillStyle(GOLD, 1)
+    boat.fillRect(20, 36, 12, 3)
+    boat.fillRect(20, 50, 12, 3)
+
+    boat.generateTexture('harbor-boat', 168, 96)
+    boat.destroy()
   }
 
   // 岩刺造物：背后一层贴在建筑上的岩壳，前面收成锥口，口上一点金。

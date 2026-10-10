@@ -291,6 +291,8 @@ type DevExhibit =
   // playable：这尊能站面前按 F 看「元素授予」那套演出（展厅里只看动画，不给元素）
   | { kind: 'statue'; x: number; element: ElementKey; label: string; playable?: boolean }
   | { kind: 'slot'; x: number; label: string }
+  // prop：随便摆一张贴图当展品（新美术先摆出来给用户审外观用）
+  | { kind: 'prop'; x: number; label: string; key: string; scale?: number; depth?: number; sway?: boolean }
 
 type DevLevelDef = LevelDef & { devExhibits?: DevExhibit[]; guards?: GuardDef[] }
 
@@ -658,6 +660,28 @@ function devChaseRoom(): DevLevelDef {
   return level
 }
 
+// ⑨ 港口：璃月港那几样新美术先摆一排给用户审（屋 / 牌楼 / 灯笼 / 摊位 / 人群 / 船）
+function devHarborRoom(): DevLevelDef {
+  const level = devRoomShell(
+    '测试 · 港口',
+    '港口展厅（草稿）：\n中式飞檐楼、牌楼、灯笼串、\n摊位、人群剪影、船。\n先把外观定下来再做第八关。',
+    2200
+  )
+
+  level.devExhibits = [
+    { kind: 'prop', x: 240, key: 'harbor-house', label: '楼房（飞檐 + 格子窗）', depth: -5 },
+    { kind: 'prop', x: 520, key: 'harbor-paifang', label: '牌楼（三间四柱 + 匾额）', depth: -5 },
+    { kind: 'prop', x: 760, key: 'harbor-lanterns', label: '灯笼串（会轻轻晃）', depth: -5, sway: true },
+    { kind: 'prop', x: 1000, key: 'harbor-stall', label: '摊位（布篷 + 货）', depth: 4 },
+    { kind: 'prop', x: 1240, key: 'harbor-crowd', label: '人群剪影（背景用）', depth: -5 },
+    { kind: 'prop', x: 1560, key: 'harbor-boat', label: '船（船壳 + 方帆 + 船头灯笼）', depth: 4 },
+  ]
+
+  level.hints = [{ x: 200, y: 700, text: '这六样都是草稿，先说哪几样要改' }]
+
+  return level
+}
+
 // 大厅里那一排门。x 是门中心，间距 230；最后一扇通向原来那个「一关走完全部机关」的旧沙盒
 const DEV_ROOMS: DevRoomDef[] = [
   { label: '七天神像', level: devStatueRoom() },
@@ -668,6 +692,7 @@ const DEV_ROOMS: DevRoomDef[] = [
   { label: '矮通道', level: devGapRoom() },
   { label: '潜行', level: devStealthRoom() },
   { label: '追击', level: devChaseRoom() },
+  { label: '港口', level: devHarborRoom() },
   { label: '综合沙盒', level: DEV_LEVEL },
 ]
 
@@ -698,7 +723,7 @@ const DEV_HUB: DevLevelDef = {
   ...devRoomShell(
     '测试关卡 · 大厅',
     '测试关卡 · 大厅\n一排门各通一间展厅，\n站到门前按 F 进去。',
-    2400
+    2700
   ),
   spawn: { x: 90, y: 820 },
   hints: [{ x: 90, y: 740, text: '开发用的测试大厅（正式关卡里没有）' }],
@@ -6148,6 +6173,33 @@ export class GameScene extends Phaser.Scene {
     this.devStatues = []
 
     ;(def.devExhibits ?? []).forEach((exhibit) => {
+      if (exhibit.kind === 'prop') {
+        const prop = this.add
+          .image(exhibit.x, DEV_GROUND_TOP, exhibit.key)
+          .setOrigin(0.5, 1)
+          .setScale(exhibit.scale ?? 1)
+          .setDepth(exhibit.depth ?? 4)
+
+        // 灯笼串那种挂着的，给它一点轻轻晃
+        if (exhibit.sway) {
+          this.tweens.add({
+            targets: prop,
+            y: DEV_GROUND_TOP + 2,
+            duration: 1600,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut',
+          })
+        }
+
+        this.makeHint(
+          exhibit.x,
+          DEV_GROUND_TOP - prop.displayHeight - 14,
+          exhibit.label
+        )
+        return
+      }
+
       if (exhibit.kind === 'statue' && this.textures.exists('statue-' + exhibit.element)) {
         const figure = this.placeStatue(exhibit.x, DEV_GROUND_TOP, exhibit.element)
 
