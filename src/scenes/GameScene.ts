@@ -282,6 +282,62 @@ type HarborPiece = {
   randomScale?: number  // 每次盖上去随机缩放一点（人群用，显得热闹）
 }
 
+// 港口这批贴图是"先画再 generateTexture"的，画稿下沿离画布底边还空着一截
+// （房子 / 摊位那几张的最下一行画在倒数第 8 行，底下 8 像素是透明的）。
+// 直接让图片底边贴地，看着就是房子浮在地面上方 —— 这里按"贴图里真正画到的
+// 最下一行像素"把每张图往下压回去，量一次记下来，之后就查表。
+const HARBOR_BOTTOM_PAD: Record<string, number> = {}
+
+function harborBottomPad(scene: Phaser.Scene, key: string) {
+  const cached = HARBOR_BOTTOM_PAD[key]
+
+  if (cached !== undefined) {
+    return cached
+  }
+
+  let pad = 0
+  const source = scene.textures.exists(key)
+    ? (scene.textures.get(key).getSourceImage() as unknown as HTMLCanvasElement)
+    : null
+  const width = source?.width ?? 0
+  const height = source?.height ?? 0
+
+  if (width > 0 && height > 0) {
+    const canvas = document.createElement('canvas')
+
+    canvas.width = width
+    canvas.height = height
+
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
+
+    if (ctx) {
+      ctx.drawImage(source as unknown as CanvasImageSource, 0, 0)
+
+      const pixels = ctx.getImageData(0, 0, width, height).data
+
+      pad = height
+
+      for (let y = height - 1; y >= 0 && pad === height; y--) {
+        for (let x = 0; x < width; x++) {
+          if (pixels[(y * width + x) * 4 + 3] > 8) {
+            pad = height - 1 - y
+            break
+          }
+        }
+      }
+
+      // 整张全透明就当没有留白，别把东西按一整张图的高度推下去
+      if (pad === height) {
+        pad = 0
+      }
+    }
+  }
+
+  HARBOR_BOTTOM_PAD[key] = pad
+
+  return pad
+}
+
 const HARBOR_BLOCKS: Record<
   'dock' | 'street' | 'suburb',
   { decor: HarborPiece[]; front: HarborPiece[]; water?: boolean; railing?: boolean }
@@ -1414,7 +1470,11 @@ export class GameScene extends Phaser.Scene {
           const jitter = piece.randomScale ? 1 + (Math.random() * 2 - 1) * piece.randomScale : 1
 
           this.add
-            .image(block.at + piece.dx, ground + (piece.dy ?? 0), piece.key)
+            .image(
+              block.at + piece.dx,
+              ground + (piece.dy ?? 0) + harborBottomPad(this, piece.key),
+              piece.key
+            )
             .setOrigin(0.5, 1)
             .setScale((piece.scale ?? 1) * jitter)
             .setDepth(piece.depth ?? -5)
@@ -1433,7 +1493,11 @@ export class GameScene extends Phaser.Scene {
           const ground = this.harborGroundAt(block.at + piece.dx)
 
           this.add
-            .image(block.at + piece.dx, ground + (piece.dy ?? 0), piece.key)
+            .image(
+              block.at + piece.dx,
+              ground + (piece.dy ?? 0) + harborBottomPad(this, piece.key),
+              piece.key
+            )
             .setOrigin(0.5, 1)
             .setScale(piece.scale ?? 1)
             .setAlpha(piece.alpha ?? 1)
@@ -1460,8 +1524,10 @@ export class GameScene extends Phaser.Scene {
     ).foreground
 
     ;(foreground ?? []).forEach((item) => {
+      const snap = item.key.startsWith('harbor-') ? harborBottomPad(this, item.key) : 0
+
       this.add
-        .image(item.x, item.y, item.key)
+        .image(item.x, item.y + snap, item.key)
         .setOrigin(0.5, 1)
         .setScale(item.scale ?? 1)
         .setAlpha(item.alpha ?? 1)
@@ -1517,8 +1583,11 @@ export class GameScene extends Phaser.Scene {
 
     // 背景静物：破屋、矿山剪影，底边贴在地面线上，不参与碰撞
     ;(this.level.decor ?? []).forEach((def) => {
+      // 港口那批贴图底下有透明留白，摆的时候要按实际画到的那一行贴地
+      const snap = def.key.startsWith('harbor-') ? harborBottomPad(this, def.key) : 0
+
       this.add
-        .image(def.x, def.y, def.key)
+        .image(def.x, def.y + snap, def.key)
         .setOrigin(0.5, 1)
         .setScale(def.scale ?? 1)
         .setDepth(-5)
