@@ -58,6 +58,9 @@ export type StairDef = {
   style?: 'wood' | 'brick' | 'ramp'
   // 自带的木扶栏画不画：不写就画；none = 不画（改用 revealRails 里那种带透视的石栏杆）
   rail?: 'normal' | 'none'
+  // 扶栏画在第几层：不写就跟着 layer（front → 12「画在人前面」，back → 1.4「画在人后面」）。
+  // 玉京台的下半层就是这个用法：楼梯本体在前层，栏杆强制压到史莱姆下面
+  railDepth?: number
 }
 
 // 带透视的栏杆：画在玩家前面（depth 12），玩家走到它后面时在它身上擦一个洞，
@@ -827,17 +830,29 @@ export const LEVELS: LevelDef[] = [
       //    台面顶面 880 —— 比地面高 280，就是那栋三层楼房的高度。
       { x: 2760, y: 900, width: 920, height: 40, brick: true },     // 台面 880
       { x: 2760, y: 1040, width: 460, height: 240, brick: true },   // 台体：从台面一直落到地面（920 → 1160）
+      // 两条楼梯半层处的小平台（转身 + 放判定区的地方，顶面也是 1020）
+      { x: 2300, y: 1023, width: 90, height: 6, brick: true },
+      { x: 3220, y: 1023, width: 90, height: 6, brick: true },
     ],
 
-    // ③ 玉京台的两条双层楼梯（都是一跑一半高，两跑一样高，在台体两边的空档里）：
-    //    左边那条先往右上半层、到墙根转身，再往左上到台面；右边那条方向反过来，
-    //    而且是斜坡不是台阶。两跑都是砖石实心台体。
-    //    下跑画在玩家图层下（back），上跑画在玩家图层上、栏杆交给 revealRails 做透视
+    // ③ 玉京台的两条双层楼梯（一跑一半高，两跑一样高，在台体两边的空档里）：
+    //    下跑和前层是同一层（人在前层走上去），栏杆强制压到史莱姆下面（railDepth 1.4），
+    //    所以在地面上从楼梯下面穿过去也没问题；走到半层小平台，判定区把图层翻到「后层」，
+    //    上跑（后层）就能正常通行，从左到右上到台面；上跑的栏杆画在史莱姆图层上（revealRails 透视）
     stairs: [
-      { from: { x: 2300, y: 1160 }, to: { x: 2530, y: 1020 }, style: 'brick', layer: 'back' },
-      { from: { x: 2530, y: 1020 }, to: { x: 2300, y: 880 }, style: 'brick', layer: 'front', rail: 'none' },
-      { from: { x: 3220, y: 1160 }, to: { x: 2990, y: 1020 }, style: 'ramp', layer: 'back' },
-      { from: { x: 2990, y: 1020 }, to: { x: 3220, y: 880 }, style: 'ramp', layer: 'front', rail: 'none' },
+      { from: { x: 2530, y: 1160 }, to: { x: 2300, y: 1020 }, style: 'brick', layer: 'front', railDepth: 1.4 },
+      { from: { x: 2300, y: 1020 }, to: { x: 2530, y: 880 }, style: 'brick', layer: 'back', rail: 'none' },
+      { from: { x: 2990, y: 1160 }, to: { x: 3220, y: 1020 }, style: 'ramp', layer: 'front', railDepth: 1.4 },
+      { from: { x: 3220, y: 1020 }, to: { x: 2990, y: 880 }, style: 'ramp', layer: 'back', rail: 'none' },
+    ],
+
+    // 半层小平台上的判定区：上楼（往中间走）翻到后层，下楼（往外走）翻回前层。
+    // 左边上楼是往右、下楼往左；右边反过来
+    depthGates: [
+      { x: 2335, y: 1004, width: 46, height: 34, dir: 1 },
+      { x: 2265, y: 1004, width: 46, height: 34, dir: -1 },
+      { x: 3185, y: 1004, width: 46, height: 34, dir: -1 },
+      { x: 3255, y: 1004, width: 46, height: 34, dir: 1 },
     ],
 
     // 台面沿口的栏杆（在玩家图层上）＋ 两条上跑的斜栏杆：都画在玩家前面，

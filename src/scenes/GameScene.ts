@@ -5359,7 +5359,9 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
-    const railGfx = this.add.graphics().setDepth(layer === 'back' ? 1.4 : 12)
+    const railGfx = this.add
+      .graphics()
+      .setDepth(def.railDepth ?? (layer === 'back' ? 1.4 : 12))
 
     this.stairRails[stairIndex] = railGfx
     railGfx.fillStyle(stoneLight, 1)
@@ -5593,7 +5595,9 @@ export class GameScene extends Phaser.Scene {
 
       // 斜扶栏：和台阶平行，架在踏面上方 railHeight 那么高
       // 单独画一张 Graphics：depth 压在人上面（人从前台走过时，栏杆在台阶外侧）
-      const railGfx = this.add.graphics().setDepth(layer === 'back' ? 1.4 : 12)
+      const railGfx = this.add
+        .graphics()
+        .setDepth(def.railDepth ?? (layer === 'back' ? 1.4 : 12))
       this.stairRails[stairIndex] = railGfx
 
       const railThickness = 4
