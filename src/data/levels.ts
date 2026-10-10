@@ -847,12 +847,14 @@ export const LEVELS: LevelDef[] = [
 
     // ③ 玉京台的两条双层楼梯（一跑一半高，两跑一样高，在台体两边的空档里）：
     //    下跑和前层是同一层（人在前层走上去），栏杆强制压到史莱姆下面（railDepth 1.4），
-    //    所以在地面上从楼梯下面穿过去也没问题；走到半层小平台，判定区把图层翻到「后层」，
-    //    上跑（后层）就能正常通行，从左到右上到台面；上跑的栏杆画在史莱姆图层上（revealRails 透视）
+    //    所以在地面上从楼梯下面穿过去也没问题；踩上半层小平台后脚底过 1010 就自动切到「后层」，
+    //    上跑（后层）就能正常通行，上到台面；上跑的栏杆画在史莱姆图层上（revealRails 透视）
     stairs: [
-      { from: { x: 2530, y: 1160 }, to: { x: 2350, y: 1020 }, style: 'brick', layer: 'front', railDepth: 1.4 },
+      // 每一侧的两跑在同一个 x 上交接（左 2410、右 3110），和小平台对齐：
+      // 下跑从外往内上半层、到点上转身，上跑再往外上到台面
+      { from: { x: 2590, y: 1160 }, to: { x: 2410, y: 1020 }, style: 'brick', layer: 'front', railDepth: 1.4 },
       { from: { x: 2410, y: 1020 }, to: { x: 2590, y: 880 }, style: 'brick', layer: 'back', rail: 'none' },
-      { from: { x: 2990, y: 1160 }, to: { x: 3170, y: 1020 }, style: 'ramp', layer: 'front', railDepth: 1.4 },
+      { from: { x: 2930, y: 1160 }, to: { x: 3110, y: 1020 }, style: 'ramp', layer: 'front', railDepth: 1.4 },
       { from: { x: 3110, y: 1020 }, to: { x: 2930, y: 880 }, style: 'ramp', layer: 'back', rail: 'none' },
     ],
 
