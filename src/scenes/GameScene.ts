@@ -264,6 +264,70 @@ type ChaserRef = {
   detour: number
 }
 
+// ── 港口"背景打包"（用户定的做法）──────────────────────────────
+// 一段街区 = 一个可复制的打包：里面按"史莱姆前 / 史莱姆后"两层摆好该有的东西。
+// 关卡数据只写 `harborBlocks: [{ at, kind }]`，引擎把整段盖上去 —— 想要长一点就多写几段。
+//   后景（在史莱姆后面）：房屋（成排挤在一起）、摊位（码头上卖鱼肉）、木箱、人群
+//   前景（压在史莱姆前面）：水面、船只、护栏（**只有码头有**）、摊位的背面、
+//                          少数街边房屋的背面（带透视，走到后面能看见史莱姆）
+const HARBOR_BLOCK_WIDTH = 460
+
+type HarborPiece = { dx: number; key: string; scale?: number; dy?: number; alpha?: number }
+
+const HARBOR_BLOCKS: Record<
+  'dock' | 'street' | 'suburb',
+  { decor: HarborPiece[]; front: HarborPiece[]; water?: boolean; railing?: boolean }
+> = {
+  // 码头：前景有水和护栏，摊位的背面摆在岸边，后景是成排的房子 + 卖鱼肉的摊位 + 人群
+  dock: {
+    water: true,
+    railing: true,
+    decor: [
+      { dx: 40, key: 'harbor-house-a' },
+      { dx: 150, key: 'harbor-house-c' },
+      { dx: 250, key: 'harbor-stall' },
+      { dx: 330, key: 'harbor-slime-crowd', scale: 0.9 },
+      { dx: 420, key: 'harbor-house-b' },
+      { dx: 120, key: 'harbor-crate', dy: -2 },
+      { dx: 300, key: 'harbor-crate', dy: -2 },
+    ],
+    front: [
+      { dx: 90, key: 'harbor-stall-back' },
+      { dx: 250, key: 'harbor-stall-back', scale: 0.95 },
+      { dx: 380, key: 'harbor-boat-a', scale: 1.1, dy: 70 },
+    ],
+  },
+  // 街市：没有水和护栏，前景换成"街边房屋的背面"（带透视）和摊位背面，后景是连排的房子和各种摊位
+  street: {
+    decor: [
+      { dx: 30, key: 'harbor-house-b' },
+      { dx: 170, key: 'harbor-house-d' },
+      { dx: 300, key: 'harbor-house-a' },
+      { dx: 420, key: 'harbor-house-c' },
+      { dx: 110, key: 'harbor-stall' },
+      { dx: 250, key: 'harbor-slime-crowd', scale: 0.85 },
+      { dx: 360, key: 'harbor-stall', scale: 0.95 },
+      { dx: 210, key: 'harbor-crate', dy: -2 },
+    ],
+    front: [
+      // 街边房屋的背面先给 0.72 的半透明（史莱姆走到后面能看见），
+      // 真正的"透视洞"（像第七关那棵树那样只在人周围透）下一步再做
+      { dx: 60, key: 'harbor-house-back', alpha: 0.72 },
+      { dx: 330, key: 'harbor-stall-back' },
+    ],
+  },
+  // 郊区：房子稀疏、没有水和护栏，摊位也少，多留些空地给远景
+  suburb: {
+    decor: [
+      { dx: 60, key: 'harbor-house-c' },
+      { dx: 240, key: 'harbor-house-c', scale: 0.92 },
+      { dx: 380, key: 'harbor-crate', dy: -2 },
+      { dx: 150, key: 'harbor-slime-crowd', scale: 0.7 },
+    ],
+    front: [{ dx: 300, key: 'harbor-stall-back', scale: 0.9 }],
+  },
+}
+
 // ─────────────────────────────────────────────────────────────
 // 测试关卡（只有 DEV_MODE + ?dev=1 进得来）：大厅 + 分类展示间
 //
@@ -1321,20 +1385,57 @@ export class GameScene extends Phaser.Scene {
         .setDepth(-15.5)
         .setTint(0xc8d8e8)
 
-      // 近处的水：水线压到地面线下面一点，视角像是偏斜下方看下去
-      this.add
-        .tileSprite(0, harborGroundTop + 12, this.level.width, 60, 'harbor-water')
-        .setOrigin(0, 0)
-        .setAlpha(0.9)
-        .setDepth(11)
+      // 港口"背景打包"：数据里写 harborBlocks: [{ at, kind }]（kind = dock / street / suburb），
+      // 引擎按打包把这一段的装饰一段一段盖上去 —— 栅栏、水面只在 dock 那类里出现
+      const harborBlocks = (
+        this.level as LevelDef & {
+          harborBlocks?: { at: number; kind: 'dock' | 'street' | 'suburb' }[]
+        }
+      ).harborBlocks ?? []
 
-      // 最前面的护栏：整体压到地面线下面 8 像素（上面只压住史莱姆脚下一小截），
-      // 这样看着是"从斜上方往下看码头"，而不是平面正对
-      this.add
-        .tileSprite(0, harborGroundTop - 8, this.level.width, 24, 'harbor-railing')
-        .setOrigin(0, 0)
-        .setAlpha(0.95)
-        .setDepth(12)
+      harborBlocks.forEach((block) => {
+        const pack = HARBOR_BLOCKS[block.kind]
+
+        if (!pack) {
+          return
+        }
+
+        // 后景：在史莱姆后面
+        pack.decor.forEach((piece) => {
+          this.add
+            .image(block.at + piece.dx, harborGroundTop + (piece.dy ?? 0), piece.key)
+            .setOrigin(0.5, 1)
+            .setScale(piece.scale ?? 1)
+            .setDepth(-5)
+        })
+
+        // 前景：水面（只有码头有）
+        if (pack.water) {
+          this.add
+            .tileSprite(block.at, harborGroundTop + 12, HARBOR_BLOCK_WIDTH + 30, 60, 'harbor-water')
+            .setOrigin(0, 0)
+            .setAlpha(0.9)
+            .setDepth(11)
+        }
+
+        pack.front.forEach((piece) => {
+          this.add
+            .image(block.at + piece.dx, harborGroundTop + (piece.dy ?? 0), piece.key)
+            .setOrigin(0.5, 1)
+            .setScale(piece.scale ?? 1)
+            .setAlpha(piece.alpha ?? 1)
+            .setDepth(13)
+        })
+
+        // 最前面的护栏：只有码头那一类有（上街以后就没有了），底边压到地面线下面 8 像素
+        if (pack.railing) {
+          this.add
+            .tileSprite(block.at, harborGroundTop - 8, HARBOR_BLOCK_WIDTH + 30, 24, 'harbor-railing')
+            .setOrigin(0, 0)
+            .setAlpha(0.95)
+            .setDepth(12)
+        }
+      })
     }
 
     // 画在玩家前面的摆件（港口的牌楼前层、停在近景水里的船之类）：
@@ -6005,14 +6106,18 @@ export class GameScene extends Phaser.Scene {
 
     const camera = this.cameras.main
 
+    // 先把千岩军放到场上，再把镜头推过去看他们 —— 之前是"先看空地方、看完才生成"，
+    // 用户反馈镜头放大的地方正好是生成点，看着很怪
+    this.spawnChaseSquad()
+
+    const squadX =
+      this.chaserList.length > 0
+        ? this.chaserList.reduce((sum, chaser) => sum + chaser.sprite.x, 0) / this.chaserList.length
+        : this.slime.x - 200
+
     camera.stopFollow()
-    camera.zoomTo(1.5, 450, 'Sine.easeInOut')
-    camera.pan(
-      (this.slime.x + (this.chase?.x ?? this.slime.x)) / 2,
-      this.slime.y - 20,
-      600,
-      'Sine.easeInOut'
-    )
+    camera.zoomTo(1.35, 450, 'Sine.easeInOut')
+    camera.pan((this.slime.x + squadX) / 2, this.slime.y - 30, 600, 'Sine.easeInOut')
 
     const flash = this.add
       .rectangle(0, 0, 480, 270, 0xc0392b, 1)
@@ -6033,9 +6138,6 @@ export class GameScene extends Phaser.Scene {
     this.showMessage('被发现了！往回一看全是千岩军，快跑！')
 
     this.time.delayedCall(1500, () => {
-      // 动画一结束就把千岩军放到场上（不是外面滑一条线进来）
-      this.spawnChaseSquad()
-
       camera.zoomTo(1, 400, 'Sine.easeInOut')
       camera.startFollow(this.slime, true, 0.12, 0.12)
       this.physics.world.resume()

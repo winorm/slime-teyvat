@@ -3877,6 +3877,72 @@ export class BootScene extends Phaser.Scene {
     stall.generateTexture('harbor-stall', 110, 86)
     stall.destroy()
 
+    // 摊位的**背面**（前景用）：只能看到木篷的背面、两根立柱和案板边，
+    // 挂在篷下的鱼和案上的肉都看不见了
+    const stallBack = this.add.graphics()
+
+    stallBack.fillStyle(WOOD_DARK, 1)
+    ;[14, 94].forEach((x) => stallBack.fillRect(x - 5, 14, 10, 64))
+    for (let plank = 0; plank < 3; plank++) {
+      stallBack.fillStyle(plank % 2 === 0 ? 0x6b543a : 0x7a6247, 1)
+      stallBack.fillRect(0, 6 + plank * 5, 110, 4)
+    }
+
+    stallBack.fillStyle(0x4a3a2a, 1)
+    stallBack.fillRect(0, 20, 110, 5)
+    // 案板的下沿（背面只露出这一条）
+    stallBack.fillStyle(WOOD, 1)
+    stallBack.fillRect(8, 50, 94, 6)
+    stallBack.fillStyle(WOOD_DARK, 1)
+    stallBack.fillRect(8, 56, 94, 3)
+    ;[12, 92].forEach((x) => stallBack.fillRect(x, 56, 5, 22))
+    ;[30, 76].forEach((x) => stallBack.fillRect(x, 56, 4, 18))
+
+    stallBack.generateTexture('harbor-stall-back', 110, 86)
+    stallBack.destroy()
+
+    // 木箱（后景/障碍用，30x30）
+    const crate = this.add.graphics()
+
+    crate.fillStyle(0x8a6a3a, 1)
+    crate.fillRect(2, 4, 26, 24)
+    crate.fillStyle(0x6b5228, 1)
+    crate.fillRect(2, 4, 26, 3)
+    crate.fillRect(2, 25, 26, 3)
+    crate.fillRect(2, 4, 3, 24)
+    crate.fillRect(25, 4, 3, 24)
+    crate.fillRect(4, 12, 22, 2)
+    crate.fillRect(4, 19, 22, 2)
+    crate.fillStyle(0x5a4a28, 1)
+    crate.fillRect(14, 4, 3, 24)
+    crate.generateTexture('harbor-crate', 30, 30)
+    crate.destroy()
+
+    // 街边房屋的**背面**（前景用）：门窗都没有，只有一面后墙 + 屋檐，
+    // 史莱姆走到它后面时靠"透视"露出来（图层那块）。
+    const houseBack = this.add.graphics()
+
+    houseBack.fillStyle(0x5f2c24, 1)
+    houseBack.fillRect(16, 46, 72, 104)
+    houseBack.fillStyle(0x4a2018, 1)
+    houseBack.fillRect(16, 46, 72, 3)
+    houseBack.fillRect(16, 142, 72, 10)
+    // 后门（关着的一块板）
+    houseBack.fillStyle(0x4a3a2a, 1)
+    houseBack.fillRect(46, 104, 24, 46)
+    houseBack.fillStyle(0x6b543a, 1)
+    houseBack.fillRect(48, 106, 20, 3)
+    // 屋檐：和正面那几栋同一套，但整条压暗一点
+    const roofGfx = houseBack
+
+    roof(roofGfx, 52, 49, 52, 30)
+    // 屋脊压一道后墙的暗色，表示看到的是背面
+    houseBack.fillStyle(0x2a1a16, 0.25)
+    houseBack.fillRect(16, 46, 72, 104)
+
+    houseBack.generateTexture('harbor-house-back', 104, 160)
+    houseBack.destroy()
+
     // ⑤ 人群：五个史莱姆（160x42）—— 中间那个和玩家一样大，两边小一点；
     // 朝向混着来：有的正面（两只眼）、有的侧身（一只眼）、有的背过去（不画眼睛）
     const crowd = this.add.graphics()
@@ -4941,9 +5007,20 @@ export class BootScene extends Phaser.Scene {
     cloud(210, 30, 0.8)
     cloud(330, 64, 0.9)
     cloud(140, 84, 0.6)
-    // 高山：两根脊线，远的浅、近的深
-    this.drawRidge(harborFar, 480, 270, 0x8fa8bd, [2, 5], 52, 172, 0.95)
-    this.drawRidge(harborFar, 480, 270, 0x65808f, [1, 4], 66, 190)
+    // 远山：**每次进关卡随机生成**两种高度的山峰（用户要求：远山和天空不打包、随机生成山峰即可），
+    // 每段的峰高和起伏都带随机，所以每局看着都不一样
+    const ridgeSeed = Math.floor(Math.random() * 1000)
+
+    this.drawRidge(harborFar, 480, 270, 0x8fa8bd, [2 + (ridgeSeed % 3), 5], 46 + (ridgeSeed % 14), 172, 0.95)
+    this.drawRidge(
+      harborFar,
+      480,
+      270,
+      0x65808f,
+      [1 + ((ridgeSeed >> 3) % 3), 4],
+      58 + ((ridgeSeed >> 2) % 18),
+      190
+    )
 
     harborFar.generateTexture('bg-harbor-far', 480, 270)
     harborFar.destroy()
