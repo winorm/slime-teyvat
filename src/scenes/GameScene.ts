@@ -1028,6 +1028,12 @@ export class GameScene extends Phaser.Scene {
   private revealRailRT: Phaser.GameObjects.RenderTexture | null = null
   private revealRailBox = { left: 0, top: 0, width: 0, height: 0 }
   private revealRailDrawn = { x: -99999, y: -99999 }
+  // 玉京台那种折返楼梯：踩上去翻层的半层小平台（`PlatformDef.layerFlip`），
+  // 以及"上一次站在哪一跑楼梯上"—— 靠它区分上楼还是下楼
+  private flipPads: { left: number; right: number; top: number }[] = []
+  private lastFlightLayer: 'front' | 'back' = 'front'
+  private onFlipPad = false
+  private cameraLiftNow = -1
   private gateFired: boolean[] = []
   // 只在「树前」或「树后」某一层存在的楼板补片（第七关整层楼板中间那块"活板"）。
   // 贴图搬在 RenderTexture 上，跟树干同一套做法：楼板**一直画着**，史莱姆在另一层时
@@ -2120,6 +2126,15 @@ export class GameScene extends Phaser.Scene {
         ghostBody.enable = false
       }
 
+      // 踩上去翻层的半层小平台（玉京台那种）：记下它的范围，每帧判断人站没站在上面
+      if (def.layerFlip) {
+        this.flipPads.push({
+          left: def.x - def.width / 2,
+          right: def.x + def.width / 2,
+          top: def.y - def.height / 2,
+        })
+      }
+
       // 只在某一层存在的楼板补片：视觉交给下面的 RenderTexture（一直画、只擦透视洞），
       // 自带的矩形就不画了；碰撞仍然靠 collider 的过滤函数按 layer 决定
       if (def.layer) {
@@ -2212,25 +2227,31 @@ export class GameScene extends Phaser.Scene {
       ) {
         const railY = top - 26
         const railLeft = railLeftEdge
-        // 平台护栏也画在人前面：它和楼梯护栏是接在一起的，depth 要一致
-        const railGfx = this.add.graphics().setDepth(12)
+        // 木护栏 / 挑檐 / 灯笼 / 木桶这一套是「客栈那种楼」的装饰。
+        // 玉京台的平台写了 rail: false —— 那些装饰全不画（用户的"护栏装饰忘记删掉"就是这个），
+        // 只保留下面那块防走掉下去的实体挡板
+        if (def.rail !== false) {
+          // 平台护栏也画在人前面：它和楼梯护栏是接在一起的，depth 要一致
+          const railGfx = this.add.graphics().setDepth(12)
 
-        railGfx.fillStyle(0x7a4c28, 1)
-        railGfx.fillRect(railLeft, railY, def.width, 4)
+          railGfx.fillStyle(0x7a4c28, 1)
+          railGfx.fillRect(railLeft, railY, def.width, 4)
 
-        railGfx.fillStyle(0x6f4423, 1)
+          railGfx.fillStyle(0x6f4423, 1)
 
-        for (let postX = railLeft + 2; postX <= railLeft + def.width - 3; postX += 40) {
-          railGfx.fillRect(postX, railY, 3, 26)
+          for (let postX = railLeft + 2; postX <= railLeft + def.width - 3; postX += 40) {
+            railGfx.fillRect(postX, railY, 3, 26)
+          }
+
+          railGfx.fillRect(railLeft + def.width - 5, railY, 3, 26)
         }
-
-        railGfx.fillRect(railLeft + def.width - 5, railY, 3, 26)
 
         // 护栏的端头挡板（实体）：1/2 层平台的外端是悬空的，没东西挡着人会一头栽下去。
         // 挡板只有 26 高（和护栏一样），走不过去但跳得过去 —— 只防"不小心走掉下去"，
         // 不封死路线。它不进 this.stairs，所以不会被自动上台阶抬上去
         // 井口那一侧不加：那是进出电梯的门（护栏横木留着，只去掉这块实体挡板）
-        if (!atLiftShaft) {
+        // railBar: false 也不要（玉京台台面中间那块要能走进楼梯井）
+        if (!atLiftShaft && def.railBar !== false) {
           const endBar = this.platforms.create(
             stairAtRight ? railLeftEdge + 2 : railRightEdge - 2,
             railY + 13,
@@ -2244,41 +2265,44 @@ export class GameScene extends Phaser.Scene {
 
         // 挑檐：在**没有楼梯那一端**往外挑一小块斜面瓦片，外缘略起翘 ——
         // 一眼看出这是「楼」而不是一块平台。深 3.2，压在楼板上、盖不住玩家
-        const eaveSide = stairAtRight ? -1 : 1
-        const eaveX = eaveSide > 0 ? railRightEdge : railLeftEdge
-        const eaveGfx = this.add.graphics().setDepth((def.depth ?? 0) + 0.2)
+        // （rail: false 的平台连挑檐/灯笼/木桶也不画）
+        if (def.rail !== false) {
+          const eaveSide = stairAtRight ? -1 : 1
+          const eaveX = eaveSide > 0 ? railRightEdge : railLeftEdge
+          const eaveGfx = this.add.graphics().setDepth((def.depth ?? 0) + 0.2)
 
-        eaveGfx.fillStyle(0x4a5568, 1)
-        eaveGfx.fillTriangle(
-          eaveX,
-          railY - 2,
-          eaveX + eaveSide * 16,
-          railY + 4,
-          eaveX,
-          top
-        )
+          eaveGfx.fillStyle(0x4a5568, 1)
+          eaveGfx.fillTriangle(
+            eaveX,
+            railY - 2,
+            eaveX + eaveSide * 16,
+            railY + 4,
+            eaveX,
+            top
+          )
 
-        // 檐口线：贴着楼板面那道暖木色
-        eaveGfx.fillStyle(0x6f4423, 1)
-        eaveGfx.fillRect(Math.min(eaveX, eaveX + eaveSide * 16), top - 2, 16, 2)
+          // 檐口线：贴着楼板面那道暖木色
+          eaveGfx.fillStyle(0x6f4423, 1)
+          eaveGfx.fillRect(Math.min(eaveX, eaveX + eaveSide * 16), top - 2, 16, 2)
 
-        // 灯笼：挂在挑檐下沿，每块楼板一盏（纯画面，不参与碰撞）
-        this.add
-          .image(eaveX + eaveSide * 8, railY + 12, 'lantern')
-          .setDepth((def.depth ?? 0) + 0.3)
-
-        // 木桶：只摆在树左边那几块比较宽的楼层平台上（楼梯在右端的那种），
-        // 底边贴住楼板面，避开楼梯口和换层判定区
-        if (stairAtRight) {
+          // 灯笼：挂在挑檐下沿，每块楼板一盏（纯画面，不参与碰撞）
           this.add
-            .image(railLeftEdge + 26, top, 'barrel')
-            .setOrigin(0.5, 1)
+            .image(eaveX + eaveSide * 8, railY + 12, 'lantern')
             .setDepth((def.depth ?? 0) + 0.3)
 
-          this.add
-            .image(railLeftEdge + 118, top, 'barrel')
-            .setOrigin(0.5, 1)
-            .setDepth((def.depth ?? 0) + 0.35)
+          // 木桶：只摆在树左边那几块比较宽的楼层平台上（楼梯在右端的那种），
+          // 底边贴住楼板面，避开楼梯口和换层判定区
+          if (stairAtRight) {
+            this.add
+              .image(railLeftEdge + 26, top, 'barrel')
+              .setOrigin(0.5, 1)
+              .setDepth((def.depth ?? 0) + 0.3)
+
+            this.add
+              .image(railLeftEdge + 118, top, 'barrel')
+              .setOrigin(0.5, 1)
+              .setDepth((def.depth ?? 0) + 0.35)
+          }
         }
       }
 
@@ -2343,6 +2367,7 @@ export class GameScene extends Phaser.Scene {
 
     this.buildStairs()
     this.buildRevealRails()
+    this.buildStairPadBodies()
 
     if (this.level.dome) {
       const dome = this.level.dome
@@ -6112,6 +6137,94 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ── 带透视的栏杆（玉京台） ──────────────────────────────────
+  // 半层小平台下面也要铺成「楼梯那种砖石」（用户要求：小平台下方的图换成楼梯下面那种）：
+  // 从平台底面一直砌到地面，横缝竖缝和楼梯本体一个做法、一个配色
+  private buildStairPadBodies() {
+    if (this.flipPads.length === 0) {
+      return
+    }
+
+    const stoneFace = 0x6a5a48
+    const stoneDark = 0x4a3f33
+    const groundTop = this.level.platforms.reduce(
+      (lowest, item) => Math.max(lowest, item.y - item.height / 2),
+      Number.NEGATIVE_INFINITY
+    )
+
+    this.flipPads.forEach((pad) => {
+      const height = groundTop - pad.top
+
+      if (height <= 2) {
+        return
+      }
+
+      // 压在台体那道砖墙（0.1）前面、楼梯本体（1~3）后面
+      const gfx = this.add.graphics().setDepth(0.6)
+      const width = pad.right - pad.left
+
+      gfx.fillStyle(stoneFace, 1)
+      gfx.fillRect(pad.left, pad.top, width, height)
+
+      for (let y = pad.top + 12, k = 0; y < pad.top + height - 1; y += 12, k++) {
+        gfx.fillStyle(stoneDark, 0.3)
+        gfx.fillRect(pad.left + 1, y, width - 2, 1)
+        gfx.fillStyle(stoneDark, 0.22)
+        gfx.fillRect(pad.left + (k % 2 === 0 ? 1 : width - 2), y, 1, 12)
+      }
+    })
+  }
+
+  // 折返楼梯的换层（玉京台）：**站在哪一跑楼梯上就属于哪一层**；
+  // 站在 layerFlip 小平台上则翻一层 —— 上楼过来切后层（好上上跑），
+  // 下楼过来切回前层（好下下跑）。上和下共用同一个 x 时，只有靠"你是踩着哪一跑上来的"
+  // 才能区分（见「踩过的坑」四十二）。
+  private updateStairLayers(body: Phaser.Physics.Arcade.Body) {
+    if (this.flipPads.length === 0) {
+      return
+    }
+
+    for (const step of this.stairs) {
+      const stepBody = step.body as Phaser.Physics.Arcade.StaticBody
+      const onIt =
+        body.right > stepBody.left &&
+        body.left < stepBody.right &&
+        body.bottom >= stepBody.top - 1 &&
+        body.bottom <= stepBody.top + 4
+
+      if (!onIt) {
+        continue
+      }
+
+      const layer = step.getData('layer') as 'front' | 'back'
+
+      this.lastFlightLayer = layer
+      this.onFlipPad = false
+
+      if (this.playerLayer !== layer) {
+        this.setPlayerLayer(layer)
+      }
+
+      return
+    }
+
+    const onPad = this.flipPads.some(
+      (pad) =>
+        body.right > pad.left &&
+        body.left < pad.right &&
+        Math.abs(body.bottom - pad.top) < 4
+    )
+
+    if (!onPad) {
+      this.onFlipPad = false
+      return
+    }
+
+    if (!this.onFlipPad) {
+      this.onFlipPad = true
+      this.setPlayerLayer(this.lastFlightLayer === 'back' ? 'front' : 'back')
+    }
+  }
+
   // 数据里的 revealRails 每段是一条直线栏杆。整片栏杆先画在一张 RenderTexture 上，
   // 每帧在玩家位置擦一个洞 —— 和第七关那棵树完全同一套做法
   private buildRevealRails() {
@@ -7940,6 +8053,21 @@ export class GameScene extends Phaser.Scene {
     this.updateLayerReveals()
     // 玉京台那种画在玩家前面的栏杆：也在玩家身上擦透视洞
     this.updateRevealRails()
+    // 折返楼梯的换层（站在哪一跑上 / 踩到半层小平台）
+    this.updateStairLayers(body)
+
+    // 高台关卡：上楼之后镜头往上偏一点，把史莱姆放到画面下半部分
+    const lift = this.level.cameraLift
+
+    if (lift) {
+      const want = body.bottom < lift.y ? lift.offset : 0
+
+      if (want !== this.cameraLiftNow) {
+        this.cameraLiftNow = want
+        this.cameras.main.setFollowOffset(0, want)
+      }
+    }
+
     // 水利电梯：轿厢跟到当前高度，站在上面的人跟着走
     this.updateLift()
 

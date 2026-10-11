@@ -4158,51 +4158,61 @@ export class BootScene extends Phaser.Scene {
     boatC.generateTexture('harbor-boat-c', 220, 150)
     boatC.destroy()
 
-    // ⑦ 玉京台的石栏杆，两张：
+    // ⑦ 玉京台的石栏杆。**做成有立体感的一版**（用户要求：太平了会糊在背后那面砖墙上分不出来）：
+    //    每道构件都"顶面高光 + 正面中间色 + 下沿深色描边"，立柱左边亮、右边暗，看着是圆柱
     //   · rail-stone：一整段栏杆（上下两道横杆 + 一根立柱 + 柱头），横向平铺就是一道栏杆
     //   · rail-band：只有一道横杆，给斜着的楼梯栏杆用（斜着摆放不会露馅）
     const stoneRail = this.add.graphics()
 
-    stoneRail.fillStyle(0x7c6a56, 1)
-    stoneRail.fillRect(0, 0, 24, 5)          // 上横杆
-    stoneRail.fillStyle(0x4a3f33, 1)
-    stoneRail.fillRect(0, 5, 24, 1)
-    stoneRail.fillStyle(0x6a5a48, 1)
-    stoneRail.fillRect(0, 17, 24, 4)         // 下横杆
-    stoneRail.fillStyle(0x8a765f, 1)
-    stoneRail.fillRect(0, 17, 24, 1)
-    stoneRail.fillStyle(0x4a3f33, 1)
-    stoneRail.fillRect(0, 21, 24, 1)
+    stoneRail.fillStyle(0x9b876d, 1)         // 上横杆：顶面高光
+    stoneRail.fillRect(0, 0, 24, 3)
+    stoneRail.fillStyle(0x6a5a48, 1)         // 上横杆：正面
+    stoneRail.fillRect(0, 3, 24, 6)
+    stoneRail.fillStyle(0x33291f, 1)         // 上横杆：下沿描边
+    stoneRail.fillRect(0, 9, 24, 2)
+    stoneRail.fillStyle(0x7c6a56, 1)         // 下横杆
+    stoneRail.fillRect(0, 17, 24, 3)
+    stoneRail.fillStyle(0x33291f, 1)
+    stoneRail.fillRect(0, 20, 24, 2)
     stoneRail.fillStyle(0x6a5a48, 1)         // 立柱
-    stoneRail.fillRect(9, 3, 6, 23)
-    stoneRail.fillStyle(0x8a765f, 1)         // 柱头
-    stoneRail.fillRect(7, 0, 10, 3)
-    stoneRail.fillStyle(0x4a3f33, 1)
-    stoneRail.fillRect(9, 25, 6, 1)
+    stoneRail.fillRect(9, 4, 6, 22)
+    stoneRail.fillStyle(0x93805f, 1)         // 立柱左侧受光
+    stoneRail.fillRect(9, 4, 2, 22)
+    stoneRail.fillStyle(0x463a2c, 1)         // 立柱右侧背光
+    stoneRail.fillRect(14, 4, 1, 22)
+    stoneRail.fillStyle(0x9b876d, 1)         // 柱头
+    stoneRail.fillRect(7, 0, 10, 4)
+    stoneRail.fillStyle(0x33291f, 1)
+    stoneRail.fillRect(7, 4, 10, 1)
     stoneRail.generateTexture('rail-stone', 24, 26)
     stoneRail.destroy()
 
     const stoneBand = this.add.graphics()
 
-    stoneBand.fillStyle(0x7c6a56, 1)
-    stoneBand.fillRect(0, 0, 32, 4)
-    stoneBand.fillStyle(0x8a765f, 1)
-    stoneBand.fillRect(0, 0, 32, 1)
-    stoneBand.fillStyle(0x4a3f33, 1)
-    stoneBand.fillRect(0, 4, 32, 2)
-    stoneBand.generateTexture('rail-band', 32, 6)
+    stoneBand.fillStyle(0x9b876d, 1)
+    stoneBand.fillRect(0, 0, 32, 2)
+    stoneBand.fillStyle(0x6a5a48, 1)
+    stoneBand.fillRect(0, 2, 32, 4)
+    stoneBand.fillStyle(0x33291f, 1)
+    stoneBand.fillRect(0, 6, 32, 2)
+    stoneBand.generateTexture('rail-band', 32, 8)
     stoneBand.destroy()
 
-    // 玉京台半层小平台用的"端头护栏"：一根带柱头的石柱（放在平台外沿那头）
+    // 玉京台半层小平台用的"端头护栏"：一根带柱头的石柱（放在平台外沿那头），同样带描边
     const railEnd = this.add.graphics()
 
-    railEnd.fillStyle(0x7c6a56, 1)
-    railEnd.fillRect(3, 6, 8, 24)          // 柱身
-    railEnd.fillStyle(0x8a765f, 1)
-    railEnd.fillRect(1, 0, 12, 6)          // 柱头
-    railEnd.fillStyle(0x4a3f33, 1)
-    railEnd.fillRect(1, 6, 12, 2)          // 柱头下压一道暗线
-    railEnd.fillRect(3, 29, 8, 1)          // 柱础
+    railEnd.fillStyle(0x6a5a48, 1)         // 柱身
+    railEnd.fillRect(3, 6, 8, 23)
+    railEnd.fillStyle(0x93805f, 1)         // 柱身受光面
+    railEnd.fillRect(3, 6, 3, 23)
+    railEnd.fillStyle(0x463a2c, 1)         // 柱身背光面
+    railEnd.fillRect(10, 6, 1, 23)
+    railEnd.fillStyle(0x9b876d, 1)         // 柱头
+    railEnd.fillRect(1, 0, 12, 6)
+    railEnd.fillStyle(0x33291f, 1)         // 柱头下沿描边
+    railEnd.fillRect(1, 6, 12, 2)
+    railEnd.fillStyle(0x4a3f33, 1)         // 柱础
+    railEnd.fillRect(2, 29, 10, 1)
     railEnd.generateTexture('rail-end', 14, 30)
     railEnd.destroy()
   }
