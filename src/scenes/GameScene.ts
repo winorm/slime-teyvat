@@ -5025,6 +5025,19 @@ export class GameScene extends Phaser.Scene {
       .setDepth(12.5)
     this.wallDrawn = { x: -99999, y: -99999 }
 
+    // ④ 门楣的**实体**：只有"门上方那块墙"有碰撞 ——
+    //    底边落在门洞净高上（屏幕 848），史莱姆头顶在 854，所以正常走过去能过（头上有 6 像素余量）；
+    //    跳起来就会被它顶住，于是只能从券门底下过去。墙身其余部分仍然只是画面，不挡人
+    const gateBody = this.platforms.create(
+      wallX,
+      (top - wallTopH + (top - springH)) / 2,
+      'pixel'
+    ) as Phaser.Physics.Arcade.Sprite
+
+    gateBody.setDisplaySize(wallT, wallTopH - springH)
+    gateBody.setVisible(false)
+    gateBody.refreshBody()
+
     // ⑥ 站在台面上的东西：只写"世界 x + 深度 z"，屏幕位置/大小/层数全由上面三个函数给
     const seat = (x0: number, z: number, key: string, flip = false, lift = 0) => {
       const s = sOf(z)
