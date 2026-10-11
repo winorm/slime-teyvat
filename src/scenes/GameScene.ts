@@ -481,17 +481,18 @@ const HARBOR_BLOCKS: Record<
   // 屋脊比台面上的史莱姆高、但整座屋顶都在镜头里（高 ~190）
   terrace: [
     {
-      // 第一版：请仙典仪的大殿 —— **在广场之外、更远处**：缩小一档、
-      // 脚底落在广场远边再往上 10 像素（dy -90 → 790，围栏正好站在它前面）、
-      // 再压一层青灰（tint + alpha）当空气透视。dx 575 = 左半边正中间 2875
-      decor: [{ dx: 575, key: 'terrace-hall', scale: 0.82, dy: -90, alpha: 0.86, tint: 0xc4d2dc, depth: -7 }],
+      // 第一版：请仙典仪的大殿 —— 在广场外更远处，脚底 770（dy -110）。
+      // 按透视公式 scale(y) = (y - 视平线700) / 180，770 处只有 0.39 ——
+      // 所以"远"是靠**变小**做出来的，不再是靠淡；再压一层青灰当空气透视
+      decor: [{ dx: 575, key: 'terrace-hall', scale: 0.39, dy: -110, alpha: 0.9, tint: 0xc4d2dc, depth: -7 }],
       front: [],
     },
     {
       // 第二版：逃跑那一片的连廊（575 一段，一段接一段拼成一条长廊；
       // dx 287 = 摆在段中间，所以一段正好盖住 at ~ at+575）。
-      // 脚底落在**顶面那一小节的远边**（dy -40 → 840），不然会被新铺的地面盖住下半截
-      decor: [{ dx: 287, key: 'terrace-wing', dy: -40, tint: 0xe4ecf0 }],
+      // 脚底落在顶面那一小节的远边（dy -50 → 830），大小同样按公式给：0.72。
+      // 两段之间的间距也跟着缩（不然按原间距摆会露出缝）—— 见 levels.ts 里的 at
+      decor: [{ dx: 287, key: 'terrace-wing', scale: 0.72, dy: -50, tint: 0xe4ecf0 }],
       front: [],
     },
     {
@@ -4707,6 +4708,15 @@ export class GameScene extends Phaser.Scene {
     const slice = top - 40          // 顶面那一小节的远边
     const plazaFar = top - 80       // 广场（背景景）的远边
 
+    // ── 透视：只有一条规则 ────────────────────────────────────────
+    // 视平线定死在走线上方 180 像素。竖直立着的东西，大小按它脚底那条线算：
+    //   scale(y) = (y − 视平线) ÷ 180  →  走线上 1.0，越往上越小（越远越小）
+    // **躺着的地面不参与这条规则**（横向卷轴里地面一收敛就会"游"），
+    // 石板缝保持等距平行；整张画面的景深全靠这一个函数，想加强/减弱只改 180。
+    const horizon = top - 180
+    const scaleAt = (y: number) => Math.max(0.14, (y - horizon) / 180)
+    const depthAt = (y: number) => 0.3 + scaleAt(y) * 0.45
+
     // ① 顶面那一小节：整条能走的地面（2650~4250）都铺上（400 一段，四段正好）
     for (let x = 2850; x <= 4050; x += 400) {
       this.add.image(x, slice, 'terrace-floor').setOrigin(0.5, 0).setDepth(0.12)
@@ -4717,49 +4727,66 @@ export class GameScene extends Phaser.Scene {
       this.add.image(x, top, 'terrace-paving').setOrigin(0.5, 0).setDepth(0.16)
     }
 
-    // ② 后沿矮围栏：站在广场（背景景）的远边上
-    ;[2587, 3162].forEach((x) => {
-      this.add.image(x, plazaFar, 'terrace-pwall').setOrigin(0.5, 1).setDepth(0.31)
+    // ② 后沿矮围栏：站在广场远边上，按那条线的比例缩小（0.56）+ 间距跟着缩
+    ;[-160, 160].forEach((dx) => {
+      this.add
+        .image(cx + dx, plazaFar, 'terrace-pwall')
+        .setOrigin(0.5, 1)
+        .setScale(scaleAt(plazaFar))
+        .setDepth(depthAt(plazaFar))
     })
 
     // ③ 广场圆：直径 560 → 560x80，**近边压在走线上**，整体往后铺进背景
     this.add.image(cx, plazaFar + 40, 'terrace-plaza').setDepth(0.3)
 
-    // ④ 围观的 + 祭坛 + 凝光：脚底按"近大远小"从背景排到走线，层数用同一个公式算
-    const depthAt = (y: number) => 0.3 + (y - plazaFar) * (0.45 / 80)
-
-    const crowd: [number, number, number, string][] = [
-      [cx - 250, plazaFar + 12, 0.72, 'harbor-slime-a'],
-      [cx - 170, plazaFar + 24, 0.76, 'harbor-slime-c'],
-      [cx - 92, plazaFar + 34, 0.8, 'harbor-slime-b'],
-      [cx + 92, plazaFar + 34, 0.8, 'harbor-slime-d'],
-      [cx + 170, plazaFar + 24, 0.76, 'harbor-slime-a'],
-      [cx + 250, plazaFar + 12, 0.72, 'harbor-slime-c'],
+    // ④ 围观的：脚底从广场远边排到走线，大小**完全由 scaleAt 给**，不再手挑；
+    //    脚底越高＝越远＝越小＝层数越低，三件事自动一致
+    const crowd: [number, number, string][] = [
+      [cx - 230, plazaFar + 10, 'harbor-slime-a'],
+      [cx - 150, plazaFar + 22, 'harbor-slime-c'],
+      [cx - 76, plazaFar + 32, 'harbor-slime-b'],
+      [cx + 76, plazaFar + 32, 'harbor-slime-d'],
+      [cx + 150, plazaFar + 22, 'harbor-slime-a'],
+      [cx + 230, plazaFar + 10, 'harbor-slime-c'],
       // 靠走线这一侧的两只（最大，仍在人后面）
-      [cx - 250, top - 12, 0.9, 'harbor-slime-d'],
-      [cx + 250, top - 12, 0.9, 'harbor-slime-b'],
+      [cx - 250, top - 12, 'harbor-slime-d'],
+      [cx + 250, top - 12, 'harbor-slime-b'],
     ]
 
-    crowd.forEach(([x, y, scale, key]) => {
-      this.add.image(x, y, key).setOrigin(0.5, 1).setScale(scale).setDepth(depthAt(y))
+    crowd.forEach(([x, y, key]) => {
+      this.add.image(x, y, key).setOrigin(0.5, 1).setScale(scaleAt(y)).setDepth(depthAt(y))
     })
 
-    // ⑤ 祭坛 + 坛上的东西 + 凝光和两个仆从（都在靠走线这一侧，最大最靠前）
-    this.add.image(cx, top - 14, 'terrace-altar').setOrigin(0.5, 1).setDepth(depthAt(top - 14))
+    // ⑤ 祭坛 + 坛上的东西 + 凝光和两个仆从（都靠走线，最大的那一档）
+    this.add
+      .image(cx, top - 14, 'terrace-altar')
+      .setOrigin(0.5, 1)
+      .setScale(scaleAt(top - 14))
+      .setDepth(depthAt(top - 14))
     this.add
       .image(cx, top - 68, 'terrace-offerings')
       .setOrigin(0.5, 1)
+      .setScale(scaleAt(top - 14))
       .setDepth(depthAt(top - 14) + 0.01)
 
-    this.add.image(cx - 62, top - 12, 'npc-attendant').setOrigin(0.5, 1).setDepth(depthAt(top - 12))
+    this.add
+      .image(cx - 62, top - 12, 'npc-attendant')
+      .setOrigin(0.5, 1)
+      .setScale(scaleAt(top - 12))
+      .setDepth(depthAt(top - 12))
     this.add
       .image(cx + 62, top - 12, 'npc-attendant')
       .setOrigin(0.5, 1)
       .setFlipX(true)
+      .setScale(scaleAt(top - 12))
       .setDepth(depthAt(top - 12))
 
     // 主事的凝光：站在祭坛前面一点
-    this.add.image(cx, top - 8, 'npc-ningguang').setOrigin(0.5, 1).setDepth(depthAt(top - 8))
+    this.add
+      .image(cx, top - 8, 'npc-ningguang')
+      .setOrigin(0.5, 1)
+      .setScale(scaleAt(top - 8))
+      .setDepth(depthAt(top - 8))
   }
 
   private buildGuards() {

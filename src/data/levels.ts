@@ -924,8 +924,10 @@ export const LEVELS: LevelDef[] = [
       // 右半边是连廊——一段 460，一段接一段连起来，玩家从拱门过来就在这条廊里躲
       { at: 2300, kind: 'terrace' },            // 左半边：请仙典仪大殿（一整座，占 2300~3450）
       { at: 3220, kind: 'terrace', variant: 3 },// 中间：拱门（落在 3450，左右两半的分界）
-      { at: 3450, kind: 'terrace', variant: 2 },// 右半边：连廊 1（3450~4025）
-      { at: 4025, kind: 'terrace', variant: 2 },// 右半边：连廊 2（4025~4600，和上一段接上）
+      // 右半边的连廊两段：透视缩小到 0.72 之后，两段的间距也要跟着缩（575 → 414），
+      // 所以 at 往前挪 —— 渲染出来两段中心在 3818 / 4232，正好还是首尾相接
+      { at: 3531, kind: 'terrace', variant: 2 },// 右半边：连廊 1
+      { at: 3945, kind: 'terrace', variant: 2 },// 右半边：连廊 2（和上一段接上）
       { at: 4600, kind: 'street', variant: 3 },// 街道③：两栋房子 + 右侧背向摊位
       { at: 5060, kind: 'suburb', variant: 3 },// 郊区③：最空的一版
       { at: 5520, kind: 'suburb', variant: 2 },// 郊区②：大厅 + 小屋 + 路边摊
