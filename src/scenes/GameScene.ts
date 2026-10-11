@@ -1036,6 +1036,9 @@ export class GameScene extends Phaser.Scene {
   // 正在"穿过去"的那一跑下跑（-1 = 没有）。沿着它下来落地后先把它的碰撞关掉，
   // 等身体整个穿过它再打开（见 updateStairLayers 里那段注释）
   private passUnderFlight = -1
+  // "这一趟穿过去"的效果拿到手了没 —— 用户定的获得条件：踏上"比身高高 2 像素"
+  // 的那一级楼梯（走上这一跑，脚底高出下端 height + 2 就算拿到）；一趟用一次，用完清掉
+  private passUnderGranted = false
   private cameraLiftNow = -1
   private gateFired: boolean[] = []
   // 只在「树前」或「树后」某一层存在的楼板补片（第七关整层楼板中间那块"活板"）。
@@ -6218,13 +6221,29 @@ export class GameScene extends Phaser.Scene {
       break
     }
 
-    // ── 下跑"穿过去"（用户定的做法）──────────────────────────────
+    // ── 下跑"穿过去"（用户 2026/10/11 定的三条）─────────────────
     // 沿着带 passUnder 的下跑一路下到地面之后，要是往外（离开玉京台的方向）走，
-    // 会被这条下跑的最高几级抬回去。做法：落地之后先把这一跑的碰撞关掉
-    //（画面本来就画在人后面，depth 1），等身体整个穿过它的范围再恢复。
+    // 会被这条下跑的最低几级抬上楼。做法：先把这一跑的碰撞关掉（画面本来就画在
+    // 人后面），人从它下面走过去，等身体穿过「楼梯和身体一样高」那一处再恢复。
+    //   获得条件 = 上到「比身高高 2 像素」的那一级楼梯上（踩着这一跑走到
+    //              脚底比下端高 body.height + 2 以上，才算拿到这一趟）
+    //   接触条件 = 人在地面上、走到这一跑口子外 30 像素以内（往东走进口子）
+    //              —— 用户原话是"落地之后往右走 20 像素"，见下面那句注释为什么提前
+    //   解除条件 = 身体穿过「楼梯和身体一样高」那一处（再往外楼梯都比人高，
+    //              恢复碰撞也挡不住人），或者踩上别的楼梯
     // 自己在上面走的时候当然得开着，所以只在"人不在它上面"时才关。
     if (standingFlight >= 0 && defs[standingFlight]?.passUnder) {
-      this.passUnderFlight = standingFlight
+      const granted = defs[standingFlight]
+
+      // 获得条件：脚底已经比这一跑的下端高出「身高 + 2」—— 也就是真的踏上了
+      // 比人还高两像素的那一级（用户 2026/10/11 定的，原来是"上到半层小平台"）
+      if (granted.from.y - body.bottom >= body.height + 2) {
+        this.passUnderGranted = true
+      }
+
+      if (this.passUnderGranted) {
+        this.passUnderFlight = standingFlight
+      }
     }
 
     if (this.passUnderFlight >= 0) {
@@ -6233,24 +6252,39 @@ export class GameScene extends Phaser.Scene {
       if (!def) {
         this.passUnderFlight = -1
       } else {
+        // 站在这一跑上（正在下楼）时，碰撞必须开着，不然人会从半截楼梯掉下去
+        const onThisFlight = standingFlight === this.passUnderFlight
         const lowX = def.from.x
         const highX = def.to.x
         const toHigh = Math.sign(highX - lowX) || 1
-        // 身体越过楼梯**高的那一头**（楼梯的高端离地 140，人在下面走不会碰到，所以到这儿就能解除），
-        // 或者从落地那侧走开 40 像素 —— 两种都算"这次穿过去用完了"。
-        // 用完就立刻恢复：这样从右边回到楼梯口时，往右走又能正常上楼（用户要的这个）
-        const passed =
-          toHigh > 0 ? body.left > highX - 2 : body.right < highX + 2
-        const walkedAway =
-          toHigh > 0 ? body.right < lowX - 40 : body.left > lowX + 40
-        const movedOn = standingFlight >= 0 && standingFlight !== this.passUnderFlight
+        // 「楼梯和身体一样高」的那一处：这一跑从 from.y 升到 to.y（高差 rise），
+        // 踏板高出地面正好等于史莱姆身高（body.height）的那个 x
+        const rise = def.from.y - def.to.y
+        const heightX = lowX + ((highX - lowX) * body.height) / rise
+        // 接触条件：人在地面上、已经走到这一跑口子外 30 像素以内（也就是往东走进口子）。
+        // 用户原话是"落地之后往右走 20 像素"——但自动上台阶在人走到口子前 18 像素
+        // （身体前沿碰到第一级踏面）就会把人抬上去，只等 20 像素就已经在楼梯上了，
+        // 所以点火点往前挪到"脚踩地面、刚够着口子外面"这一点
+        const atMouth = toHigh > 0 ? this.slime.x > lowX - 30 : this.slime.x < lowX + 30
+        const passedHeight =
+          toHigh > 0 ? this.slime.x > heightX : this.slime.x < heightX
+        const movedOn = standingFlight >= 0 && !onThisFlight
 
-        if (passed || walkedAway || movedOn) {
+        // 解除要在**地面上**走过那一处才算：从台面上下楼的时候，人会先从半层小平台
+        // 掉到这一跑的上端（腾空一两帧、x 已经在小平台上，远在那一处之外），
+        // 不加"已经落地"就会当场把效果用掉（下楼还没走到地面就没了）
+        const grounded = !onThisFlight && body.blocked.down
+
+        if (grounded && (passedHeight || movedOn)) {
           this.setFlightEnabled(this.passUnderFlight, true)
           this.passUnderFlight = -1
-        } else if (body.blocked.down && standingFlight !== this.passUnderFlight) {
-          // 必须**已经踩在地面上**才关：沿着下跑往下走的时候，一级到下一级之间会有一两帧腾空，
-          // 那一瞬间"脚下没有踏面"，要是就此关掉，人会直接从半截楼梯掉到地面（用户报的这条）
+          // 一趟用一次：清掉"获得"，要再穿一次得重新走上这一跑
+          //（脚底再次高过下端「身高 + 2」就算重新拿到）
+          this.passUnderGranted = false
+        } else if (grounded && atMouth) {
+          // 必须**已经踩在地面上**才关：沿着下跑往下走的时候，一级到下一级之间
+          // 会有一两帧腾空，那一瞬间"脚下没有踏面"，要是就此关掉，
+          // 人会直接从半截楼梯掉到地面（用户报过这条）
           this.setFlightEnabled(this.passUnderFlight, false)
         }
       }
