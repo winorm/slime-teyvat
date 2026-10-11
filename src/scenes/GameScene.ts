@@ -4874,13 +4874,6 @@ export class GameScene extends Phaser.Scene {
     wall.fillStyle(0xb8ae98, 1)
     wall.fillPoints([...above, wp(wallTopH, doorZ), wp(wallTopH, 0)], true)
 
-    // 门洞里面（能看见的那截洞壁）填成暗色 —— 这是背景，玩家走在它前面
-    wall.fillStyle(0x3a3630, 1)
-    wall.fillPoints(
-      [...above.slice().reverse(), wp(0, doorZ), wp(0, 0)],
-      true
-    )
-
     // ── 立体：墙有厚度（40），所以要看得到顶面、靠人这一头的端面、以及券的厚度 ──
     // 券石圈：同一圈画两遍 —— 靠人这一面（wallX−20）亮一点、里面那一面（wallX+20）暗一点，
     // 两圈错开的就是券的厚度
@@ -4896,10 +4889,11 @@ export class GameScene extends Phaser.Scene {
       }
       return pts
     }
-    wall.fillStyle(0x9a907c, 1)
-    wall.fillPoints(ringAt(wallX + wallT / 2, archR + 12, archR), true)   // 里面那面（暗）
+    // 只画**靠人这一面**的券石圈：里面那一面在墙的另一边，按透视根本看不见，不画
     wall.fillStyle(0xd3cbb8, 1)
-    wall.fillPoints(ringAt(wallX - wallT / 2, archR + 12, archR), true)   // 靠人这面（亮）
+    wall.fillPoints(ringAt(wallX - wallT / 2, archR + 12, archR), true)
+    wall.lineStyle(2, 0x8f8776, 1)
+    wall.strokePoints(ringAt(wallX - wallT / 2, archR + 12, archR), true)
     // 券门洞口的内边线（把拱的轮廓描出来，不要糊成一片）
     const donutIn: Phaser.Math.Vector2[] = []
     for (let i = 0; i <= 16; i++) {
@@ -4922,23 +4916,18 @@ export class GameScene extends Phaser.Scene {
     gateTop.fillRect(frameL.x, frameT.y, frameR.x - frameL.x, frameR.y - frameT.y)
     // 门洞**不填黑**：只画线条 —— 外框（洞口一圈）+ 内框（往里收一圈）+ 四条角线，
     // 这样门洞里能看见洞的进深，门框和洞壁都是用线描出来的，人也透得过去
-    const w = frameR.x - frameL.x
-    const hh = frameR.y - frameDoor.y
-    const inset = 6
+    // 门框只画**靠人这一面**：洞口三边（左、右、上）描一圈石框，线压在洞沿**外面**，
+    // 因为洞里那一块要被擦成透明的（RT 里静态擦掉），人从洞里过能看见背景和自己。
+    // 墙另一边的那个框按透视根本看不见，不画
+    const boxW = 3
 
-    gateTop.lineStyle(3, 0x6f6857, 1)
-    gateTop.strokeRect(frameL.x, frameDoor.y, w, hh)
-    gateTop.lineStyle(2, 0xa89f8a, 1)
-    gateTop.strokeRect(frameL.x + inset, frameDoor.y + inset, w - inset * 2, hh - inset)
-    // 四条角线把它们连起来（门口的进深）
-    gateTop.lineStyle(2, 0x8f8776, 1)
-    gateTop.lineBetween(frameL.x, frameDoor.y, frameL.x + inset, frameDoor.y + inset)
-    gateTop.lineBetween(frameR.x, frameDoor.y, frameR.x - inset, frameDoor.y + inset)
-    gateTop.lineBetween(frameL.x, frameR.y, frameL.x + inset, frameR.y - inset)
-    gateTop.lineBetween(frameR.x, frameR.y, frameR.x - inset, frameR.y - inset)
-    // 洞口上沿再压一条门楣线（不填色）
-    gateTop.lineStyle(4, 0xa89f8a, 1)
-    gateTop.lineBetween(frameL.x, frameDoor.y, frameR.x, frameDoor.y)
+    gateTop.fillStyle(0xa89f8a, 1)
+    gateTop.fillRect(frameL.x - boxW, frameDoor.y - boxW, frameR.x - frameL.x + boxW * 2, boxW) // 上框
+    gateTop.fillRect(frameL.x - boxW, frameDoor.y - boxW, boxW, frameR.y - frameDoor.y + boxW)   // 左框
+    gateTop.fillRect(frameR.x, frameDoor.y - boxW, boxW, frameR.y - frameDoor.y + boxW)          // 右框
+    // 洞口下沿（贴地那一条）也描一道，免得洞口和地面糊在一起
+    gateTop.fillStyle(0x8f8776, 1)
+    gateTop.fillRect(frameL.x - boxW, frameR.y - 3, frameR.x - frameL.x + boxW * 2, 3)
     // 墙的顶面（40 宽的一条，从近端铺到远端）—— 这一条最能让墙"站"起来
     wall.fillStyle(0xe6dfcd, 1)
     wall.fillPoints(
@@ -4966,6 +4955,13 @@ export class GameScene extends Phaser.Scene {
     gateTop.destroy()
 
     this.wallBox = { left: wallL, top: wallTp, width: 260, height: 330 }
+    // 门洞那块要静态擦成透明的：用一张 40x32 的白块贴图当"橡皮"
+    const doorHole = this.make.graphics({ x: 0, y: 0 }, false)
+
+    doorHole.fillStyle(0xffffff, 1)
+    doorHole.fillRect(0, 0, wallT, springH)
+    doorHole.generateTexture('terrace-doorhole', wallT, springH)
+    doorHole.destroy()
     this.wallRT = this.add
       .renderTexture(this.wallBox.left, this.wallBox.top, this.wallBox.width, this.wallBox.height)
       .setOrigin(0, 0)
@@ -6756,6 +6752,9 @@ export class GameScene extends Phaser.Scene {
 
     wallRT.clear()
     wallRT.stamp('terrace-gatetop-art', undefined, 0, 0, { originX: 0, originY: 0 })
+    // 门洞那一块**静态擦掉**（洞是透的：能看见背景、也能看见走过去的史莱姆）。
+    // 坐标是"画框内"的：x = 3430-3270 = 160、y = 848-600 = 248
+    wallRT.erase('terrace-doorhole', 160, 248)
     wallRT.erase('reveal-blob', px - left, py - top)
     wallRT.render()
 
