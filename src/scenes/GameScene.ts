@@ -4916,14 +4916,38 @@ export class GameScene extends Phaser.Scene {
       wpX(wallX + wallT / 2, 0, doorZ).x,
       wpX(wallX + wallT / 2, 0, doorZ).y
     )
-    // 券门洞口的内边线（把拱的轮廓描出来，不要糊成一片）
-    const donutIn: Phaser.Math.Vector2[] = []
+    // ── 隧道的**内壁**：两端各一条券线，中间填内壁色 ──
+    // 近端券线在 x=3430（靠人这一面）、远端券线在 x=3470（另一头，也就是"另一端"）。
+    // 两条之间的那一壳就是拱顶内壁；再加上远端那面竖壁（z=doorZ 那个截面），
+    // 门洞的厚度和内壁颜色就都出来了
+    const nearArc: Phaser.Math.Vector2[] = []
+    const farArc: Phaser.Math.Vector2[] = []
+
     for (let i = 0; i <= 16; i++) {
       const p = arcPt(i / 16, archR)
-      donutIn.push(wp(p.h, p.z))
+      nearArc.push(wpX(wallX - wallT / 2, p.h, p.z))
+      farArc.push(wpX(wallX + wallT / 2, p.h, p.z))
     }
+
+    // 拱顶内壁（两条券线之间的壳）
+    wall.fillStyle(0x8a8272, 1)
+    wall.fillPoints([...nearArc, ...farArc.slice().reverse()], true)
+    // 远端那面竖壁（z=doorZ，x 3430~3470，高 0~springH）—— 门洞里边正对镜头的那面墙
+    wall.fillStyle(0x7d7666, 1)
+    wall.fillPoints(
+      [
+        wpX(wallX - wallT / 2, 0, doorZ),
+        wpX(wallX + wallT / 2, 0, doorZ),
+        wpX(wallX + wallT / 2, springH, doorZ),
+        wpX(wallX - wallT / 2, springH, doorZ),
+      ],
+      true
+    )
+    // 两端券线各描一道：近端深、远端浅（浅的那条就是"另一端的弧线"）
     wall.lineStyle(3, 0x6f6857, 1)
-    wall.strokePoints(donutIn, false)
+    wall.strokePoints(nearArc, false)
+    wall.lineStyle(3, 0x9a907c, 1)
+    wall.strokePoints(farArc, false)
 
     // ── 要挡人的那块：**墙靠人这一头的端面**（z=0 那个截面）──
     // 整块从**地面**（离地 0）画到墙顶（离地 250），所以它的墙脚正好踩在 880 那条线上；
