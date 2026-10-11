@@ -4828,10 +4828,11 @@ export class GameScene extends Phaser.Scene {
     const apexH = springH + archR  // 券顶（68 + 65 = 133）
     const wallTopH = 250       // 墙高（券顶上面还留一截，放门额）
     const wallT = 100          // 墙厚：穿过门洞要有 100 像素的行程，"挡一下"才演得出来
-    // 整面墙先画在一张离屏 Graphics 上（坐标用"画框内的局部坐标"），再生成贴图；
-    // 之后每一帧盖进 RenderTexture、并在史莱姆身上擦一个透视洞（和栏杆同一套做法）
-    const wallL = 3280
-    const wallTp = 595
+    // 只有"门上方那块墙"最后要变成一张贴图（盖进 RenderTexture、擦透视洞），
+    // 所以它需要"画框内的局部坐标"；墙上其余部分直接画在场景里，用世界坐标。
+    // 画框要能装下整面墙：x 3270~3530、y 600~930
+    const wallL = 3270
+    const wallTp = 600
     const wall = this.add.graphics()
     // 只有"门上方那块墙"要挡人（而且是挡史莱姆当前图层里的那个人），所以它单独画一张图，
     // 盖到玩家前面去；墙上其余的部分（往远处退的墙面、压顶、墙裙、线脚、门额、洞里的暗色）
@@ -4843,8 +4844,14 @@ export class GameScene extends Phaser.Scene {
     // 围栏用的是同一个函数 —— 墙就站在那条线上，不许自己往下沉。
     // 所有贴着墙面的东西都画在**近面**（wallX − 墙厚/2）上，端面、券石圈再各自按近/远两面算
     const wpX = (x0: number, h: number, z: number) =>
-      new Phaser.Math.Vector2(xAt(x0, z) - wallL, yOf(z) - h * sOf(z) - wallTp)
+      new Phaser.Math.Vector2(xAt(x0, z), yOf(z) - h * sOf(z))
     const wp = (h: number, z: number) => wpX(wallX - wallT / 2, h, z)
+    // 门楣那块用的局部坐标（画框内）
+    const gpX = (x0: number, h: number, z: number) => {
+      const p = wpX(x0, h, z)
+
+      return new Phaser.Math.Vector2(p.x - wallL, p.y - wallTp)
+    }
     const quad = (h0: number, h1: number, z0: number, z1: number, color: number) => {
       wall.fillStyle(color, 1)
       wall.fillPoints([wp(h0, z0), wp(h0, z1), wp(h1, z1), wp(h1, z0)], true)
@@ -4900,10 +4907,10 @@ export class GameScene extends Phaser.Scene {
     gateTop.fillStyle(0xc6bda9, 1)
     gateTop.fillPoints(
       [
-        wpX(wallX - wallT / 2, springH, 0),
-        wpX(wallX + wallT / 2, springH, 0),
-        wpX(wallX + wallT / 2, wallTopH, 0),
-        wpX(wallX - wallT / 2, wallTopH, 0),
+        gpX(wallX - wallT / 2, springH, 0),
+        gpX(wallX + wallT / 2, springH, 0),
+        gpX(wallX + wallT / 2, wallTopH, 0),
+        gpX(wallX - wallT / 2, wallTopH, 0),
       ],
       true
     )
@@ -4911,10 +4918,10 @@ export class GameScene extends Phaser.Scene {
     gateTop.fillStyle(0xa89f8a, 1)
     gateTop.fillPoints(
       [
-        wpX(wallX - wallT / 2, springH, 0),
-        wpX(wallX + wallT / 2, springH, 0),
-        wpX(wallX + wallT / 2, springH + 12, 0),
-        wpX(wallX - wallT / 2, springH + 12, 0),
+        gpX(wallX - wallT / 2, springH, 0),
+        gpX(wallX + wallT / 2, springH, 0),
+        gpX(wallX + wallT / 2, springH + 12, 0),
+        gpX(wallX - wallT / 2, springH + 12, 0),
       ],
       true
     )
@@ -4941,10 +4948,10 @@ export class GameScene extends Phaser.Scene {
     wall.setDepth(0.55)
 
     // "门上方那块墙"生成一张贴图，盖到玩家前面那一层，并在史莱姆身上擦一个透视洞
-    gateTop.generateTexture('terrace-gatetop-art', 200, 320)
+    gateTop.generateTexture('terrace-gatetop-art', 260, 330)
     gateTop.destroy()
 
-    this.wallBox = { left: wallL, top: wallTp, width: 200, height: 320 }
+    this.wallBox = { left: wallL, top: wallTp, width: 260, height: 330 }
     this.wallRT = this.add
       .renderTexture(this.wallBox.left, this.wallBox.top, this.wallBox.width, this.wallBox.height)
       .setOrigin(0, 0)
