@@ -4962,56 +4962,51 @@ export class BootScene extends Phaser.Scene {
 
     // ③ 中间的拱门（玩家从请仙典仪那边穿过它进右边的连廊）：
     //    背面一层 = 台基、拱顶、匾额、琉璃顶 + **左边两根门柱**（depth 5，在史莱姆后面）；
-    //    正面一张 = **右边两根门柱**（depth 13，画在史莱姆前面）—— 和港口牌楼一个做法：
-    //    人从门洞走过去时，左边两根在后面、右边两根挡在人前面
+    //    这座门是个**长方体**：同一座门画两遍 —— 背面那遍小一点、暗一点（摆 z=120），
+    //    正面那遍大一点、亮一点（摆 z=0）。两张一叠就是"有进深的门"（和牌楼一个做法）。
+    //    两张图的画法完全一样，只有颜色不同，所以这里共用一段画法
+    const gateArt = (
+      gfx: Phaser.GameObjects.Graphics,
+      wood: number,
+      woodDark: number,
+      base: number
+    ) => {
+      // 两根门柱 + 柱础（门洞底下不铺，免得人过门时脚下多一道坎）
+      ;[40, 156].forEach((x) => {
+        gfx.fillStyle(base, 1)
+        gfx.fillRect(x - 4, 150, 32, 18)
+        gfx.fillStyle(wood, 1)
+        gfx.fillRect(x, 44, 24, 106)
+        gfx.fillStyle(woodDark, 1)
+        gfx.fillRect(x + 20, 44, 4, 106)
+        gfx.fillStyle(GOLD, 1)
+        gfx.fillRect(x, 140, 24, 5)
+      })
+      // 拱顶（连到两根柱头）+ 金边
+      gfx.fillStyle(woodDark, 1)
+      gfx.fillRect(30, 30, 160, 16)
+      gfx.fillStyle(wood, 1)
+      gfx.fillRect(30, 30, 160, 10)
+      gfx.fillStyle(GOLD, 1)
+      gfx.fillRect(30, 30, 160, 3)
+      // 匾额
+      gfx.fillStyle(GOLD, 1)
+      gfx.fillRect(88, 34, 44, 14)
+      gfx.fillStyle(INK, 1)
+      gfx.fillRect(91, 37, 38, 8)
+      // 琉璃顶（和台面上的房子同一套，只是小一号）
+      glazedRoof(gfx, 110, 30, 100, 18)
+    }
+
     const arch = this.add.graphics()
 
-    // 台基（只垫在左边那两根门柱下面，门洞底下不铺 —— 不然人过门时脚下多一道坎）
-    arch.fillStyle(STONE_DARK, 1)
-    arch.fillRect(27, 190, 72, 20)
-    arch.fillStyle(STONE, 1)
-    arch.fillRect(27, 190, 72, 4)
-    // 左边两根门柱
-    ;[34, 92].forEach((x) => {
-      arch.fillStyle(WOOD, 1)
-      arch.fillRect(x - 7, 92, 14, 98)
-      arch.fillStyle(WOOD_DARK, 1)
-      arch.fillRect(x + 3, 92, 4, 98)
-      arch.fillStyle(GOLD, 1)
-      arch.fillRect(x - 9, 182, 18, 8)
-    })
-    // 拱顶（连到左右柱头）+ 金边
-    arch.fillStyle(WOOD_DARK, 1)
-    arch.fillRect(12, 76, 196, 16)
-    arch.fillStyle(WOOD, 1)
-    arch.fillRect(12, 76, 196, 10)
-    arch.fillStyle(GOLD, 1)
-    arch.fillRect(12, 76, 196, 3)
-    // 匾额
-    arch.fillStyle(GOLD, 1)
-    arch.fillRect(84, 80, 52, 16)
-    arch.fillStyle(INK, 1)
-    arch.fillRect(87, 83, 46, 10)
-    // 琉璃顶
-    glazedRoof(arch, 110, 76, 104, 18)
-
-    arch.generateTexture('terrace-arch', 220, 210)
+    gateArt(arch, WOOD, WOOD_DARK, STONE_DARK)
+    arch.generateTexture('terrace-arch', 220, 176)
     arch.destroy()
 
-    // 前面那层：右边两根柱子（亮一档，看着更近）
     const archFront = this.add.graphics()
 
-    ;[128, 186].forEach((x) => {
-      archFront.fillStyle(STONE_MID, 1)
-      archFront.fillRect(x - 9, 158, 18, 18)
-      archFront.fillStyle(WOOD_LIGHT, 1)
-      archFront.fillRect(x - 8, 52, 16, 106)
-      archFront.fillStyle(WOOD_DARK, 1)
-      archFront.fillRect(x + 5, 52, 3, 106)
-      archFront.fillStyle(GOLD, 1)
-      archFront.fillRect(x - 10, 150, 20, 8)
-    })
-
+    gateArt(archFront, WOOD_LIGHT, WOOD_DARK, STONE_MID)
     archFront.generateTexture('terrace-arch-front', 220, 176)
     archFront.destroy()
   }
