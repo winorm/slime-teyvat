@@ -5440,6 +5440,28 @@ export class GameScene extends Phaser.Scene {
       surf.fillStyle(0x3a3228, 0.28 - i * 0.042)
       surf.fillRect(baseL, baseY + i * 3, baseW, 3)
     }
+
+    // ⑨ 玉京台的匾额：进、出各一座，立在台面走线上 ——
+    //    进 = 左楼梯爬上来的地方（2700），出 = 右楼梯下去的地方（4230）。
+    //    匾额是可以穿过去的（不挡人），所以**靠镜头这一侧的右柱单独盖到玩家前面**
+    //    （用户定的规矩，和港口的牌楼一样）；「玉京台」三个字是 Text 叠上去的
+    const gateScale = 0.8
+    const gatePlaqueY = 91                  // 匾心在贴图里离底边多高
+
+    ;[2700, 4230].forEach((gateX) => {
+      this.add.image(gateX, top, 'terrace-gate').setOrigin(0.5, 1).setScale(gateScale).setDepth(0.6)
+      this.add.image(gateX, top, 'terrace-gate-front').setOrigin(0.5, 1).setScale(gateScale).setDepth(12)
+
+      this.add
+        .text(gateX, top - gatePlaqueY * gateScale, '玉京台', {
+          fontFamily: 'sans-serif',
+          fontSize: '13px',
+          color: '#ffe9a8',
+        })
+        .setOrigin(0.5)
+        .setScale(gateScale)
+        .setDepth(0.61)
+    })
   }
 
   private buildGuards() {

@@ -167,6 +167,7 @@ export class BootScene extends Phaser.Scene {
     this.makeHarborProps()
     this.makeTerraceHouses()
     this.makeTerracePlaza()
+    this.makeTerraceGate()
     this.makeRiteProps()
     this.makeSlimeShadow()
     this.makeTerracePaving()
@@ -5282,6 +5283,97 @@ export class BootScene extends Phaser.Scene {
 
     servant.generateTexture('npc-attendant', 32, 44)
     servant.destroy()
+  }
+
+  // ── 玉京台的匾额（132x118）：进、出各立一座 ────────────────────────
+  //   石柱 + 柱础 + 横枋 + 金框玉匾，顶上压一道玉瓦檐。
+  //   匾心里的「玉京台」三个字**不画进贴图**，由 GameScene 用 Text 叠上去 ——
+  //   以后想换字、换字体不用重画这张图
+  private makeTerraceGate() {
+    const TILE = 0x2f7f6a
+    const TILE_LIGHT = 0x54b09a
+    const STONE = 0xd3cbb8
+    const STONE_MID = 0xb8ae98
+    const STONE_DARK = 0x8f8570
+    const STONE_DEEP = 0x6f6857
+    const GOLD = 0xd9a441
+    const GOLD_LIGHT = 0xf0d07a
+    const JADE = 0x3f9b86
+
+    const gate = this.add.graphics()
+
+    // 玉瓦檐 + 檐口
+    gate.fillStyle(TILE, 1)
+    gate.fillRect(24, 0, 84, 9)
+    gate.fillStyle(TILE_LIGHT, 1)
+    gate.fillRect(24, 0, 84, 3)
+    gate.fillStyle(STONE_DARK, 1)
+    gate.fillRect(18, 9, 96, 3)
+
+    // 匾：金框 + 玉面（字留白）
+    gate.fillStyle(GOLD, 1)
+    gate.fillRect(34, 12, 64, 30)
+    gate.fillStyle(TILE, 1)
+    gate.fillRect(37, 15, 58, 24)
+    gate.fillStyle(JADE, 1)
+    gate.fillRect(39, 17, 54, 20)
+    // 四角金钉
+    gate.fillStyle(GOLD_LIGHT, 1)
+    ;[
+      [41, 19],
+      [91, 19],
+      [41, 35],
+      [91, 35],
+    ].forEach(([x, y]) => gate.fillCircle(x, y, 1.6))
+
+    // 横枋
+    gate.fillStyle(STONE_DARK, 1)
+    gate.fillRect(4, 42, 124, 12)
+    gate.fillStyle(STONE, 1)
+    gate.fillRect(4, 42, 124, 3)
+    gate.fillStyle(STONE_DEEP, 1)
+    gate.fillRect(4, 51, 124, 3)
+
+    // 两根石柱：左边一条亮边、右边一条深边，柱子才立得住。
+    // 靠镜头这一侧的右柱要**单独出一张贴图**、盖到玩家前面去（用户定的规矩：
+    // 牌楼要是能穿过去，右边那根柱子就得压在史莱姆上面），所以这里也画一份 front
+    const pillar = (g: Phaser.GameObjects.Graphics, x: number) => {
+      g.fillStyle(STONE_MID, 1)
+      g.fillRect(x, 54, 16, 54)
+      g.fillStyle(STONE, 1)
+      g.fillRect(x, 54, 3, 54)
+      g.fillStyle(STONE_DEEP, 1)
+      g.fillRect(x + 13, 54, 3, 54)
+    }
+
+    const base = (g: Phaser.GameObjects.Graphics, x: number) => {
+      g.fillStyle(STONE_DARK, 1)
+      g.fillRect(x, 104, 28, 14)
+      g.fillStyle(STONE, 1)
+      g.fillRect(x, 104, 28, 3)
+      g.fillStyle(STONE_DEEP, 1)
+      g.fillRect(x, 115, 28, 3)
+    }
+
+    ;[16, 100].forEach((x) => {
+      pillar(gate, x)
+    })
+
+    ;[10, 94].forEach((x) => {
+      base(gate, x)
+    })
+
+    gate.generateTexture('terrace-gate', 132, 118)
+    gate.destroy()
+
+    // 只画右柱（连柱础），尺寸和上面那张一样 —— 摆的时候 x/y 用同一个数就自动对齐
+    const front = this.add.graphics()
+
+    pillar(front, 100)
+    base(front, 94)
+
+    front.generateTexture('terrace-gate-front', 132, 118)
+    front.destroy()
   }
 
   // ── 第八关「请仙典仪」那场戏用的五样东西（2026/10/11）─────────────
