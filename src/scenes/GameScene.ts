@@ -1312,6 +1312,11 @@ export class GameScene extends Phaser.Scene {
   private plazaAltar: Phaser.GameObjects.Image | null = null
   private plazaOffering: Phaser.GameObjects.Image | null = null
   private plazaDragonWreck: Phaser.GameObjects.Image | null = null
+  // 观礼之前把券门整堵封上的那块实体（演完就拆，只剩门楣挡人）
+  private terraceSeal: Phaser.Physics.Arcade.Sprite | null = null
+  // 那道墙的世界 x（封着的时候走到跟前给一句提示）
+  private plazaWallX: number | null = null
+  private sealHintTimer = 0
   // 砸烂祭坛要用的几个数（祭坛在屏幕上的位置 / 大小 / 层数）
   private plazaBreak: { x: number; y: number; scale: number; depth: number } | null = null
   // 戏里临时加的东西：风旋、云、头顶那串感叹号
@@ -1570,6 +1575,9 @@ export class GameScene extends Phaser.Scene {
     this.plazaAltar = null
     this.plazaOffering = null
     this.plazaDragonWreck = null
+    this.terraceSeal = null
+    this.plazaWallX = null
+    this.sealHintTimer = 0
     this.plazaBreak = null
     this.riteVortex = null
     this.riteClouds = []
@@ -4366,6 +4374,37 @@ export class GameScene extends Phaser.Scene {
     return !hit
   }
 
+  // 观礼之前封着的那道墙：雷闪平时能穿障碍，唯独这一道不许穿过去 ——
+  // 沿着闪的轨迹一米一米地比一下，只要中途和封门那块实体碰上就算穿不过去
+  private blinkSealedBlocked(dirX: number, dirY: number) {
+    const seal = this.terraceSeal
+
+    if (!seal) {
+      return false
+    }
+
+    const sealBody = seal.body as Phaser.Physics.Arcade.StaticBody
+    const body = this.slime.body as Phaser.Physics.Arcade.Body
+    const halfW = body.halfWidth
+    const halfH = body.halfHeight
+
+    for (let t = 0.15; t <= 1.001; t += 0.05) {
+      const cx = this.slime.x + dirX * BLINK_DIST * t
+      const cy = this.slime.y + dirY * BLINK_DIST * t
+
+      if (
+        cx - halfW < sealBody.right &&
+        cx + halfW > sealBody.left &&
+        cy - halfH < sealBody.bottom &&
+        cy + halfH > sealBody.top
+      ) {
+        return true
+      }
+    }
+
+    return false
+  }
+
   private castBlink(dirX: number, dirY: number) {
     if (this.blinkLockout > 0) {
       return
@@ -4373,6 +4412,11 @@ export class GameScene extends Phaser.Scene {
 
     if (this.blinkCharges <= 0) {
       this.showMessage('雷闪还没充好')
+      return
+    }
+
+    if (this.blinkSealedBlocked(dirX, dirY)) {
+      this.showMessage('券门还没开，闪不过去')
       return
     }
 
@@ -4870,6 +4914,7 @@ export class GameScene extends Phaser.Scene {
     //    靠人这一头开着拱门（门就是墙上的洞，人从洞里过去）。墙的远近同样按投影收：
     //    近端 3450、远端 xAt(3450, 500)=3307，顶边也跟着降（210 → 135）
     const wallX = 3450
+    this.plazaWallX = wallX
     const doorZ = 130          // 券门的洞宽（沿着墙的进深方向）
     // 门洞净高：**从地面往上量**。史莱姆体型 26，这里给 32 ——
     // 门楣正好擦着头顶过去，跳起来就被"门上方那块墙"挡住
@@ -5087,6 +5132,25 @@ export class GameScene extends Phaser.Scene {
     gateBody.setDisplaySize(wallT, wallTopH - springH)
     gateBody.setVisible(false)
     gateBody.refreshBody()
+
+    // ⑤ 观礼之前的**封门**：请仙典仪还没演，券门就是不通的 ——
+    //    从地面（880）一直堵到墙顶上面一大截（240）：跳、风元素滑翔、摞岩柱
+    //    都翻不过去（墙上头那截是看不见的，纯保险）；
+    //    雷闪那套"能穿障碍"也在 blinkSealedBlocked 里单独挡了。
+    //    看完那场戏（endRite）把这块拆掉，只剩门楣那块挡人，券门才真正通
+    if (!this.riteSeen) {
+      const sealHeight = 640
+      const sealed = this.platforms.create(
+        wallX,
+        top - sealHeight / 2,
+        'pixel'
+      ) as Phaser.Physics.Arcade.Sprite
+
+      sealed.setDisplaySize(wallT, sealHeight)
+      sealed.setVisible(false)
+      sealed.refreshBody()
+      this.terraceSeal = sealed
+    }
 
     // ⑥ 站在台面上的东西：只写"世界 x + 深度 z"，屏幕位置/大小/层数全由上面三个函数给
     const seat = (x0: number, z: number, key: string, flip = false, lift = 0) => {
@@ -7894,6 +7958,12 @@ export class GameScene extends Phaser.Scene {
     })
     this.riteClouds = []
 
+    // 券门开了：把封门那块实体拆掉（门楣那块还留着，跳起来照样被顶住）
+    if (this.terraceSeal) {
+      this.platforms.remove(this.terraceSeal, true, true)
+      this.terraceSeal = null
+    }
+
     camera.zoomTo(1, 380, 'Sine.easeInOut')
     camera.startFollow(this.slime, true, 0.12, 0.12)
     // startFollow 会把跟随偏移清成 0，这里按台面高度把镜头抬回去
@@ -9905,6 +9975,23 @@ export class GameScene extends Phaser.Scene {
           chaseBody.setVelocityX(this.chaseDef.speed)
         }
       }
+    }
+
+    // 券门还封着的时候，走到墙跟前就提醒一句 —— 别让人对着一堵看不见的墙发懵
+    if (this.sealHintTimer > 0) {
+      this.sealHintTimer -= dt
+    }
+
+    if (
+      !this.riteDone &&
+      this.plazaWallX !== null &&
+      !this.inputLocked &&
+      this.sealHintTimer <= 0 &&
+      this.slime.x > this.plazaWallX - 78 &&
+      this.slime.x < this.plazaWallX
+    ) {
+      this.sealHintTimer = 6
+      this.showMessage('券门还封着 —— 先去左边的广场观礼')
     }
 
     // 追击小队：走过触发线就演出一段、然后原地生成千岩军。
