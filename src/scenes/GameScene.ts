@@ -1052,9 +1052,8 @@ export class GameScene extends Phaser.Scene {
   private revealRailRT: Phaser.GameObjects.RenderTexture | null = null
   private revealRailBox = { left: 0, top: 0, width: 0, height: 0 }
   private revealRailDrawn = { x: -99999, y: -99999 }
-  // 玉京台那道隔断墙（连券门）：整面盖在玩家前面那一层，每帧在史莱姆身上擦一个透视洞
+  // 玉京台券门"门上方那块墙"：盖在玩家前面那一层，每帧在史莱姆身上擦一个透视洞
   private wallRT: Phaser.GameObjects.RenderTexture | null = null
-  private archRT: Phaser.GameObjects.RenderTexture | null = null
   private wallBox = { left: 0, top: 0, width: 0, height: 0 }
   private wallDrawn = { x: -99999, y: -99999 }
   // 玉京台那种折返楼梯：踩上去翻层的半层小平台（`PlatformDef.layerFlip`），
@@ -4832,8 +4831,10 @@ export class GameScene extends Phaser.Scene {
     const wallL = 3280
     const wallTp = 595
     const wall = this.add.graphics()
-    // 券门那一半（靠镜头这一侧的洞壁 + 券石圈）单独画在第二张图上 —— 它要带透视洞
-    const arch = this.add.graphics()
+    // 只有"门上方那块墙"要挡人（而且是挡史莱姆当前图层里的那个人），所以它单独画一张图，
+    // 盖到玩家前面去；墙上其余的部分（往远处退的墙面、压顶、墙裙、线脚、门额、洞里的暗色）
+    // 都只是背景画面，直接画在场景里就行
+    const gateTop = this.add.graphics()
 
     // 墙面上任一点：世界高度 h、深度 z → 屏幕（和台面用的是同一套投影）
     // baseDrop：墙立得比玩家那条线**更靠近镜头**，所以它的墙脚要画到地面线以下
@@ -4861,12 +4862,12 @@ export class GameScene extends Phaser.Scene {
       above.push(wp(p.h, p.z))
     }
     wall.fillStyle(0xb8ae98, 1)
-    wall.fillPoints([...above, wp(wallTopH, doorZ), wp(wallTopH, 0)], true)
+    gateTop.fillStyle(0xb8ae98, 1)
+    gateTop.fillPoints([...above, wp(wallTopH, doorZ), wp(wallTopH, 0)], true)
 
-    // 门洞里面（能看见的那截洞壁）填成暗色，"挡住玩家"的就是这一块；
-    // 它和靠镜头这半边的券石圈一起画在第二张图上，那张图会擦一个透视洞
-    arch.fillStyle(0x3a3630, 1)
-    arch.fillPoints(
+    // 门洞里面（能看见的那截洞壁）填成暗色 —— 这是背景，玩家走在它前面
+    wall.fillStyle(0x3a3630, 1)
+    wall.fillPoints(
       [...above.slice().reverse(), wp(0, doorZ), wp(0, 0)],
       true
     )
@@ -4888,11 +4889,11 @@ export class GameScene extends Phaser.Scene {
     }
     wall.fillStyle(0x9a907c, 1)
     wall.fillPoints(ringAt(wallX + wallT / 2, archR + 12, archR), true)   // 里面那面（暗，留在墙上）
-    arch.fillStyle(0xd3cbb8, 1)
-    arch.fillPoints(ringAt(wallX - wallT / 2, archR + 12, archR), true)   // 靠人这面（亮，带透视）
+    gateTop.fillStyle(0xd3cbb8, 1)
+    gateTop.fillPoints(ringAt(wallX - wallT / 2, archR + 12, archR), true) // 靠人这面（亮，带透视）
     // 靠人这一头的端面（z=0）：券门上方那截 —— 墙在这里"断"出一个厚度
-    wall.fillStyle(0xc6bda9, 1)
-    wall.fillPoints(
+    gateTop.fillStyle(0xc6bda9, 1)
+    gateTop.fillPoints(
       [
         wpX(wallX - wallT / 2, springH, 0),
         wpX(wallX + wallT / 2, springH, 0),
@@ -4920,23 +4921,18 @@ export class GameScene extends Phaser.Scene {
     // 门额：券顶上面一块匾
     quad(apexH + 18, apexH + 52, 24, doorZ - 24, 0xd9a441)
 
-    // 两张图各自生成贴图，再各盖一层 RenderTexture 到**玩家前面**：
-    //   墙 12.5：不擦洞 —— 它是真的挡住人（脚还伸到地面线以下）
-    //   券门 12.6：擦洞 —— 靠镜头这半边的洞壁和券石圈是透视的，人走到门洞里能看见自己
-    wall.generateTexture('terrace-wall-art', 200, 320)
-    wall.destroy()
-    arch.generateTexture('terrace-arch-art', 200, 320)
-    arch.destroy()
+    // 墙身上其余的部分：就这样当背景画着（玩家走在它前面）
+    wall.setDepth(0.55)
+
+    // "门上方那块墙"生成一张贴图，盖到玩家前面那一层，并在史莱姆身上擦一个透视洞
+    gateTop.generateTexture('terrace-gatetop-art', 200, 320)
+    gateTop.destroy()
 
     this.wallBox = { left: wallL, top: wallTp, width: 200, height: 320 }
     this.wallRT = this.add
       .renderTexture(this.wallBox.left, this.wallBox.top, this.wallBox.width, this.wallBox.height)
       .setOrigin(0, 0)
       .setDepth(12.5)
-    this.archRT = this.add
-      .renderTexture(this.wallBox.left, this.wallBox.top, this.wallBox.width, this.wallBox.height)
-      .setOrigin(0, 0)
-      .setDepth(12.6)
     this.wallDrawn = { x: -99999, y: -99999 }
 
     // ⑥ 站在台面上的东西：只写"世界 x + 深度 z"，屏幕位置/大小/层数全由上面三个函数给
@@ -6138,6 +6134,8 @@ export class GameScene extends Phaser.Scene {
 
     // 头顶那盘菜跟着人换层，不然走到树后面它还飘在树前
     this.carriedDish?.setDepth(back ? 1.35 : 11.5)
+    // 券门上方那块墙也跟着换层：它挡的必须是"史莱姆当前图层"里的那个人
+    this.wallRT?.setDepth(back ? 1.35 : 12.5)
 
     // 压力板也换：树后层要把板子沉到史莱姆后面，否则人站在板子上会被板子盖住脚
     this.plateList.forEach((item) =>
@@ -6701,12 +6699,11 @@ export class GameScene extends Phaser.Scene {
       .setDepth(12)
   }
 
-  // 隔断墙（12.5，不擦洞，真的挡人）+ 券门靠镜头那半边（12.6，擦一个透视洞）
+  // 门上方那块墙：盖到玩家前面，再在史莱姆身上擦一个透视洞
   private updateWall() {
     const wallRT = this.wallRT
-    const archRT = this.archRT
 
-    if (!wallRT || !archRT) {
+    if (!wallRT) {
       return
     }
 
@@ -6721,13 +6718,9 @@ export class GameScene extends Phaser.Scene {
     const { left, top } = this.wallBox
 
     wallRT.clear()
-    wallRT.stamp('terrace-wall-art', undefined, 0, 0, { originX: 0, originY: 0 })
+    wallRT.stamp('terrace-gatetop-art', undefined, 0, 0, { originX: 0, originY: 0 })
+    wallRT.erase('reveal-blob', px - left, py - top)
     wallRT.render()
-
-    archRT.clear()
-    archRT.stamp('terrace-arch-art', undefined, 0, 0, { originX: 0, originY: 0 })
-    archRT.erase('reveal-blob', px - left, py - top)
-    archRT.render()
 
     this.wallDrawn = { x: px, y: py }
   }
