@@ -8056,11 +8056,20 @@ export class GameScene extends Phaser.Scene {
     // 折返楼梯的换层（站在哪一跑上 / 踩到半层小平台）
     this.updateStairLayers(body)
 
-    // 高台关卡：上楼之后镜头往上偏一点，把史莱姆放到画面下半部分
+    // 高台关卡：上楼之后镜头往上偏一点，把史莱姆放到画面下半部分。
+    // 用回差（band）判断：脚底高过 y 才抬起、落回 y+band 以下才放下 ——
+    // 不然人站在半层平台那一带、脚底在临界高度上下晃时，镜头会跟着一抬一放地抖
     const lift = this.level.cameraLift
 
     if (lift) {
-      const want = body.bottom < lift.y ? lift.offset : 0
+      const lifted = this.cameraLiftNow === lift.offset
+      const want = lifted
+        ? body.bottom < lift.y + lift.band
+          ? lift.offset
+          : 0
+        : body.bottom < lift.y
+          ? lift.offset
+          : 0
 
       if (want !== this.cameraLiftNow) {
         this.cameraLiftNow = want
