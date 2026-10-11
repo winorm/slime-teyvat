@@ -5582,34 +5582,67 @@ export class BootScene extends Phaser.Scene {
       paintHead(g, neck.p.x + fx * 14, neck.p.y + fy * 14, fx, fy, -fy, fx, shut)
     }
 
-    // ① 风旋（96x96）：几圈由粗到细的螺旋弧
+    // ① 风旋（128x128）：一条从里到外由细到粗、越转越开的螺旋。
+    //    每一段都描两遍 —— 先一道深色（在亮天空上给出轮廓，用户要的"加黑"），
+    //    再压一道由浅青到深青的螺旋带；段与段在角度上互相压着，连起来才是一条整螺旋，
+    //    不是一圈圈分开的弧（用户要的"精细一点"）
     const vortex = this.add.graphics()
+    const TURNS = 44
+    const vortexArc = (i: number) => {
+      const t = i / (TURNS - 1)
 
-    for (let i = 0; i < 24; i++) {
-      const t = i / 23
-      const r = 5 + t * 40
-      const a0 = t * Math.PI * 3.4
+      return { t, r: 6 + t * 46, a0: t * Math.PI * 4.6, width: 8.6 - t * 6 }
+    }
 
-      vortex.lineStyle(7 - t * 5.4, 0xeaf7ff, 0.9 - t * 0.55)
+    for (let i = 0; i < TURNS; i++) {
+      const { r, a0, width } = vortexArc(i)
+
+      vortex.lineStyle(width + 2.4, 0x1d3b4c, 0.5)
       vortex.beginPath()
-      vortex.arc(48, 48, r, a0, a0 + Math.PI * 0.8)
+      vortex.arc(64, 64, r, a0, a0 + Math.PI * 0.62)
       vortex.strokePath()
     }
 
-    vortex.generateTexture('wind-vortex', 96, 96)
+    for (let i = 0; i < TURNS; i++) {
+      const { t, r, a0, width } = vortexArc(i)
+
+      vortex.lineStyle(width, this.mixColor(0xcfeef6, 0x2f6f8f, t), 0.95 - t * 0.2)
+      vortex.beginPath()
+      vortex.arc(64, 64, r, a0, a0 + Math.PI * 0.62)
+      vortex.strokePath()
+    }
+
+    // 旋心再点一小团，看着是有东西在里头转
+    vortex.fillStyle(0x1d3b4c, 0.75)
+    vortex.fillCircle(64, 64, 3.4)
+    vortex.fillStyle(0xeaf7ff, 0.9)
+    vortex.fillCircle(64, 64, 1.6)
+
+    vortex.generateTexture('wind-vortex', 128, 128)
     vortex.destroy()
 
-    // ② 云朵（72x30）：一垛软云
+    // ② 云朵（140x44）：五团互相压着的软云 —— 底下先铺一层偏灰的阴影面，
+    //    上面压云体、再点两处高光。左右拉到 140 宽（用户要的"变宽、重叠"），
+    //    摆到场上三朵再互相叠一叠
     const cloud = this.add.graphics()
 
-    cloud.fillStyle(0xf3f7fb, 0.95)
-    cloud.fillEllipse(20, 19, 34, 17)
-    cloud.fillEllipse(40, 15, 42, 22)
-    cloud.fillEllipse(56, 20, 28, 14)
-    cloud.fillStyle(0xffffff, 0.8)
-    cloud.fillEllipse(38, 12, 28, 12)
+    // 阴影面（比云体低一点、偏灰蓝）
+    cloud.fillStyle(0xc2d2df, 0.92)
+    cloud.fillEllipse(34, 32, 60, 20)
+    cloud.fillEllipse(72, 30, 76, 24)
+    cloud.fillEllipse(108, 33, 56, 18)
+    // 云体
+    cloud.fillStyle(0xf3f7fb, 0.96)
+    cloud.fillEllipse(28, 27, 54, 24)
+    cloud.fillEllipse(62, 21, 68, 34)
+    cloud.fillEllipse(98, 25, 60, 28)
+    cloud.fillEllipse(117, 31, 38, 18)
+    // 顶上的高光
+    cloud.fillStyle(0xffffff, 0.85)
+    cloud.fillEllipse(58, 15, 46, 18)
+    cloud.fillEllipse(90, 19, 34, 14)
 
-    cloud.generateTexture('cloud-puff', 72, 30)
+    cloud.generateTexture('cloud-puff', 140, 44)
     cloud.destroy()
 
     // ③ 东方龙·坠落那一瞬（180x150）：头在左下、身子拱成一道弧、尾巴甩到右下。

@@ -7542,15 +7542,16 @@ export class GameScene extends Phaser.Scene {
     stopAllLoops()
     this.physics.world.pause()
 
-    // 镜头抬到"天空 ↔ 祭坛"之间：上面留出风旋，下面是祭坛和广场上的人
+    // 镜头抬到"天空 ↔ 祭坛"之间：上面留出风旋，下面是祭坛和广场上的人。
+    // 视野正好是一屏（zoom 1）：上边 601 是屋檐上的天空、下边 871 是祭坛脚，
+    // 风旋和"砸下来"的落点都在这一屏里
     const camera = this.cameras.main
     const skyX = spot.x
-    const skyY = spot.y - 208       // 风旋在天空里那一点（880 → 672）
+    const skyY = spot.y - 228       // 风旋在天空里那一点（880 → 652），正好在屋檐上方
     const crashY = spot.y - 74      // 龙砸下去、落在祭坛台面上那一线
 
     camera.stopFollow()
-    camera.pan(spot.x, spot.y - 120, 620, 'Sine.easeInOut')
-    camera.zoomTo(1.15, 620, 'Sine.easeInOut')
+    camera.pan(spot.x, spot.y - 144, 620, 'Sine.easeInOut')
 
     playSfx(this, 'sfx-interact', 0.35)
 
@@ -7564,23 +7565,25 @@ export class GameScene extends Phaser.Scene {
 
       this.riteVortex = vortex
 
-      this.tweens.add({ targets: vortex, alpha: 0.92, scale: 0.66, duration: 520, ease: 'Sine.easeOut' })
-      this.tweens.add({ targets: vortex, angle: 360, duration: 2400, repeat: -1 })
+      // 放大到 0.8（128 的贴图 → 屏幕上 102 像素），转得慢一点才看得出是一团在旋
+      this.tweens.add({ targets: vortex, alpha: 0.95, scale: 0.8, duration: 520, ease: 'Sine.easeOut' })
+      this.tweens.add({ targets: vortex, angle: 360, duration: 3000, repeat: -1 })
 
+      // 三朵云互相压着（间距 44，比云本身窄），从风旋左边一起慢慢飘过去
       for (let i = 0; i < 3; i++) {
         const cloud = this.add
-          .image(skyX - 96 + i * 8, skyY - 26 + i * 20, 'cloud-puff')
+          .image(skyX - 104 + i * 44, skyY - 20 + i * 16, 'cloud-puff')
           .setDepth(9.1)
-          .setScale(0.7 + i * 0.18)
+          .setScale(0.62 + i * 0.14)
           .setAlpha(0)
 
         this.riteClouds.push(cloud)
 
-        this.tweens.add({ targets: cloud, alpha: 0.75, duration: 520, delay: i * 110 })
+        this.tweens.add({ targets: cloud, alpha: 0.8, duration: 520, delay: i * 110 })
         this.tweens.add({
           targets: cloud,
-          x: cloud.x + 220,
-          duration: 2700,
+          x: cloud.x + 240,
+          duration: 3000 + i * 260,
           delay: i * 110,
           ease: 'Sine.easeOut',
         })
@@ -7780,8 +7783,12 @@ export class GameScene extends Phaser.Scene {
       const line = lines[index]
       const bubble = this.add.container(x, y).setDepth(150).setAlpha(0).setScale(0.5)
 
+      const padX = 9
+      const padY = 7
+      // 文字往上抬 padY：气泡框是 -h ~ 0，字底下留的那点空和上面一样宽，
+      // 字才落在气泡正中间（写 0 的话字是贴着框底的）
       const body = this.add
-        .text(0, 0, this.wrapCjk(line, 12).join('\n'), {
+        .text(0, -padY, this.wrapCjk(line, 12).join('\n'), {
           fontFamily: 'sans-serif',
           fontSize: '12px',
           color: '#ffe9a8',
@@ -7790,8 +7797,6 @@ export class GameScene extends Phaser.Scene {
         })
         .setOrigin(0.5, 1)
 
-      const padX = 9
-      const padY = 7
       const w = body.width + padX * 2
       const h = body.height + padY * 2
       const tail = 8
