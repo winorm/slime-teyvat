@@ -4819,7 +4819,34 @@ export class GameScene extends Phaser.Scene {
       this.add.image(x, top, 'terrace-paving').setOrigin(0.5, 0).setDepth(0.16)
     }
 
-    // ⑤ 站在台面上的东西：只写"世界 x + 深度 z"，屏幕位置/大小/层数全由上面三个函数给
+    // ⑤ 隔断墙：立在 x=3450 的平面上、从走线一直铺满整个进深，把左右两半隔开，
+    //    靠人这一头开着拱门（门就是墙上的洞，人从洞里过去）。墙的远近同样按投影收：
+    //    近端 3450、远端 xAt(3450, 500)=3307，顶边也跟着降（210 → 135）
+    const wallX = 3450
+    const doorZ = 130          // 门洞的进深（靠人这一头的开口）
+    const lintelH = 176        // 门洞净高（= 拱门那张图的高度）
+    const wallTopH = 210       // 墙高（比门洞高一截，留出过梁）
+    const wall = this.add.graphics().setDepth(0.55)
+
+    // 墙面上任一点：世界高度 h、深度 z → 屏幕（和台面用的是同一套投影）
+    const wp = (h: number, z: number) =>
+      new Phaser.Math.Vector2(xAt(wallX, z), yOf(z) - h * sOf(z))
+    const quad = (h0: number, h1: number, z0: number, z1: number, color: number) => {
+      wall.fillStyle(color, 1)
+      wall.fillPoints([wp(h0, z0), wp(h0, z1), wp(h1, z1), wp(h1, z0)], true)
+    }
+
+    // 主墙（门洞往里的那一段）+ 门洞上方的过梁
+    quad(0, wallTopH, doorZ, farZ, 0xb8ae98)
+    quad(lintelH, wallTopH, 0, doorZ, 0xb8ae98)
+    // 玉瓦压顶 + 墙裙（墙裙从门洞往里才铺，门洞底下不留门槛）
+    quad(wallTopH, wallTopH + 16, 0, farZ, 0x2f7f6a)
+    quad(0, 22, doorZ, farZ, 0x8f8570)
+    // 墙面的两道线脚
+    quad(120, 126, doorZ, farZ, 0xa89f8a)
+    quad(60, 66, 0, farZ, 0xa89f8a)
+
+    // ⑥ 站在台面上的东西：只写"世界 x + 深度 z"，屏幕位置/大小/层数全由上面三个函数给
     const seat = (x0: number, z: number, key: string, flip = false, lift = 0) => {
       const s = sOf(z)
 
