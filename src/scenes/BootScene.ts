@@ -5264,37 +5264,31 @@ export class BootScene extends Phaser.Scene {
     servant.destroy()
   }
 
-  // 台面的地面（400x85）：这是**台子的顶面**，底边是台子的**前沿**（走线往下 25 像素）。
-  // 玩家走路那条线落在离底边 25 像素的地方 —— 也就是人站在台面上、身前还有一小截
-  // 地面，而不是站在台子的边沿上。85 像素 ≈ 台子进深 600 ÷ 7（俯角 1:7）。
-  // 越往远处越淡（空气透视）；竖缝 50、横缝 24 一格，等距直线、不向远处收
+  // 台面顶面那**一小节**（400x40）：全局规则是「走线＝平台前沿」，玩家永远踩在前沿上，
+  // 所以这块地面只从走线往上画 40 像素到背景里（让人看出"这是个有厚度的台子"），
+  // 再远处的东西一律当背景景画（近大远小）。越远越淡；石板缝等距、不向远处收
   private makeTerracePaving() {
     const gfx = this.add.graphics()
 
     gfx.fillStyle(0xc6bda9, 1)
-    gfx.fillRect(0, 0, 400, 24)
-    gfx.fillStyle(0xbfb6a1, 1)
-    gfx.fillRect(0, 24, 400, 16)
+    gfx.fillRect(0, 0, 400, 14)
     gfx.fillStyle(0xb8ae98, 1)
-    gfx.fillRect(0, 40, 400, 20)
-    // 走线以前那一段（离镜头更近）压暗一档
-    gfx.fillStyle(0xada394, 1)
-    gfx.fillRect(0, 60, 400, 25)
+    gfx.fillRect(0, 14, 400, 26)
     gfx.fillStyle(0x9a907c, 1)
 
-    for (let y = 24; y < 85; y += 24) {
+    for (let y = 8; y < 40; y += 8) {
       gfx.fillRect(0, y, 400, 2)
     }
 
     for (let x = 0; x < 400; x += 50) {
-      gfx.fillRect(x, 0, 2, 85)
+      gfx.fillRect(x, 0, 2, 40)
     }
 
-    // 前沿那道暗边（再往下就是台子的立面）
+    // 贴着走线那一道暗边（地面的前沿，再往下就是台子的立面）
     gfx.fillStyle(0x8f8776, 1)
-    gfx.fillRect(0, 83, 400, 2)
+    gfx.fillRect(0, 38, 400, 2)
 
-    gfx.generateTexture('terrace-floor', 400, 85)
+    gfx.generateTexture('terrace-floor', 400, 40)
     gfx.destroy()
 
     // 前沿那道翻边（只留 10 像素高，别占立面）
