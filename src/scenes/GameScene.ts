@@ -4932,6 +4932,17 @@ export class GameScene extends Phaser.Scene {
     // 拱顶内壁（两条券线之间的壳）
     wall.fillStyle(0x8a8272, 1)
     wall.fillPoints([...nearArc, ...farArc.slice().reverse()], true)
+    // 券线以下、两块竖壁之间那一块（门洞的"里面"）：先整块填上内墙色 ——
+    // 就是近端拱形洞口那一圈轮廓（券线 + 两侧直墙 + 地面），不留没填到的角落
+    wall.fillStyle(0x938b7a, 1)
+    wall.fillPoints(
+      [
+        ...nearArc,
+        wpX(wallX - wallT / 2, 0, doorZ),
+        wpX(wallX - wallT / 2, 0, 0),
+      ],
+      true
+    )
     // 远端那面竖壁（z=doorZ，x 3430~3470，高 0~springH）—— 门洞里边正对镜头的那面墙
     wall.fillStyle(0x7d7666, 1)
     wall.fillPoints(
