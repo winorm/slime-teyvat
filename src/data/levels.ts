@@ -241,7 +241,8 @@ export type LevelDef = {
   windmill?: { x: number; y: number }
   inn?: { x: number; y: number }          // 望舒客栈：画在背景里的地标，不参与碰撞
   decor?: DecorDef[]                      // 背景静物：破屋、矿山剪影
-  // 玉京台左半边的请仙典仪广场（写了才建）：x/y = 广场中心那一列 + 台面顶面
+  // 玉京台左半边的请仙典仪广场（写了才建）：x/y = 广场中心那一列 + 台面顶面。
+  // 走到这儿按 F = 观礼（请仙典仪那一场戏，一次性）
   plaza?: { x: number; y: number }
   trunk?: { x: number; y: number; width: number; height: number; depth?: number }
   // 古树主干：竖着平铺树皮带，x/y 是中心点
@@ -907,8 +908,16 @@ export const LEVELS: LevelDef[] = [
     hazards: [],
     monuments: [],
 
-    // ③ 玉京台左半边：请仙典仪的广场（圆形广场 + 长方形祭坛 + 围观的 + 凝光和两个仆从）
+    // ③ 玉京台左半边：请仙典仪的广场（圆形广场 + 长方形祭坛 + 围观的 + 凝光和两个仆从）。
+    // 走到广场前面按 F = 观礼，演完请仙失败那一场就从右边的券门走
     plaza: { x: 3050, y: 880 },
+
+    // 右半边连廊里巡逻的千岩军（潜行段）：看见你 2.5 秒就追，撞上障碍就放弃；
+    // 岩化之后站着不动，他们认不出来，会从你身边走过去 —— 就是靠这个从券门躲到尽头
+    guards: [
+      { x: 3720, y: 880, range: 100, facing: 1 },
+      { x: 4070, y: 880, range: 120, facing: -1, vision: 150 },
+    ],
 
     // 港口背景打包：一段 460，想要长一点就多复制几段。
     // kind = dock 港口 / street 街道 / suburb 郊区 / terrace 玉京台（两座巨型房子，贴在台面上）

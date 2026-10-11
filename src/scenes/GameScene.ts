@@ -1290,6 +1290,10 @@ export class GameScene extends Phaser.Scene {
   private goalSprite!: Phaser.Physics.Arcade.Sprite
   private statueSprite: Phaser.GameObjects.Image | null = null
   private statueUsed = false
+  // 请仙典仪（第八关）：上楼走到广场前面按 F 观的这一场戏，只演一次。
+  // 演完请仙失败、千岩军封锁玉京台，右半边那段"躲千岩军"才算真正开始
+  private riteDone = false
+  private ritePlaying = false
   private lockedElement: ElementKey | null = null
   // 神像演出期间把操作全锁住：移动、跳跃、技能、交互
   private inputLocked = false
@@ -1532,6 +1536,8 @@ export class GameScene extends Phaser.Scene {
     this.chaseDef = null
     this.chaserList = []
     this.squadDef = null
+    this.riteDone = false
+    this.ritePlaying = false
     this.platforms = this.physics.add.staticGroup()
     this.pillars = this.physics.add.staticGroup()
     this.orbs = this.physics.add.staticGroup()
@@ -7458,6 +7464,119 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
+  // ── 请仙典仪（第八关）──────────────────────────────────────────
+  // 上楼走到左半边广场前面按 F 观的这一场，只演一次。
+  // 三段：凝光开场 → 祭坛上白光炸开、请仙不落 → 封锁玉京台、提示玩家从右边的券门走
+  private watchRite() {
+    const spot = this.level.plaza
+
+    if (!spot || this.riteDone || this.ritePlaying) {
+      return
+    }
+
+    this.ritePlaying = true
+    this.inputLocked = true
+    stopAllLoops()
+    playSfx(this, 'sfx-interact', 0.4)
+
+    // 镜头推近祭坛那一块：广场圆心再往深处一点就是人群和凝光
+    const camera = this.cameras.main
+
+    camera.stopFollow()
+    camera.pan(spot.x, spot.y - 46, 640, 'Sine.easeInOut')
+    camera.zoomTo(1.3, 640, 'Sine.easeInOut')
+
+    this.time.delayedCall(700, () => {
+      this.showDialogue(
+        '凝光',
+        ['请仙典仪，开始。', '愿岩王帝君垂听璃月万民之愿——'],
+        () => this.playRiteFail()
+      )
+    })
+  }
+
+  // 请仙不落：祭坛上炸开一团白光、镜头抖一下，凝光愣住
+  private playRiteFail() {
+    const spot = this.level.plaza
+
+    if (!spot) {
+      return
+    }
+
+    playSfx(this, 'sfx-die', 0.3, 0.8)
+    this.cameras.main.shake(340, 0.006)
+
+    const flash = this.add
+      .rectangle(0, 0, 480, 270, 0xfff6d0, 1)
+      .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setDepth(90)
+      .setAlpha(0)
+
+    this.tweens.add({
+      targets: flash,
+      alpha: 0.8,
+      duration: 130,
+      yoyo: true,
+      hold: 90,
+      onComplete: () => flash.destroy(),
+    })
+
+    // 祭坛上散开的光屑
+    for (let i = 0; i < 14; i++) {
+      this.time.delayedCall(i * 40, () => {
+        const speck = this.add
+          .image(
+            spot.x + Phaser.Math.Between(-34, 34),
+            spot.y - 46 + Phaser.Math.Between(-12, 12),
+            'pixel'
+          )
+          .setDisplaySize(3, 3)
+          .setTint(0xffe9a8)
+          .setDepth(12)
+
+        this.tweens.add({
+          targets: speck,
+          x: speck.x + Phaser.Math.Between(-46, 46),
+          y: speck.y - Phaser.Math.Between(18, 52),
+          alpha: 0,
+          duration: 720,
+          onComplete: () => speck.destroy(),
+        })
+      })
+    }
+
+    this.time.delayedCall(860, () => {
+      this.showDialogue(
+        '凝光',
+        ['……帝君？', '帝君没有回应。', '这……不可能。'],
+        () => this.endRite()
+      )
+    })
+  }
+
+  // 收场：镜头回到正常、凝光喊人封锁玉京台，把操作还给玩家，提示往右跑
+  private endRite() {
+    const camera = this.cameras.main
+    const lift = this.level.cameraLift
+
+    camera.zoomTo(1, 420, 'Sine.easeInOut')
+    camera.startFollow(this.slime, true, 0.12, 0.12)
+    // startFollow 会把跟随偏移清成 0，这里按台面高度把镜头抬回去
+    camera.setFollowOffset(0, lift && this.cameraLiftNow === lift.offset ? lift.offset : 0)
+
+    this.showDialogue(
+      '凝光',
+      ['有人闯进玉京台了。', '千岩军——封锁所有出口，一个也别放走！'],
+      () => {
+        this.riteDone = true
+        this.ritePlaying = false
+        this.inputLocked = false
+        this.showMessage('请仙失败……从右边的券门走，别让千岩军看见')
+      }
+    )
+  }
+
   // 追击开场：镜头往回拉一点看封锁线一眼、闪一下红、喊一声，然后把控制交回玩家
   private startChase() {
     this.chased = true
@@ -9245,6 +9364,17 @@ export class GameScene extends Phaser.Scene {
       if (cageDistance < 56) {
         prompt = this.interactPrefix() + this.level.cage.prompt
         action = () => this.playCageScene()
+      }
+    }
+
+    // 请仙典仪（第八关）：左半边广场前面按 F 观礼，只演一次
+    if (!prompt && this.level.plaza && !this.riteDone) {
+      const spot = this.level.plaza
+      const distance = Phaser.Math.Distance.Between(this.slime.x, this.slime.y, spot.x, spot.y)
+
+      if (distance < 70) {
+        prompt = this.interactPrefix() + '观礼'
+        action = () => this.watchRite()
       }
     }
 
