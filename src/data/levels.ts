@@ -260,7 +260,7 @@ export type LevelDef = {
   guards?: GuardDef[]
   foreground?: ForegroundDef[]
   // 港口背景打包：一段 460 宽，kind 选港口 / 街道 / 郊区，variant 选第几版（不写＝第一版）
-  harborBlocks?: { at: number; kind: 'dock' | 'street' | 'suburb'; variant?: 1 | 2 | 3 }[]
+  harborBlocks?: { at: number; kind: 'dock' | 'street' | 'suburb' | 'terrace'; variant?: 1 | 2 | 3 }[]
   chaseAt?: number          // 走过这条线：演出一下、立刻生成追击小队
   squadCount?: number       // 小队人数，默认 3
   squadSpeed?: number       // 追击速度，默认 92（玩家全速 100）
@@ -832,36 +832,34 @@ export const LEVELS: LevelDef[] = [
     intro:
       '走了三天，终于看见璃月港了。\n今天码头上格外热闹 —— 赶上了一年一度的请仙典仪。\n先去玉京台那边看看，说不定能问出回家的路。',
 
-    width: 5600,
+    width: 6900,
     height: 1200,
     // 岩是上一关带过来的；雷是本关新给的（雷神像还没画，先用 unlocks 顶着）
     startElement: 'rock',
     unlocks: ['wind', 'thunder'],
     spawn: { x: 60, y: 1120 },
     bg: 'harbor',
-    // goal 是关卡必需字段（没有它这一关结算不了），先在最右边留一个占位宝箱；
-    // 等玉京台和新流程定下来再改位置和触发方式
-    goal: { x: 5520, y: 1146, kind: 'chest', prompt: '打开' },
+    // 宝箱放在潜行段跑到底的地方（崖边/街尽头）—— 占位，等潜行段和追兵定下来再挪
+    goal: { x: 6520, y: 1146, kind: 'chest', prompt: '打开' },
 
     platforms: [
-      // 一整条平地面（顶面 1160，x 0 → 5600）
-      { x: 2800, y: 1180, width: 5600, height: 40, brick: true },
+      // 一整条平地面（顶面 1160，x 0 → 6900）
+      { x: 3450, y: 1180, width: 6900, height: 40, brick: true },
 
-      // ③ 玉京台：x 2300 → 3460（1160 宽），台面顶面 880（比地面高 280）。
+      // ③ 玉京台：x 2300 → 4600（**2300 宽 = 5 段打包背景**），台面顶面 880（比地面高 280）。
       //    用户定的 x 轴排布（从左到右）：**小平台 → 左上下楼梯 → 大平台 → 右上下楼梯 → 小平台**。
       //    玉京台的两个**边界是小平台**（顶面 1020），楼梯在小平台里侧，
-      //    能走的大平台只有中间这一块 —— 宽度给到 **460**（和一段打包背景同宽 ≈ 一屏 480），
-      //    站在上面画面里就是整块台面。
-      //    往后加宽只加这一块：小平台 110、楼梯 240 都不动，玉京台整体因此变宽（1160）
-      { x: 2880, y: 900, width: 460, height: 40, brick: true, rail: false, railBar: false },   // 2650~3110
+      //    能走的就是中间这一块 —— **1600 宽**（2300 减去两边的小平台 110 ×2 和楼梯 240 ×2），
+      //    加宽只加这一块：小平台 110、楼梯 240、半层高度 140 都不动
+      { x: 3450, y: 900, width: 1600, height: 40, brick: true, rail: false, railBar: false },   // 2650~4250
       // 台体：整面砖墙，从台面顶面 880 一直落到地面 1160（楼梯背后也是砖，不会露出天空）。
       // solid: false —— 只画不挡人，史莱姆贴着墙走过去、从楼梯下面穿都没问题；
       // 真正挡人的只有中间的台面楼板和两级楼梯
-      { x: 2880, y: 1020, width: 1160, height: 280, brick: true, solid: false },   // 2300~3460
-      // 半层小平台 —— 玉京台的左右两个边界（顶面 1020），外沿贴 2300 / 3460。
+      { x: 3450, y: 1020, width: 2300, height: 280, brick: true, solid: false },   // 2300~4600
+      // 半层小平台 —— 玉京台的左右两个边界（顶面 1020），外沿贴 2300 / 4600。
       // layerFlip —— 站上去翻一层：上楼过来就切到后层（好上上跑），下楼过来就切回前层（好下下跑）
       { x: 2355, y: 1023, width: 110, height: 6, brick: true, rail: false, layerFlip: true },   // 2300~2410
-      { x: 3405, y: 1023, width: 110, height: 6, brick: true, rail: false, layerFlip: true },   // 3350~3460
+      { x: 4545, y: 1023, width: 110, height: 6, brick: true, rail: false, layerFlip: true },   // 4490~4600
     ],
 
     // ③ 玉京台的两条双层楼梯（一跑一半高，两跑一样高，正好嵌在台面左右两边）：
@@ -869,7 +867,7 @@ export const LEVELS: LevelDef[] = [
     //    在地面上从楼梯下面穿过去也没问题；踩到半层小平台（layerFlip）自动翻一层 ——
     //    上楼过来切「后层」（上跑能上）、下楼过来切回「前层」（下跑能下）
     stairs: [
-      // 每一侧的两跑在同一个 x 上交接（左 2410、右 3350）—— 交点就在小平台靠里那一端；
+      // 每一侧的两跑在同一个 x 上交接（左 2410、右 4490）—— 交点就在小平台靠里那一端；
       // 一跑半层 140，横向 240
       // 下跑：落地端在**里侧**（左 2650 / 右 3110），从地面往小平台上半层。
       // 左边这条**保持原样**（用户只让改右边那一条）
@@ -878,8 +876,8 @@ export const LEVELS: LevelDef[] = [
       // 右边这条：passUnder —— 沿着它下到地面之后往玉京台外面走时，
       // 先把这一跑的碰撞关掉（画在人后面的是它本来那层 depth 3，史莱姆在前层是 10，
       // 所以看着还是"人走在楼梯前面"），等身体整个穿过它再恢复
-      { from: { x: 3110, y: 1160 }, to: { x: 3350, y: 1020 }, style: 'ramp', layer: 'front', rail: 'none', passUnder: true },
-      { from: { x: 3350, y: 1020 }, to: { x: 3110, y: 880 }, style: 'ramp', layer: 'back', rail: 'none' },
+      { from: { x: 4250, y: 1160 }, to: { x: 4490, y: 1020 }, style: 'ramp', layer: 'front', rail: 'none', passUnder: true },
+      { from: { x: 4490, y: 1020 }, to: { x: 4250, y: 880 }, style: 'ramp', layer: 'back', rail: 'none' },
     ],
 
     // 上楼之后镜头往上偏一点，把史莱姆放到画面下半部分（高台上视野更舒服）。
@@ -890,12 +888,12 @@ export const LEVELS: LevelDef[] = [
     // 史莱姆走到栏杆后面时在它身上擦一个透视洞，和第七关那棵树一个做法
     revealRails: [
       // 台面沿口：就中间那块台面（左右两边是楼梯，本来就不用栏杆）
-      { from: { x: 2650, y: 880 }, to: { x: 3110, y: 880 } },
+      { from: { x: 2650, y: 880 }, to: { x: 4250, y: 880 } },
       // 楼梯上的栏杆都删了，只留平台边沿这一道：从外沿拉到楼梯交接点 + 外端一根带柱头的柱子
       { from: { x: 2300, y: 1020 }, to: { x: 2410, y: 1020 } },
       { from: { x: 2300, y: 1020 }, to: { x: 2301, y: 1020 }, key: 'rail-end' },
-      { from: { x: 3350, y: 1020 }, to: { x: 3460, y: 1020 } },
-      { from: { x: 3460, y: 1020 }, to: { x: 3461, y: 1020 }, key: 'rail-end' },
+      { from: { x: 4490, y: 1020 }, to: { x: 4600, y: 1020 } },
+      { from: { x: 4600, y: 1020 }, to: { x: 4601, y: 1020 }, key: 'rail-end' },
     ],
 
     orbs: [],
@@ -904,21 +902,28 @@ export const LEVELS: LevelDef[] = [
     hazards: [],
     monuments: [],
 
-    // 港口背景打包：一段 460，想要长一点就多复制几段。kind = dock 港口 / street 街道 / suburb 郊区
+    // 港口背景打包：一段 460，想要长一点就多复制几段。
+    // kind = dock 港口 / street 街道 / suburb 郊区 / terrace 玉京台（两座巨型房子，贴在台面上）
     // variant 不写就是第一版。从左到右的顺序（定稿）：
-    // 港口① → 港口③ → 港口② → 街道② → 街道① → 玉京台 → 街道③ → 郊区③ → 郊区② → 郊区①
+    // 港口① → 港口③ → 港口② → 街道② → 街道① → 玉京台（5 段）→ 街道③ → 郊区③ → 郊区② → 郊区①
     harborBlocks: [
       { at: 0, kind: 'dock' },                 // 港口①：水面 / 护栏 / 一正一背两个摊位 + 小船
       { at: 460, kind: 'dock', variant: 3 },   // 港口③：宽厅 + 小屋 + 高帆渔船
       { at: 920, kind: 'dock', variant: 2 },   // 港口②：两栋相连的楼房 + 灯笼串 + 牌楼
       { at: 1380, kind: 'street', variant: 2 },// 街道②：高铺 + 小屋 + 左侧背向摊位
       { at: 1840, kind: 'street' },            // 街道①：房子 + 街上摊位 + 背向的房子
-      // 2300 → 3460 是玉京台（背景单独做，宽 1160），后面几段顺着往右让开
-      { at: 3460, kind: 'street', variant: 3 },// 街道③：两栋房子 + 右侧背向摊位
-      { at: 3920, kind: 'suburb', variant: 3 },// 郊区③：最空的一版
-      { at: 4380, kind: 'suburb', variant: 2 },// 郊区②：大厅 + 小屋 + 路边摊
-      { at: 4840, kind: 'suburb' },            // 郊区①：两栋小屋
-      { at: 5300, kind: 'suburb' },            // 最后一段：铺到关卡最右边，建筑一路不断
+      // 2300 → 4600（5 段）是玉京台自己的背景：两座新做的巨型房子（大殿 / 连廊），
+      // 左半边请仙典仪的大殿 ×3、右半边逃跑那片的连廊 ×2，后面几段顺着往右让开
+      { at: 2300, kind: 'terrace' },           // 玉京台左 1：请仙典仪大殿
+      { at: 2760, kind: 'terrace' },           // 玉京台左 2：大殿（和上一栋在同一排上）
+      { at: 3220, kind: 'terrace' },           // 玉京台左 3：大殿
+      { at: 3680, kind: 'terrace', variant: 2 },// 玉京台右 1：连廊 / 厢房
+      { at: 4140, kind: 'terrace', variant: 2 },// 玉京台右 2：连廊 / 厢房
+      { at: 4600, kind: 'street', variant: 3 },// 街道③：两栋房子 + 右侧背向摊位
+      { at: 5060, kind: 'suburb', variant: 3 },// 郊区③：最空的一版
+      { at: 5520, kind: 'suburb', variant: 2 },// 郊区②：大厅 + 小屋 + 路边摊
+      { at: 5980, kind: 'suburb' },            // 郊区①：两栋小屋
+      { at: 6440, kind: 'suburb' },            // 最后一段：铺到关卡最右边，建筑一路不断
     ],
 
     hints: [],

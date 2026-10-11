@@ -347,7 +347,7 @@ function harborBottomPad(scene: Phaser.Scene, key: string) {
 //   · 史莱姆一段最多两只，而且隔开摆
 // 房子贴图放大 1.4 倍后一段（460 宽）只塞得下三件左右，摆位都是按这个算的
 const HARBOR_BLOCKS: Record<
-  'dock' | 'street' | 'suburb',
+  'dock' | 'street' | 'suburb' | 'terrace',
   { decor: HarborPiece[]; front: HarborPiece[]; water?: boolean; railing?: boolean }[]
 > = {
   // ── 码头 ──────────────────────────────────────────────────
@@ -470,6 +470,23 @@ const HARBOR_BLOCKS: Record<
         { dx: 60, key: 'harbor-slime-c', depth: -4, randomScale: 0.12 },
         { dx: 250, key: 'harbor-slime-a', scale: 0.85, depth: -4, randomScale: 0.12 },
       ],
+      front: [],
+    },
+  ],
+
+  // ── 玉京台（请仙典仪那一层）─────────────────────────────────
+  // 站在台面（880）上的两座巨型房子：一段打包一栋，底边贴在台面上。
+  // 玉京台不用港口那套"水面 / 护栏"，所以这两样都不写；后景 depth -5，
+  // 屋脊比台面上的史莱姆高、但整座屋顶都在镜头里（高 ~190）
+  terrace: [
+    {
+      // 第一版：请仙典仪的大殿
+      decor: [{ dx: 230, key: 'terrace-hall' }],
+      front: [],
+    },
+    {
+      // 第二版：逃跑那一片的连廊 / 厢房
+      decor: [{ dx: 230, key: 'terrace-wing' }],
       front: [],
     },
   ],
@@ -1564,7 +1581,7 @@ export class GameScene extends Phaser.Scene {
       // 引擎按打包把这一段的装饰一段一段盖上去 —— 栅栏、水面只在 dock 那类里出现
       const harborBlocks = (
         this.level as LevelDef & {
-          harborBlocks?: { at: number; kind: 'dock' | 'street' | 'suburb'; variant?: number }[]
+          harborBlocks?: { at: number; kind: 'dock' | 'street' | 'suburb' | 'terrace'; variant?: number }[]
         }
       ).harborBlocks ?? []
 

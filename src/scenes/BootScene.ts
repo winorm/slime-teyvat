@@ -165,6 +165,7 @@ export class BootScene extends Phaser.Scene {
     this.makeMonsterBrute()
     this.makeGuardMillelith()
     this.makeHarborProps()
+    this.makeTerraceHouses()
 
     this.makeEyeGlow()
 
@@ -4737,6 +4738,195 @@ export class BootScene extends Phaser.Scene {
   }
 
   // 五关各一套背景，每套两层：bg-<主题>-far（远）和 bg-<主题>-mid（近）
+  // ── 玉京台的两座巨型房子（2026/10/11 第一版，等用户审外观）──────────
+  // 玉京台在璃月城的最高处：白石台基 + 朱红立柱 + 琉璃绿瓦的大屋顶。
+  // 一段打包 460 宽正好放一栋，底边坐在台面（880）上；高不过 ~190，
+  // 站在台面上抬头看得到整座屋顶（镜头抬起来之后上方只剩 ~190 像素可见）
+  private makeTerraceHouses() {
+    const TILE = 0x2f7f6a
+    const TILE_LIGHT = 0x54b09a
+    const TILE_DARK = 0x1d5949
+    const STONE = 0xd3cbb8
+    const STONE_MID = 0xb8ae98
+    const STONE_DARK = 0x8f8570
+    const WOOD = 0x8a3f30
+    const WOOD_DARK = 0x5f2a20
+    const GOLD = 0xd9a441
+    const INK = 0x2a1a16
+    const LANTERN = 0xc0392b
+
+    // 格窗：金框 + 暗窗 + 窗棂
+    const lattice = (
+      gfx: Phaser.GameObjects.Graphics,
+      x: number,
+      y: number,
+      w: number,
+      h: number
+    ) => {
+      gfx.fillStyle(GOLD, 1)
+      gfx.fillRect(x, y, w, h)
+      gfx.fillStyle(INK, 1)
+      gfx.fillRect(x + 2, y + 2, w - 4, h - 4)
+      gfx.fillStyle(GOLD, 1)
+
+      for (let gx = x + 5; gx < x + w - 3; gx += 6) {
+        gfx.fillRect(gx, y + 2, 1, h - 4)
+      }
+
+      for (let gy = y + 5; gy < y + h - 3; gy += 6) {
+        gfx.fillRect(x + 2, gy, w - 4, 1)
+      }
+    }
+
+    // 琉璃绿瓦的飞檐：底边压在 baseY（墙顶），竖瓦垄往上收，两头上翘，
+    // 檐口一道瓦当、脊上一条屋脊 + 金宝顶
+    const glazedRoof = (
+      gfx: Phaser.GameObjects.Graphics,
+      cx: number,
+      baseY: number,
+      half: number,
+      thickness: number
+    ) => {
+      const topHalf = half * 0.36
+
+      gfx.fillStyle(TILE, 1)
+      gfx.fillPoints(
+        [
+          new Phaser.Math.Vector2(cx - half, baseY),
+          new Phaser.Math.Vector2(cx - topHalf, baseY - thickness),
+          new Phaser.Math.Vector2(cx + topHalf, baseY - thickness),
+          new Phaser.Math.Vector2(cx + half, baseY),
+        ],
+        true
+      )
+
+      gfx.fillStyle(TILE_DARK, 1)
+      for (let i = -5; i <= 5; i++) {
+        gfx.fillRect(cx + (i / 5) * topHalf - 1, baseY - thickness + 2, 2, thickness - 3)
+      }
+      gfx.fillStyle(TILE_LIGHT, 1)
+      gfx.fillRect(cx - topHalf, baseY - thickness, topHalf * 2, 2)
+      gfx.fillStyle(TILE_DARK, 1)
+      gfx.fillRect(cx - half, baseY - 2, half * 2, 3)
+      gfx.fillTriangle(cx - half, baseY - 1, cx - half - 8, baseY - 14, cx - half + 5, baseY - 6)
+      gfx.fillTriangle(cx + half, baseY - 1, cx + half + 8, baseY - 14, cx + half - 5, baseY - 6)
+      gfx.fillRect(cx - topHalf + 2, baseY - thickness - 4, topHalf * 2 - 4, 4)
+      gfx.fillStyle(GOLD, 1)
+      gfx.fillRect(cx - 3, baseY - thickness - 11, 6, 7)
+    }
+
+    // ① 请仙典仪的大殿（460x190）：两级白石台基 + 一层殿身 + 重檐琉璃顶
+    const hall = this.add.graphics()
+
+    // 台基
+    hall.fillStyle(STONE_DARK, 1)
+    hall.fillRect(0, 166, 460, 24)
+    hall.fillStyle(STONE, 1)
+    hall.fillRect(0, 166, 460, 4)
+    hall.fillStyle(STONE_MID, 1)
+    hall.fillRect(30, 155, 400, 12)
+    hall.fillStyle(STONE, 1)
+    hall.fillRect(30, 155, 400, 3)
+    // 中间踏跺
+    hall.fillStyle(STONE, 1)
+    hall.fillRect(196, 166, 68, 22)
+    hall.fillStyle(STONE_DARK, 1)
+    hall.fillRect(196, 173, 68, 2)
+    hall.fillRect(196, 181, 68, 2)
+
+    // 一层殿身：白石墙 + 朱红立柱 + 格窗
+    hall.fillStyle(STONE, 1)
+    hall.fillRect(36, 96, 388, 60)
+    ;[36, 142, 248, 354].forEach((x) => {
+      hall.fillStyle(WOOD, 1)
+      hall.fillRect(x, 96, 14, 60)
+      hall.fillStyle(WOOD_DARK, 1)
+      hall.fillRect(x + 11, 96, 3, 60)
+    })
+    lattice(hall, 62, 112, 60, 34)
+    lattice(hall, 170, 112, 56, 34)
+    lattice(hall, 276, 112, 60, 34)
+    hall.fillStyle(WOOD_DARK, 1)
+    hall.fillRect(36, 96, 388, 4)
+    hall.fillStyle(STONE_DARK, 1)
+    hall.fillRect(36, 152, 388, 4)
+
+    // 下层屋檐
+    glazedRoof(hall, 230, 96, 226, 15)
+
+    // 二层殿身（收进一截）：匾额 + 两扇格窗
+    hall.fillStyle(STONE, 1)
+    hall.fillRect(96, 48, 268, 34)
+    ;[96, 172, 256].forEach((x) => {
+      hall.fillStyle(WOOD, 1)
+      hall.fillRect(x, 48, 12, 34)
+    })
+    lattice(hall, 120, 56, 40, 20)
+    lattice(hall, 300, 56, 40, 20)
+    hall.fillStyle(GOLD, 1)
+    hall.fillRect(196, 52, 68, 18)
+    hall.fillStyle(INK, 1)
+    hall.fillRect(199, 55, 62, 12)
+    hall.fillStyle(GOLD, 1)
+    hall.fillRect(206, 60, 8, 3)
+    hall.fillRect(222, 60, 8, 3)
+    hall.fillRect(238, 60, 8, 3)
+    hall.fillStyle(WOOD_DARK, 1)
+    hall.fillRect(96, 48, 268, 4)
+
+    // 主屋顶
+    glazedRoof(hall, 230, 48, 200, 24)
+
+    hall.generateTexture('terrace-hall', 460, 190)
+    hall.destroy()
+
+    // ② 逃跑那一片的连廊 / 厢房（460x165）：长排朱红柱 + 白墙 + 檐下挂灯笼
+    const wing = this.add.graphics()
+
+    // 台基
+    wing.fillStyle(STONE_DARK, 1)
+    wing.fillRect(0, 144, 460, 21)
+    wing.fillStyle(STONE, 1)
+    wing.fillRect(0, 144, 460, 4)
+    wing.fillStyle(STONE_MID, 1)
+    wing.fillRect(20, 136, 420, 9)
+    wing.fillStyle(STONE, 1)
+    wing.fillRect(20, 136, 420, 3)
+
+    // 廊身：白墙 + 一排在外的朱红柱 + 一整条格窗
+    wing.fillStyle(STONE, 1)
+    wing.fillRect(26, 84, 408, 52)
+    lattice(wing, 52, 100, 96, 26)
+    lattice(wing, 182, 100, 96, 26)
+    lattice(wing, 312, 100, 96, 26)
+    ;[26, 94, 162, 230, 298, 366, 434].forEach((x) => {
+      wing.fillStyle(WOOD, 1)
+      wing.fillRect(x, 82, 13, 62)
+      wing.fillStyle(WOOD_DARK, 1)
+      wing.fillRect(x + 10, 82, 3, 62)
+    })
+    wing.fillStyle(STONE_DARK, 1)
+    wing.fillRect(26, 136, 408, 4)
+
+    // 檐下三盏灯笼
+    ;[120, 230, 340].forEach((x) => {
+      wing.fillStyle(WOOD_DARK, 1)
+      wing.fillRect(x - 1, 74, 2, 8)
+      wing.fillStyle(LANTERN, 1)
+      wing.fillRect(x - 7, 82, 14, 14)
+      wing.fillStyle(GOLD, 1)
+      wing.fillRect(x - 7, 82, 14, 2)
+      wing.fillRect(x - 7, 94, 14, 2)
+      wing.fillRect(x - 1, 96, 2, 4)
+    })
+
+    // 屋顶
+    glazedRoof(wing, 230, 74, 214, 26)
+
+    wing.generateTexture('terrace-wing', 460, 165)
+    wing.destroy()
+  }
+
   private makeBackgrounds() {
     this.makeBeachBackground()
     this.makeFieldBackground()
