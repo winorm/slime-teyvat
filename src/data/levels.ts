@@ -841,18 +841,20 @@ export const LEVELS: LevelDef[] = [
       { x: 2800, y: 1180, width: 5600, height: 40, brick: true },
 
       // ③ 玉京台：占两段打包背景那么宽（x 2300 → 3220），台面顶面 880（比地面高 280）。
-      //    **台面只占中间 2530~2990 这一块**，左右两边（2300~2530 / 2990~3220）是两条楼梯的位置。
-      //    这样台面是一整块、左右都能走得通，两条楼梯正好接在台面的左右两个边上，
-      //    台面边上不会再有"缺一块"的井口（用户报的那条）
-      { x: 2760, y: 900, width: 460, height: 40, brick: true, rail: false, railBar: false },
+      //    用户定的 x 轴排布（从左到右）：**小平台 → 左上下楼梯 → 大平台中段 → 右上下楼梯 → 小平台**。
+      //    也就是说玉京台的两个**边界是小平台**（2300~2410 / 3110~3220，顶面 1020），
+      //    楼梯在小平台里侧（2410~2650 / 2870~3110），大平台从左边小平台一路铺到右边小平台
+      { x: 2355, y: 900, width: 110, height: 40, brick: true, rail: false },                    // 2300~2410
+      { x: 2760, y: 900, width: 220, height: 40, brick: true, rail: false, railBar: false },   // 2650~2870（中段）
+      { x: 3165, y: 900, width: 110, height: 40, brick: true, rail: false },                    // 3110~3220
       // 台体：整面砖墙，从台面顶面 880 一直落到地面 1160（楼梯背后也是砖，不会露出天空）。
       // solid: false —— 只画不挡人，史莱姆贴着墙走过去、从楼梯下面穿都没问题；
       // 真正挡人的只有中间的台面楼板和两级楼梯
       { x: 2760, y: 1020, width: 920, height: 280, brick: true, solid: false },
-      // 半层小平台（折返楼梯转角处）：贴着台子最左 / 最右。
+      // 半层小平台 —— 玉京台的左右两个边界（顶面 1020）。
       // layerFlip —— 站上去翻一层：上楼过来就切到后层（好上上跑），下楼过来就切回前层（好下下跑）
-      { x: 2320, y: 1023, width: 40, height: 6, brick: true, rail: false, layerFlip: true },
-      { x: 3200, y: 1023, width: 40, height: 6, brick: true, rail: false, layerFlip: true },
+      { x: 2355, y: 1023, width: 110, height: 6, brick: true, rail: false, layerFlip: true },
+      { x: 3165, y: 1023, width: 110, height: 6, brick: true, rail: false, layerFlip: true },
     ],
 
     // ③ 玉京台的两条双层楼梯（一跑一半高，两跑一样高，正好嵌在台面左右两边）：
@@ -860,12 +862,12 @@ export const LEVELS: LevelDef[] = [
     //    在地面上从楼梯下面穿过去也没问题；踩到半层小平台（layerFlip）自动翻一层 ——
     //    上楼过来切「后层」（上跑能上）、下楼过来切回「前层」（下跑能下）
     stairs: [
-      // 每一侧的两跑在同一个 x 上交接（左 2310、右 3210），交接点就是那半层小平台；
-      // 一跑半层 140，横向 220
-      { from: { x: 2530, y: 1160 }, to: { x: 2310, y: 1020 }, style: 'brick', layer: 'front', rail: 'none' },
-      { from: { x: 2310, y: 1020 }, to: { x: 2530, y: 880 }, style: 'brick', layer: 'back', rail: 'none' },
-      { from: { x: 2990, y: 1160 }, to: { x: 3210, y: 1020 }, style: 'ramp', layer: 'front', rail: 'none' },
-      { from: { x: 3210, y: 1020 }, to: { x: 2990, y: 880 }, style: 'ramp', layer: 'back', rail: 'none' },
+      // 每一侧的两跑在同一个 x 上交接（左 2410、右 3110）—— 交点就落在小平台靠里那一端；
+      // 一跑半层 140，横向 240
+      { from: { x: 2650, y: 1160 }, to: { x: 2410, y: 1020 }, style: 'brick', layer: 'front', rail: 'none' },
+      { from: { x: 2410, y: 1020 }, to: { x: 2650, y: 880 }, style: 'brick', layer: 'back', rail: 'none' },
+      { from: { x: 2870, y: 1160 }, to: { x: 3110, y: 1020 }, style: 'ramp', layer: 'front', rail: 'none' },
+      { from: { x: 3110, y: 1020 }, to: { x: 2870, y: 880 }, style: 'ramp', layer: 'back', rail: 'none' },
     ],
 
     // 上楼之后镜头往上偏一点，把史莱姆放到画面下半部分（高台上视野更舒服）。
@@ -875,12 +877,14 @@ export const LEVELS: LevelDef[] = [
     // 台面沿口的栏杆 + 两块半层小平台的沿口栏杆（都在玩家图层上）：
     // 史莱姆走到栏杆后面时在它身上擦一个透视洞，和第七关那棵树一个做法
     revealRails: [
-      // 台面沿口（整块台面，左右都能走）
-      { from: { x: 2530, y: 880 }, to: { x: 2990, y: 880 } },
+      // 台面沿口：三段（小平台上方 + 中段 + 右边小平台上方），楼梯井那两段留空
+      { from: { x: 2300, y: 880 }, to: { x: 2410, y: 880 } },
+      { from: { x: 2650, y: 880 }, to: { x: 2870, y: 880 } },
+      { from: { x: 3110, y: 880 }, to: { x: 3220, y: 880 } },
       // 楼梯上的栏杆都删了，只留平台边沿这一道：从外沿拉到楼梯交接点 + 外端一根带柱头的柱子
-      { from: { x: 2300, y: 1020 }, to: { x: 2340, y: 1020 } },
+      { from: { x: 2300, y: 1020 }, to: { x: 2410, y: 1020 } },
       { from: { x: 2300, y: 1020 }, to: { x: 2301, y: 1020 }, key: 'rail-end' },
-      { from: { x: 3180, y: 1020 }, to: { x: 3220, y: 1020 } },
+      { from: { x: 3110, y: 1020 }, to: { x: 3220, y: 1020 } },
       { from: { x: 3220, y: 1020 }, to: { x: 3221, y: 1020 }, key: 'rail-end' },
     ],
 
