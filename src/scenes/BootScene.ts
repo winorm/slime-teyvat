@@ -5142,37 +5142,41 @@ export class BootScene extends Phaser.Scene {
     offer.destroy()
 
     // ⑤ 凝光（48x60）：参考原神里天权星凝光的配色与装饰 ——
-    //    主色调「白 + 金 + 玉绿」：白玉的身子、玉绿的下裙配金色云纹、
-    //    白羽披肩 + 金领扣着一颗玉珠、头上金发簪（金冠 + 玉珠 + 两串金流苏）、
-    //    手里一柄金骨玉面的折扇
+    //    **主色调是金**（配白）：白玉的身子、金色的下裙压浅金云纹、
+    //    白羽披肩（金边）、金腰带中间一颗白珠、头上金冠（金冠 + 白珠 + 两串金流苏）、
+    //    手里一柄金骨白面的折扇。整身不用绿色
     const ning = this.add.graphics()
 
-    // 身子：白玉（白 → 玉白 → 淡青，同心椭圆）
+    // 身子：白玉（白 → 乳白 → 淡金，同心椭圆）
     ning.fillStyle(0x263230, 1)
     ning.fillEllipse(24, 42, 40, 30)
     ning.fillStyle(0xf7f4ea, 1)
     ning.fillEllipse(24, 42, 36, 27)
-    ning.fillStyle(0xeaf1e8, 1)
+    ning.fillStyle(0xf3ecdc, 1)
     ning.fillEllipse(24, 43, 28, 21)
-    ning.fillStyle(0xdcebe2, 1)
+    ning.fillStyle(0xecdfc2, 1)
     ning.fillEllipse(24, 44, 18, 13)
-    // 玉绿下裙 + 金色云纹（云纹用小方块拼两道）
-    ning.fillStyle(0x2f7f6a, 1)
+    // 金色下裙 + 浅金云纹（云纹用小方块拼两道）
+    ning.fillStyle(0xc08a2c, 1)
     ning.fillEllipse(24, 52, 38, 15)
-    ning.fillStyle(0x3f9b86, 1)
+    ning.fillStyle(0xd9a441, 1)
     ning.fillEllipse(24, 50, 34, 11)
-    ning.fillStyle(GOLD, 1)
+    ning.fillStyle(0xf0d07a, 1)
     ning.fillRect(9, 50, 5, 3)
     ning.fillRect(17, 52, 5, 3)
     ning.fillRect(27, 52, 5, 3)
     ning.fillRect(35, 50, 5, 3)
-    // 金腰带 + 玉扣
+    // 金腰带 + 白珠扣
     ning.fillStyle(GOLD, 1)
     ning.fillRect(7, 45, 34, 4)
     ning.fillStyle(GOLD_DARK, 1)
     ning.fillRect(7, 48, 34, 1)
-    ning.fillStyle(0x4fae95, 1)
+    ning.fillStyle(0xf7f4ea, 1)
     ning.fillEllipse(24, 47, 8, 6)
+    ning.fillStyle(GOLD, 1)
+    ning.fillEllipse(24, 47, 10, 8)
+    ning.fillStyle(0xf7f4ea, 1)
+    ning.fillEllipse(24, 47, 7, 5)
     // 白羽披肩：肩上两片向外的白色羽翼 + 金边
     ning.fillStyle(0xf7f4ea, 1)
     ning.fillPoints(
@@ -5206,20 +5210,24 @@ export class BootScene extends Phaser.Scene {
     ning.fillRect(30, 37, 2, 2)
     ning.fillStyle(0xb04a48, 1)
     ning.fillEllipse(24, 49, 7, 3)
-    // 头饰：金冠 + 玉珠 + 两串金流苏
+    // 头饰：金冠 + 白珠 + 两串金流苏
     ning.fillStyle(GOLD, 1)
     ning.fillRect(22, 14, 4, 22)
     ning.fillRect(13, 21, 22, 3)
     ning.fillRect(17, 17, 3, 5)
     ning.fillRect(28, 17, 3, 5)
-    ning.fillStyle(0x4fae95, 1)
+    ning.fillStyle(0xf7f4ea, 1)
     ning.fillCircle(24, 11, 5)
+    ning.fillStyle(GOLD, 1)
+    ning.fillCircle(24, 11, 6)
+    ning.fillStyle(0xf7f4ea, 1)
+    ning.fillCircle(24, 11, 4)
     ning.fillStyle(0xffffff, 0.45)
     ning.fillCircle(22, 9, 2)
     ning.fillStyle(GOLD, 1)
     ning.fillRect(13, 24, 2, 7)
     ning.fillRect(33, 24, 2, 7)
-    // 折扇：金骨玉面（右手，斜着举起来）
+    // 折扇：金骨白面（右手，斜着举起来）
     ning.fillStyle(GOLD_DARK, 1)
     ning.fillPoints(
       [
@@ -5229,7 +5237,7 @@ export class BootScene extends Phaser.Scene {
       ],
       true
     )
-    ning.fillStyle(0xeaf4ec, 1)
+    ning.fillStyle(0xf7f4ea, 1)
     ning.fillPoints(
       [
         new Phaser.Math.Vector2(39, 31),
@@ -5238,7 +5246,7 @@ export class BootScene extends Phaser.Scene {
       ],
       true
     )
-    ning.fillStyle(0x4fae95, 1)
+    ning.fillStyle(GOLD, 1)
     ning.fillRect(39, 31, 6, 2)
 
     ning.generateTexture('npc-ningguang', 48, 60)
