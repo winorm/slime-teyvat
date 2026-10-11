@@ -5082,26 +5082,27 @@ export class BootScene extends Phaser.Scene {
     // ② 广场地面：圆形广场斜着看就是一个扁椭圆，外圈石沿 + 内圈玉纹 + 中心圆盘
     const plaza = this.add.graphics()
 
+    // 直径 800 的圆 → 800 x 114（800 ÷ 7），这才是 1:7 俯角下的正圆
     plaza.fillStyle(STONE_DEEP, 1)
-    plaza.fillEllipse(350, 29, 700, 58)
+    plaza.fillEllipse(400, 57, 800, 114)
     plaza.fillStyle(STONE_DARK, 1)
-    plaza.fillEllipse(350, 29, 684, 52)
+    plaza.fillEllipse(400, 57, 782, 108)
     plaza.fillStyle(STONE_MID, 1)
-    plaza.fillEllipse(350, 29, 640, 44)
+    plaza.fillEllipse(400, 57, 700, 98)
     plaza.fillStyle(STONE, 1)
-    plaza.fillEllipse(350, 29, 596, 38)
+    plaza.fillEllipse(400, 57, 640, 92)
     plaza.lineStyle(3, JADE, 1)
-    plaza.strokeEllipse(350, 29, 596, 38)
+    plaza.strokeEllipse(400, 57, 640, 92)
     plaza.lineStyle(2, GOLD, 0.9)
-    plaza.strokeEllipse(350, 29, 470, 28)
+    plaza.strokeEllipse(400, 57, 520, 74)
     plaza.fillStyle(TILE, 1)
-    plaza.fillEllipse(350, 29, 150, 12)
+    plaza.fillEllipse(400, 57, 150, 22)
     plaza.fillStyle(TILE_LIGHT, 1)
-    plaza.fillEllipse(350, 27, 150, 8)
+    plaza.fillEllipse(400, 54, 150, 15)
     plaza.fillStyle(GOLD, 1)
-    plaza.fillEllipse(350, 29, 40, 5)
+    plaza.fillEllipse(400, 57, 44, 7)
 
-    plaza.generateTexture('terrace-plaza', 700, 58)
+    plaza.generateTexture('terrace-plaza', 800, 114)
     plaza.destroy()
 
     // ③ 长方形祭坛（200x64）：座 + 前脸（带线脚）+ 台面（露出来的一层）
@@ -5262,41 +5263,49 @@ export class BootScene extends Phaser.Scene {
     servant.destroy()
   }
 
-  // 台面上的走道（400x44，一段接一段能拼）：顶边一道亮线就是玩家走路那条线，
-  // 下面是大块石板 + 前沿的压边阴影 —— 整条台面的地面用它铺满
+  // 台面的地面（400x120，一段接一段能拼）：这是**台子的顶面** —— 底边压在玩家
+  // 走路那条线上，往上 120 像素 ≈ 台子进深 850 ÷ 7（俯角 1:7）。
+  // 越往远处越淡（空气透视）；竖缝 50 一格、横缝 24 一格，全是等距直线、不向远处收
   private makeTerracePaving() {
     const gfx = this.add.graphics()
 
-    // 前沿压边（暗）
-    gfx.fillStyle(0x8a8069, 1)
-    gfx.fillRect(0, 30, 400, 14)
-    gfx.fillStyle(0x6f6857, 1)
-    gfx.fillRect(0, 41, 400, 3)
-    // 石板
     gfx.fillStyle(0xb8ae98, 1)
-    gfx.fillRect(0, 4, 400, 28)
-    gfx.fillStyle(0xa89f8a, 1)
-    gfx.fillRect(0, 18, 400, 14)
-    // 石板缝（竖缝错开）
+    gfx.fillRect(0, 0, 400, 120)
+    gfx.fillStyle(0xc6bda9, 1)
+    gfx.fillRect(0, 0, 400, 34)
+    gfx.fillStyle(0xbfb6a1, 1)
+    gfx.fillRect(0, 34, 400, 22)
     gfx.fillStyle(0x9a907c, 1)
-    gfx.fillRect(0, 17, 400, 2)
+
+    for (let y = 22; y < 120; y += 24) {
+      gfx.fillRect(0, y, 400, 2)
+    }
 
     for (let x = 0; x < 400; x += 50) {
-      gfx.fillRect(x, 4, 2, 13)
+      gfx.fillRect(x, 0, 2, 120)
     }
 
-    for (let x = 25; x < 400; x += 50) {
-      gfx.fillRect(x, 19, 2, 13)
-    }
+    // 贴着走线的那道暗边（顶面到此为止，再往下就是台子的立面）
+    gfx.fillStyle(0x8a8069, 1)
+    gfx.fillRect(0, 118, 400, 2)
 
-    // 顶边亮线：玩家走路那条线
-    gfx.fillStyle(0xe6dfcd, 1)
-    gfx.fillRect(0, 0, 400, 4)
-    gfx.fillStyle(0xffffff, 0.5)
-    gfx.fillRect(0, 0, 400, 1)
-
-    gfx.generateTexture('terrace-paving', 400, 44)
+    gfx.generateTexture('terrace-floor', 400, 120)
     gfx.destroy()
+
+    // 走线下面那道翻边（只留 14 像素高，别占立面）
+    const curb = this.add.graphics()
+
+    curb.fillStyle(0xe6dfcd, 1)
+    curb.fillRect(0, 0, 400, 4)
+    curb.fillStyle(0xffffff, 0.5)
+    curb.fillRect(0, 0, 400, 1)
+    curb.fillStyle(0xa89f8a, 1)
+    curb.fillRect(0, 4, 400, 6)
+    curb.fillStyle(0x8a8069, 1)
+    curb.fillRect(0, 10, 400, 4)
+
+    curb.generateTexture('terrace-paving', 400, 14)
+    curb.destroy()
   }
 
   // 脚下的接地影：一个软椭圆。2D 里玩家只站在一条线上，

@@ -481,22 +481,24 @@ const HARBOR_BLOCKS: Record<
   // 屋脊比台面上的史莱姆高、但整座屋顶都在镜头里（高 ~190）
   terrace: [
     {
-      // 第一版：请仙典仪的大殿 —— **在远处**：缩小一档、底座抬到围栏后面、
+      // 第一版：请仙典仪的大殿 —— **在台子顶面之外、更远处**：缩小一档、
+      // 脚底抬到顶面远边再往上 10 像素（dy -130 → 750，围栏正好站在它前面）、
       // 再压一层青灰（tint + alpha）当空气透视。dx 575 = 左半边正中间 2875
-      decor: [{ dx: 575, key: 'terrace-hall', scale: 0.82, dy: -38, alpha: 0.86, tint: 0xc4d2dc, depth: -7 }],
+      decor: [{ dx: 575, key: 'terrace-hall', scale: 0.82, dy: -130, alpha: 0.86, tint: 0xc4d2dc, depth: -7 }],
       front: [],
     },
     {
       // 第二版：逃跑那一片的连廊（575 一段，一段接一段拼成一条长廊；
-      // dx 287 = 摆在段中间，所以一段正好盖住 at ~ at+575）
-      decor: [{ dx: 287, key: 'terrace-wing', tint: 0xe4ecf0 }],
+      // dx 287 = 摆在段中间，所以一段正好盖住 at ~ at+575）。
+      // 脚底落在**顶面的远边**（dy -120 → 760），不然会被新铺的顶面盖住下半截
+      decor: [{ dx: 287, key: 'terrace-wing', dy: -120, tint: 0xe4ecf0 }],
       front: [],
     },
     {
-      // 第三版：中间的拱门 —— 背面一层在史莱姆后面、但压在广场那批东西（0.15~0.7）前面：
-      // 门是立在台面沿口（玩家那条线）上的，比广场里侧的都靠前，所以给 0.8；
+      // 第三版：中间的拱门 —— 背面一层在史莱姆后面、但压在广场那批东西前面：
+      // 门是立在台面沿口（玩家那条线）上的，比广场里侧的都靠前，所以给 0.75；
       // 正面两根门柱 13（画在史莱姆前面），人从中间门洞穿过去
-      decor: [{ dx: 230, key: 'terrace-arch', depth: 0.8 }],
+      decor: [{ dx: 230, key: 'terrace-arch', depth: 0.75 }],
       front: [{ dx: 230, key: 'terrace-arch-front' }],
     },
   ],
@@ -4693,59 +4695,70 @@ export class GameScene extends Phaser.Scene {
   //   **关键**：这一关的史莱姆会换层（树前层 9~11、树后层 1.05~1.3），
   //   所以台面上的静物一律要落在 **0.1~0.9** 这一档（平台本体 0 之上、后层玩家 1.05 之下），
   //   这样玩家不管在哪一层都站在它们前面 —— 否则后层玩家(1.2)会被广场压在下面。
-  //   围栏 -2（压在远处大殿前面）→ 走道 0.15 → 广场地面 0.3 → 后一排人 0.4 →
-  //   前沿两只 0.45 → 祭坛 0.5 → 坛上的东西 0.55 → 仆从 0.6 → 凝光 0.7 → 拱门背面 0.8
+  //   远边（顶面最里面）从这里往里是背景：大殿 -7、连廊 -5。
+  //   顶面这一层由远到近：顶面地面 0.12 → 翻边 0.16 → 广场地面 0.3 → 围栏 0.32 →
+  //   围观的 0.39~0.48 → 前沿两只/祭坛 0.72 → 坛上的东西 0.73 → 仆从 0.735 →
+  //   凝光 0.74 → 拱门背面 0.75
   private buildTerracePlaza(cx: number, top: number) {
-    // 台面的走道：整条能走的地面（2650~4250）都铺满石板（400 一段，四段正好），
-    // 每段顶边那道亮线就是玩家走路那条线
+    // 顶面的远边：进深 850 ÷ 7 ≈ 120 像素（就是我们的俯角 1:7）
+    const far = top - 120
+
+    // ① **台子的顶面本身**：整条能走的地面（2650~4250）铺满石板（400 一段，四段正好）。
+    //    底边压在走线上、往上 120 像素 —— 以前这里只有一个小椭圆，其余是空的
+    //    （能看穿到后面的天空），所以"地面"看着缺了一块，现在整块补上
     for (let x = 2850; x <= 4050; x += 400) {
-      this.add.image(x, top, 'terrace-paving').setOrigin(0.5, 0).setDepth(0.15)
+      this.add.image(x, far, 'terrace-floor').setOrigin(0.5, 0).setDepth(0.12)
     }
 
-    // 后沿矮围栏：两段铺满左半边（2300~3450），底边坐在台面上
+    // 走线下面那道翻边（再往下就是台子的立面，不能占太多）
+    for (let x = 2850; x <= 4050; x += 400) {
+      this.add.image(x, top, 'terrace-paving').setOrigin(0.5, 0).setDepth(0.16)
+    }
+
+    // ② 后沿矮围栏：脚底落在**顶面的远边**上（以前站在走线上，把半个广场挡住了）
     ;[2587, 3162].forEach((x) => {
-      this.add.image(x, top, 'terrace-pwall').setOrigin(0.5, 1).setDepth(-2)
+      this.add.image(x, far, 'terrace-pwall').setOrigin(0.5, 1).setDepth(0.32)
     })
 
-    // 广场地面：椭圆的**下沿正好压在玩家走的那条线（top）上** ——
-    // 这样人是"贴着广场前沿走"，永远不会站进椭圆中间，看不出自己在广场的哪一块
-    this.add.image(cx, top - 29, 'terrace-plaza').setDepth(0.3)
+    // ③ 广场地面：直径 800 的圆 → 800x114，下沿正好压在走线上（贴着广场前沿走）
+    this.add.image(cx, top - 57, 'terrace-plaza').setDepth(0.3)
 
-    // 围观的：一圈人全摆在广场里侧（脚都落在 top 以上，也就是比玩家那条线远），
-    // 谁都不会盖住玩家 —— 之前把三只摆在 top 以下（画在人前面），人一进广场就没了
-    const behind: [number, number, number, string][] = [
-      [cx - 300, top - 24, 0.8, 'harbor-slime-a'],
-      [cx - 206, top - 34, 0.7, 'harbor-slime-c'],
-      [cx - 112, top - 30, 0.78, 'harbor-slime-b'],
-      [cx + 112, top - 30, 0.78, 'harbor-slime-d'],
-      [cx + 206, top - 34, 0.7, 'harbor-slime-a'],
-      [cx + 300, top - 24, 0.8, 'harbor-slime-c'],
-      // 广场前沿两角各一个：脚底 874 比祭坛（872）更靠前，所以层数要压过祭坛
-      [cx - 330, top - 6, 0.9, 'harbor-slime-d'],
-      [cx + 330, top - 6, 0.9, 'harbor-slime-b'],
+    // ④ 围观的：脚底按台子顶面从远排到近，层数用同一个公式算 ——
+    //    "脚底越低＝越靠前"这条规则对每件东西都自动成立
+    const depthAt = (y: number) => 0.3 + (y - far) * 0.00375
+
+    const crowd: [number, number, number, string][] = [
+      [cx - 300, far + 26, 0.72, 'harbor-slime-a'],
+      [cx - 206, far + 38, 0.75, 'harbor-slime-c'],
+      [cx - 112, far + 48, 0.78, 'harbor-slime-b'],
+      [cx + 112, far + 48, 0.78, 'harbor-slime-d'],
+      [cx + 206, far + 38, 0.75, 'harbor-slime-a'],
+      [cx + 300, far + 26, 0.72, 'harbor-slime-c'],
+      // 前沿两角各一个（离走线最近、最大的两只，仍在人后面）
+      [cx - 330, top - 8, 0.9, 'harbor-slime-d'],
+      [cx + 330, top - 8, 0.9, 'harbor-slime-b'],
     ]
 
-    behind.forEach(([x, y, scale, key]) => {
-      // 越靠前（脚底越低）画得越前：祭坛是 5，前沿这两只给 5.2
-      const depth = y > top - 12 ? 0.45 : 0.4
-
-      this.add.image(x, y, key).setOrigin(0.5, 1).setScale(scale).setDepth(depth)
+    crowd.forEach(([x, y, scale, key]) => {
+      this.add.image(x, y, key).setOrigin(0.5, 1).setScale(scale).setDepth(depthAt(y))
     })
 
-    // 祭坛 + 坛上摆的金银珠宝水果（底座也落在广场里侧）
-    this.add.image(cx, top - 8, 'terrace-altar').setOrigin(0.5, 1).setDepth(0.5)
-    this.add.image(cx, top - 52, 'terrace-offerings').setOrigin(0.5, 1).setDepth(0.55)
-
-    // 两个仆从（一左一右跟在凝光身边）
-    this.add.image(cx - 68, top - 4, 'npc-attendant').setOrigin(0.5, 1).setDepth(0.6)
+    // ⑤ 祭坛 + 坛上的东西 + 凝光和两个仆从（都在靠走线这一侧，最靠前）
+    this.add.image(cx, top - 8, 'terrace-altar').setOrigin(0.5, 1).setDepth(depthAt(top - 8))
     this.add
-      .image(cx + 68, top - 4, 'npc-attendant')
+      .image(cx, top - 62, 'terrace-offerings')
+      .setOrigin(0.5, 1)
+      .setDepth(depthAt(top - 8) + 0.01)
+
+    this.add.image(cx - 68, top - 6, 'npc-attendant').setOrigin(0.5, 1).setDepth(depthAt(top - 6))
+    this.add
+      .image(cx + 68, top - 6, 'npc-attendant')
       .setOrigin(0.5, 1)
       .setFlipX(true)
-      .setDepth(0.6)
+      .setDepth(depthAt(top - 6))
 
     // 主事的凝光：站在祭坛前面一点，整身都露得出来
-    this.add.image(cx, top - 2, 'npc-ningguang').setOrigin(0.5, 1).setDepth(0.7)
+    this.add.image(cx, top - 2, 'npc-ningguang').setOrigin(0.5, 1).setDepth(depthAt(top - 2))
   }
 
   private buildGuards() {
