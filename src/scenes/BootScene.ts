@@ -5141,63 +5141,105 @@ export class BootScene extends Phaser.Scene {
     offer.generateTexture('terrace-offerings', 180, 40)
     offer.destroy()
 
-    // ⑤ 凝光（48x60）：白玉史莱姆 + 金色发簪 + 手里一柄折扇（主事的那位）
+    // ⑤ 凝光（48x60）：参考原神里天权星凝光的配色与装饰 ——
+    //    主色调「白 + 金 + 玉绿」：白玉的身子、玉绿的下裙配金色云纹、
+    //    白羽披肩 + 金领扣着一颗玉珠、头上金发簪（金冠 + 玉珠 + 两串金流苏）、
+    //    手里一柄金骨玉面的折扇
     const ning = this.add.graphics()
 
-    // 身体（白 -> 玉的同心椭圆）
-    ning.fillStyle(0x2a3a3a, 1)
-    ning.fillEllipse(24, 44, 40, 30)
-    ning.fillStyle(0xf2efe4, 1)
-    ning.fillEllipse(24, 44, 36, 27)
-    ning.fillStyle(0xe6f2ec, 1)
-    ning.fillEllipse(24, 45, 28, 21)
-    ning.fillStyle(0xd6ece2, 1)
-    ning.fillEllipse(24, 46, 18, 13)
-    // 下身玉色长裙 + 金腰带
-    ning.fillStyle(JADE, 1)
-    ning.fillEllipse(24, 53, 38, 13)
+    // 身子：白玉（白 → 玉白 → 淡青，同心椭圆）
+    ning.fillStyle(0x263230, 1)
+    ning.fillEllipse(24, 42, 40, 30)
+    ning.fillStyle(0xf7f4ea, 1)
+    ning.fillEllipse(24, 42, 36, 27)
+    ning.fillStyle(0xeaf1e8, 1)
+    ning.fillEllipse(24, 43, 28, 21)
+    ning.fillStyle(0xdcebe2, 1)
+    ning.fillEllipse(24, 44, 18, 13)
+    // 玉绿下裙 + 金色云纹（云纹用小方块拼两道）
+    ning.fillStyle(0x2f7f6a, 1)
+    ning.fillEllipse(24, 52, 38, 15)
+    ning.fillStyle(0x3f9b86, 1)
+    ning.fillEllipse(24, 50, 34, 11)
     ning.fillStyle(GOLD, 1)
-    ning.fillRect(7, 47, 34, 4)
+    ning.fillRect(9, 50, 5, 3)
+    ning.fillRect(17, 52, 5, 3)
+    ning.fillRect(27, 52, 5, 3)
+    ning.fillRect(35, 50, 5, 3)
+    // 金腰带 + 玉扣
+    ning.fillStyle(GOLD, 1)
+    ning.fillRect(7, 45, 34, 4)
+    ning.fillStyle(GOLD_DARK, 1)
+    ning.fillRect(7, 48, 34, 1)
+    ning.fillStyle(0x4fae95, 1)
+    ning.fillEllipse(24, 47, 8, 6)
+    // 白羽披肩：肩上两片向外的白色羽翼 + 金边
+    ning.fillStyle(0xf7f4ea, 1)
+    ning.fillPoints(
+      [
+        new Phaser.Math.Vector2(6, 34),
+        new Phaser.Math.Vector2(14, 30),
+        new Phaser.Math.Vector2(13, 41),
+      ],
+      true
+    )
+    ning.fillPoints(
+      [
+        new Phaser.Math.Vector2(42, 34),
+        new Phaser.Math.Vector2(34, 30),
+        new Phaser.Math.Vector2(35, 41),
+      ],
+      true
+    )
+    ning.fillStyle(GOLD, 1)
+    ning.fillRect(8, 34, 6, 2)
+    ning.fillRect(34, 34, 6, 2)
+    // 眼睛（带一点金箔眼影）+ 红唇
+    ning.fillStyle(0xd9a441, 0.55)
+    ning.fillEllipse(17, 38, 9, 5)
+    ning.fillEllipse(31, 38, 9, 5)
     ning.fillStyle(INK, 1)
-    ning.fillRect(7, 50, 34, 1)
-    // 眼睛 + 嘴
-    ning.fillStyle(INK, 1)
-    ning.fillEllipse(17, 41, 5, 6)
-    ning.fillEllipse(31, 41, 5, 6)
+    ning.fillEllipse(17, 39, 5, 6)
+    ning.fillEllipse(31, 39, 5, 6)
     ning.fillStyle(0xffffff, 1)
-    ning.fillRect(16, 39, 2, 2)
-    ning.fillRect(30, 39, 2, 2)
+    ning.fillRect(16, 37, 2, 2)
+    ning.fillRect(30, 37, 2, 2)
     ning.fillStyle(0xb04a48, 1)
-    ning.fillEllipse(24, 51, 6, 3)
-    // 头顶的金发簪 + 玉珠
+    ning.fillEllipse(24, 49, 7, 3)
+    // 头饰：金冠 + 玉珠 + 两串金流苏
     ning.fillStyle(GOLD, 1)
-    ning.fillRect(22, 12, 4, 20)
-    ning.fillRect(14, 20, 20, 3)
-    ning.fillStyle(JADE, 1)
-    ning.fillCircle(24, 10, 5)
-    ning.fillStyle(0xffffff, 0.4)
-    ning.fillCircle(22, 8, 2)
-    // 折扇（右手，斜着举起来）
+    ning.fillRect(22, 14, 4, 22)
+    ning.fillRect(13, 21, 22, 3)
+    ning.fillRect(17, 17, 3, 5)
+    ning.fillRect(28, 17, 3, 5)
+    ning.fillStyle(0x4fae95, 1)
+    ning.fillCircle(24, 11, 5)
+    ning.fillStyle(0xffffff, 0.45)
+    ning.fillCircle(22, 9, 2)
+    ning.fillStyle(GOLD, 1)
+    ning.fillRect(13, 24, 2, 7)
+    ning.fillRect(33, 24, 2, 7)
+    // 折扇：金骨玉面（右手，斜着举起来）
     ning.fillStyle(GOLD_DARK, 1)
     ning.fillPoints(
       [
-        new Phaser.Math.Vector2(40, 34),
-        new Phaser.Math.Vector2(47, 20),
-        new Phaser.Math.Vector2(46, 36),
+        new Phaser.Math.Vector2(40, 32),
+        new Phaser.Math.Vector2(47, 18),
+        new Phaser.Math.Vector2(46, 34),
       ],
       true
     )
-    ning.fillStyle(0xf3e4c0, 1)
+    ning.fillStyle(0xeaf4ec, 1)
     ning.fillPoints(
       [
-        new Phaser.Math.Vector2(39, 33),
-        new Phaser.Math.Vector2(45, 21),
-        new Phaser.Math.Vector2(44, 34),
+        new Phaser.Math.Vector2(39, 31),
+        new Phaser.Math.Vector2(45, 19),
+        new Phaser.Math.Vector2(44, 32),
       ],
       true
     )
-    ning.fillStyle(JADE, 1)
-    ning.fillRect(39, 33, 6, 2)
+    ning.fillStyle(0x4fae95, 1)
+    ning.fillRect(39, 31, 6, 2)
 
     ning.generateTexture('npc-ningguang', 48, 60)
     ning.destroy()
