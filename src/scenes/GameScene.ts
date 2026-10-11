@@ -4900,6 +4900,14 @@ export class GameScene extends Phaser.Scene {
     wall.fillPoints(ringAt(wallX + wallT / 2, archR + 12, archR), true)   // 里面那面（暗）
     wall.fillStyle(0xd3cbb8, 1)
     wall.fillPoints(ringAt(wallX - wallT / 2, archR + 12, archR), true)   // 靠人这面（亮）
+    // 券门洞口的内边线（把拱的轮廓描出来，不要糊成一片）
+    const donutIn: Phaser.Math.Vector2[] = []
+    for (let i = 0; i <= 16; i++) {
+      const p = arcPt(i / 16, archR)
+      donutIn.push(wp(p.h, p.z))
+    }
+    wall.lineStyle(3, 0x6f6857, 1)
+    wall.strokePoints(donutIn, false)
 
     // ── 要挡人的那块：**墙靠人这一头的端面**（z=0 那个截面）──
     // 整块从**地面**（离地 0）画到墙顶（离地 250），所以它的墙脚正好踩在 880 那条线上；
@@ -4912,14 +4920,25 @@ export class GameScene extends Phaser.Scene {
 
     gateTop.fillStyle(0xc6bda9, 1)
     gateTop.fillRect(frameL.x, frameT.y, frameR.x - frameL.x, frameR.y - frameT.y)
-    // 门洞（半透明暗色）
-    gateTop.fillStyle(0x2b2723, 0.82)
-    gateTop.fillRect(frameL.x, frameDoor.y, frameR.x - frameL.x, frameR.y - frameDoor.y)
-    // 门框：上沿一道石线 + 两侧竖框
-    gateTop.fillStyle(0xa89f8a, 1)
-    gateTop.fillRect(frameL.x, frameDoor.y - 9, frameR.x - frameL.x, 9)
-    gateTop.fillRect(frameL.x, frameDoor.y - 9, 6, frameR.y - frameDoor.y + 9)
-    gateTop.fillRect(frameR.x - 6, frameDoor.y - 9, 6, frameR.y - frameDoor.y + 9)
+    // 门洞**不填黑**：只画线条 —— 外框（洞口一圈）+ 内框（往里收一圈）+ 四条角线，
+    // 这样门洞里能看见洞的进深，门框和洞壁都是用线描出来的，人也透得过去
+    const w = frameR.x - frameL.x
+    const hh = frameR.y - frameDoor.y
+    const inset = 6
+
+    gateTop.lineStyle(3, 0x6f6857, 1)
+    gateTop.strokeRect(frameL.x, frameDoor.y, w, hh)
+    gateTop.lineStyle(2, 0xa89f8a, 1)
+    gateTop.strokeRect(frameL.x + inset, frameDoor.y + inset, w - inset * 2, hh - inset)
+    // 四条角线把它们连起来（门口的进深）
+    gateTop.lineStyle(2, 0x8f8776, 1)
+    gateTop.lineBetween(frameL.x, frameDoor.y, frameL.x + inset, frameDoor.y + inset)
+    gateTop.lineBetween(frameR.x, frameDoor.y, frameR.x - inset, frameDoor.y + inset)
+    gateTop.lineBetween(frameL.x, frameR.y, frameL.x + inset, frameR.y - inset)
+    gateTop.lineBetween(frameR.x, frameR.y, frameR.x - inset, frameR.y - inset)
+    // 洞口上沿再压一条门楣线（不填色）
+    gateTop.lineStyle(4, 0xa89f8a, 1)
+    gateTop.lineBetween(frameL.x, frameDoor.y, frameR.x, frameDoor.y)
     // 墙的顶面（40 宽的一条，从近端铺到远端）—— 这一条最能让墙"站"起来
     wall.fillStyle(0xe6dfcd, 1)
     wall.fillPoints(
