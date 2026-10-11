@@ -496,13 +496,6 @@ const HARBOR_BLOCKS: Record<
       decor: [{ dx: 287, key: 'terrace-wing', scale: 0.643, dy: -64, tint: 0xe4ecf0 }],
       front: [],
     },
-    {
-      // 第三版：中间的拱门 —— 一座**有进深的门**：背面那遍摆在 z=120
-      //（y(120)=856、大小 0.882、层 0.70），正面那遍摆在 z=0（走线上、大小 1、层 13）。
-      // 两张叠起来就是一座往远处收的门，人从中间门洞穿过去
-      decor: [{ dx: 230, key: 'terrace-arch', scale: 0.882, dy: -24, depth: 0.7 }],
-      front: [{ dx: 284, key: 'terrace-arch-front' }],
-    },
   ],
 }
 
@@ -4823,9 +4816,11 @@ export class GameScene extends Phaser.Scene {
     //    靠人这一头开着拱门（门就是墙上的洞，人从洞里过去）。墙的远近同样按投影收：
     //    近端 3450、远端 xAt(3450, 500)=3307，顶边也跟着降（210 → 135）
     const wallX = 3450
-    const doorZ = 130          // 门洞的进深（靠人这一头的开口）
-    const lintelH = 176        // 门洞净高（= 拱门那张图的高度）
-    const wallTopH = 210       // 墙高（比门洞高一截，留出过梁）
+    const doorZ = 130          // 券门的洞宽（沿着墙的进深方向）
+    const springH = 110        // 起券高度：两侧直墙到这儿，再往上起半圆券
+    const archR = doorZ / 2    // 券的半径（半圆券，半径=洞宽的一半）
+    const apexH = springH + archR  // 券顶（110 + 65 = 175）
+    const wallTopH = 250       // 墙高（券顶上面还留一截，放门额）
     const wall = this.add.graphics().setDepth(0.55)
 
     // 墙面上任一点：世界高度 h、深度 z → 屏幕（和台面用的是同一套投影）
@@ -4836,15 +4831,46 @@ export class GameScene extends Phaser.Scene {
       wall.fillPoints([wp(h0, z0), wp(h0, z1), wp(h1, z1), wp(h1, z0)], true)
     }
 
-    // 主墙（门洞往里的那一段）+ 门洞上方的过梁
+    // 券线：t 从 0 走到 1 —— 从一侧起券点绕过券顶到另一侧
+    const arcPt = (t: number, r: number) => {
+      const a = Math.PI * t
+      return { z: archR - Math.cos(a) * archR, h: springH + Math.sin(a) * r }
+    }
+
+    // 主墙（券门往里那一段）
     quad(0, wallTopH, doorZ, farZ, 0xb8ae98)
-    quad(lintelH, wallTopH, 0, doorZ, 0xb8ae98)
-    // 玉瓦压顶 + 墙裙（墙裙从门洞往里才铺，门洞底下不留门槛）
+    // 券门上方那一段墙：下边界就是券线本身
+    const above: Phaser.Math.Vector2[] = []
+    for (let i = 0; i <= 16; i++) {
+      const p = arcPt(i / 16, archR)
+      above.push(wp(p.h, p.z))
+    }
+    wall.fillStyle(0xb8ae98, 1)
+    wall.fillPoints([...above, wp(wallTopH, doorZ), wp(wallTopH, 0)], true)
+    // 洞口内壁那一圈"厚度"（暗）+ 券石一圈
+    const ring = (rOut: number, rIn: number) => {
+      const pts: Phaser.Math.Vector2[] = []
+      for (let i = 0; i <= 16; i++) {
+        const p = arcPt(i / 16, rOut)
+        pts.push(wp(p.h, p.z))
+      }
+      for (let i = 16; i >= 0; i--) {
+        const p = arcPt(i / 16, rIn)
+        pts.push(wp(p.h, p.z))
+      }
+      return pts
+    }
+    wall.fillStyle(0x6f6857, 1)
+    wall.fillPoints(ring(archR, archR - 7), true)
+    wall.fillStyle(0xa89f8a, 1)
+    wall.fillPoints(ring(archR + 12, archR), true)
+    // 玉瓦压顶 + 墙裙（从券门往里才铺，门洞底下不留门槛）+ 两道线脚
     quad(wallTopH, wallTopH + 16, 0, farZ, 0x2f7f6a)
     quad(0, 22, doorZ, farZ, 0x8f8570)
-    // 墙面的两道线脚
-    quad(120, 126, doorZ, farZ, 0xa89f8a)
-    quad(60, 66, 0, farZ, 0xa89f8a)
+    quad(130, 136, doorZ, farZ, 0xc6bda9)
+    quad(60, 66, 0, farZ, 0xc6bda9)
+    // 门额：券顶上面一块匾（贴着墙立着，所以在墙面上是一个梯形）
+    quad(apexH + 18, apexH + 52, 24, doorZ - 24, 0xd9a441)
 
     // ⑥ 站在台面上的东西：只写"世界 x + 深度 z"，屏幕位置/大小/层数全由上面三个函数给
     const seat = (x0: number, z: number, key: string, flip = false, lift = 0) => {
