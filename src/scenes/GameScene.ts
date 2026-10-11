@@ -83,6 +83,13 @@ const INN_RESTORED_FLAG = 'inn-restored'
 // 笼子是空的、宝箱已经在塔中央。存法同上（借 seenHints）
 const TOWER_RESTORED_FLAG = 'tower-restored'
 
+// 第八关的两处动画也记进存档（用户要求：开箱之后存，下次进来不用再看一遍）：
+//   ① 请仙典仪那场戏演过了 —— 祭坛就是撞毁的、龙还趴在上面
+//   ② 出玉京台那场追击演出放过了 —— 只跳过镜头演出，千岩军照旧会追上来
+// 存法同上（借 seenHints）
+const RITE_SEEN_FLAG = 'terrace-rite-seen'
+const TERRACE_CHASE_FLAG = 'terrace-chase'
+
 // 岩柱：贴图多大、从落点上方多高开始掉、蓄力多久、落点最远能低于脚底多少
 const PILLAR_SIZE = { width: 20, height: 72 }
 const PILLAR_DROP = 140
@@ -1291,9 +1298,26 @@ export class GameScene extends Phaser.Scene {
   private statueSprite: Phaser.GameObjects.Image | null = null
   private statueUsed = false
   // 请仙典仪（第八关）：上楼走到广场前面按 F 观的这一场戏，只演一次。
-  // 演完请仙失败、千岩军封锁玉京台，右半边那段"躲千岩军"才算真正开始
+  // 演完帝君遇刺、千岩军封锁玉京台，右半边那段"躲千岩军"才算真正开始
   private riteDone = false
   private ritePlaying = false
+  // 存档里记过"这场戏看过了"：祭坛直接就是撞毁的、龙还趴在上面
+  private riteSeen = false
+  // 存档里记过"追击演过一场"：不再放镜头演出，但千岩军照旧会追上来
+  private terraceChased = false
+  // 广场上的人（围观的 + 两个仆从 + 凝光）：戏里要在他们头顶冒感叹号
+  private plazaCrowd: Phaser.GameObjects.Image[] = []
+  private plazaNing: Phaser.GameObjects.Image | null = null
+  // 祭坛那两件（完好版） + 撞毁之后摆上去的龙身
+  private plazaAltar: Phaser.GameObjects.Image | null = null
+  private plazaOffering: Phaser.GameObjects.Image | null = null
+  private plazaDragonWreck: Phaser.GameObjects.Image | null = null
+  // 砸烂祭坛要用的几个数（祭坛在屏幕上的位置 / 大小 / 层数）
+  private plazaBreak: { x: number; y: number; scale: number; depth: number } | null = null
+  // 戏里临时加的东西：风旋、云、头顶那串感叹号
+  private riteVortex: Phaser.GameObjects.Image | null = null
+  private riteClouds: Phaser.GameObjects.Image[] = []
+  private riteMarks: Phaser.GameObjects.Image[] = []
   private lockedElement: ElementKey | null = null
   // 神像演出期间把操作全锁住：移动、跳跃、技能、交互
   private inputLocked = false
@@ -1536,8 +1560,20 @@ export class GameScene extends Phaser.Scene {
     this.chaseDef = null
     this.chaserList = []
     this.squadDef = null
-    this.riteDone = false
+    // 第八关：存档里记过"请仙典仪看过了"，这一关就从撞毁的祭坛开始（不再演那场戏）
+    this.riteSeen = !!this.level.plaza && hasSeenHint(RITE_SEEN_FLAG)
+    this.terraceChased = !!this.level.plaza && hasSeenHint(TERRACE_CHASE_FLAG)
+    this.riteDone = this.riteSeen
     this.ritePlaying = false
+    this.plazaCrowd = []
+    this.plazaNing = null
+    this.plazaAltar = null
+    this.plazaOffering = null
+    this.plazaDragonWreck = null
+    this.plazaBreak = null
+    this.riteVortex = null
+    this.riteClouds = []
+    this.riteMarks = []
     this.platforms = this.physics.add.staticGroup()
     this.pillars = this.physics.add.staticGroup()
     this.orbs = this.physics.add.staticGroup()
@@ -3736,6 +3772,14 @@ export class GameScene extends Phaser.Scene {
     if (!this.devLevel) {
       recordClear(progress.levelIndex, this.collectedIndices)
     }
+
+    // 第八关：开箱之后把那两处动画记进存档（用户要求）——
+    // 下次进来祭坛就是撞毁的、龙还趴在上面，追击的镜头演出也不再放一遍
+    if (this.level.plaza) {
+      markHintSeen(RITE_SEEN_FLAG)
+      markHintSeen(TERRACE_CHASE_FLAG)
+    }
+
     stopAllLoops()
     playSfx(this, 'sfx-win', 0.55)
 
@@ -5063,29 +5107,45 @@ export class GameScene extends Phaser.Scene {
     seat(3163, farZ, 'terrace-pwall')
 
     // 围观的：一圈人（世界坐标写在广场圆里面，越深越小、层数越低）
-    seat(plazaX - 160, 90, 'harbor-slime-a')
-    seat(plazaX - 100, 180, 'harbor-slime-c')
-    seat(plazaX - 60, 270, 'harbor-slime-b')
-    seat(plazaX + 60, 270, 'harbor-slime-d')
-    seat(plazaX + 100, 180, 'harbor-slime-a')
-    seat(plazaX + 160, 90, 'harbor-slime-c')
-    // 最靠人这一侧的两只（最大，仍在人后面）
-    seat(plazaX - 130, 40, 'harbor-slime-d')
-    seat(plazaX + 130, 40, 'harbor-slime-b')
+    this.plazaCrowd.push(
+      seat(plazaX - 160, 90, 'harbor-slime-a'),
+      seat(plazaX - 100, 180, 'harbor-slime-c'),
+      seat(plazaX - 60, 270, 'harbor-slime-b'),
+      seat(plazaX + 60, 270, 'harbor-slime-d'),
+      seat(plazaX + 100, 180, 'harbor-slime-a'),
+      seat(plazaX + 160, 90, 'harbor-slime-c'),
+      // 最靠人这一侧的两只（最大，仍在人后面）
+      seat(plazaX - 130, 40, 'harbor-slime-d'),
+      seat(plazaX + 130, 40, 'harbor-slime-b')
+    )
 
     // 祭坛 + 坛上的供品 + 两个仆从 + 主事的凝光（都在靠人这一侧）
     const altar = seat(plazaX, 60, 'terrace-altar')
     const altarScale = sOf(60)
 
-    this.add
+    this.plazaAltar = altar
+    this.plazaOffering = this.add
       .image(altar.x, altar.y - 60 * altarScale, 'terrace-offerings')
       .setOrigin(0.5, 1)
       .setScale(altarScale)
       .setDepth(depthAt(60) + 0.01)
+    // 龙身摆上去时只比祭坛高 0.001 层 —— 它盖得住祭坛，但必须**还在凝光和仆从后面**
+    //（他们站得更靠前，层数是 depthAt(40) / depthAt(50)，都比 depthAt(60) 大）
+    this.plazaBreak = { x: altar.x, y: altar.y, scale: altarScale, depth: depthAt(60) }
 
-    seat(plazaX - 70, 50, 'npc-attendant')
-    seat(plazaX + 70, 50, 'npc-attendant', true)
-    seat(plazaX, 40, 'npc-ningguang')
+    this.plazaCrowd.push(
+      seat(plazaX - 70, 50, 'npc-attendant'),
+      seat(plazaX + 70, 50, 'npc-attendant', true)
+    )
+
+    this.plazaNing = seat(plazaX, 40, 'npc-ningguang')
+    this.plazaCrowd.push(this.plazaNing)
+
+    // 存档里记过"请仙典仪看过了"：这一关直接就是撞毁之后的模样 ——
+    // 祭坛换上撞毁的贴图、供品收掉、龙身摆上去（重进不用再看一遍那场戏）
+    if (this.riteSeen) {
+      this.breakAltar()
+    }
 
     // ⑦ 右半边：池塘 + 水上桥（用户定的"逃跑时潜伏的地方，有池塘和水上桥"）
     //    池塘 = 台面上的一块水面：水面比台面低 pondDrop（离地 −pondDrop），
@@ -7465,8 +7525,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ── 请仙典仪（第八关）──────────────────────────────────────────
-  // 上楼走到左半边广场前面按 F 观的这一场，只演一次。
-  // 三段：凝光开场 → 祭坛上白光炸开、请仙不落 → 封锁玉京台、提示玩家从右边的券门走
+  // 上楼走到左半边广场前面按 F 观的这一场，只演一次，**全程不用玩家操作**：
+  //   天空里起一小片风旋 + 几朵云 → 一条东方龙从风旋里坠下来、砸在祭坛上 →
+  //   在场所有人头顶冒感叹号 → 凝光头上冒一个气泡说「帝君遇刺，封锁全场」→
+  //   镜头归位、把操作还给玩家，提示往右跑。
+  // 台词不走对话框，改成挂在凝光头上的气泡（见 speakBubbles）
   private watchRite() {
     const spot = this.level.plaza
 
@@ -7477,34 +7540,83 @@ export class GameScene extends Phaser.Scene {
     this.ritePlaying = true
     this.inputLocked = true
     stopAllLoops()
-    playSfx(this, 'sfx-interact', 0.4)
+    this.physics.world.pause()
 
-    // 镜头推近祭坛那一块：广场圆心再往深处一点就是人群和凝光
+    // 镜头抬到"天空 ↔ 祭坛"之间：上面留出风旋，下面是祭坛和广场上的人
     const camera = this.cameras.main
+    const skyX = spot.x
+    const skyY = spot.y - 208       // 风旋在天空里那一点（880 → 672）
+    const crashY = spot.y - 74      // 龙砸下去、落在祭坛台面上那一线
 
     camera.stopFollow()
-    camera.pan(spot.x, spot.y - 46, 640, 'Sine.easeInOut')
-    camera.zoomTo(1.3, 640, 'Sine.easeInOut')
+    camera.pan(spot.x, spot.y - 120, 620, 'Sine.easeInOut')
+    camera.zoomTo(1.15, 620, 'Sine.easeInOut')
 
-    this.time.delayedCall(700, () => {
-      this.showDialogue(
-        '凝光',
-        ['请仙典仪，开始。', '愿岩王帝君垂听璃月万民之愿——'],
-        () => this.playRiteFail()
-      )
+    playSfx(this, 'sfx-interact', 0.35)
+
+    // ① 风旋 + 云：风旋一边转一边撑大，云从左边慢慢飘过去
+    this.time.delayedCall(560, () => {
+      const vortex = this.add
+        .image(skyX, skyY, 'wind-vortex')
+        .setDepth(9.2)
+        .setScale(0.18)
+        .setAlpha(0)
+
+      this.riteVortex = vortex
+
+      this.tweens.add({ targets: vortex, alpha: 0.92, scale: 0.66, duration: 520, ease: 'Sine.easeOut' })
+      this.tweens.add({ targets: vortex, angle: 360, duration: 2400, repeat: -1 })
+
+      for (let i = 0; i < 3; i++) {
+        const cloud = this.add
+          .image(skyX - 96 + i * 8, skyY - 26 + i * 20, 'cloud-puff')
+          .setDepth(9.1)
+          .setScale(0.7 + i * 0.18)
+          .setAlpha(0)
+
+        this.riteClouds.push(cloud)
+
+        this.tweens.add({ targets: cloud, alpha: 0.75, duration: 520, delay: i * 110 })
+        this.tweens.add({
+          targets: cloud,
+          x: cloud.x + 220,
+          duration: 2700,
+          delay: i * 110,
+          ease: 'Sine.easeOut',
+        })
+      }
+    })
+
+    // ② 东方龙从风旋里坠下来
+    this.time.delayedCall(1480, () => {
+      playSfx(this, 'sfx-fly', 0.4)
+
+      const dragon = this.add
+        .image(skyX, skyY + 12, 'dragon-dive')
+        .setDepth(9.3)
+        .setScale(0.9)
+        .setAngle(155)
+
+      this.tweens.add({
+        targets: dragon,
+        x: spot.x,
+        y: crashY,
+        angle: 12,
+        duration: 740,
+        ease: 'Quad.easeIn',
+        onComplete: () => {
+          dragon.destroy()
+          this.riteCrash(spot.x, crashY)
+        },
+      })
     })
   }
 
-  // 请仙不落：祭坛上炸开一团白光、镜头抖一下，凝光愣住
-  private playRiteFail() {
-    const spot = this.level.plaza
-
-    if (!spot) {
-      return
-    }
-
+  // ③ 砸上祭坛那一下：镜头抖、白光，灰尘和砖屑炸开，祭坛换成撞毁的那版 + 龙身趴上去；
+  //    然后在场所有人头顶冒感叹号，最后凝光头上的气泡说话
+  private riteCrash(x: number, y: number) {
     playSfx(this, 'sfx-die', 0.3, 0.8)
-    this.cameras.main.shake(340, 0.006)
+    this.cameras.main.shake(320, 0.008)
 
     const flash = this.add
       .rectangle(0, 0, 480, 270, 0xfff6d0, 1)
@@ -7515,66 +7627,185 @@ export class GameScene extends Phaser.Scene {
 
     this.tweens.add({
       targets: flash,
-      alpha: 0.8,
-      duration: 130,
+      alpha: 0.75,
+      duration: 120,
       yoyo: true,
-      hold: 90,
+      hold: 70,
       onComplete: () => flash.destroy(),
     })
 
-    // 祭坛上散开的光屑
-    for (let i = 0; i < 14; i++) {
-      this.time.delayedCall(i * 40, () => {
-        const speck = this.add
-          .image(
-            spot.x + Phaser.Math.Between(-34, 34),
-            spot.y - 46 + Phaser.Math.Between(-12, 12),
-            'pixel'
-          )
-          .setDisplaySize(3, 3)
-          .setTint(0xffe9a8)
-          .setDepth(12)
+    // 尘土 + 砖屑：从落点往两边散开
+    for (let i = 0; i < 16; i++) {
+      this.time.delayedCall(i * 34, () => {
+        const puff = this.add
+          .image(x + Phaser.Math.Between(-40, 40), y + Phaser.Math.Between(-10, 14), 'pixel')
+          .setDisplaySize(Phaser.Math.Between(3, 7), Phaser.Math.Between(3, 7))
+          .setTint(i % 3 === 0 ? 0x8f8570 : 0xe6dfcd)
+          .setDepth(9.4)
 
         this.tweens.add({
-          targets: speck,
-          x: speck.x + Phaser.Math.Between(-46, 46),
-          y: speck.y - Phaser.Math.Between(18, 52),
+          targets: puff,
+          x: puff.x + Phaser.Math.Between(-60, 60),
+          y: puff.y - Phaser.Math.Between(8, 40),
           alpha: 0,
           duration: 720,
-          onComplete: () => speck.destroy(),
+          onComplete: () => puff.destroy(),
         })
       })
     }
 
-    this.time.delayedCall(860, () => {
-      this.showDialogue(
-        '凝光',
-        ['……帝君？', '帝君没有回应。', '这……不可能。'],
+    // 祭坛换版 + 龙身摆上去
+    this.breakAltar()
+
+    // ④ 在场所有人头顶冒感叹号（一个一个弹出来）
+    this.plazaCrowd.forEach((person, index) => {
+      this.time.delayedCall(420 + index * 70, () => {
+        if (!person.active) {
+          return
+        }
+
+        const mark = this.add
+          .image(person.x, person.y - person.displayHeight - 8, 'alert-exclaim')
+          .setDepth(9.5)
+          .setScale(0.4)
+
+        this.riteMarks.push(mark)
+        this.tweens.add({ targets: mark, scale: 2, y: mark.y - 6, duration: 240, ease: 'Back.easeOut' })
+      })
+    })
+
+    // ⑤ 凝光头上的气泡（自动翻页，不用玩家操作）
+    this.time.delayedCall(1500, () => {
+      const ning = this.plazaNing
+
+      if (!ning) {
+        this.endRite()
+        return
+      }
+
+      this.speakBubbles(
+        ning.x,
+        ning.y - ning.displayHeight - 14,
+        ['帝君遇刺，封锁全场'],
         () => this.endRite()
       )
     })
   }
 
-  // 收场：镜头回到正常、凝光喊人封锁玉京台，把操作还给玩家，提示往右跑
+  // 气泡说话：一句一个气泡 —— 弹出来、停一会儿、淡掉、接下一句。
+  // 全程自动，不需要玩家按键（用户要求：这场戏别用对话框）
+  private speakBubbles(x: number, y: number, lines: string[], onDone?: () => void) {
+    const step = (index: number) => {
+      if (index >= lines.length) {
+        onDone?.()
+        return
+      }
+
+      const line = lines[index]
+      const bubble = this.add.container(x, y).setDepth(150).setAlpha(0).setScale(0.5)
+
+      const body = this.add
+        .text(0, 0, this.wrapCjk(line, 12).join('\n'), {
+          fontFamily: 'sans-serif',
+          fontSize: '12px',
+          color: '#ffe9a8',
+          align: 'center',
+          lineSpacing: 4,
+        })
+        .setOrigin(0.5, 1)
+
+      const padX = 9
+      const padY = 7
+      const w = body.width + padX * 2
+      const h = body.height + padY * 2
+      const tail = 8
+      const panel = this.add.graphics()
+
+      panel.fillStyle(0x14181f, 0.95)
+      panel.fillRoundedRect(-w / 2, -h, w, h, 6)
+      panel.lineStyle(2, 0xffd54f, 1)
+      panel.strokeRoundedRect(-w / 2, -h, w, h, 6)
+      // 底下的尖角：先填再描两侧，把面板底边那道线盖掉
+      panel.fillStyle(0x14181f, 0.95)
+      panel.fillTriangle(-7, -6, 7, -6, 0, tail)
+      panel.lineBetween(-7, -6, 0, tail)
+      panel.lineBetween(7, -6, 0, tail)
+
+      bubble.add([panel, body])
+
+      this.tweens.add({ targets: bubble, alpha: 1, scale: 1, duration: 180, ease: 'Back.easeOut' })
+
+      const hold = 900 + line.length * 120
+
+      this.time.delayedCall(hold, () => {
+        this.tweens.add({
+          targets: bubble,
+          alpha: 0,
+          scale: 0.85,
+          duration: 200,
+          onComplete: () => {
+            bubble.destroy()
+            step(index + 1)
+          },
+        })
+      })
+    }
+
+    step(0)
+  }
+
+  // 祭坛被砸烂：换上撞毁的贴图、收掉坛上的供品、把龙身摆上去。
+  // 第一次玩是戏里砸的那一下调的；存档里记过的档一进关卡就调
+  private breakAltar() {
+    const info = this.plazaBreak
+
+    if (!info || this.plazaDragonWreck) {
+      return
+    }
+
+    this.plazaAltar?.setTexture('terrace-altar-broken')
+    this.plazaOffering?.setVisible(false)
+
+    // 层数只比祭坛高一丝：龙身会伸到凝光那个位置，所以它必须还在凝光后面
+    this.plazaDragonWreck = this.add
+      .image(info.x, info.y + 4, 'dragon-wreck')
+      .setOrigin(0.5, 1)
+      .setScale(info.scale)
+      .setDepth(info.depth + 0.001)
+  }
+
+  // 收场：风旋和云散掉、感叹号淡掉、镜头回到正常，把操作还给玩家
   private endRite() {
     const camera = this.cameras.main
     const lift = this.level.cameraLift
 
-    camera.zoomTo(1, 420, 'Sine.easeInOut')
+    this.riteMarks.forEach((mark) => {
+      this.tweens.add({ targets: mark, alpha: 0, duration: 300, onComplete: () => mark.destroy() })
+    })
+    this.riteMarks = []
+
+    if (this.riteVortex) {
+      const vortex = this.riteVortex
+
+      this.riteVortex = null
+      this.tweens.add({ targets: vortex, alpha: 0, scale: 0.2, duration: 420, onComplete: () => vortex.destroy() })
+    }
+
+    this.riteClouds.forEach((cloud) => {
+      this.tweens.add({ targets: cloud, alpha: 0, duration: 500, onComplete: () => cloud.destroy() })
+    })
+    this.riteClouds = []
+
+    camera.zoomTo(1, 380, 'Sine.easeInOut')
     camera.startFollow(this.slime, true, 0.12, 0.12)
     // startFollow 会把跟随偏移清成 0，这里按台面高度把镜头抬回去
     camera.setFollowOffset(0, lift && this.cameraLiftNow === lift.offset ? lift.offset : 0)
 
-    this.showDialogue(
-      '凝光',
-      ['有人闯进玉京台了。', '千岩军——封锁所有出口，一个也别放走！'],
-      () => {
-        this.riteDone = true
-        this.ritePlaying = false
-        this.inputLocked = false
-        this.showMessage('请仙失败……从右边的券门走，别让千岩军看见')
-      }
-    )
+    this.riteDone = true
+    this.ritePlaying = false
+    this.inputLocked = false
+    this.physics.world.resume()
+    this.showMessage('向右跑出玉京台，注意躲避千岩军')
   }
 
   // 追击开场：镜头往回拉一点看封锁线一眼、闪一下红、喊一声，然后把控制交回玩家
@@ -9578,13 +9809,27 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // 追击小队：走过触发线就演出一段、然后原地生成千岩军
+    // 追击小队：走过触发线就演出一段、然后原地生成千岩军。
+    // chaseOnLand（第八关）：光走过线不算，还得脚落到地面 —— 出了玉京台跳下来那一下
     if (this.squadDef) {
-      if (!this.chased && this.slime.x > this.squadDef.at) {
-        this.startChase()
+      const ready =
+        !this.chased &&
+        this.slime.x > this.squadDef.at &&
+        (!this.level.chaseOnLand || body.blocked.down)
+
+      if (ready) {
+        if (this.terraceChased) {
+          // 存档里记过这场追击演过了：镜头演出不放，千岩军照样追上来
+          this.chased = true
+          this.spawnChaseSquad()
+        } else {
+          this.startChase()
+        }
       }
 
-      this.updateChasers(dt)
+      if (this.chased) {
+        this.updateChasers(dt)
+      }
     }
 
     if (

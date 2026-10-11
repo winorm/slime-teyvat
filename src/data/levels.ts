@@ -265,6 +265,7 @@ export type LevelDef = {
   // 港口背景打包：一段 460 宽，kind 选港口 / 街道 / 郊区，variant 选第几版（不写＝第一版）
   harborBlocks?: { at: number; kind: 'dock' | 'street' | 'suburb' | 'terrace'; variant?: 1 | 2 | 3 }[]
   chaseAt?: number          // 走过这条线：演出一下、立刻生成追击小队
+  chaseOnLand?: boolean     // 追击还要等脚落地才算（第八关：出了玉京台、落地之后才追）
   squadCount?: number       // 小队人数，默认 3
   squadSpeed?: number       // 追击速度，默认 92（玩家全速 100）
   squadSpawnGap?: number    // 生成在玩家身后多少像素，默认 260
@@ -918,6 +919,15 @@ export const LEVELS: LevelDef[] = [
       { x: 3720, y: 880, range: 100, facing: 1 },
       { x: 4070, y: 880, range: 120, facing: -1, vision: 150 },
     ],
+
+    // 走出玉京台（右端 4600）、脚落到地面（1160）之后触发追击演出，身后生成三个千岩军；
+    // 追击场地还没做，现在就是一段平地，跑到尽头的宝箱（6520）开箱过关
+    chaseAt: 4620,
+    chaseOnLand: true,
+    squadCount: 3,
+    squadSpeed: 92,
+    squadSpawnGap: 240,
+    chaseCause: 'guard',
 
     // 港口背景打包：一段 460，想要长一点就多复制几段。
     // kind = dock 港口 / street 街道 / suburb 郊区 / terrace 玉京台（两座巨型房子，贴在台面上）

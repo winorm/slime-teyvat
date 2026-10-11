@@ -167,6 +167,7 @@ export class BootScene extends Phaser.Scene {
     this.makeHarborProps()
     this.makeTerraceHouses()
     this.makeTerracePlaza()
+    this.makeRiteProps()
     this.makeSlimeShadow()
     this.makeTerracePaving()
 
@@ -5281,6 +5282,351 @@ export class BootScene extends Phaser.Scene {
 
     servant.generateTexture('npc-attendant', 32, 44)
     servant.destroy()
+  }
+
+  // ── 第八关「请仙典仪」那场戏用的五样东西（2026/10/11）─────────────
+  //   风旋 / 云朵 / 从风旋里坠下来的东方龙 / 撞毁的祭坛 / 趴在祭坛上的龙身。
+  //   石色跟玉京台一套（0xd3cbb8 / 0xb8ae98 / 0x8f8570 / 0x6f6857）；
+  //   帝君是岩属性，龙身取土金 0xb9863f，鬃毛和角取金 0xd9a441
+  private makeRiteProps() {
+    const STONE = 0xd3cbb8
+    const STONE_MID = 0xb8ae98
+    const STONE_DARK = 0x8f8570
+    const STONE_DEEP = 0x6f6857
+    const CRACK = 0x2a2620
+    const BODY = 0xb9863f
+    const BODY_LIGHT = 0xd8ab68
+    const BELLY = 0xe6cfa4
+    const MANE = 0xd9a441
+    const MANE_LIGHT = 0xf0d07a
+    const WHISKER = 0xf2efe4
+    const INK = 0x2a1a16
+
+    // ① 风旋（96x96）：几圈由粗到细的螺旋弧
+    const vortex = this.add.graphics()
+
+    for (let i = 0; i < 24; i++) {
+      const t = i / 23
+      const r = 5 + t * 40
+      const a0 = t * Math.PI * 3.4
+
+      vortex.lineStyle(7 - t * 5.4, 0xeaf7ff, 0.9 - t * 0.55)
+      vortex.beginPath()
+      vortex.arc(48, 48, r, a0, a0 + Math.PI * 0.8)
+      vortex.strokePath()
+    }
+
+    vortex.generateTexture('wind-vortex', 96, 96)
+    vortex.destroy()
+
+    // ② 云朵（72x30）：一垛软云
+    const cloud = this.add.graphics()
+
+    cloud.fillStyle(0xf3f7fb, 0.95)
+    cloud.fillEllipse(20, 19, 34, 17)
+    cloud.fillEllipse(40, 15, 42, 22)
+    cloud.fillEllipse(56, 20, 28, 14)
+    cloud.fillStyle(0xffffff, 0.8)
+    cloud.fillEllipse(38, 12, 28, 12)
+
+    cloud.generateTexture('cloud-puff', 72, 30)
+    cloud.destroy()
+
+    // ③ 东方龙·坠落那一瞬（170x140）：头在左下、身子一路甩到右上。
+    //    脊背走一条正弦曲线，沿曲线铺一串由粗到细的圆当身体，再补鬃刺、四只短爪、
+    //    角、龙须和尾巴尖
+    const spine = (t: number) => ({
+      x: 26 + t * 124,
+      y: 118 - t * 86 + Math.sin(t * Math.PI * 2) * 14,
+    })
+
+    const dive = this.add.graphics()
+
+    // 身体：先描一圈深色轮廓，再压亮色
+    for (let i = 0; i <= 40; i++) {
+      const t = i / 40
+      const p = spine(t)
+      const r = 13 - t * 9
+
+      dive.fillStyle(INK, 1)
+      dive.fillCircle(p.x, p.y, r + 1.5)
+    }
+
+    for (let i = 0; i <= 40; i++) {
+      const t = i / 40
+      const p = spine(t)
+      const r = 13 - t * 9
+
+      dive.fillStyle(BODY, 1)
+      dive.fillCircle(p.x, p.y, r)
+      dive.fillStyle(BODY_LIGHT, 1)
+      dive.fillCircle(p.x - r * 0.25, p.y - r * 0.3, r * 0.55)
+      dive.fillStyle(BELLY, 1)
+      dive.fillCircle(p.x + r * 0.15, p.y + r * 0.45, r * 0.42)
+    }
+
+    // 鬃刺：沿脊背一串小三角（往左上甩）
+    for (let i = 2; i < 34; i += 2) {
+      const t = i / 40
+      const p = spine(t)
+      const r = 13 - t * 9
+
+      dive.fillStyle(i % 4 === 0 ? MANE_LIGHT : MANE, 1)
+      dive.fillTriangle(p.x, p.y - r, p.x + 9, p.y - r - 11, p.x + 3, p.y - r + 2)
+    }
+
+    // 四只短爪：从身体下侧伸出来的三趾小爪子
+    ;[10, 17, 24, 31].forEach((i) => {
+      const t = i / 40
+      const p = spine(t)
+      const r = 13 - t * 9
+      const footX = p.x + r * 0.4
+      const footY = p.y + r * 0.9
+
+      dive.fillStyle(INK, 1)
+      dive.fillRect(footX - 1, footY - 1, 4, 9)
+      dive.fillStyle(BODY, 1)
+      dive.fillRect(footX, footY, 2, 8)
+      dive.fillStyle(MANE_LIGHT, 1)
+      dive.fillTriangle(footX - 3, footY + 8, footX, footY + 6, footX, footY + 10)
+      dive.fillTriangle(footX, footY + 6, footX + 3, footY + 8, footX, footY + 10)
+      dive.fillTriangle(footX + 2, footY + 6, footX + 5, footY + 8, footX + 2, footY + 10)
+    })
+
+    // 头：朝左下，嘴张着
+    dive.fillStyle(INK, 1)
+    dive.fillEllipse(17, 122, 30, 22)
+    dive.fillStyle(BODY, 1)
+    dive.fillEllipse(17, 122, 26, 18)
+    dive.fillStyle(BODY_LIGHT, 1)
+    dive.fillEllipse(13, 118, 15, 10)
+    // 上颚 + 下颚（中间留一道张开的嘴）
+    dive.fillStyle(INK, 1)
+    dive.fillPoints(
+      [
+        new Phaser.Math.Vector2(2, 116),
+        new Phaser.Math.Vector2(20, 112),
+        new Phaser.Math.Vector2(20, 121),
+        new Phaser.Math.Vector2(4, 123),
+      ],
+      true
+    )
+    dive.fillStyle(BODY, 1)
+    dive.fillPoints(
+      [
+        new Phaser.Math.Vector2(4, 117),
+        new Phaser.Math.Vector2(19, 114),
+        new Phaser.Math.Vector2(19, 120),
+        new Phaser.Math.Vector2(4, 122),
+      ],
+      true
+    )
+    // 牙
+    dive.fillStyle(WHISKER, 1)
+    dive.fillTriangle(9, 119, 12, 119, 11, 123)
+    dive.fillTriangle(15, 118, 18, 118, 17, 122)
+    // 闭着的眼（昏死过去）+ 眉
+    dive.fillStyle(INK, 1)
+    dive.fillRect(14, 109, 8, 2)
+    // 龙须：两缕从嘴边荡出去（都留在贴图里，不许出界）
+    dive.lineStyle(1.5, WHISKER, 1)
+    dive.beginPath()
+    dive.moveTo(11, 112)
+    dive.lineTo(3, 103)
+    dive.lineTo(1, 94)
+    dive.strokePath()
+    dive.beginPath()
+    dive.moveTo(12, 118)
+    dive.lineTo(4, 127)
+    dive.lineTo(2, 136)
+    dive.strokePath()
+    // 角：两支金色分叉，往后（右上）甩
+    dive.fillStyle(MANE, 1)
+    dive.fillTriangle(24, 108, 52, 88, 34, 110)
+    dive.fillTriangle(30, 106, 54, 100, 38, 112)
+    dive.fillStyle(MANE_LIGHT, 1)
+    dive.fillTriangle(26, 108, 50, 90, 33, 108)
+    dive.fillTriangle(31, 106, 52, 101, 37, 110)
+    // 尾巴尖：几片金色尾羽
+    dive.fillStyle(MANE, 1)
+    dive.fillTriangle(146, 30, 168, 14, 156, 34)
+    dive.fillTriangle(148, 34, 166, 34, 154, 44)
+    dive.fillStyle(MANE_LIGHT, 1)
+    dive.fillTriangle(147, 31, 164, 18, 155, 33)
+
+    dive.generateTexture('dragon-dive', 170, 140)
+    dive.destroy()
+
+    // ④ 撞毁的祭坛（200x64）：台面裂成两半、中间塌下去一块，
+    //    右半边断掉的台面斜插在地上，脚边散着碎砖
+    const broken = this.add.graphics()
+
+    // 台座（下半截还立着）
+    broken.fillStyle(STONE_DEEP, 1)
+    broken.fillRect(10, 46, 180, 18)
+    broken.fillStyle(STONE_DARK, 1)
+    broken.fillRect(14, 22, 172, 26)
+    broken.fillStyle(STONE_MID, 1)
+    broken.fillRect(18, 26, 164, 18)
+    // 塌进去的那一块（黑洞洞的裂口）
+    broken.fillStyle(CRACK, 1)
+    broken.fillRect(78, 24, 44, 22)
+    // 两道裂缝
+    broken.fillStyle(CRACK, 1)
+    broken.fillRect(64, 26, 3, 16)
+    broken.fillRect(132, 30, 3, 14)
+    // 台面：左半还压在座上（微微翘起来），右半已经塌到地上
+    broken.fillStyle(STONE, 1)
+    broken.fillPoints(
+      [
+        new Phaser.Math.Vector2(0, 8),
+        new Phaser.Math.Vector2(76, 12),
+        new Phaser.Math.Vector2(74, 26),
+        new Phaser.Math.Vector2(0, 22),
+      ],
+      true
+    )
+    broken.fillStyle(0xe3dccb, 1)
+    broken.fillPoints(
+      [
+        new Phaser.Math.Vector2(2, 8),
+        new Phaser.Math.Vector2(74, 11),
+        new Phaser.Math.Vector2(73, 16),
+        new Phaser.Math.Vector2(2, 14),
+      ],
+      true
+    )
+    // 塌下来的右半台面：斜插在地上
+    broken.fillStyle(STONE_MID, 1)
+    broken.fillPoints(
+      [
+        new Phaser.Math.Vector2(124, 20),
+        new Phaser.Math.Vector2(188, 14),
+        new Phaser.Math.Vector2(192, 32),
+        new Phaser.Math.Vector2(128, 32),
+      ],
+      true
+    )
+    broken.fillStyle(0xe3dccb, 1)
+    broken.fillPoints(
+      [
+        new Phaser.Math.Vector2(126, 20),
+        new Phaser.Math.Vector2(186, 15),
+        new Phaser.Math.Vector2(187, 19),
+        new Phaser.Math.Vector2(127, 23),
+      ],
+      true
+    )
+    // 地上的碎砖
+    broken.fillStyle(STONE_DARK, 1)
+    broken.fillRect(54, 56, 16, 8)
+    broken.fillRect(100, 58, 22, 6)
+    broken.fillRect(150, 54, 12, 10)
+    broken.fillStyle(STONE, 1)
+    broken.fillRect(54, 56, 16, 3)
+    broken.fillRect(100, 58, 22, 3)
+    broken.fillRect(150, 54, 12, 3)
+
+    broken.generateTexture('terrace-altar-broken', 200, 64)
+    broken.destroy()
+
+    // ⑤ 龙身趴在祭坛上（230x130）：身子横搭在坛面上、头从前面垂下来、尾巴甩到右后方。
+    //    底边对齐贴图底边，摆的时候按祭坛的尺度缩一下就是"趴在上面"
+    const wreckSpine = (t: number) => ({
+      x: 24 + t * 180,
+      y: 112 - Math.sin(t * Math.PI) * 62 + t * 12,
+    })
+
+    const wreck = this.add.graphics()
+
+    for (let i = 0; i <= 44; i++) {
+      const t = i / 44
+      const p = wreckSpine(t)
+      const r = 13 - t * 9
+
+      wreck.fillStyle(INK, 1)
+      wreck.fillCircle(p.x, p.y, r + 1.5)
+    }
+
+    for (let i = 0; i <= 44; i++) {
+      const t = i / 44
+      const p = wreckSpine(t)
+      const r = 13 - t * 9
+
+      wreck.fillStyle(BODY, 1)
+      wreck.fillCircle(p.x, p.y, r)
+      wreck.fillStyle(BODY_LIGHT, 1)
+      wreck.fillCircle(p.x - r * 0.3, p.y - r * 0.35, r * 0.5)
+      wreck.fillStyle(BELLY, 1)
+      wreck.fillCircle(p.x, p.y + r * 0.5, r * 0.4)
+    }
+
+    // 鬃刺（软趴趴地垂着）
+    for (let i = 3; i < 42; i += 2) {
+      const t = i / 44
+      const p = wreckSpine(t)
+      const r = 13 - t * 9
+
+      wreck.fillStyle(i % 4 === 0 ? MANE_LIGHT : MANE, 1)
+      wreck.fillTriangle(p.x, p.y - r, p.x + 8, p.y - r - 8, p.x + 3, p.y - r + 2)
+    }
+
+    // 四只爪子软软地摊在两边
+    ;[9, 16, 24, 32].forEach((i) => {
+      const t = i / 44
+      const p = wreckSpine(t)
+      const r = 13 - t * 9
+      const footX = p.x + r * 0.5
+      const footY = p.y + r * 0.8
+
+      wreck.fillStyle(INK, 1)
+      wreck.fillRect(footX - 1, footY - 1, 4, 8)
+      wreck.fillStyle(BODY, 1)
+      wreck.fillRect(footX, footY, 2, 7)
+      wreck.fillStyle(MANE_LIGHT, 1)
+      wreck.fillTriangle(footX - 3, footY + 7, footX, footY + 5, footX, footY + 9)
+      wreck.fillTriangle(footX + 2, footY + 5, footX + 5, footY + 7, footX + 2, footY + 9)
+    })
+
+    // 头：从坛前垂下来，眼闭着
+    wreck.fillStyle(INK, 1)
+    wreck.fillEllipse(22, 114, 32, 24)
+    wreck.fillStyle(BODY, 1)
+    wreck.fillEllipse(22, 114, 28, 20)
+    wreck.fillStyle(BODY_LIGHT, 1)
+    wreck.fillEllipse(18, 109, 16, 10)
+    // 嘴（合着，一线）
+    wreck.fillStyle(INK, 1)
+    wreck.fillRect(6, 118, 18, 2)
+    wreck.fillRect(18, 102, 9, 2)   // 闭着的眼
+    // 龙须垂下来（同样不许出界）
+    wreck.lineStyle(1.5, WHISKER, 1)
+    wreck.beginPath()
+    wreck.moveTo(10, 120)
+    wreck.lineTo(3, 125)
+    wreck.lineTo(1, 129)
+    wreck.strokePath()
+    wreck.beginPath()
+    wreck.moveTo(12, 106)
+    wreck.lineTo(5, 99)
+    wreck.lineTo(3, 94)
+    wreck.strokePath()
+    // 角往后（右上）甩
+    wreck.fillStyle(MANE, 1)
+    wreck.fillTriangle(30, 104, 58, 86, 40, 108)
+    wreck.fillTriangle(36, 104, 60, 98, 44, 110)
+    wreck.fillStyle(MANE_LIGHT, 1)
+    wreck.fillTriangle(32, 104, 56, 88, 39, 106)
+    wreck.fillTriangle(37, 104, 58, 99, 43, 108)
+    // 尾巴尖搭在右边地上（同样收在贴图里）
+    wreck.fillStyle(MANE, 1)
+    wreck.fillTriangle(196, 118, 218, 106, 208, 126)
+    wreck.fillTriangle(198, 122, 220, 122, 206, 129)
+    wreck.fillStyle(MANE_LIGHT, 1)
+    wreck.fillTriangle(197, 119, 214, 109, 207, 124)
+
+    wreck.generateTexture('dragon-wreck', 230, 130)
+    wreck.destroy()
   }
 
   // 台面顶面那**一小节**（400x40）：全局规则是「走线＝平台前沿」，玩家永远踩在前沿上，
