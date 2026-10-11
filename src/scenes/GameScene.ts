@@ -4821,11 +4821,12 @@ export class GameScene extends Phaser.Scene {
     //    近端 3450、远端 xAt(3450, 500)=3307，顶边也跟着降（210 → 135）
     const wallX = 3450
     const doorZ = 130          // 券门的洞宽（沿着墙的进深方向）
-    const springH = 110        // 起券高度：两侧直墙到这儿，再往上起半圆券
+    const springH = 68         // 起券高度：两侧直墙到这儿，再往上起半圆券。
+                               // 压得比较低 —— 门楣（门上方那块墙）正好落在史莱姆头顶附近
     const archR = doorZ / 2    // 券的半径（半圆券，半径=洞宽的一半）
-    const apexH = springH + archR  // 券顶（110 + 65 = 175）
+    const apexH = springH + archR  // 券顶（68 + 65 = 133）
     const wallTopH = 250       // 墙高（券顶上面还留一截，放门额）
-    const wallT = 40           // 墙厚（有了它才有顶面、端面和券的厚度）
+    const wallT = 100          // 墙厚：穿过门洞要有 100 像素的行程，"挡一下"才演得出来
     // 整面墙先画在一张离屏 Graphics 上（坐标用"画框内的局部坐标"），再生成贴图；
     // 之后每一帧盖进 RenderTexture、并在史莱姆身上擦一个透视洞（和栏杆同一套做法）
     const wallL = 3280
@@ -4839,9 +4840,11 @@ export class GameScene extends Phaser.Scene {
     // 墙面上任一点：世界高度 h、深度 z → 屏幕（和台面用的是同一套投影）
     // baseDrop：墙立得比玩家那条线**更靠近镜头**，所以它的墙脚要画到地面线以下
     const baseDrop = 46
+    // 统一基准：所有贴着墙面的东西都画在**近面**（wallX − 墙厚/2）上，
+    // 端面、卷石圈再各自按近/远两面算 —— 以前墙面画在中面，和端面差 20 像素
     const wpX = (x0: number, h: number, z: number) =>
       new Phaser.Math.Vector2(xAt(x0, z) - wallL, yOf(z) + baseDrop - h * sOf(z) - wallTp)
-    const wp = (h: number, z: number) => wpX(wallX, h, z)
+    const wp = (h: number, z: number) => wpX(wallX - wallT / 2, h, z)
     const quad = (h0: number, h1: number, z0: number, z1: number, color: number) => {
       wall.fillStyle(color, 1)
       wall.fillPoints([wp(h0, z0), wp(h0, z1), wp(h1, z1), wp(h1, z0)], true)
@@ -4862,8 +4865,7 @@ export class GameScene extends Phaser.Scene {
       above.push(wp(p.h, p.z))
     }
     wall.fillStyle(0xb8ae98, 1)
-    gateTop.fillStyle(0xb8ae98, 1)
-    gateTop.fillPoints([...above, wp(wallTopH, doorZ), wp(wallTopH, 0)], true)
+    wall.fillPoints([...above, wp(wallTopH, doorZ), wp(wallTopH, 0)], true)
 
     // 门洞里面（能看见的那截洞壁）填成暗色 —— 这是背景，玩家走在它前面
     wall.fillStyle(0x3a3630, 1)
@@ -4888,10 +4890,13 @@ export class GameScene extends Phaser.Scene {
       return pts
     }
     wall.fillStyle(0x9a907c, 1)
-    wall.fillPoints(ringAt(wallX + wallT / 2, archR + 12, archR), true)   // 里面那面（暗，留在墙上）
-    gateTop.fillStyle(0xd3cbb8, 1)
-    gateTop.fillPoints(ringAt(wallX - wallT / 2, archR + 12, archR), true) // 靠人这面（亮，带透视）
-    // 靠人这一头的端面（z=0）：券门上方那截 —— 墙在这里"断"出一个厚度
+    wall.fillPoints(ringAt(wallX + wallT / 2, archR + 12, archR), true)   // 里面那面（暗）
+    wall.fillStyle(0xd3cbb8, 1)
+    wall.fillPoints(ringAt(wallX - wallT / 2, archR + 12, archR), true)   // 靠人这面（亮）
+
+    // ── 要挡人的那块：**墙靠人这一头的端面**（z=0 那个截面，券门上方那一截）──
+    // 它是一块正对着镜头的竖片：x 从 3400 到 3500（墙厚 100）、高度从门楣 68 到墙顶 250。
+    // 这东西单独画、盖到玩家前面去，并且擦一个透视洞
     gateTop.fillStyle(0xc6bda9, 1)
     gateTop.fillPoints(
       [
@@ -4899,6 +4904,17 @@ export class GameScene extends Phaser.Scene {
         wpX(wallX + wallT / 2, springH, 0),
         wpX(wallX + wallT / 2, wallTopH, 0),
         wpX(wallX - wallT / 2, wallTopH, 0),
+      ],
+      true
+    )
+    // 门楣下沿一道券石（跟着端面走，正对镜头）
+    gateTop.fillStyle(0xa89f8a, 1)
+    gateTop.fillPoints(
+      [
+        wpX(wallX - wallT / 2, springH, 0),
+        wpX(wallX + wallT / 2, springH, 0),
+        wpX(wallX + wallT / 2, springH + 12, 0),
+        wpX(wallX - wallT / 2, springH + 12, 0),
       ],
       true
     )
