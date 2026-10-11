@@ -869,10 +869,13 @@ export const LEVELS: LevelDef[] = [
       // 每一侧的两跑在同一个 x 上交接（左 2410、右 3350）—— 交点就在小平台靠里那一端；
       // 一跑半层 140，横向 240
       // 下跑：落地端在**里侧**（左 2650 / 右 3110），从地面往小平台上半层。
-      // depth 1 = 画在史莱姆后面；passUnder = 沿着它下来之后可以先穿过去再恢复（见 note）
-      { from: { x: 2650, y: 1160 }, to: { x: 2410, y: 1020 }, style: 'brick', layer: 'front', rail: 'none', depth: 1, passUnder: true },
+      // 左边这条**保持原样**（用户只让改右边那一条）
+      { from: { x: 2650, y: 1160 }, to: { x: 2410, y: 1020 }, style: 'brick', layer: 'front', rail: 'none' },
       { from: { x: 2410, y: 1020 }, to: { x: 2650, y: 880 }, style: 'brick', layer: 'back', rail: 'none' },
-      { from: { x: 3110, y: 1160 }, to: { x: 3350, y: 1020 }, style: 'ramp', layer: 'front', rail: 'none', depth: 1, passUnder: true },
+      // 右边这条：passUnder —— 沿着它下到地面之后往玉京台外面走时，
+      // 先把这一跑的碰撞关掉（画在人后面的是它本来那层 depth 3，史莱姆在前层是 10，
+      // 所以看着还是"人走在楼梯前面"），等身体整个穿过它再恢复
+      { from: { x: 3110, y: 1160 }, to: { x: 3350, y: 1020 }, style: 'ramp', layer: 'front', rail: 'none', passUnder: true },
       { from: { x: 3350, y: 1020 }, to: { x: 3110, y: 880 }, style: 'ramp', layer: 'back', rail: 'none' },
     ],
 
