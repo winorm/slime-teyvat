@@ -4821,11 +4821,13 @@ export class GameScene extends Phaser.Scene {
     const archR = doorZ / 2    // 券的半径（半圆券，半径=洞宽的一半）
     const apexH = springH + archR  // 券顶（110 + 65 = 175）
     const wallTopH = 250       // 墙高（券顶上面还留一截，放门额）
+    const wallT = 40           // 墙厚（有了它才有顶面、端面和券的厚度）
     const wall = this.add.graphics().setDepth(0.55)
 
     // 墙面上任一点：世界高度 h、深度 z → 屏幕（和台面用的是同一套投影）
-    const wp = (h: number, z: number) =>
-      new Phaser.Math.Vector2(xAt(wallX, z), yOf(z) - h * sOf(z))
+    const wpX = (x0: number, h: number, z: number) =>
+      new Phaser.Math.Vector2(xAt(x0, z), yOf(z) - h * sOf(z))
+    const wp = (h: number, z: number) => wpX(wallX, h, z)
     const quad = (h0: number, h1: number, z0: number, z1: number, color: number) => {
       wall.fillStyle(color, 1)
       wall.fillPoints([wp(h0, z0), wp(h0, z1), wp(h1, z1), wp(h1, z0)], true)
@@ -4839,7 +4841,7 @@ export class GameScene extends Phaser.Scene {
 
     // 主墙（券门往里那一段）
     quad(0, wallTopH, doorZ, farZ, 0xb8ae98)
-    // 券门上方那一段墙：下边界就是券线本身
+    // 券门上方那一段墙：下边界就是券线本身（所以墙和券是一块面）
     const above: Phaser.Math.Vector2[] = []
     for (let i = 0; i <= 16; i++) {
       const p = arcPt(i / 16, archR)
@@ -4847,29 +4849,54 @@ export class GameScene extends Phaser.Scene {
     }
     wall.fillStyle(0xb8ae98, 1)
     wall.fillPoints([...above, wp(wallTopH, doorZ), wp(wallTopH, 0)], true)
-    // 洞口内壁那一圈"厚度"（暗）+ 券石一圈
-    const ring = (rOut: number, rIn: number) => {
+
+    // ── 立体：墙有厚度（40），所以要看得到顶面、靠人这一头的端面、以及券的厚度 ──
+    // 券石圈：同一圈画两遍 —— 靠人这一面（wallX−20）亮一点、里面那一面（wallX+20）暗一点，
+    // 两圈错开的就是券的厚度
+    const ringAt = (x0: number, rOut: number, rIn: number) => {
       const pts: Phaser.Math.Vector2[] = []
       for (let i = 0; i <= 16; i++) {
         const p = arcPt(i / 16, rOut)
-        pts.push(wp(p.h, p.z))
+        pts.push(wpX(x0, p.h, p.z))
       }
       for (let i = 16; i >= 0; i--) {
         const p = arcPt(i / 16, rIn)
-        pts.push(wp(p.h, p.z))
+        pts.push(wpX(x0, p.h, p.z))
       }
       return pts
     }
-    wall.fillStyle(0x6f6857, 1)
-    wall.fillPoints(ring(archR, archR - 7), true)
-    wall.fillStyle(0xa89f8a, 1)
-    wall.fillPoints(ring(archR + 12, archR), true)
-    // 玉瓦压顶 + 墙裙（从券门往里才铺，门洞底下不留门槛）+ 两道线脚
+    wall.fillStyle(0x9a907c, 1)
+    wall.fillPoints(ringAt(wallX + wallT / 2, archR + 12, archR), true)   // 里面那面（暗）
+    wall.fillStyle(0xd3cbb8, 1)
+    wall.fillPoints(ringAt(wallX - wallT / 2, archR + 12, archR), true)   // 靠人这面（亮）
+    // 靠人这一头的端面（z=0）：券门上方那截 —— 墙在这里"断"出一个厚度
+    wall.fillStyle(0xc6bda9, 1)
+    wall.fillPoints(
+      [
+        wpX(wallX - wallT / 2, springH, 0),
+        wpX(wallX + wallT / 2, springH, 0),
+        wpX(wallX + wallT / 2, wallTopH, 0),
+        wpX(wallX - wallT / 2, wallTopH, 0),
+      ],
+      true
+    )
+    // 墙的顶面（40 宽的一条，从近端铺到远端）—— 这一条最能让墙"站"起来
+    wall.fillStyle(0xe6dfcd, 1)
+    wall.fillPoints(
+      [
+        wpX(wallX - wallT / 2, wallTopH, 0),
+        wpX(wallX + wallT / 2, wallTopH, 0),
+        wpX(wallX + wallT / 2, wallTopH, farZ),
+        wpX(wallX - wallT / 2, wallTopH, farZ),
+      ],
+      true
+    )
+    // 玉瓦压顶 + 墙裙（从券门往里才铺，门洞底下不留门槛）+ 两道线脚（都在门洞之外）
     quad(wallTopH, wallTopH + 16, 0, farZ, 0x2f7f6a)
     quad(0, 22, doorZ, farZ, 0x8f8570)
     quad(130, 136, doorZ, farZ, 0xc6bda9)
-    quad(60, 66, 0, farZ, 0xc6bda9)
-    // 门额：券顶上面一块匾（贴着墙立着，所以在墙面上是一个梯形）
+    quad(60, 66, doorZ, farZ, 0xc6bda9)
+    // 门额：券顶上面一块匾
     quad(apexH + 18, apexH + 52, 24, doorZ - 24, 0xd9a441)
 
     // ⑥ 站在台面上的东西：只写"世界 x + 深度 z"，屏幕位置/大小/层数全由上面三个函数给
