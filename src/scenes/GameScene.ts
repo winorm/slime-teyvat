@@ -5156,14 +5156,15 @@ export class GameScene extends Phaser.Scene {
       false
     )
 
-    // 水上桥：走线上一条木桥（桥面在走线上，桥下压一条深色阴影表示悬空）
+    // 水上桥：走线上一条**砖石桥**（和玉京台同一套材质），
+    // 两端各砌一块桥台落到岸上（这就是"连接"），桥面压石板缝，靠里一侧一道矮石栏
     const bridgeZ = 40
     const bridgeL = 3700
     const bridgeR = 4260
     const deck = this.add.graphics().setDepth(0.2)
 
-    // 桥面
-    deck.fillStyle(0x8a6034, 1)
+    // 桥面（石板）
+    deck.fillStyle(0xb8ae98, 1)
     deck.fillPoints(
       [
         wpX(bridgeL, 0, bridgeZ - 30),
@@ -5173,23 +5174,58 @@ export class GameScene extends Phaser.Scene {
       ],
       true
     )
-    // 桥面木纹 + 两端桥墩
+    // 桥面的石板缝（横着几道 + 顺着走线一条中线）
     for (let i = 0; i <= 8; i++) {
       const x = bridgeL + ((bridgeR - bridgeL) * i) / 8
 
-      deck.fillStyle(0xa8794a, 1)
+      deck.fillStyle(0x9a907c, 1)
       deck.fillPoints(
         [
-          wpX(x, 1.5, bridgeZ - 30),
-          wpX(x + 6, 1.5, bridgeZ - 30),
-          wpX(x + 6, 1.5, bridgeZ + 30),
-          wpX(x, 1.5, bridgeZ + 30),
+          wpX(x, 0.8, bridgeZ - 30),
+          wpX(x + 3, 0.8, bridgeZ - 30),
+          wpX(x + 3, 0.8, bridgeZ + 30),
+          wpX(x, 0.8, bridgeZ + 30),
         ],
         true
       )
     }
-    // 靠里那侧的栏杆：立柱 + 横杆
-    deck.fillStyle(0x6f4423, 1)
+    deck.fillStyle(0xa89f8a, 1)
+    deck.fillPoints(
+      [
+        wpX(bridgeL, 0.8, bridgeZ),
+        wpX(bridgeR, 0.8, bridgeZ),
+        wpX(bridgeR, 0.8, bridgeZ + 4),
+        wpX(bridgeL, 0.8, bridgeZ + 4),
+      ],
+      true
+    )
+    // 两端桥台（落到岸上的那一块，把桥和台面"接"起来）
+    ;[bridgeL, bridgeR].forEach((x, index) => {
+      const dir = index === 0 ? -1 : 1
+
+      deck.fillStyle(0x8f8570, 1)
+      deck.fillPoints(
+        [
+          wpX(x, 0, bridgeZ - 40),
+          wpX(x + dir * 60, 0, bridgeZ - 40),
+          wpX(x + dir * 60, 0, bridgeZ + 40),
+          wpX(x, 0, bridgeZ + 40),
+        ],
+        true
+      )
+      deck.fillStyle(0xd3cbb8, 1)
+      deck.fillPoints(
+        [
+          wpX(x, 6, bridgeZ - 40),
+          wpX(x + dir * 60, 3, bridgeZ - 40),
+          wpX(x + dir * 60, 3, bridgeZ + 40),
+          wpX(x, 6, bridgeZ + 40),
+        ],
+        true
+      )
+    })
+    // 靠里那侧一道矮石栏：立柱 + 横杆（高度砍到 14）
+    deck.fillStyle(0x8f8570, 1)
     for (let i = 0; i <= 5; i++) {
       const x = bridgeL + ((bridgeR - bridgeL) * i) / 5
 
@@ -5197,19 +5233,19 @@ export class GameScene extends Phaser.Scene {
         [
           wpX(x - 3, 0, bridgeZ + 26),
           wpX(x + 3, 0, bridgeZ + 26),
-          wpX(x + 3, 26, bridgeZ + 26),
-          wpX(x - 3, 26, bridgeZ + 26),
+          wpX(x + 3, 14, bridgeZ + 26),
+          wpX(x - 3, 14, bridgeZ + 26),
         ],
         true
       )
     }
-    deck.fillStyle(0x7a4c28, 1)
+    deck.fillStyle(0xd3cbb8, 1)
     deck.fillPoints(
       [
-        wpX(bridgeL, 24, bridgeZ + 26),
-        wpX(bridgeR, 24, bridgeZ + 26),
-        wpX(bridgeR, 28, bridgeZ + 26),
-        wpX(bridgeL, 28, bridgeZ + 26),
+        wpX(bridgeL, 12, bridgeZ + 26),
+        wpX(bridgeR, 12, bridgeZ + 26),
+        wpX(bridgeR, 16, bridgeZ + 26),
+        wpX(bridgeL, 16, bridgeZ + 26),
       ],
       true
     )
