@@ -1,4 +1,4 @@
-﻿import Phaser from 'phaser'
+import Phaser from 'phaser'
 import { ELEMENTS, ELEMENT_ORDER, type ElementKey } from '../data/elements'
 import { DEV_LEVEL_MODE } from '../data/devLevel'
 import { LEVELS } from '../data/levels'
@@ -5302,6 +5302,286 @@ export class BootScene extends Phaser.Scene {
     const WHISKER = 0xf2efe4
     const INK = 0x2a1a16
 
+    // ── 画龙的两件工具（③ 和 ⑤ 共用）────────────────────────────
+    // 一条过所有控制点的 Catmull-Rom 曲线。自己写、不依赖 Phaser 的 Curves，
+    // 省得版本一变又出岔子
+    const spline = (raw: number[][]) => {
+      const pts = raw.map(([x, y]) => new Phaser.Math.Vector2(x, y))
+      const at = (i: number) => pts[Math.max(0, Math.min(pts.length - 1, i))]
+
+      const point = (t: number) => {
+        const f = Math.min(0.9999, Math.max(0, t)) * (pts.length - 1)
+        const i = Math.floor(f)
+        const u = f - i
+        const p0 = at(i - 1)
+        const p1 = at(i)
+        const p2 = at(i + 1)
+        const p3 = at(i + 2)
+        const u2 = u * u
+        const u3 = u2 * u
+        const axis = (a: number, b: number, c: number, d: number) =>
+          0.5 * (2 * b + (-a + c) * u + (2 * a - 5 * b + 4 * c - d) * u2 + (-a + 3 * b - 3 * c + d) * u3)
+
+        return new Phaser.Math.Vector2(axis(p0.x, p1.x, p2.x, p3.x), axis(p0.y, p1.y, p2.y, p3.y))
+      }
+
+      const tangent = (t: number) => {
+        const a = point(Math.max(0, t - 0.02))
+        const b = point(Math.min(1, t + 0.02))
+
+        return new Phaser.Math.Vector2(b.x - a.x, b.y - a.y).normalize()
+      }
+
+      return { point, tangent }
+    }
+
+    // 画一颗龙头。整个头都画在**头自己的坐标系**里：a 朝前（鼻子那个方向）、b 朝头顶，
+    // fx/fy 和 ux/uy 就是这两个方向的单位向量。眼、眉、角、须、嘴全挂在这套坐标上 ——
+    // 所以它们永远跟着头走，不会再各画各的、对不上
+    const paintHead = (
+      g: Phaser.GameObjects.Graphics,
+      cx: number,
+      cy: number,
+      fx: number,
+      fy: number,
+      ux: number,
+      uy: number,
+      shut: boolean
+    ) => {
+      const P = (a: number, b: number) =>
+        new Phaser.Math.Vector2(cx + a * fx + b * ux, cy + a * fy + b * uy)
+
+      // 头坐标系里的一个椭圆 → 画布上的一圈点
+      const ring = (a0: number, b0: number, ra: number, rb: number, n = 20) => {
+        const list: Phaser.Math.Vector2[] = []
+
+        for (let i = 0; i < n; i++) {
+          const t = (i / n) * Math.PI * 2
+
+          list.push(P(a0 + Math.cos(t) * ra, b0 + Math.sin(t) * rb))
+        }
+
+        return list
+      }
+
+      const stroke = (width: number, color: number, path: Phaser.Math.Vector2[]) => {
+        g.lineStyle(width, color, 1)
+        g.beginPath()
+        g.moveTo(path[0].x, path[0].y)
+
+        for (let i = 1; i < path.length; i++) {
+          g.lineTo(path[i].x, path[i].y)
+        }
+
+        g.strokePath()
+      }
+
+      // 后脑
+      g.fillStyle(INK, 1)
+      g.fillPoints(ring(-2, 0, 15, 11), true)
+      g.fillStyle(BODY, 1)
+      g.fillPoints(ring(-2, 0, 13.4, 9.6), true)
+      g.fillStyle(BODY_LIGHT, 1)
+      g.fillPoints(ring(-4, 2.4, 9.2, 6), true)
+      // 吻部：往前伸出去的一节
+      g.fillStyle(INK, 1)
+      g.fillPoints(ring(11, -1, 10.5, 8), true)
+      g.fillStyle(BODY, 1)
+      g.fillPoints(ring(11, -1, 9, 6.6), true)
+      g.fillStyle(BODY_LIGHT, 1)
+      g.fillPoints(ring(12, 1.6, 6.6, 3.6), true)
+      // 下颚
+      g.fillStyle(INK, 1)
+      g.fillPoints(ring(7, -7.6, 10.5, 5), true)
+      g.fillStyle(BELLY, 1)
+      g.fillPoints(ring(7, -7.2, 9.2, 3.8), true)
+      // 嘴缝：从吻尖往后拉到腮
+      stroke(2.4, INK, [P(19, -4.4), P(10, -5.4), P(-1, -4.8)])
+      // 鼻孔
+      const nose = P(17.5, 1.8)
+
+      g.fillStyle(INK, 1)
+      g.fillCircle(nose.x, nose.y, 1.7)
+      // 眉：压在眼睛正上方的一道深色
+      stroke(2.6, INK, [P(4.8, 5.6), P(-4.6, 6.6)])
+      // 眼睛：顺着脸斜下来的一颗杏仁
+      g.fillStyle(INK, 1)
+      g.fillPoints(ring(0.6, 3.2, 5.2, 3.4), true)
+      g.fillStyle(shut ? BODY_LIGHT : 0xf7f4ea, 1)
+      g.fillPoints(ring(0.6, 3.2, 3.8, 2.2), true)
+
+      if (shut) {
+        stroke(1.8, INK, [P(4.2, 3.2), P(0.6, 2.2), P(-3, 3.2)])
+      } else {
+        const pupil = P(0.6, 3.2)
+        const glint = P(2.3, 4.2)
+
+        g.fillStyle(INK, 1)
+        g.fillCircle(pupil.x, pupil.y, 1.9)
+        g.fillStyle(0xffffff, 1)
+        g.fillCircle(glint.x, glint.y, 1)
+      }
+
+      // 角：两支金黄的分叉角，从后脑往"头顶偏后"甩
+      const horn = (path: number[][], fork: number[], width: number) => {
+        const pts = path.map(([a, b]) => P(a, b))
+
+        stroke(width + 3, INK, pts)
+        stroke(width, MANE, pts)
+        stroke(width - 1.6, MANE_LIGHT, [pts[0], pts[pts.length - 1]])
+        stroke(width - 0.4, INK, [P(fork[0], fork[1]), P(fork[2], fork[3])])
+        stroke(width - 1.8, MANE_LIGHT, [P(fork[0], fork[1]), P(fork[2], fork[3])])
+      }
+
+      horn([[-7, 5.5], [-14, 11], [-21, 18]], [-14, 11, -17, 20], 5)
+      horn([[-11, 3.5], [-19, 8], [-27, 13]], [-19, 8, -24, 16], 4.4)
+
+      // 龙须：从吻部后面荡出去、往身后飘的两缕
+      const whisker = (a0: number, b0: number, path: number[][], width: number) => {
+        const pts = [P(a0, b0), ...path.map(([a, b]) => P(a, b))]
+
+        stroke(width + 1.8, INK, pts)
+        stroke(width, WHISKER, pts)
+      }
+
+      whisker(19, -7, [[9, -13], [-5, -16], [-19, -13]], 1.6)
+      whisker(18, -10, [[7, -16], [-8, -20], [-22, -19]], 1.4)
+
+      // 脖子后面那一圈短鬃
+      for (let i = 0; i < 4; i++) {
+        const a = -9 - i * 3.4
+        const b = 8 - i * 0.6
+
+        g.fillStyle(i % 2 === 0 ? MANE : MANE_LIGHT, 1)
+        g.fillPoints([P(a, b), P(a + 3.4, b + 9), P(a - 3, b + 1)], true)
+      }
+    }
+
+    // 画整条龙：身体、鬃刺、四爪、尾尖全长在同一条脊椎上；头挂在脊椎头端，
+    // 朝向由该端的切向自动算出来（鼻子朝着曲线的反方向）
+    const paintDragon = (
+      g: Phaser.GameObjects.Graphics,
+      raw: number[][],
+      shut: boolean
+    ) => {
+      const spine = spline(raw)
+      const N = 48
+      // 从脖子 10 收细到尾巴 3.5：脖子不能太粗，不然头会被身子吞掉
+      const radius = (t: number) => 10 - t * 6.5
+      const frame = (t: number) => {
+        const p = spine.point(t)
+        const tan = spine.tangent(t)
+
+        // 背脊那一侧：切向在屏幕坐标里转 90°（y 轴朝下，所以取 (tan.y, -tan.x)）
+        return { p, tan, nx: tan.y, ny: -tan.x }
+      }
+
+      // ① 身体：先整条描一圈深色，再压本体色 / 背脊亮色 / 肚皮
+      for (let i = 0; i <= N; i++) {
+        const { p } = frame(i / N)
+
+        g.fillStyle(INK, 1)
+        g.fillCircle(p.x, p.y, radius(i / N) + 1.7)
+      }
+
+      for (let i = 0; i <= N; i++) {
+        const { p, nx, ny } = frame(i / N)
+        const r = radius(i / N)
+
+        g.fillStyle(BODY, 1)
+        g.fillCircle(p.x, p.y, r)
+        g.fillStyle(BODY_LIGHT, 1)
+        g.fillCircle(p.x + nx * r * 0.36, p.y + ny * r * 0.36, r * 0.54)
+        g.fillStyle(BELLY, 1)
+        g.fillCircle(p.x - nx * r * 0.44, p.y - ny * r * 0.44, r * 0.42)
+      }
+
+      // ② 鬃刺（隔三格一根、别太密，否则看着像一圈毛）
+      for (let i = 3; i < N - 2; i += 3) {
+        const { p, tan, nx, ny } = frame(i / N)
+        const r = radius(i / N)
+        const bx = p.x + nx * r
+        const by = p.y + ny * r
+
+        g.fillStyle(i % 4 === 0 ? MANE_LIGHT : MANE, 1)
+        g.fillPoints(
+          [
+            new Phaser.Math.Vector2(bx - tan.x * 4, by - tan.y * 4),
+            new Phaser.Math.Vector2(bx + nx * 9, by + ny * 9),
+            new Phaser.Math.Vector2(bx + tan.x * 4, by + tan.y * 4),
+          ],
+          true
+        )
+      }
+
+      // ③ 四只爪子：从身子下侧（背的反面）伸出来，每只三根爪。
+      //    都放在前中段 —— 再往后就到尾巴了，爪子会从尾巴上长出来
+      ;[0.16, 0.34, 0.5, 0.66].forEach((t) => {
+        const { p, tan, nx, ny } = frame(t)
+        const r = radius(t)
+        const rootX = p.x - nx * r * 0.6
+        const rootY = p.y - ny * r * 0.6
+        const footX = rootX - nx * 10
+        const footY = rootY - ny * 10
+
+        g.lineStyle(8, INK, 1)
+        g.lineBetween(rootX, rootY, footX, footY)
+        g.lineStyle(5.4, BODY, 1)
+        g.lineBetween(rootX, rootY, footX, footY)
+
+        for (let k = -1; k <= 1; k++) {
+          const clawX = footX - nx * 7 + tan.x * k * 4.6
+          const clawY = footY - ny * 7 + tan.y * k * 4.6
+
+          g.lineStyle(4.4, INK, 1)
+          g.lineBetween(footX, footY, clawX, clawY)
+          g.lineStyle(2.6, MANE_LIGHT, 1)
+          g.lineBetween(footX, footY, clawX, clawY)
+        }
+      })
+
+      // ④ 尾巴尖：两片金羽
+      const tail = frame(1)
+
+      g.fillStyle(MANE, 1)
+      g.fillPoints(
+        [
+          new Phaser.Math.Vector2(tail.p.x, tail.p.y),
+          new Phaser.Math.Vector2(
+            tail.p.x + tail.tan.x * 16 + tail.nx * 10,
+            tail.p.y + tail.tan.y * 16 + tail.ny * 10
+          ),
+          new Phaser.Math.Vector2(
+            tail.p.x + tail.tan.x * 18 - tail.nx * 4,
+            tail.p.y + tail.tan.y * 18 - tail.ny * 4
+          ),
+        ],
+        true
+      )
+      g.fillStyle(MANE_LIGHT, 1)
+      g.fillPoints(
+        [
+          new Phaser.Math.Vector2(tail.p.x, tail.p.y),
+          new Phaser.Math.Vector2(
+            tail.p.x + tail.tan.x * 13 + tail.nx * 4,
+            tail.p.y + tail.tan.y * 13 + tail.ny * 4
+          ),
+          new Phaser.Math.Vector2(
+            tail.p.x + tail.tan.x * 14 - tail.nx * 3,
+            tail.p.y + tail.tan.y * 14 - tail.ny * 3
+          ),
+        ],
+        true
+      )
+
+      // ⑤ 头
+      const neck = frame(0)
+      const fx = -neck.tan.x
+      const fy = -neck.tan.y
+
+      paintHead(g, neck.p.x + fx * 14, neck.p.y + fy * 14, fx, fy, -fy, fx, shut)
+    }
+
     // ① 风旋（96x96）：几圈由粗到细的螺旋弧
     const vortex = this.add.graphics()
 
@@ -5332,129 +5612,27 @@ export class BootScene extends Phaser.Scene {
     cloud.generateTexture('cloud-puff', 72, 30)
     cloud.destroy()
 
-    // ③ 东方龙·坠落那一瞬（170x140）：头在左下、身子一路甩到右上。
-    //    脊背走一条正弦曲线，沿曲线铺一串由粗到细的圆当身体，再补鬃刺、四只短爪、
-    //    角、龙须和尾巴尖
-    const spine = (t: number) => ({
-      x: 26 + t * 124,
-      y: 118 - t * 86 + Math.sin(t * Math.PI * 2) * 14,
-    })
-
+    // ③ 东方龙·坠落那一瞬（180x150）：头在左下、身子拱成一道弧、尾巴甩到右下。
+    //    七个控制点就是它的脊椎（横坐标一路向右、不回折，这样身子不会自己压自己）；
+    //    眼、眉、角、龙须全挂在头自己的坐标上（paintHead），
+    //    身子、鬃刺、四爪、尾羽挂在脊椎上（paintDragon）
     const dive = this.add.graphics()
 
-    // 身体：先描一圈深色轮廓，再压亮色
-    for (let i = 0; i <= 40; i++) {
-      const t = i / 40
-      const p = spine(t)
-      const r = 13 - t * 9
-
-      dive.fillStyle(INK, 1)
-      dive.fillCircle(p.x, p.y, r + 1.5)
-    }
-
-    for (let i = 0; i <= 40; i++) {
-      const t = i / 40
-      const p = spine(t)
-      const r = 13 - t * 9
-
-      dive.fillStyle(BODY, 1)
-      dive.fillCircle(p.x, p.y, r)
-      dive.fillStyle(BODY_LIGHT, 1)
-      dive.fillCircle(p.x - r * 0.25, p.y - r * 0.3, r * 0.55)
-      dive.fillStyle(BELLY, 1)
-      dive.fillCircle(p.x + r * 0.15, p.y + r * 0.45, r * 0.42)
-    }
-
-    // 鬃刺：沿脊背一串小三角（往左上甩）
-    for (let i = 2; i < 34; i += 2) {
-      const t = i / 40
-      const p = spine(t)
-      const r = 13 - t * 9
-
-      dive.fillStyle(i % 4 === 0 ? MANE_LIGHT : MANE, 1)
-      dive.fillTriangle(p.x, p.y - r, p.x + 9, p.y - r - 11, p.x + 3, p.y - r + 2)
-    }
-
-    // 四只短爪：从身体下侧伸出来的三趾小爪子
-    ;[10, 17, 24, 31].forEach((i) => {
-      const t = i / 40
-      const p = spine(t)
-      const r = 13 - t * 9
-      const footX = p.x + r * 0.4
-      const footY = p.y + r * 0.9
-
-      dive.fillStyle(INK, 1)
-      dive.fillRect(footX - 1, footY - 1, 4, 9)
-      dive.fillStyle(BODY, 1)
-      dive.fillRect(footX, footY, 2, 8)
-      dive.fillStyle(MANE_LIGHT, 1)
-      dive.fillTriangle(footX - 3, footY + 8, footX, footY + 6, footX, footY + 10)
-      dive.fillTriangle(footX, footY + 6, footX + 3, footY + 8, footX, footY + 10)
-      dive.fillTriangle(footX + 2, footY + 6, footX + 5, footY + 8, footX + 2, footY + 10)
-    })
-
-    // 头：朝左下，嘴张着
-    dive.fillStyle(INK, 1)
-    dive.fillEllipse(17, 122, 30, 22)
-    dive.fillStyle(BODY, 1)
-    dive.fillEllipse(17, 122, 26, 18)
-    dive.fillStyle(BODY_LIGHT, 1)
-    dive.fillEllipse(13, 118, 15, 10)
-    // 上颚 + 下颚（中间留一道张开的嘴）
-    dive.fillStyle(INK, 1)
-    dive.fillPoints(
+    paintDragon(
+      dive,
       [
-        new Phaser.Math.Vector2(2, 116),
-        new Phaser.Math.Vector2(20, 112),
-        new Phaser.Math.Vector2(20, 121),
-        new Phaser.Math.Vector2(4, 123),
+        [56, 116],
+        [72, 98],
+        [94, 84],
+        [118, 78],
+        [140, 84],
+        [154, 98],
+        [160, 116],
       ],
-      true
+      false
     )
-    dive.fillStyle(BODY, 1)
-    dive.fillPoints(
-      [
-        new Phaser.Math.Vector2(4, 117),
-        new Phaser.Math.Vector2(19, 114),
-        new Phaser.Math.Vector2(19, 120),
-        new Phaser.Math.Vector2(4, 122),
-      ],
-      true
-    )
-    // 牙
-    dive.fillStyle(WHISKER, 1)
-    dive.fillTriangle(9, 119, 12, 119, 11, 123)
-    dive.fillTriangle(15, 118, 18, 118, 17, 122)
-    // 闭着的眼（昏死过去）+ 眉
-    dive.fillStyle(INK, 1)
-    dive.fillRect(14, 109, 8, 2)
-    // 龙须：两缕从嘴边荡出去（都留在贴图里，不许出界）
-    dive.lineStyle(1.5, WHISKER, 1)
-    dive.beginPath()
-    dive.moveTo(11, 112)
-    dive.lineTo(3, 103)
-    dive.lineTo(1, 94)
-    dive.strokePath()
-    dive.beginPath()
-    dive.moveTo(12, 118)
-    dive.lineTo(4, 127)
-    dive.lineTo(2, 136)
-    dive.strokePath()
-    // 角：两支金色分叉，往后（右上）甩
-    dive.fillStyle(MANE, 1)
-    dive.fillTriangle(24, 108, 52, 88, 34, 110)
-    dive.fillTriangle(30, 106, 54, 100, 38, 112)
-    dive.fillStyle(MANE_LIGHT, 1)
-    dive.fillTriangle(26, 108, 50, 90, 33, 108)
-    dive.fillTriangle(31, 106, 52, 101, 37, 110)
-    // 尾巴尖：几片金色尾羽
-    dive.fillStyle(MANE, 1)
-    dive.fillTriangle(146, 30, 168, 14, 156, 34)
-    dive.fillTriangle(148, 34, 166, 34, 154, 44)
-    dive.fillStyle(MANE_LIGHT, 1)
-    dive.fillTriangle(147, 31, 164, 18, 155, 33)
 
-    dive.generateTexture('dragon-dive', 170, 140)
+    dive.generateTexture('dragon-dive', 180, 150)
     dive.destroy()
 
     // ④ 撞毁的祭坛（200x64）：台面裂成两半、中间塌下去一块，
@@ -5530,103 +5708,37 @@ export class BootScene extends Phaser.Scene {
     broken.generateTexture('terrace-altar-broken', 200, 64)
     broken.destroy()
 
-    // ⑤ 龙身趴在祭坛上（230x130）：身子横搭在坛面上、头从前面垂下来、尾巴甩到右后方。
-    //    底边对齐贴图底边，摆的时候按祭坛的尺度缩一下就是"趴在上面"
-    const wreckSpine = (t: number) => ({
-      x: 24 + t * 180,
-      y: 112 - Math.sin(t * Math.PI) * 62 + t * 12,
-    })
-
+    // ⑤ 龙身趴在祭坛上（240x140）：身子横搭在坛面上、头从前面垂下来、尾巴拖到右后边。
+    //    和坠落那条用的是同一套画法，只是脊椎换成一条更平缓的弧、眼睛闭上
     const wreck = this.add.graphics()
 
-    for (let i = 0; i <= 44; i++) {
-      const t = i / 44
-      const p = wreckSpine(t)
-      const r = 13 - t * 9
+    paintDragon(
+      wreck,
+      [
+        [56, 104],
+        [76, 84],
+        [102, 72],
+        [130, 70],
+        [158, 78],
+        [186, 94],
+        [208, 114],
+      ],
+      true
+    )
 
-      wreck.fillStyle(INK, 1)
-      wreck.fillCircle(p.x, p.y, r + 1.5)
-    }
-
-    for (let i = 0; i <= 44; i++) {
-      const t = i / 44
-      const p = wreckSpine(t)
-      const r = 13 - t * 9
-
-      wreck.fillStyle(BODY, 1)
-      wreck.fillCircle(p.x, p.y, r)
-      wreck.fillStyle(BODY_LIGHT, 1)
-      wreck.fillCircle(p.x - r * 0.3, p.y - r * 0.35, r * 0.5)
-      wreck.fillStyle(BELLY, 1)
-      wreck.fillCircle(p.x, p.y + r * 0.5, r * 0.4)
-    }
-
-    // 鬃刺（软趴趴地垂着）
-    for (let i = 3; i < 42; i += 2) {
-      const t = i / 44
-      const p = wreckSpine(t)
-      const r = 13 - t * 9
-
-      wreck.fillStyle(i % 4 === 0 ? MANE_LIGHT : MANE, 1)
-      wreck.fillTriangle(p.x, p.y - r, p.x + 8, p.y - r - 8, p.x + 3, p.y - r + 2)
-    }
-
-    // 四只爪子软软地摊在两边
-    ;[9, 16, 24, 32].forEach((i) => {
-      const t = i / 44
-      const p = wreckSpine(t)
-      const r = 13 - t * 9
-      const footX = p.x + r * 0.5
-      const footY = p.y + r * 0.8
-
-      wreck.fillStyle(INK, 1)
-      wreck.fillRect(footX - 1, footY - 1, 4, 8)
-      wreck.fillStyle(BODY, 1)
-      wreck.fillRect(footX, footY, 2, 7)
-      wreck.fillStyle(MANE_LIGHT, 1)
-      wreck.fillTriangle(footX - 3, footY + 7, footX, footY + 5, footX, footY + 9)
-      wreck.fillTriangle(footX + 2, footY + 5, footX + 5, footY + 7, footX + 2, footY + 9)
-    })
-
-    // 头：从坛前垂下来，眼闭着
-    wreck.fillStyle(INK, 1)
-    wreck.fillEllipse(22, 114, 32, 24)
-    wreck.fillStyle(BODY, 1)
-    wreck.fillEllipse(22, 114, 28, 20)
-    wreck.fillStyle(BODY_LIGHT, 1)
-    wreck.fillEllipse(18, 109, 16, 10)
-    // 嘴（合着，一线）
-    wreck.fillStyle(INK, 1)
-    wreck.fillRect(6, 118, 18, 2)
-    wreck.fillRect(18, 102, 9, 2)   // 闭着的眼
-    // 龙须垂下来（同样不许出界）
-    wreck.lineStyle(1.5, WHISKER, 1)
-    wreck.beginPath()
-    wreck.moveTo(10, 120)
-    wreck.lineTo(3, 125)
-    wreck.lineTo(1, 129)
-    wreck.strokePath()
-    wreck.beginPath()
-    wreck.moveTo(12, 106)
-    wreck.lineTo(5, 99)
-    wreck.lineTo(3, 94)
-    wreck.strokePath()
-    // 角往后（右上）甩
-    wreck.fillStyle(MANE, 1)
-    wreck.fillTriangle(30, 104, 58, 86, 40, 108)
-    wreck.fillTriangle(36, 104, 60, 98, 44, 110)
-    wreck.fillStyle(MANE_LIGHT, 1)
-    wreck.fillTriangle(32, 104, 56, 88, 39, 106)
-    wreck.fillTriangle(37, 104, 58, 99, 43, 108)
-    // 尾巴尖搭在右边地上（同样收在贴图里）
-    wreck.fillStyle(MANE, 1)
-    wreck.fillTriangle(196, 118, 218, 106, 208, 126)
-    wreck.fillTriangle(198, 122, 220, 122, 206, 129)
-    wreck.fillStyle(MANE_LIGHT, 1)
-    wreck.fillTriangle(197, 119, 214, 109, 207, 124)
-
-    wreck.generateTexture('dragon-wreck', 230, 130)
+    wreck.generateTexture('dragon-wreck', 240, 140)
     wreck.destroy()
+
+    // ⑥ 砸在祭坛上那一圈冲击波（96x96）：一圈金白的光环，越往外越淡
+    const ring = this.add.graphics()
+
+    for (let i = 12; i > 0; i--) {
+      ring.lineStyle(i * 0.9, 0xfff3d0, 0.05 + (12 - i) * 0.05)
+      ring.strokeCircle(48, 48, 40)
+    }
+
+    ring.generateTexture('shock-ring', 96, 96)
+    ring.destroy()
   }
 
   // 台面顶面那**一小节**（400x40）：全局规则是「走线＝平台前沿」，玩家永远踩在前沿上，

@@ -7587,24 +7587,55 @@ export class GameScene extends Phaser.Scene {
       }
     })
 
-    // ② 东方龙从风旋里坠下来
+    // ② 东方龙从风旋里坠下来：不是直挺挺地掉下来 —— 越掉越大（像朝镜头扑过来）、
+    //    身子一路翻、身侧拖几道风痕，最后重重砸在祭坛上
     this.time.delayedCall(1480, () => {
-      playSfx(this, 'sfx-fly', 0.4)
+      playSfx(this, 'sfx-fly', 0.45)
 
       const dragon = this.add
-        .image(skyX, skyY + 12, 'dragon-dive')
+        .image(skyX + 44, skyY + 26, 'dragon-dive')
         .setDepth(9.3)
-        .setScale(0.9)
-        .setAngle(155)
+        .setScale(0.46)
+        .setAngle(205)
+        .setAlpha(0)
 
+      const trails: Phaser.GameObjects.Image[] = []
+
+      for (let i = 0; i < 3; i++) {
+        trails.push(
+          this.add
+            .image(skyX + 44, skyY + 26, 'pixel')
+            .setDisplaySize(2, 24 + i * 10)
+            .setTint(0xeaf7ff)
+            .setDepth(9.25)
+            .setAlpha(0)
+        )
+      }
+
+      this.tweens.add({ targets: trails, alpha: 0.5, duration: 110 })
+
+      // 风痕贴在龙身后（上面那一侧），每帧把人拖出来的轨迹补上
+      this.time.addEvent({
+        delay: 16,
+        repeat: 38,
+        callback: () => {
+          trails.forEach((trail, index) => {
+            trail.setPosition(dragon.x + (index - 1) * 8, dragon.y - 10 - index * 5)
+          })
+        },
+      })
+
+      this.tweens.add({ targets: dragon, alpha: 1, scale: 1.02, duration: 620, ease: 'Sine.easeIn' })
+      // 横向单独走一条弧、纵向加速往下：两条合起来才是"扑下来"的弧线，不是一根直线
+      this.tweens.add({ targets: dragon, x: spot.x, duration: 620, ease: 'Sine.easeInOut' })
       this.tweens.add({
         targets: dragon,
-        x: spot.x,
         y: crashY,
-        angle: 12,
-        duration: 740,
-        ease: 'Quad.easeIn',
+        angle: 28,
+        duration: 620,
+        ease: 'Cubic.easeIn',
         onComplete: () => {
+          trails.forEach((trail) => trail.destroy())
           dragon.destroy()
           this.riteCrash(spot.x, crashY)
         },
@@ -7615,8 +7646,10 @@ export class GameScene extends Phaser.Scene {
   // ③ 砸上祭坛那一下：镜头抖、白光，灰尘和砖屑炸开，祭坛换成撞毁的那版 + 龙身趴上去；
   //    然后在场所有人头顶冒感叹号，最后凝光头上的气泡说话
   private riteCrash(x: number, y: number) {
-    playSfx(this, 'sfx-die', 0.3, 0.8)
-    this.cameras.main.shake(320, 0.008)
+    // 砸下来那一下：短促的重抖，紧接着一段余震 —— 别软绵绵地晃一下就完事
+    playSfx(this, 'sfx-die', 0.42, 0.72)
+    this.cameras.main.shake(120, 0.014)
+    this.time.delayedCall(120, () => this.cameras.main.shake(260, 0.005))
 
     const flash = this.add
       .rectangle(0, 0, 480, 270, 0xfff6d0, 1)
@@ -7627,35 +7660,78 @@ export class GameScene extends Phaser.Scene {
 
     this.tweens.add({
       targets: flash,
-      alpha: 0.75,
-      duration: 120,
+      alpha: 0.9,
+      duration: 90,
       yoyo: true,
-      hold: 70,
+      hold: 60,
       onComplete: () => flash.destroy(),
     })
 
-    // 尘土 + 砖屑：从落点往两边散开
-    for (let i = 0; i < 16; i++) {
-      this.time.delayedCall(i * 34, () => {
-        const puff = this.add
-          .image(x + Phaser.Math.Between(-40, 40), y + Phaser.Math.Between(-10, 14), 'pixel')
-          .setDisplaySize(Phaser.Math.Between(3, 7), Phaser.Math.Between(3, 7))
+    // 落点那一圈冲击波：一下子横着铺开、很快淡掉
+    const shock = this.add.image(x, y + 10, 'shock-ring').setDepth(9.35).setScale(0.3).setAlpha(0.95)
+
+    this.tweens.add({
+      targets: shock,
+      scaleX: 3.4,
+      scaleY: 1.6,
+      alpha: 0,
+      duration: 440,
+      ease: 'Quad.easeOut',
+      onComplete: () => shock.destroy(),
+    })
+
+    // 尘土：贴着地面往两边滚
+    for (let i = 0; i < 12; i++) {
+      const dust = this.add
+        .image(x + Phaser.Math.Between(-26, 26), y + Phaser.Math.Between(0, 10), 'pixel')
+        .setDisplaySize(Phaser.Math.Between(8, 16), Phaser.Math.Between(6, 12))
+        .setTint(0xb8ae98)
+        .setAlpha(0.55)
+        .setDepth(9.34)
+
+      this.tweens.add({
+        targets: dust,
+        x: dust.x + (i % 2 === 0 ? 1 : -1) * Phaser.Math.Between(40, 110),
+        y: dust.y - Phaser.Math.Between(6, 26),
+        scaleX: 1.9,
+        alpha: 0,
+        duration: Phaser.Math.Between(520, 820),
+        ease: 'Quad.easeOut',
+        onComplete: () => dust.destroy(),
+      })
+    }
+
+    // 砖屑：先被抛起来、再落回地上（分两段 tween 才有抛物线的手感）
+    for (let i = 0; i < 12; i++) {
+      this.time.delayedCall(i * 22, () => {
+        const chip = this.add
+          .image(x + Phaser.Math.Between(-24, 24), y + Phaser.Math.Between(-6, 8), 'pixel')
+          .setDisplaySize(Phaser.Math.Between(3, 6), Phaser.Math.Between(3, 6))
           .setTint(i % 3 === 0 ? 0x8f8570 : 0xe6dfcd)
           .setDepth(9.4)
 
         this.tweens.add({
-          targets: puff,
-          x: puff.x + Phaser.Math.Between(-60, 60),
-          y: puff.y - Phaser.Math.Between(8, 40),
-          alpha: 0,
-          duration: 720,
-          onComplete: () => puff.destroy(),
+          targets: chip,
+          x: chip.x + Phaser.Math.Between(-90, 90),
+          y: chip.y - Phaser.Math.Between(18, 52),
+          angle: Phaser.Math.Between(-220, 220),
+          duration: 240,
+          ease: 'Quad.easeOut',
+          onComplete: () => {
+            this.tweens.add({
+              targets: chip,
+              y: y + 16,
+              duration: 360,
+              ease: 'Quad.easeIn',
+              onComplete: () => chip.destroy(),
+            })
+          },
         })
       })
     }
 
-    // 祭坛换版 + 龙身摆上去
-    this.breakAltar()
+    // 祭坛换版 + 龙身砸上去（落定的时候带一点回弹，不是硬摆上去）
+    this.breakAltar(true)
 
     // ④ 在场所有人头顶冒感叹号（一个一个弹出来）
     this.plazaCrowd.forEach((person, index) => {
@@ -7756,7 +7832,7 @@ export class GameScene extends Phaser.Scene {
 
   // 祭坛被砸烂：换上撞毁的贴图、收掉坛上的供品、把龙身摆上去。
   // 第一次玩是戏里砸的那一下调的；存档里记过的档一进关卡就调
-  private breakAltar() {
+  private breakAltar(settle = false) {
     const info = this.plazaBreak
 
     if (!info || this.plazaDragonWreck) {
@@ -7767,11 +7843,28 @@ export class GameScene extends Phaser.Scene {
     this.plazaOffering?.setVisible(false)
 
     // 层数只比祭坛高一丝：龙身会伸到凝光那个位置，所以它必须还在凝光后面
-    this.plazaDragonWreck = this.add
+    const wreck = this.add
       .image(info.x, info.y + 4, 'dragon-wreck')
       .setOrigin(0.5, 1)
       .setScale(info.scale)
       .setDepth(info.depth + 0.001)
+
+    this.plazaDragonWreck = wreck
+
+    // 砸上去的那一版：先压扁、抬高一点，再用回弹落定 —— 有分量，不是啪一下摆在地上
+    if (settle) {
+      wreck.setScale(info.scale * 1.1, info.scale * 0.88)
+      wreck.y -= 12
+
+      this.tweens.add({
+        targets: wreck,
+        y: info.y + 4,
+        scaleX: info.scale,
+        scaleY: info.scale,
+        duration: 460,
+        ease: 'Back.easeOut',
+      })
+    }
   }
 
   // 收场：风旋和云散掉、感叹号淡掉、镜头回到正常，把操作还给玩家
