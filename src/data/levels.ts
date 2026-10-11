@@ -864,6 +864,29 @@ export const LEVELS: LevelDef[] = [
       // layerFlip —— 站上去翻一层：上楼过来就切到后层（好上上跑），下楼过来就切回前层（好下下跑）
       { x: 2355, y: 1023, width: 110, height: 6, brick: true, rail: false, layerFlip: true },   // 2300~2410
       { x: 4545, y: 1023, width: 110, height: 6, brick: true, rail: false, layerFlip: true },   // 4490~4600
+
+      // ④ 追击段（出玉京台 → 宝箱，x 4700~6210）：一串高高低低的货堆，边跑边跳。
+      //    参数是按史莱姆真实的跳跃弧算过的：岩史莱姆速度 90、跳力 240、重力 600 ——
+      //    一跳最高 48 像素、滞空 0.8 秒。**上升的那一跳**，横向空隙最大只能给到 33
+      //    （网上是 59 像素的位移再减去两边半宽 13×2），下坡/平跳能到 44。
+      //    所以这里的空隙：上坡的都用 29 以内，下坡的才放到 30。每一级抬 28~30 像素。
+      //    每块都从地面 1160 长上来（就是堆在街上的木箱 / 货堆），不会飘在半空里。
+      //    写法：y = (顶 + 1160) ÷ 2，height = 1160 − 顶
+      { x: 4700, y: 1146, width: 46, height: 28, plank: true },    // 顶 1132
+      { x: 4775, y: 1132, width: 46, height: 56, plank: true },    // 顶 1104（空 29）
+      { x: 4860, y: 1118, width: 80, height: 84, plank: true },    // 顶 1076（空 22）
+      { x: 4960, y: 1104, width: 90, height: 112, plank: true },   // 顶 1048（空 15）
+      { x: 5090, y: 1090, width: 130, height: 140, plank: true },  // 顶 1020（空 20，最高点）
+      { x: 5230, y: 1103, width: 90, height: 114, plank: true },   // 顶 1046（空 30，下坡）
+      { x: 5330, y: 1117, width: 90, height: 86, plank: true },    // 顶 1074（空 10）
+      { x: 5430, y: 1131, width: 90, height: 58, plank: true },    // 顶 1102（空 10）
+      { x: 5530, y: 1117, width: 80, height: 86, plank: true },    // 顶 1074（空 15）
+      { x: 5620, y: 1102, width: 80, height: 116, plank: true },   // 顶 1044（空 10）
+      { x: 5720, y: 1087, width: 90, height: 146, plank: true },   // 顶 1014（空 15，最高点）
+      { x: 5840, y: 1102, width: 90, height: 116, plank: true },   // 顶 1044（空 30，下坡）
+      { x: 5950, y: 1117, width: 90, height: 86, plank: true },    // 顶 1074（空 20）
+      { x: 6060, y: 1132, width: 90, height: 56, plank: true },    // 顶 1104（空 20）
+      { x: 6170, y: 1146, width: 80, height: 28, plank: true },    // 顶 1132（空 25）→ 出去就是地面
     ],
 
     // ③ 玉京台的两条双层楼梯（一跑一半高，两跑一样高，正好嵌在台面左右两边）：
