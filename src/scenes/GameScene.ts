@@ -1314,6 +1314,8 @@ export class GameScene extends Phaser.Scene {
   private plazaDragonWreck: Phaser.GameObjects.Image | null = null
   // 观礼之前把券门整堵封上的那块实体（演完就拆，只剩门楣挡人）
   private terraceSeal: Phaser.Physics.Arcade.Sprite | null = null
+  // 配套的画面：这道墙在台体上一直画到地面的那一截（演完一起拆）
+  private terraceSealArt: Phaser.GameObjects.Graphics | null = null
   // 那道墙的世界 x（封着的时候走到跟前给一句提示）
   private plazaWallX: number | null = null
   private sealHintTimer = 0
@@ -1576,6 +1578,7 @@ export class GameScene extends Phaser.Scene {
     this.plazaOffering = null
     this.plazaDragonWreck = null
     this.terraceSeal = null
+    this.terraceSealArt = null
     this.plazaWallX = null
     this.sealHintTimer = 0
     this.plazaBreak = null
@@ -5064,7 +5067,8 @@ export class GameScene extends Phaser.Scene {
     const frameT = gpX(wallX, wallTopH, 0)
     const frameDoor = gpX(wallX, springH, 0)
 
-    gateTop.fillStyle(0xc6bda9, 1)
+    // 墙靠人这一面用更亮的石色：台面是 0xb8ae98，太接近就分不出"墙"和"地"了
+    gateTop.fillStyle(0xd3cbb8, 1)
     gateTop.fillRect(frameL.x, frameT.y, frameR.x - frameL.x, frameR.y - frameT.y)
     // 门洞**不填黑**：只画线条 —— 外框（洞口一圈）+ 内框（往里收一圈）+ 四条角线，
     // 这样门洞里能看见洞的进深，门框和洞壁都是用线描出来的，人也透得过去
@@ -5098,6 +5102,21 @@ export class GameScene extends Phaser.Scene {
     quad(60, 66, doorZ, farZ, 0xc6bda9)
     // 门额：券顶上面一块匾
     quad(apexH + 18, apexH + 52, 24, doorZ - 24, 0xd9a441)
+
+    // 墙脚：沿墙的底边（墙脚踩在台面上的那一条）往镜头这一侧压一道接地影，
+    // 再描一条深线 —— 不然墙和台面一个色，看不出墙是从哪儿立起来的
+    wall.fillStyle(0x4a3f33, 0.42)
+    wall.fillPoints(
+      [
+        wp(0, 0),
+        wp(0, farZ),
+        new Phaser.Math.Vector2(wp(0, farZ).x, wp(0, farZ).y + 9),
+        new Phaser.Math.Vector2(wp(0, 0).x, wp(0, 0).y + 9),
+      ],
+      true
+    )
+    wall.lineStyle(2.5, 0x3a3228, 0.85)
+    wall.lineBetween(wp(0, 0).x, wp(0, 0).y, wp(0, farZ).x, wp(0, farZ).y)
 
     // 墙身上其余的部分：就这样当背景画着（玩家走在它前面）
     wall.setDepth(0.55)
@@ -5134,22 +5153,42 @@ export class GameScene extends Phaser.Scene {
     gateBody.refreshBody()
 
     // ⑤ 观礼之前的**封门**：请仙典仪还没演，券门就是不通的 ——
-    //    从地面（880）一直堵到墙顶上面一大截（240）：跳、风元素滑翔、摞岩柱
-    //    都翻不过去（墙上头那截是看不见的，纯保险）；
+    //    台面上（880）和台面下那条地面通道（1160）一起封，一直堵到墙顶上面一大截（240）：
+    //    跳、风元素滑翔、摞岩柱都翻不过去，从底下绕也绕不过去
+    //    （墙上头那截是看不见的，纯保险）；
     //    雷闪那套"能穿障碍"也在 blinkSealedBlocked 里单独挡了。
     //    看完那场戏（endRite）把这块拆掉，只剩门楣那块挡人，券门才真正通
     if (!this.riteSeen) {
-      const sealHeight = 640
+      const sealTop = top - 640
+      const sealBottom = top + 280      // 台体底边 = 地面那条线（1160）
       const sealed = this.platforms.create(
         wallX,
-        top - sealHeight / 2,
+        (sealTop + sealBottom) / 2,
         'pixel'
       ) as Phaser.Physics.Arcade.Sprite
 
-      sealed.setDisplaySize(wallT, sealHeight)
+      sealed.setDisplaySize(wallT, sealBottom - sealTop)
       sealed.setVisible(false)
       sealed.refreshBody()
       this.terraceSeal = sealed
+
+      // 光有碰撞看不见：在台体上把这道墙"接"到地面，让人一眼看出这里过不去。
+      // 观礼演完和实体一起拆掉
+      const sealArt = this.add.graphics().setDepth(0.56)
+
+      sealArt.fillStyle(0xb8ae98, 1)
+      sealArt.fillRect(wallX - wallT / 2, top, wallT, sealBottom - top)
+      sealArt.fillStyle(0xd3cbb8, 1)
+      sealArt.fillRect(wallX - wallT / 2, top, 4, sealBottom - top)
+      sealArt.fillStyle(0x6f6857, 1)
+      sealArt.fillRect(wallX + wallT / 2 - 4, top, 4, sealBottom - top)
+
+      for (let y = top + 32; y < sealBottom - 12; y += 32) {
+        sealArt.fillStyle(0x9a907c, 1)
+        sealArt.fillRect(wallX - wallT / 2 + 4, y, wallT - 8, 2)
+      }
+
+      this.terraceSealArt = sealArt
     }
 
     // ⑥ 站在台面上的东西：只写"世界 x + 深度 z"，屏幕位置/大小/层数全由上面三个函数给
@@ -5379,6 +5418,28 @@ export class GameScene extends Phaser.Scene {
       ],
       true
     )
+
+    // ⑧ 台基：台体（台子下面那道墙）和地面用的是**同一套 ruin-brick 贴图**，
+    //    不划线完全分不出来、看着就是从上到下的一整块。这里在台体脚下压一条石台基，
+    //    再往下在台面上铺几层越远越淡的接地影 —— 台子这才"立"在地面上
+    const baseY = top + 280          // 台体底边 = 地面那条线（1160）
+    const baseL = nearL - 18
+    const baseR = nearR + 18
+    const baseW = baseR - baseL
+
+    surf.fillStyle(0x8f8570, 1)                                  // 台基面
+    surf.fillRect(baseL, baseY - 30, baseW, 30)
+    surf.fillStyle(0xd3cbb8, 1)                                  // 上沿一道亮线
+    surf.fillRect(baseL, baseY - 30, baseW, 4)
+    surf.fillStyle(0x6f6857, 1)                                  // 下沿一道暗线
+    surf.fillRect(baseL, baseY - 6, baseW, 6)
+    surf.fillStyle(0x3a3228, 1)                                  // 接地那条最重的线
+    surf.fillRect(baseL, baseY - 3, baseW, 3)
+
+    for (let i = 0; i < 6; i++) {                                // 台子投在地上的影子
+      surf.fillStyle(0x3a3228, 0.28 - i * 0.042)
+      surf.fillRect(baseL, baseY + i * 3, baseW, 3)
+    }
   }
 
   private buildGuards() {
@@ -7958,11 +8019,14 @@ export class GameScene extends Phaser.Scene {
     })
     this.riteClouds = []
 
-    // 券门开了：把封门那块实体拆掉（门楣那块还留着，跳起来照样被顶住）
+    // 券门开了：把封门那块实体和那截画到地面的墙一起拆掉（门楣那块还留着，跳起来照样被顶住）
     if (this.terraceSeal) {
       this.platforms.remove(this.terraceSeal, true, true)
       this.terraceSeal = null
     }
+
+    this.terraceSealArt?.destroy()
+    this.terraceSealArt = null
 
     camera.zoomTo(1, 380, 'Sine.easeInOut')
     camera.startFollow(this.slime, true, 0.12, 0.12)
