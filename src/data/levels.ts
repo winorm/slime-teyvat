@@ -16,6 +16,9 @@ export type PlatformDef = {
   // 只画不挡人：台体、基座这类"当背景看的墙"用（玉京台下面那道墙就是它）。
   // 画面照旧画，但不参与碰撞，史莱姆可以从它前面走过去
   solid?: boolean   // 不写＝参与碰撞
+  // 叠在地形之上的"道具"平台（屋檐、木箱、断桥这种摆在街上的东西）：
+  // 算背景落脚线时**不拿它当参考** —— 不然挂在背景上的房子会跟着这些道具往上飘
+  overlay?: boolean
   rail?: boolean    // 平台边缘画一道护栏（和楼梯护栏同高，用来接上）
   railBar?: boolean // 平台悬空那端的实体挡板（防走掉下去）。写 false 就不要，
                     // 阶梯井口那种必须能走过去的地方要关掉，否则人下不去楼梯
@@ -843,8 +846,8 @@ export const LEVELS: LevelDef[] = [
     unlocks: ['wind', 'thunder'],
     spawn: { x: 60, y: 1120 },
     bg: 'harbor',
-    // 宝箱放在潜行段跑到底的地方（崖边/街尽头）—— 占位，等潜行段和追兵定下来再挪
-    goal: { x: 6520, y: 1146, kind: 'chest', prompt: '打开' },
+    // 宝箱摆在追击段最后一摞木箱（x 6737）最上面那一块上：箱顶 1028，宝箱中心压在上面
+    goal: { x: 6737, y: 1014, kind: 'chest', prompt: '打开' },
 
     platforms: [
       // 一整条平地面（顶面 1160，x 0 → 6900）
@@ -865,28 +868,45 @@ export const LEVELS: LevelDef[] = [
       { x: 2355, y: 1023, width: 110, height: 6, brick: true, rail: false, layerFlip: true },   // 2300~2410
       { x: 4545, y: 1023, width: 110, height: 6, brick: true, rail: false, layerFlip: true },   // 4490~4600
 
-      // ④ 追击段（出玉京台 → 宝箱，x 4700~6210）：一串高高低低的货堆，边跑边跳。
-      //    参数是按史莱姆真实的跳跃弧算过的：岩史莱姆速度 90、跳力 240、重力 600 ——
-      //    一跳最高 48 像素、滞空 0.8 秒。**上升的那一跳**，横向空隙最大只能给到 33
-      //    （网上是 59 像素的位移再减去两边半宽 13×2），下坡/平跳能到 44。
-      //    所以这里的空隙：上坡的都用 29 以内，下坡的才放到 30。每一级抬 28~30 像素。
-      //    每块都从地面 1160 长上来（就是堆在街上的木箱 / 货堆），不会飘在半空里。
-      //    写法：y = (顶 + 1160) ÷ 2，height = 1160 − 顶
-      { x: 4700, y: 1146, width: 46, height: 28, plank: true },    // 顶 1132
-      { x: 4775, y: 1132, width: 46, height: 56, plank: true },    // 顶 1104（空 29）
-      { x: 4860, y: 1118, width: 80, height: 84, plank: true },    // 顶 1076（空 22）
-      { x: 4960, y: 1104, width: 90, height: 112, plank: true },   // 顶 1048（空 15）
-      { x: 5090, y: 1090, width: 130, height: 140, plank: true },  // 顶 1020（空 20，最高点）
-      { x: 5230, y: 1103, width: 90, height: 114, plank: true },   // 顶 1046（空 30，下坡）
-      { x: 5330, y: 1117, width: 90, height: 86, plank: true },    // 顶 1074（空 10）
-      { x: 5430, y: 1131, width: 90, height: 58, plank: true },    // 顶 1102（空 10）
-      { x: 5530, y: 1117, width: 80, height: 86, plank: true },    // 顶 1074（空 15）
-      { x: 5620, y: 1102, width: 80, height: 116, plank: true },   // 顶 1044（空 10）
-      { x: 5720, y: 1087, width: 90, height: 146, plank: true },   // 顶 1014（空 15，最高点）
-      { x: 5840, y: 1102, width: 90, height: 116, plank: true },   // 顶 1044（空 30，下坡）
-      { x: 5950, y: 1117, width: 90, height: 86, plank: true },    // 顶 1074（空 20）
-      { x: 6060, y: 1132, width: 90, height: 56, plank: true },    // 顶 1104（空 20）
-      { x: 6170, y: 1146, width: 80, height: 28, plank: true },    // 顶 1132（空 25）→ 出去就是地面
+      // ④ 追击段（出玉京台 → 宝箱）：**背景里那排房子的屋檐全做成单向平台**，
+      //    玩家可以顺着屋檐跑，也可以走地面（地面每隔一栋房子挂着发射岩刺的造物机关）。
+      //    没房子的空当里摆一摞三级木箱（左→右越来越高，每级 44，一跳 48 留 4 余量），
+      //    从地面踩着木箱就能跳上屋檐；木箱整摞摆在空当正中，不压到任何一栋房子下面。
+      //    屋檐之间跳不过去的（落差 73 那种）补一块空中断裂平台。
+      //    数据是照岩史莱姆真实的跳跃弧算出来的（速度 90 / 跳力 240 / 重力 600）：
+      //    上坡的一跳横向最多 33，下坡和平跳能到 44~65。
+      //    y 的写法：单向平台 y = 顶 + height/2；木箱是实心墩子，y = (顶 + 1160) ÷ 2
+      //  A · 屋檐（贴着背景那排房子的屋檐线，顶面就是屋檐的高度）
+      { x: 4690, y: 1094, width: 120, height: 10, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 · 顶 1089
+      { x: 4880, y: 1021, width: 146, height: 10, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 · 顶 1016
+      { x: 5160, y: 1094, width: 120, height: 10, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 · 顶 1089
+      { x: 5480, y: 1100.3, width: 110, height: 10, oneWay: true, overlay: true, rail: false, railBar: false }, // 屋檐 · 顶 1095.3
+      { x: 5610, y: 1074, width: 238, height: 10, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 · 顶 1069
+      { x: 5910, y: 1094, width: 120, height: 10, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 · 顶 1089
+      { x: 6100, y: 1021, width: 146, height: 10, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 · 顶 1016
+      { x: 6360, y: 1094, width: 120, height: 10, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 · 顶 1089
+      { x: 6560, y: 1021, width: 146, height: 10, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 · 顶 1016
+      { x: 6820, y: 1094, width: 120, height: 10, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 · 顶 1089
+      //  B · 空当里的三级木箱
+      { x: 4987, y: 1138, width: 36, height: 44, plank: true, overlay: true, rail: false, railBar: false },     // 木箱 · 顶 1116
+      { x: 5027, y: 1116, width: 36, height: 88, plank: true, overlay: true, rail: false, railBar: false },     // 木箱 · 顶 1072
+      { x: 5067, y: 1094, width: 36, height: 132, plank: true, overlay: true, rail: false, railBar: false },    // 木箱 · 顶 1028
+      { x: 5282, y: 1138, width: 36, height: 44, plank: true, overlay: true, rail: false, railBar: false },     // 木箱 · 顶 1116
+      { x: 5322, y: 1116, width: 36, height: 88, plank: true, overlay: true, rail: false, railBar: false },     // 木箱 · 顶 1072
+      { x: 5362, y: 1094, width: 36, height: 132, plank: true, overlay: true, rail: false, railBar: false },    // 木箱 · 顶 1028
+      { x: 5750, y: 1138, width: 36, height: 44, plank: true, overlay: true, rail: false, railBar: false },     // 木箱 · 顶 1116
+      { x: 5790, y: 1116, width: 36, height: 88, plank: true, overlay: true, rail: false, railBar: false },     // 木箱 · 顶 1072
+      { x: 5830, y: 1094, width: 36, height: 132, plank: true, overlay: true, rail: false, railBar: false },    // 木箱 · 顶 1028
+      { x: 6197, y: 1138, width: 36, height: 44, plank: true, overlay: true, rail: false, railBar: false },     // 木箱 · 顶 1116
+      { x: 6237, y: 1116, width: 36, height: 88, plank: true, overlay: true, rail: false, railBar: false },     // 木箱 · 顶 1072
+      { x: 6277, y: 1094, width: 36, height: 132, plank: true, overlay: true, rail: false, railBar: false },    // 木箱 · 顶 1028
+      { x: 6657, y: 1138, width: 36, height: 44, plank: true, overlay: true, rail: false, railBar: false },     // 木箱 · 顶 1116
+      { x: 6697, y: 1116, width: 36, height: 88, plank: true, overlay: true, rail: false, railBar: false },     // 木箱 · 顶 1072
+      { x: 6737, y: 1094, width: 36, height: 132, plank: true, overlay: true, rail: false, railBar: false },    // 木箱 · 顶 1028（宝箱在这上面）
+      //  C · 两段屋檐之间补的空中断裂平台
+      { x: 4779, y: 1058, width: 44, height: 12, oneWay: true, overlay: true, rail: false, railBar: false },    // 断桥 · 顶 1052
+      { x: 5999, y: 1058, width: 44, height: 12, oneWay: true, overlay: true, rail: false, railBar: false },    // 断桥 · 顶 1052
+      { x: 6454, y: 1058, width: 44, height: 12, oneWay: true, overlay: true, rail: false, railBar: false },    // 断桥 · 顶 1052
     ],
 
     // ③ 玉京台的两条双层楼梯（一跑一半高，两跑一样高，正好嵌在台面左右两边）：
@@ -931,6 +951,16 @@ export const LEVELS: LevelDef[] = [
     blessings: [],
     hazards: [],
     monuments: [],
+    // 发射岩刺的造物机关：**每隔一栋房子**挂一个在屋檐底下，只往下打 ——
+    // 走地面这条线就躲这个；嫌挤就跳上屋檐走上面那一条
+    // y 都落在屋檐平台**下面**一点（屋檐板占 10 像素高），机关才不会埋在板子里
+    launchers: [
+      { x: 4690, y: 1103, interval: 2.2 },
+      { x: 5160, y: 1103, interval: 2.2 },
+      { x: 5610, y: 1083, interval: 2.2 },
+      { x: 6100, y: 1030, interval: 2.2 },
+      { x: 6560, y: 1030, interval: 2.2 },
+    ],
 
     // ③ 玉京台左半边：请仙典仪的广场（圆形广场 + 长方形祭坛 + 围观的 + 凝光和两个仆从）。
     // 走到广场前面按 F = 观礼，演完请仙失败那一场就从右边的券门走

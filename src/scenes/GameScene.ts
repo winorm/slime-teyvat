@@ -4774,6 +4774,12 @@ export class GameScene extends Phaser.Scene {
     let best = Number.POSITIVE_INFINITY
 
     this.level.platforms.forEach((item) => {
+      // 叠在地形上的道具（屋檐 / 木箱 / 断桥）不算"落脚线"，
+      // 不然背景里挂着的房子会跟着它们往上飘
+      if (item.overlay) {
+        return
+      }
+
       const top = item.y - item.height / 2
 
       if (x >= item.x - item.width / 2 && x <= item.x + item.width / 2 && top < best) {
