@@ -1052,6 +1052,10 @@ export class GameScene extends Phaser.Scene {
   private revealRailRT: Phaser.GameObjects.RenderTexture | null = null
   private revealRailBox = { left: 0, top: 0, width: 0, height: 0 }
   private revealRailDrawn = { x: -99999, y: -99999 }
+  // 玉京台那道隔断墙（连券门）：整面盖在玩家前面那一层，每帧在史莱姆身上擦一个透视洞
+  private wallRT: Phaser.GameObjects.RenderTexture | null = null
+  private wallBox = { left: 0, top: 0, width: 0, height: 0 }
+  private wallDrawn = { x: -99999, y: -99999 }
   // 玉京台那种折返楼梯：踩上去翻层的半层小平台（`PlatformDef.layerFlip`），
   // 以及"上一次站在哪一跑楼梯上"—— 靠它区分上楼还是下楼
   private flipPads: { left: number; right: number; top: number }[] = []
@@ -4822,11 +4826,15 @@ export class GameScene extends Phaser.Scene {
     const apexH = springH + archR  // 券顶（110 + 65 = 175）
     const wallTopH = 250       // 墙高（券顶上面还留一截，放门额）
     const wallT = 40           // 墙厚（有了它才有顶面、端面和券的厚度）
-    const wall = this.add.graphics().setDepth(0.55)
+    // 整面墙先画在一张离屏 Graphics 上（坐标用"画框内的局部坐标"），再生成贴图；
+    // 之后每一帧盖进 RenderTexture、并在史莱姆身上擦一个透视洞（和栏杆同一套做法）
+    const wallL = 3280
+    const wallTp = 595
+    const wall = this.add.graphics()
 
     // 墙面上任一点：世界高度 h、深度 z → 屏幕（和台面用的是同一套投影）
     const wpX = (x0: number, h: number, z: number) =>
-      new Phaser.Math.Vector2(xAt(x0, z), yOf(z) - h * sOf(z))
+      new Phaser.Math.Vector2(xAt(x0, z) - wallL, yOf(z) - h * sOf(z) - wallTp)
     const wp = (h: number, z: number) => wpX(wallX, h, z)
     const quad = (h0: number, h1: number, z0: number, z1: number, color: number) => {
       wall.fillStyle(color, 1)
@@ -4898,6 +4906,18 @@ export class GameScene extends Phaser.Scene {
     quad(60, 66, doorZ, farZ, 0xc6bda9)
     // 门额：券顶上面一块匾
     quad(apexH + 18, apexH + 52, 24, doorZ - 24, 0xd9a441)
+
+    // 墙生成一张贴图，然后整面盖到**玩家前面那一层**（12.5）的 RenderTexture 上，
+    // 每帧在史莱姆身上擦一个透视洞 —— 人走进券门时被墙的近侧挡住，但身上那圈能看见自己
+    wall.generateTexture('terrace-wall-art', 200, 320)
+    wall.destroy()
+
+    this.wallBox = { left: wallL, top: wallTp, width: 200, height: 320 }
+    this.wallRT = this.add
+      .renderTexture(this.wallBox.left, this.wallBox.top, this.wallBox.width, this.wallBox.height)
+      .setOrigin(0, 0)
+      .setDepth(12.5)
+    this.wallDrawn = { x: -99999, y: -99999 }
 
     // ⑥ 站在台面上的东西：只写"世界 x + 深度 z"，屏幕位置/大小/层数全由上面三个函数给
     const seat = (x0: number, z: number, key: string, flip = false, lift = 0) => {
@@ -6659,6 +6679,32 @@ export class GameScene extends Phaser.Scene {
       .renderTexture(left, top, this.revealRailBox.width, this.revealRailBox.height)
       .setOrigin(0, 0)
       .setDepth(12)
+  }
+
+  // 隔断墙：把那张贴图盖进 RenderTexture，再在史莱姆身上擦一个透视洞
+  private updateWall() {
+    const rt = this.wallRT
+
+    if (!rt) {
+      return
+    }
+
+    const px = this.slime.x
+    const py = this.slime.y
+    const last = this.wallDrawn
+
+    if (Math.abs(px - last.x) < 1 && Math.abs(py - last.y) < 1) {
+      return
+    }
+
+    const { left, top } = this.wallBox
+
+    rt.clear()
+    rt.stamp('terrace-wall-art', undefined, 0, 0, { originX: 0, originY: 0 })
+    rt.erase('reveal-blob', px - left, py - top)
+    rt.render()
+
+    this.wallDrawn = { x: px, y: py }
   }
 
   private updateRevealRails() {
@@ -8472,6 +8518,8 @@ export class GameScene extends Phaser.Scene {
     this.updateLayerReveals()
     // 玉京台那种画在玩家前面的栏杆：也在玩家身上擦透视洞
     this.updateRevealRails()
+    // 玉京台那道隔断墙（连券门）：同一套做法
+    this.updateWall()
     // 折返楼梯的换层（站在哪一跑上 / 踩到半层小平台）
     this.updateStairLayers(body)
 
