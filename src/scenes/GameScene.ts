@@ -4827,7 +4827,7 @@ export class GameScene extends Phaser.Scene {
     const archR = doorZ / 2    // 券的半径（半圆券，半径=洞宽的一半）
     const apexH = springH + archR  // 券顶（68 + 65 = 133）
     const wallTopH = 250       // 墙高（券顶上面还留一截，放门额）
-    const wallT = 100          // 墙厚：穿过门洞要有 100 像素的行程，"挡一下"才演得出来
+    const wallT = 40           // 墙厚（改回之前的值）
     // 只有"门上方那块墙"最后要变成一张贴图（盖进 RenderTexture、擦透视洞），
     // 所以它需要"画框内的局部坐标"；墙上其余部分直接画在场景里，用世界坐标。
     // 画框要能装下整面墙：x 3270~3530、y 600~930
@@ -4901,30 +4901,25 @@ export class GameScene extends Phaser.Scene {
     wall.fillStyle(0xd3cbb8, 1)
     wall.fillPoints(ringAt(wallX - wallT / 2, archR + 12, archR), true)   // 靠人这面（亮）
 
-    // ── 要挡人的那块：**墙靠人这一头的端面**（z=0 那个截面，券门上方那一截）──
-    // 它是一块正对着镜头的竖片：x 从 3400 到 3500（墙厚 100）、高度从门楣 68 到墙顶 250。
-    // 这东西单独画、盖到玩家前面去，并且擦一个透视洞
+    // ── 要挡人的那块：**墙靠人这一头的端面**（z=0 那个截面）──
+    // 整块从**地面**（离地 0）画到墙顶（离地 250），所以它的墙脚正好踩在 880 那条线上；
+    // 门洞那一段（离地 springH 以下）画成半透明的暗色（看着是门洞，人从里面过能透出影子），
+    // 再沿洞口描一圈门框。这块单独盖到玩家前面去，并且擦一个透视洞
+    const frameL = gpX(wallX - wallT / 2, 0, 0)
+    const frameR = gpX(wallX + wallT / 2, 0, 0)
+    const frameT = gpX(wallX, wallTopH, 0)
+    const frameDoor = gpX(wallX, springH, 0)
+
     gateTop.fillStyle(0xc6bda9, 1)
-    gateTop.fillPoints(
-      [
-        gpX(wallX - wallT / 2, springH, 0),
-        gpX(wallX + wallT / 2, springH, 0),
-        gpX(wallX + wallT / 2, wallTopH, 0),
-        gpX(wallX - wallT / 2, wallTopH, 0),
-      ],
-      true
-    )
-    // 门楣下沿一道券石（跟着端面走，正对镜头）
+    gateTop.fillRect(frameL.x, frameT.y, frameR.x - frameL.x, frameR.y - frameT.y)
+    // 门洞（半透明暗色）
+    gateTop.fillStyle(0x2b2723, 0.82)
+    gateTop.fillRect(frameL.x, frameDoor.y, frameR.x - frameL.x, frameR.y - frameDoor.y)
+    // 门框：上沿一道石线 + 两侧竖框
     gateTop.fillStyle(0xa89f8a, 1)
-    gateTop.fillPoints(
-      [
-        gpX(wallX - wallT / 2, springH, 0),
-        gpX(wallX + wallT / 2, springH, 0),
-        gpX(wallX + wallT / 2, springH + 12, 0),
-        gpX(wallX - wallT / 2, springH + 12, 0),
-      ],
-      true
-    )
+    gateTop.fillRect(frameL.x, frameDoor.y - 9, frameR.x - frameL.x, 9)
+    gateTop.fillRect(frameL.x, frameDoor.y - 9, 6, frameR.y - frameDoor.y + 9)
+    gateTop.fillRect(frameR.x - 6, frameDoor.y - 9, 6, frameR.y - frameDoor.y + 9)
     // 墙的顶面（40 宽的一条，从近端铺到远端）—— 这一条最能让墙"站"起来
     wall.fillStyle(0xe6dfcd, 1)
     wall.fillPoints(
