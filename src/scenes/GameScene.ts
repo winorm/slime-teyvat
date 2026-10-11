@@ -1033,6 +1033,9 @@ export class GameScene extends Phaser.Scene {
   private flipPads: { left: number; right: number; top: number }[] = []
   private lastFlightLayer: 'front' | 'back' = 'front'
   private onFlipPad = false
+  // 正在"穿过去"的那一跑下跑（-1 = 没有）。沿着它下来落地后先把它的碰撞关掉，
+  // 等身体整个穿过它再打开（见 updateStairLayers 里那段注释）
+  private passUnderFlight = -1
   private cameraLiftNow = -1
   private gateFired: boolean[] = []
   // 只在「树前」或「树后」某一层存在的楼板补片（第七关整层楼板中间那块"活板"）。
@@ -6183,32 +6186,16 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
-    // ① **先看脚踩没踩在半层小平台上**（顺序很重要）：
-    //    人下楼上到小平台时，身体还压着下跑最上面那一级踏面（和小平台同高、就在平台边上），
-    //    要是先按"踩在哪一跑上"判，就会认为"你还在下跑上"→ 层没翻 → 他还是后层；
-    //    这时往楼梯那边一走，挡住他的是上跑（后层）、比脚底高 7 像素，自动上台阶直接把他抬回去 ——
-    //    表现就是"下楼之后又自己上楼"。所以平台优先：踩到平台就翻层，离开平台才按踏面判
-    const onPad = this.flipPads.some(
-      (pad) =>
-        body.right > pad.left &&
-        body.left < pad.right &&
-        Math.abs(body.bottom - pad.top) < 4
-    )
+    const defs = this.level.stairs ?? []
+    let standingFlight = -1
 
-    if (onPad) {
-      if (!this.onFlipPad) {
-        this.onFlipPad = true
-        this.setPlayerLayer(this.lastFlightLayer === 'back' ? 'front' : 'back')
-      }
-
-      return
-    }
-
-    this.onFlipPad = false
-
-    // ② 离开平台之后：脚下踩着哪一跑踏面，就属于哪一层（下楼时贴着小平台那一级也算）
     for (const step of this.stairs) {
       const stepBody = step.body as Phaser.Physics.Arcade.StaticBody
+
+      if (!stepBody.enable) {
+        continue
+      }
+
       const onIt =
         body.right > stepBody.left &&
         body.left < stepBody.right &&
@@ -6222,13 +6209,84 @@ export class GameScene extends Phaser.Scene {
       const layer = step.getData('layer') as 'front' | 'back'
 
       this.lastFlightLayer = layer
+      standingFlight = step.getData('flight') as number
 
       if (this.playerLayer !== layer) {
         this.setPlayerLayer(layer)
       }
 
+      break
+    }
+
+    // ── 下跑"穿过去"（用户定的做法）──────────────────────────────
+    // 沿着带 passUnder 的下跑一路下到地面之后，要是往外（离开玉京台的方向）走，
+    // 会被这条下跑的最高几级抬回去。做法：落地之后先把这一跑的碰撞关掉
+    //（画面本来就画在人后面，depth 1），等身体整个穿过它的范围再恢复。
+    // 自己在上面走的时候当然得开着，所以只在"人不在它上面"时才关。
+    if (standingFlight >= 0 && defs[standingFlight]?.passUnder) {
+      this.passUnderFlight = standingFlight
+    }
+
+    if (this.passUnderFlight >= 0) {
+      const def = defs[this.passUnderFlight]
+
+      if (!def) {
+        this.passUnderFlight = -1
+      } else {
+        const lowX = def.from.x
+        const highX = def.to.x
+        const toHigh = Math.sign(highX - lowX) || 1
+        // 穿过整条楼梯（到了高的那一头外侧），或者已经走出去老远（低端外侧 60 像素）
+        const passed =
+          toHigh > 0 ? body.left > highX + 6 : body.right < highX - 6
+        const walkedAway =
+          toHigh > 0 ? body.right < lowX - 60 : body.left > lowX + 60
+        const movedOn = standingFlight >= 0 && standingFlight !== this.passUnderFlight
+
+        if (passed || walkedAway || movedOn) {
+          this.setFlightEnabled(this.passUnderFlight, true)
+          this.passUnderFlight = -1
+        } else if (standingFlight !== this.passUnderFlight) {
+          this.setFlightEnabled(this.passUnderFlight, false)
+        }
+      }
+    }
+
+    if (standingFlight >= 0) {
+      this.onFlipPad = false
       return
     }
+
+    this.onFlipPad = false
+
+    const onPad = this.flipPads.some(
+      (pad) =>
+        body.right > pad.left &&
+        body.left < pad.right &&
+        Math.abs(body.bottom - pad.top) < 4
+    )
+
+    if (!onPad) {
+      return
+    }
+
+    if (!this.onFlipPad) {
+      this.onFlipPad = true
+      this.setPlayerLayer(this.lastFlightLayer === 'back' ? 'front' : 'back')
+    }
+  }
+
+  // 把某一跑的踏面碰撞整体开关掉（"下跑穿过去"用）
+  private setFlightEnabled(flight: number, enabled: boolean) {
+    this.stairs.forEach((step) => {
+      if (step.getData('flight') !== flight) {
+        return
+      }
+
+      const stepBody = step.body as Phaser.Physics.Arcade.StaticBody
+
+      stepBody.enable = enabled
+    })
   }
 
   // 数据里的 revealRails 每段是一条直线栏杆。整片栏杆先画在一张 RenderTexture 上，
@@ -6409,6 +6467,11 @@ export class GameScene extends Phaser.Scene {
       }
 
       const stepBody = step.body as Phaser.Physics.Arcade.StaticBody
+
+      // 碰撞被临时关掉的踏面（"下跑穿过去"那一段）不参与抬人
+      if (!stepBody.enable) {
+        continue
+      }
 
       if (probeX < stepBody.left || probeX > stepBody.right) {
         continue

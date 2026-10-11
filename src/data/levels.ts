@@ -69,6 +69,10 @@ export type StairDef = {
   // 扶栏画在第几层：不写就跟着 layer（front → 12「画在人前面」，back → 1.4「画在人后面」）。
   // 玉京台的下半层就是这个用法：楼梯本体在前层，栏杆强制压到史莱姆下面
   railDepth?: number
+  // 下跑的"穿过去"开关（玉京台用）：沿着这一跑下到地面之后，要是往玉京台外面走，
+  // 不该被这条下跑再抬上去 —— 落地后先把这一跑的碰撞关掉（画面也画在人后面，depth 给 1），
+  // 等身体整个穿过它再恢复
+  passUnder?: boolean
 }
 
 // 带透视的栏杆：画在玩家前面（depth 12），玩家走到它后面时在它身上擦一个洞，
@@ -864,9 +868,11 @@ export const LEVELS: LevelDef[] = [
     stairs: [
       // 每一侧的两跑在同一个 x 上交接（左 2410、右 3350）—— 交点就在小平台靠里那一端；
       // 一跑半层 140，横向 240
-      { from: { x: 2650, y: 1160 }, to: { x: 2410, y: 1020 }, style: 'brick', layer: 'front', rail: 'none' },
+      // 下跑：落地端在**里侧**（左 2650 / 右 3110），从地面往小平台上半层。
+      // depth 1 = 画在史莱姆后面；passUnder = 沿着它下来之后可以先穿过去再恢复（见 note）
+      { from: { x: 2650, y: 1160 }, to: { x: 2410, y: 1020 }, style: 'brick', layer: 'front', rail: 'none', depth: 1, passUnder: true },
       { from: { x: 2410, y: 1020 }, to: { x: 2650, y: 880 }, style: 'brick', layer: 'back', rail: 'none' },
-      { from: { x: 3110, y: 1160 }, to: { x: 3350, y: 1020 }, style: 'ramp', layer: 'front', rail: 'none' },
+      { from: { x: 3110, y: 1160 }, to: { x: 3350, y: 1020 }, style: 'ramp', layer: 'front', rail: 'none', depth: 1, passUnder: true },
       { from: { x: 3350, y: 1020 }, to: { x: 3110, y: 880 }, style: 'ramp', layer: 'back', rail: 'none' },
     ],
 
