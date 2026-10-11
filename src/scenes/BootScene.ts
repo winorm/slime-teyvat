@@ -5079,33 +5079,6 @@ export class BootScene extends Phaser.Scene {
     wall.generateTexture('terrace-pwall', 575, 64)
     wall.destroy()
 
-    // ② 广场地面：圆形广场斜着看就是一个扁椭圆，外圈石沿 + 内圈玉纹 + 中心圆盘
-    const plaza = this.add.graphics()
-
-    // 直径 560 的圆 → 560 x 80（560 ÷ 7），这才是 1:7 俯角下的正圆，
-    // 大小正好放进台面 85 像素的进深里
-    plaza.fillStyle(STONE_DEEP, 1)
-    plaza.fillEllipse(280, 40, 560, 80)
-    plaza.fillStyle(STONE_DARK, 1)
-    plaza.fillEllipse(280, 40, 546, 75)
-    plaza.fillStyle(STONE_MID, 1)
-    plaza.fillEllipse(280, 40, 490, 68)
-    plaza.fillStyle(STONE, 1)
-    plaza.fillEllipse(280, 40, 448, 64)
-    plaza.lineStyle(3, JADE, 1)
-    plaza.strokeEllipse(280, 40, 448, 64)
-    plaza.lineStyle(2, GOLD, 0.9)
-    plaza.strokeEllipse(280, 40, 364, 52)
-    plaza.fillStyle(TILE, 1)
-    plaza.fillEllipse(280, 40, 105, 15)
-    plaza.fillStyle(TILE_LIGHT, 1)
-    plaza.fillEllipse(280, 38, 105, 10)
-    plaza.fillStyle(GOLD, 1)
-    plaza.fillEllipse(280, 40, 31, 5)
-
-    plaza.generateTexture('terrace-plaza', 560, 80)
-    plaza.destroy()
-
     // ③ 长方形祭坛（200x64）：座 + 前脸（带线脚）+ 台面（露出来的一层）
     const altar = this.add.graphics()
 
@@ -5268,41 +5241,19 @@ export class BootScene extends Phaser.Scene {
   // 所以这块地面只从走线往上画 40 像素到背景里（让人看出"这是个有厚度的台子"），
   // 再远处的东西一律当背景景画（近大远小）。越远越淡；石板缝等距、不向远处收
   private makeTerracePaving() {
+    // 台面的上底（梯形）现在是 Graphics 现画的（见 GameScene.buildTerracePlaza），
+    // 这里只剩"前沿那道翻边"这一张贴图
     const gfx = this.add.graphics()
 
-    gfx.fillStyle(0xc6bda9, 1)
-    gfx.fillRect(0, 0, 400, 14)
-    gfx.fillStyle(0xb8ae98, 1)
-    gfx.fillRect(0, 14, 400, 26)
-    gfx.fillStyle(0x9a907c, 1)
+    gfx.fillStyle(0xe6dfcd, 1)
+    gfx.fillRect(0, 0, 400, 3)
+    gfx.fillStyle(0xa89f8a, 1)
+    gfx.fillRect(0, 3, 400, 4)
+    gfx.fillStyle(0x8a8069, 1)
+    gfx.fillRect(0, 7, 400, 3)
 
-    for (let y = 8; y < 40; y += 8) {
-      gfx.fillRect(0, y, 400, 2)
-    }
-
-    for (let x = 0; x < 400; x += 50) {
-      gfx.fillRect(x, 0, 2, 40)
-    }
-
-    // 贴着走线那一道暗边（地面的前沿，再往下就是台子的立面）
-    gfx.fillStyle(0x8f8776, 1)
-    gfx.fillRect(0, 38, 400, 2)
-
-    gfx.generateTexture('terrace-floor', 400, 40)
+    gfx.generateTexture('terrace-paving', 400, 10)
     gfx.destroy()
-
-    // 前沿那道翻边（只留 10 像素高，别占立面）
-    const curb = this.add.graphics()
-
-    curb.fillStyle(0xe6dfcd, 1)
-    curb.fillRect(0, 0, 400, 3)
-    curb.fillStyle(0xa89f8a, 1)
-    curb.fillRect(0, 3, 400, 4)
-    curb.fillStyle(0x8a8069, 1)
-    curb.fillRect(0, 7, 400, 3)
-
-    curb.generateTexture('terrace-paving', 400, 10)
-    curb.destroy()
   }
 
   // 脚下的接地影：一个软椭圆。2D 里玩家只站在一条线上，

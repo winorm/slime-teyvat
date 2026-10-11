@@ -4702,91 +4702,161 @@ export class GameScene extends Phaser.Scene {
   //   仆从 0.64 → 凝光 0.67 → 拱门背面 0.75（全部 < 1.05，玩家站在它们前面）；
   //   再往里是背景景：连廊 -5、大殿 -7
   private buildTerracePlaza(cx: number, top: number) {
-    // **全局规则：走线＝平台前沿**（前几关的护栏、台面沿口都压在这条线上，玉京台照旧）。
-    // 所以顶面只从走线往上画一小节到背景里；广场那批东西按"近大远小"当背景景画，
-    // 近处（走线附近）最大、越往背景越小 —— 这就是玉京台那个 1:7 俯角下的景深
-    const slice = top - 40          // 顶面那一小节的远边
-    const plazaFar = top - 80       // 广场（背景景）的远边
+    // ── 台面按「一个立方的上底」画 ────────────────────────────────
+    // 全局规则：走线＝平台前沿（护栏、沿口都压在这条线上）。
+    // 玉京台是个长方体：**上底是梯形** —— 远边比近边窄、两条棱线朝消失点收；
+    // 上底靠人这条棱就是下面立面的上沿（等宽、两侧竖直，也就是台体那面砖墙）；
+    // 贴着地面的**下底看不见**，所以这里只画上底和正立面。
+    //
+    // 三个数定死这套透视：
+    //   视平线＝走线上方 180；相机到台面前沿 900；台面前沿宽 2300（2300~4600）
+    //   s(z)    = 900 ÷ (z + 900)                     越深越小
+    //   y(z)    = 视平线 + 180 × s(z)                 越深越往上
+    //   x(x0,z) = 消失点 + (x0 − 消失点) × s(z)        横向也朝消失点收
+    // 消失点取广场中线（局部消失点）：横向卷轴里画面要跟着镜头走，用全局消失点
+    // 地面会"游"；按每块地自己的中线收，看着才是"这块地往远处去"。
+    const horizonY = top - 180
+    const camDist = 900
+    const sOf = (z: number) => camDist / (z + camDist)
+    const yOf = (z: number) => horizonY + (top - horizonY) * sOf(z)
+    const zOf = (y: number) => camDist * ((top - horizonY) / (y - horizonY) - 1)
+    const xAt = (x0: number, z: number) => cx + (x0 - cx) * sOf(z)
+    const depthAt = (z: number) => 0.3 + sOf(z) * 0.45
 
-    // ── 透视：只有一条规则 ────────────────────────────────────────
-    // 视平线定死在走线上方 180 像素。竖直立着的东西，大小按它脚底那条线算：
-    //   scale(y) = (y − 视平线) ÷ 180  →  走线上 1.0，越往上越小（越远越小）
-    // **躺着的地面不参与这条规则**（横向卷轴里地面一收敛就会"游"），
-    // 石板缝保持等距平行；整张画面的景深全靠这一个函数，想加强/减弱只改 180。
-    const horizon = top - 180
-    const scaleAt = (y: number) => Math.max(0.14, (y - horizon) / 180)
-    const depthAt = (y: number) => 0.3 + scaleAt(y) * 0.45
+    const nearL = 2300
+    const nearR = 4600
+    const farZ = 500
+    const farY = yOf(farZ)
 
-    // ① 顶面那一小节：整条能走的地面（2650~4250）都铺上（400 一段，四段正好）
-    for (let x = 2850; x <= 4050; x += 400) {
-      this.add.image(x, slice, 'terrace-floor').setOrigin(0.5, 0).setDepth(0.12)
+    const surf = this.add.graphics().setDepth(0.12)
+
+    // ① 上底：梯形（近边压在走线上，远边收窄）
+    surf.fillStyle(0xb8ae98, 1)
+    surf.fillPoints(
+      [
+        new Phaser.Math.Vector2(nearL, top),
+        new Phaser.Math.Vector2(nearR, top),
+        new Phaser.Math.Vector2(xAt(nearR, farZ), farY),
+        new Phaser.Math.Vector2(xAt(nearL, farZ), farY),
+      ],
+      true
+    )
+    // 远处压淡一档（空气透视）
+    const midZ = 280
+    const midY = yOf(midZ)
+    surf.fillStyle(0xc6bda9, 1)
+    surf.fillPoints(
+      [
+        new Phaser.Math.Vector2(xAt(nearL, midZ), midY),
+        new Phaser.Math.Vector2(xAt(nearR, midZ), midY),
+        new Phaser.Math.Vector2(xAt(nearR, farZ), farY),
+        new Phaser.Math.Vector2(xAt(nearL, farZ), farY),
+      ],
+      true
+    )
+
+    // ② 石板缝：横向几条（等深一圈）+ 纵向棱线向消失点收
+    for (const z of [100, 200, 300, 400]) {
+      surf.lineStyle(2, 0x9a907c, 1)
+      surf.lineBetween(xAt(nearL, z), yOf(z), xAt(nearR, z), yOf(z))
+    }
+    surf.lineStyle(2, 0x9a907c, 1)
+    for (let x = nearL; x <= nearR; x += 50) {
+      surf.lineBetween(x, top, xAt(x, farZ), farY)
     }
 
-    // 走线下面那道翻边（再往下就是台子的立面，只留 10 像素）
+    // ③ 广场圆：直径 500、圆心在深度 250 —— 近边正好压在走线上。
+    //    逐行算半宽：圆的深处被压扁、横向也被 s 收，所以它是"透镜形"，
+    //    不是正椭圆 —— 硬币平放在地上、斜着看就是这个样子
+    const plazaX = cx
+    const plazaZ = 250
+    const plazaR = 250
+
+    const halfAt = (z: number, r: number) => {
+      const dz = z - plazaZ
+      const v = r * r - dz * dz
+      return v > 0 ? Math.sqrt(v) : 0
+    }
+
+    const band = (z: number, y: number, rOut: number, rIn: number, color: number) => {
+      const o = halfAt(z, rOut)
+
+      if (o <= 0) {
+        return
+      }
+
+      const i = halfAt(z, rIn)
+      const s = sOf(z)
+      const rowX = xAt(plazaX, z)
+
+      surf.fillStyle(color, 1)
+
+      if (i <= 0) {
+        surf.fillRect(rowX - o * s, y, o * 2 * s, 1)
+      } else {
+        surf.fillRect(rowX - o * s, y, (o - i) * s, 1)
+        surf.fillRect(rowX + i * s, y, (o - i) * s, 1)
+      }
+    }
+
+    for (let y = Math.ceil(farY); y <= top; y++) {
+      const z = zOf(y)
+
+      if (halfAt(z, plazaR) <= 0) {
+        continue
+      }
+
+      band(z, y, plazaR, plazaR * 0.9, 0x8f8570)          // 外圈石沿
+      band(z, y, plazaR * 0.9, plazaR * 0.86, 0xd3cbb8)   // 亮石
+      band(z, y, plazaR * 0.86, plazaR * 0.82, 0x4fae95)  // 玉纹圈
+      band(z, y, plazaR * 0.62, plazaR * 0.6, 0xd9a441)   // 金圈
+      band(z, y, plazaR * 0.16, 0, 0x4fae95)              // 中心玉盘
+    }
+
+    // ④ 台面前沿那道翻边（上底靠人这条棱，也是立面的上沿）
     for (let x = 2850; x <= 4050; x += 400) {
       this.add.image(x, top, 'terrace-paving').setOrigin(0.5, 0).setDepth(0.16)
     }
 
-    // ② 后沿矮围栏：站在广场远边上，按那条线的比例缩小（0.56）+ 间距跟着缩
-    ;[-160, 160].forEach((dx) => {
-      this.add
-        .image(cx + dx, plazaFar, 'terrace-pwall')
+    // ⑤ 站在台面上的东西：只写"世界 x + 深度 z"，屏幕位置/大小/层数全由上面三个函数给
+    const seat = (x0: number, z: number, key: string, flip = false, lift = 0) => {
+      const s = sOf(z)
+
+      return this.add
+        .image(xAt(x0, z), yOf(z) - lift, key)
         .setOrigin(0.5, 1)
-        .setScale(scaleAt(plazaFar))
-        .setDepth(depthAt(plazaFar))
-    })
+        .setScale(s)
+        .setFlipX(flip)
+        .setDepth(depthAt(z))
+    }
 
-    // ③ 广场圆：直径 560 → 560x80，**近边压在走线上**，整体往后铺进背景
-    this.add.image(cx, plazaFar + 40, 'terrace-plaza').setDepth(0.3)
+    // 后沿矮围栏：站在广场最里面那圈（深度 500）
+    seat(plazaX, farZ, 'terrace-pwall')
 
-    // ④ 围观的：脚底从广场远边排到走线，大小**完全由 scaleAt 给**，不再手挑；
-    //    脚底越高＝越远＝越小＝层数越低，三件事自动一致
-    const crowd: [number, number, string][] = [
-      [cx - 230, plazaFar + 10, 'harbor-slime-a'],
-      [cx - 150, plazaFar + 22, 'harbor-slime-c'],
-      [cx - 76, plazaFar + 32, 'harbor-slime-b'],
-      [cx + 76, plazaFar + 32, 'harbor-slime-d'],
-      [cx + 150, plazaFar + 22, 'harbor-slime-a'],
-      [cx + 230, plazaFar + 10, 'harbor-slime-c'],
-      // 靠走线这一侧的两只（最大，仍在人后面）
-      [cx - 250, top - 12, 'harbor-slime-d'],
-      [cx + 250, top - 12, 'harbor-slime-b'],
-    ]
+    // 围观的：一圈人（世界坐标写在广场圆里面，越深越小、层数越低）
+    seat(plazaX - 160, 90, 'harbor-slime-a')
+    seat(plazaX - 100, 180, 'harbor-slime-c')
+    seat(plazaX - 60, 270, 'harbor-slime-b')
+    seat(plazaX + 60, 270, 'harbor-slime-d')
+    seat(plazaX + 100, 180, 'harbor-slime-a')
+    seat(plazaX + 160, 90, 'harbor-slime-c')
+    // 最靠人这一侧的两只（最大，仍在人后面）
+    seat(plazaX - 130, 40, 'harbor-slime-d')
+    seat(plazaX + 130, 40, 'harbor-slime-b')
 
-    crowd.forEach(([x, y, key]) => {
-      this.add.image(x, y, key).setOrigin(0.5, 1).setScale(scaleAt(y)).setDepth(depthAt(y))
-    })
-
-    // ⑤ 祭坛 + 坛上的东西 + 凝光和两个仆从（都靠走线，最大的那一档）
-    this.add
-      .image(cx, top - 14, 'terrace-altar')
-      .setOrigin(0.5, 1)
-      .setScale(scaleAt(top - 14))
-      .setDepth(depthAt(top - 14))
-    this.add
-      .image(cx, top - 68, 'terrace-offerings')
-      .setOrigin(0.5, 1)
-      .setScale(scaleAt(top - 14))
-      .setDepth(depthAt(top - 14) + 0.01)
+    // 祭坛 + 坛上的供品 + 两个仆从 + 主事的凝光（都在靠人这一侧）
+    const altar = seat(plazaX, 60, 'terrace-altar')
+    const altarScale = sOf(60)
 
     this.add
-      .image(cx - 62, top - 12, 'npc-attendant')
+      .image(altar.x, altar.y - 60 * altarScale, 'terrace-offerings')
       .setOrigin(0.5, 1)
-      .setScale(scaleAt(top - 12))
-      .setDepth(depthAt(top - 12))
-    this.add
-      .image(cx + 62, top - 12, 'npc-attendant')
-      .setOrigin(0.5, 1)
-      .setFlipX(true)
-      .setScale(scaleAt(top - 12))
-      .setDepth(depthAt(top - 12))
+      .setScale(altarScale)
+      .setDepth(depthAt(60) + 0.01)
 
-    // 主事的凝光：站在祭坛前面一点
-    this.add
-      .image(cx, top - 8, 'npc-ningguang')
-      .setOrigin(0.5, 1)
-      .setScale(scaleAt(top - 8))
-      .setDepth(depthAt(top - 8))
+    seat(plazaX - 70, 50, 'npc-attendant')
+    seat(plazaX + 70, 50, 'npc-attendant', true)
+    seat(plazaX, 40, 'npc-ningguang')
   }
 
   private buildGuards() {
