@@ -6246,7 +6246,9 @@ export class GameScene extends Phaser.Scene {
         if (passed || walkedAway || movedOn) {
           this.setFlightEnabled(this.passUnderFlight, true)
           this.passUnderFlight = -1
-        } else if (standingFlight !== this.passUnderFlight) {
+        } else if (body.blocked.down && standingFlight !== this.passUnderFlight) {
+          // 必须**已经踩在地面上**才关：沿着下跑往下走的时候，一级到下一级之间会有一两帧腾空，
+          // 那一瞬间"脚下没有踏面"，要是就此关掉，人会直接从半截楼梯掉到地面（用户报的这条）
           this.setFlightEnabled(this.passUnderFlight, false)
         }
       }
