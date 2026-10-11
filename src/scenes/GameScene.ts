@@ -4894,6 +4894,28 @@ export class GameScene extends Phaser.Scene {
     wall.fillPoints(ringAt(wallX - wallT / 2, archR + 12, archR), true)
     wall.lineStyle(2, 0x8f8776, 1)
     wall.strokePoints(ringAt(wallX - wallT / 2, archR + 12, archR), true)
+
+    // 洞口那一段**地面**（隧道的地板）：近边就是玩家走的那条线（880），
+    // 远边落在 z=doorZ 处 = 拱门远离镜头那一面和地面的**交线**（856）。
+    // 有这两条线，门洞的厚度才看得出来
+    wall.fillStyle(0xa89f8a, 1)
+    wall.fillPoints(
+      [
+        wpX(wallX - wallT / 2, 0, 0),
+        wpX(wallX + wallT / 2, 0, 0),
+        wpX(wallX + wallT / 2, 0, doorZ),
+        wpX(wallX - wallT / 2, 0, doorZ),
+      ],
+      true
+    )
+    // 远边那条交线单独描深一点
+    wall.lineStyle(3, 0x6f6857, 1)
+    wall.lineBetween(
+      wpX(wallX - wallT / 2, 0, doorZ).x,
+      wpX(wallX - wallT / 2, 0, doorZ).y,
+      wpX(wallX + wallT / 2, 0, doorZ).x,
+      wpX(wallX + wallT / 2, 0, doorZ).y
+    )
     // 券门洞口的内边线（把拱的轮廓描出来，不要糊成一片）
     const donutIn: Phaser.Math.Vector2[] = []
     for (let i = 0; i <= 16; i++) {
