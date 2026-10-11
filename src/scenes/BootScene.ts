@@ -167,6 +167,7 @@ export class BootScene extends Phaser.Scene {
     this.makeHarborProps()
     this.makeTerraceHouses()
     this.makeTerracePlaza()
+    this.makeSlimeShadow()
 
     this.makeEyeGlow()
 
@@ -5258,6 +5259,22 @@ export class BootScene extends Phaser.Scene {
 
     servant.generateTexture('npc-attendant', 32, 44)
     servant.destroy()
+  }
+
+  // 脚下的接地影：一个软椭圆。2D 里玩家只站在一条线上，
+  // 有了它"我现在落在这条线的哪一段"一眼就看得出来（跳起来会变小变淡）
+  private makeSlimeShadow() {
+    const gfx = this.add.graphics()
+
+    gfx.fillStyle(0x1a140f, 0.16)
+    gfx.fillEllipse(20, 7, 40, 14)
+    gfx.fillStyle(0x1a140f, 0.2)
+    gfx.fillEllipse(20, 7, 32, 11)
+    gfx.fillStyle(0x1a140f, 0.24)
+    gfx.fillEllipse(20, 7, 22, 8)
+
+    gfx.generateTexture('slime-shadow', 40, 14)
+    gfx.destroy()
   }
 
   private makeBackgrounds() {

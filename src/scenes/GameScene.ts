@@ -1117,6 +1117,9 @@ export class GameScene extends Phaser.Scene {
   private armorBar!: Phaser.GameObjects.Rectangle
 
   private slimeArt!: Phaser.GameObjects.Image
+  // 脚下的接地影（跟着人走，落在最近一次踩到的那条线上）
+  private slimeShadow!: Phaser.GameObjects.Image
+  private lastGroundY = 0
   private eyes: Phaser.GameObjects.Image[] = []
   private blinkTimer = 0
   private blinkScale = 1
@@ -2503,6 +2506,8 @@ export class GameScene extends Phaser.Scene {
     this.slime.setVisible(false)
 
     this.slimeArt = this.add.image(spawnPoint.x, spawnPoint.y, 'slime-none')
+    this.slimeShadow = this.add.image(spawnPoint.x, spawnPoint.y + 14, 'slime-shadow').setDepth(8.6)
+    this.lastGroundY = spawnPoint.y + 13
 
     this.wingLeft = this.add.image(0, 0, 'wing')
     this.wingRight = this.add.image(0, 0, 'wing')
@@ -4689,10 +4694,12 @@ export class GameScene extends Phaser.Scene {
       this.add.image(x, top, 'terrace-pwall').setOrigin(0.5, 1).setDepth(-2)
     })
 
-    // 广场地面
-    this.add.image(cx, top + 14, 'terrace-plaza').setDepth(4)
+    // 广场地面：椭圆的**下沿正好压在玩家走的那条线（top）上** ——
+    // 这样人是"贴着广场前沿走"，永远不会站进椭圆中间，看不出自己在广场的哪一块
+    this.add.image(cx, top - 29, 'terrace-plaza').setDepth(4)
 
-    // 围观的：后一排（站在祭坛后面，画在史莱姆后面）
+    // 围观的：一圈人全摆在广场里侧（脚都落在 top 以上，也就是比玩家那条线远），
+    // 谁都不会盖住玩家 —— 之前把三只摆在 top 以下（画在人前面），人一进广场就没了
     const behind: [number, number, number, string][] = [
       [cx - 300, top - 24, 0.8, 'harbor-slime-a'],
       [cx - 206, top - 34, 0.7, 'harbor-slime-c'],
@@ -4700,37 +4707,29 @@ export class GameScene extends Phaser.Scene {
       [cx + 112, top - 30, 0.78, 'harbor-slime-d'],
       [cx + 206, top - 34, 0.7, 'harbor-slime-a'],
       [cx + 300, top - 24, 0.8, 'harbor-slime-c'],
+      // 广场前沿两角各一个（也在人后面，只是离得近一点）
+      [cx - 330, top - 6, 0.9, 'harbor-slime-d'],
+      [cx + 330, top - 6, 0.9, 'harbor-slime-b'],
     ]
 
     behind.forEach(([x, y, scale, key]) => {
       this.add.image(x, y, key).setOrigin(0.5, 1).setScale(scale).setDepth(4.5)
     })
 
-    // 祭坛 + 坛上摆的金银珠宝水果
-    this.add.image(cx, top, 'terrace-altar').setOrigin(0.5, 1).setDepth(5)
-    this.add.image(cx, top - 44, 'terrace-offerings').setOrigin(0.5, 1).setDepth(5.5)
+    // 祭坛 + 坛上摆的金银珠宝水果（底座也落在广场里侧）
+    this.add.image(cx, top - 8, 'terrace-altar').setOrigin(0.5, 1).setDepth(5)
+    this.add.image(cx, top - 52, 'terrace-offerings').setOrigin(0.5, 1).setDepth(5.5)
 
     // 两个仆从（一左一右跟在凝光身边）
-    this.add.image(cx - 68, top + 10, 'npc-attendant').setOrigin(0.5, 1).setDepth(5.8)
+    this.add.image(cx - 68, top - 4, 'npc-attendant').setOrigin(0.5, 1).setDepth(5.8)
     this.add
-      .image(cx + 68, top + 10, 'npc-attendant')
+      .image(cx + 68, top - 4, 'npc-attendant')
       .setOrigin(0.5, 1)
       .setFlipX(true)
       .setDepth(5.8)
 
-    // 主事的凝光：站在祭坛前面，整身都露得出来
-    this.add.image(cx, top + 12, 'npc-ningguang').setOrigin(0.5, 1).setDepth(6)
-
-    // 最前面那一排看热闹的：画在史莱姆前面，走过广场时会被挡一下
-    const front: [number, number, number, string][] = [
-      [cx - 252, top + 30, 1.0, 'harbor-slime-b'],
-      [cx - 58, top + 38, 1.1, 'harbor-slime-d'],
-      [cx + 150, top + 32, 1.05, 'harbor-slime-a'],
-    ]
-
-    front.forEach(([x, y, scale, key]) => {
-      this.add.image(x, y, key).setOrigin(0.5, 1).setScale(scale).setDepth(13)
-    })
+    // 主事的凝光：站在祭坛前面一点，整身都露得出来
+    this.add.image(cx, top - 2, 'npc-ningguang').setOrigin(0.5, 1).setDepth(6)
   }
 
   private buildGuards() {
@@ -5880,6 +5879,8 @@ export class GameScene extends Phaser.Scene {
     this.thunderRod.setDepth(back ? 1.1 : 9)
     this.windTrails.forEach((trail) => trail.setDepth(back ? 1.1 : 9))
     this.eyes.forEach((eye) => eye.setDepth(back ? 1.3 : 11))
+    // 接地影永远压在史莱姆底下（换到树后层时也要跟着沉下去）
+    this.slimeShadow?.setDepth(back ? 1.05 : 8.6)
 
     // 客栈家具跟着换：树后层整组沉到史莱姆后面
     this.innDecor.forEach((item) => item.image.setDepth(back ? item.back : item.front))
@@ -6715,6 +6716,18 @@ export class GameScene extends Phaser.Scene {
 
     const body = this.slime.body as Phaser.Physics.Arcade.Body
     const target = this.blessed && Math.abs(body.velocity.x) > 10 ? 1 : 0
+
+    // 接地影：踩到地面时把"脚下那条线"记下来，跳起来就停在原地变小变淡 ——
+    // 2D 里玩家永远在同一条线上走，这个影子负责把"这条线在哪"讲清楚
+    if (body.blocked.down) {
+      this.lastGroundY = body.bottom
+    }
+
+    const air = Math.max(0, this.lastGroundY - body.bottom)
+
+    this.slimeShadow.setPosition(this.slime.x, this.lastGroundY - 1)
+    this.slimeShadow.setAlpha(Phaser.Math.Clamp(0.6 - air / 240, 0.12, 0.6))
+    this.slimeShadow.setScale(Phaser.Math.Clamp(1 - air / 420, 0.55, 1))
 
     this.trailFade = Phaser.Math.Linear(this.trailFade, target, 0.1)
 
