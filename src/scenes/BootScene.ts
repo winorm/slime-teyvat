@@ -166,6 +166,7 @@ export class BootScene extends Phaser.Scene {
     this.makeGuardMillelith()
     this.makeHarborProps()
     this.makeTerraceHouses()
+    this.makeTerracePlaza()
 
     this.makeEyeGlow()
 
@@ -5011,6 +5012,252 @@ export class BootScene extends Phaser.Scene {
 
     archFront.generateTexture('terrace-arch-front', 220, 176)
     archFront.destroy()
+  }
+
+  // ── 玉京台左半边：请仙典仪的广场（2026/10/11 第一版，等用户审外观）──────
+  // 近处这一层：广场地面（圆形，斜着看是椭圆）、后沿的矮围栏、长方形祭坛 +
+  // 坛上的金银珠宝水果、主事的凝光 + 两个仆从，围观人群用港口那只史莱姆
+  private makeTerracePlaza() {
+    const TILE = 0x2f7f6a
+    const TILE_LIGHT = 0x54b09a
+    const STONE = 0xd3cbb8
+    const STONE_MID = 0xb8ae98
+    const STONE_DARK = 0x8f8570
+    const STONE_DEEP = 0x6f6857
+    const GOLD = 0xd9a441
+    const GOLD_DARK = 0xa9791f
+    const JADE = 0x4fae95
+    const INK = 0x2a1a16
+    const RED = 0xc0392b
+    const SILVER = 0xcfd4da
+    const FRUIT = [0xe07a2b, 0xd94f3d, 0xe8c33f]
+    const LANTERN = 0xc0392b
+
+    // ① 广场后沿的矮围栏（575x64，一段接一段能拼：柱子距 575/4、灯笼距也是）
+    const wall = this.add.graphics()
+
+    // 座体
+    wall.fillStyle(STONE_DARK, 1)
+    wall.fillRect(0, 40, 575, 24)
+    wall.fillStyle(STONE, 1)
+    wall.fillRect(0, 40, 575, 3)
+    wall.fillStyle(STONE_DEEP, 1)
+    wall.fillRect(0, 58, 575, 6)
+    // 望柱（每 143.75 一根，接缝处间距一样）
+    ;[72, 216, 359, 503].forEach((x) => {
+      wall.fillStyle(STONE_MID, 1)
+      wall.fillRect(x - 8, 14, 16, 30)
+      wall.fillStyle(STONE, 1)
+      wall.fillRect(x - 8, 14, 16, 3)
+      wall.fillStyle(TILE, 1)
+      wall.fillRect(x - 9, 12, 18, 7)
+      wall.fillStyle(TILE_LIGHT, 1)
+      wall.fillRect(x - 9, 12, 18, 2)
+    })
+    // 扶手
+    wall.fillStyle(STONE, 1)
+    wall.fillRect(0, 4, 575, 10)
+    wall.fillStyle(STONE_MID, 1)
+    wall.fillRect(0, 12, 575, 3)
+    wall.fillStyle(TILE, 1)
+    wall.fillRect(0, 1, 575, 4)
+    wall.fillStyle(TILE_LIGHT, 1)
+    wall.fillRect(0, 1, 575, 1)
+    // 檐下小灯笼（间距 144，接得上）
+    ;[36, 180, 324, 468].forEach((x) => {
+      wall.fillStyle(INK, 1)
+      wall.fillRect(x - 1, 15, 2, 7)
+      wall.fillStyle(LANTERN, 1)
+      wall.fillRect(x - 6, 22, 12, 11)
+      wall.fillStyle(GOLD, 1)
+      wall.fillRect(x - 6, 22, 12, 2)
+      wall.fillRect(x - 6, 31, 12, 2)
+    })
+
+    wall.generateTexture('terrace-pwall', 575, 64)
+    wall.destroy()
+
+    // ② 广场地面：圆形广场斜着看就是一个扁椭圆，外圈石沿 + 内圈玉纹 + 中心圆盘
+    const plaza = this.add.graphics()
+
+    plaza.fillStyle(STONE_DEEP, 1)
+    plaza.fillEllipse(350, 29, 700, 58)
+    plaza.fillStyle(STONE_DARK, 1)
+    plaza.fillEllipse(350, 29, 684, 52)
+    plaza.fillStyle(STONE_MID, 1)
+    plaza.fillEllipse(350, 29, 640, 44)
+    plaza.fillStyle(STONE, 1)
+    plaza.fillEllipse(350, 29, 596, 38)
+    plaza.lineStyle(3, JADE, 1)
+    plaza.strokeEllipse(350, 29, 596, 38)
+    plaza.lineStyle(2, GOLD, 0.9)
+    plaza.strokeEllipse(350, 29, 470, 28)
+    plaza.fillStyle(TILE, 1)
+    plaza.fillEllipse(350, 29, 150, 12)
+    plaza.fillStyle(TILE_LIGHT, 1)
+    plaza.fillEllipse(350, 27, 150, 8)
+    plaza.fillStyle(GOLD, 1)
+    plaza.fillEllipse(350, 29, 40, 5)
+
+    plaza.generateTexture('terrace-plaza', 700, 58)
+    plaza.destroy()
+
+    // ③ 长方形祭坛（200x64）：座 + 前脸（带线脚）+ 台面（露出来的一层）
+    const altar = this.add.graphics()
+
+    altar.fillStyle(STONE_DEEP, 1)
+    altar.fillRect(10, 46, 180, 18)
+    altar.fillStyle(STONE_DARK, 1)
+    altar.fillRect(14, 22, 172, 26)
+    altar.fillStyle(STONE_MID, 1)
+    altar.fillRect(18, 26, 164, 18)
+    altar.fillStyle(STONE_DEEP, 1)
+    altar.fillRect(30, 30, 6, 12)
+    altar.fillRect(164, 30, 6, 12)
+    altar.fillRect(93, 30, 14, 12)
+    altar.fillStyle(GOLD, 1)
+    altar.fillRect(14, 46, 172, 3)
+    altar.fillStyle(STONE, 1)
+    altar.fillRect(0, 10, 200, 14)
+    altar.fillStyle(0xe3dccb, 1)
+    altar.fillRect(4, 8, 192, 6)
+    altar.fillStyle(TILE, 1)
+    altar.fillRect(0, 20, 200, 3)
+
+    altar.generateTexture('terrace-altar', 200, 64)
+    altar.destroy()
+
+    // ④ 坛上的东西（180x40）：金盘上摆金锭、银锭、宝石、水果
+    const offer = this.add.graphics()
+
+    // 金盘
+    offer.fillStyle(GOLD_DARK, 1)
+    offer.fillRect(6, 32, 168, 6)
+    offer.fillStyle(GOLD, 1)
+    offer.fillRect(6, 30, 168, 3)
+    // 金锭（两头翘）
+    ;[14, 40].forEach((x) => {
+      offer.fillStyle(GOLD, 1)
+      offer.fillRect(x, 20, 22, 10)
+      offer.fillRect(x - 3, 18, 28, 4)
+      offer.fillStyle(0xf0d07a, 1)
+      offer.fillRect(x - 3, 18, 28, 2)
+    })
+    // 银锭
+    offer.fillStyle(SILVER, 1)
+    offer.fillRect(70, 24, 18, 8)
+    offer.fillStyle(0xeef1f4, 1)
+    offer.fillRect(70, 22, 18, 3)
+    // 宝石
+    ;[
+      [96, 20, JADE],
+      [108, 22, RED],
+      [120, 20, 0x4a86c8],
+    ].forEach(([x, y, color]) => {
+      offer.fillStyle(color as number, 1)
+      offer.fillTriangle(x as number, (y as number) - 6, (x as number) - 5, (y as number) + 2, (x as number) + 5, (y as number) + 2)
+    })
+    // 水果
+    ;[136, 150, 164].forEach((x, i) => {
+      offer.fillStyle(FRUIT[i % FRUIT.length], 1)
+      offer.fillCircle(x, 26, 6)
+      offer.fillStyle(0xffffff, 0.35)
+      offer.fillCircle(x - 2, 24, 2)
+    })
+
+    offer.generateTexture('terrace-offerings', 180, 40)
+    offer.destroy()
+
+    // ⑤ 凝光（48x60）：白玉史莱姆 + 金色发簪 + 手里一柄折扇（主事的那位）
+    const ning = this.add.graphics()
+
+    // 身体（白 -> 玉的同心椭圆）
+    ning.fillStyle(0x2a3a3a, 1)
+    ning.fillEllipse(24, 44, 40, 30)
+    ning.fillStyle(0xf2efe4, 1)
+    ning.fillEllipse(24, 44, 36, 27)
+    ning.fillStyle(0xe6f2ec, 1)
+    ning.fillEllipse(24, 45, 28, 21)
+    ning.fillStyle(0xd6ece2, 1)
+    ning.fillEllipse(24, 46, 18, 13)
+    // 下身玉色长裙 + 金腰带
+    ning.fillStyle(JADE, 1)
+    ning.fillEllipse(24, 53, 38, 13)
+    ning.fillStyle(GOLD, 1)
+    ning.fillRect(7, 47, 34, 4)
+    ning.fillStyle(INK, 1)
+    ning.fillRect(7, 50, 34, 1)
+    // 眼睛 + 嘴
+    ning.fillStyle(INK, 1)
+    ning.fillEllipse(17, 41, 5, 6)
+    ning.fillEllipse(31, 41, 5, 6)
+    ning.fillStyle(0xffffff, 1)
+    ning.fillRect(16, 39, 2, 2)
+    ning.fillRect(30, 39, 2, 2)
+    ning.fillStyle(0xb04a48, 1)
+    ning.fillEllipse(24, 51, 6, 3)
+    // 头顶的金发簪 + 玉珠
+    ning.fillStyle(GOLD, 1)
+    ning.fillRect(22, 12, 4, 20)
+    ning.fillRect(14, 20, 20, 3)
+    ning.fillStyle(JADE, 1)
+    ning.fillCircle(24, 10, 5)
+    ning.fillStyle(0xffffff, 0.4)
+    ning.fillCircle(22, 8, 2)
+    // 折扇（右手，斜着举起来）
+    ning.fillStyle(GOLD_DARK, 1)
+    ning.fillPoints(
+      [
+        new Phaser.Math.Vector2(40, 34),
+        new Phaser.Math.Vector2(47, 20),
+        new Phaser.Math.Vector2(46, 36),
+      ],
+      true
+    )
+    ning.fillStyle(0xf3e4c0, 1)
+    ning.fillPoints(
+      [
+        new Phaser.Math.Vector2(39, 33),
+        new Phaser.Math.Vector2(45, 21),
+        new Phaser.Math.Vector2(44, 34),
+      ],
+      true
+    )
+    ning.fillStyle(JADE, 1)
+    ning.fillRect(39, 33, 6, 2)
+
+    ning.generateTexture('npc-ningguang', 48, 60)
+    ning.destroy()
+
+    // ⑥ 身边的小跟班（32x44）：小一号的玉衣史莱姆，捧着一个金托盘
+    const servant = this.add.graphics()
+
+    servant.fillStyle(0x2a3a3a, 1)
+    servant.fillEllipse(16, 30, 28, 22)
+    servant.fillStyle(0xf2efe4, 1)
+    servant.fillEllipse(16, 30, 25, 19)
+    servant.fillStyle(0xd6ece2, 1)
+    servant.fillEllipse(16, 32, 14, 10)
+    servant.fillStyle(JADE, 1)
+    servant.fillEllipse(16, 37, 26, 10)
+    servant.fillStyle(GOLD, 1)
+    servant.fillRect(4, 32, 24, 3)
+    servant.fillStyle(INK, 1)
+    servant.fillEllipse(11, 27, 4, 5)
+    servant.fillEllipse(21, 27, 4, 5)
+    servant.fillStyle(GOLD, 1)
+    servant.fillRect(15, 12, 3, 12)
+    servant.fillRect(9, 16, 14, 2)
+    servant.fillStyle(JADE, 1)
+    servant.fillCircle(16, 11, 4)
+    // 金托盘
+    servant.fillStyle(GOLD, 1)
+    servant.fillRect(22, 20, 10, 3)
+    servant.fillStyle(GOLD_DARK, 1)
+    servant.fillRect(22, 23, 10, 2)
+
+    servant.generateTexture('npc-attendant', 32, 44)
+    servant.destroy()
   }
 
   private makeBackgrounds() {

@@ -241,6 +241,8 @@ export type LevelDef = {
   windmill?: { x: number; y: number }
   inn?: { x: number; y: number }          // 望舒客栈：画在背景里的地标，不参与碰撞
   decor?: DecorDef[]                      // 背景静物：破屋、矿山剪影
+  // 玉京台左半边的请仙典仪广场（写了才建）：x/y = 广场中心那一列 + 台面顶面
+  plaza?: { x: number; y: number }
   trunk?: { x: number; y: number; width: number; height: number; depth?: number }
   // 古树主干：竖着平铺树皮带，x/y 是中心点
   spindle?: { x: number; y: number; width: number; height: number; depth?: number }
@@ -901,6 +903,9 @@ export const LEVELS: LevelDef[] = [
     blessings: [],
     hazards: [],
     monuments: [],
+
+    // ③ 玉京台左半边：请仙典仪的广场（圆形广场 + 长方形祭坛 + 围观的 + 凝光和两个仆从）
+    plaza: { x: 3050, y: 880 },
 
     // 港口背景打包：一段 460，想要长一点就多复制几段。
     // kind = dock 港口 / street 街道 / suburb 郊区 / terrace 玉京台（两座巨型房子，贴在台面上）

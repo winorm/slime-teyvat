@@ -480,9 +480,9 @@ const HARBOR_BLOCKS: Record<
   // 屋脊比台面上的史莱姆高、但整座屋顶都在镜头里（高 ~190）
   terrace: [
     {
-      // 第一版：请仙典仪的大殿（**一整座**盖住左半边；屋脊故意画到画面外，
-      // 立在台面上只看得到下面一截。dx 575 = 摆在左半边正中间 2875）
-      decor: [{ dx: 575, key: 'terrace-hall' }],
+      // 第一版：请仙典仪的大殿 —— **在远处**：缩小一档、底座抬到围栏后面、
+      // 压一层薄雾（alpha），看着比近处的连廊远一截。dx 575 = 左半边正中间 2875
+      decor: [{ dx: 575, key: 'terrace-hall', scale: 0.82, dy: -38, alpha: 0.92, depth: -7 }],
       front: [],
     },
     {
@@ -1721,6 +1721,11 @@ export class GameScene extends Phaser.Scene {
     // 望舒客栈：背景里的地标，贴着地面立着
     if (this.level.inn) {
       this.add.image(this.level.inn.x, this.level.inn.y - 80, 'inn').setDepth(-5)
+    }
+
+    // 玉京台左半边：请仙典仪的广场（圆形广场 + 祭坛 + 围观的 + 凝光和两个仆从）
+    if (this.level.plaza) {
+      this.buildTerracePlaza(this.level.plaza.x, this.level.plaza.y)
     }
 
     // 背景静物：破屋、矿山剪影，底边贴在地面线上，不参与碰撞
@@ -4670,6 +4675,62 @@ export class GameScene extends Phaser.Scene {
     })
 
     return Number.isFinite(best) ? best : this.level.height - 40
+  }
+
+  // ── 玉京台左半边：请仙典仪的广场 ──────────────────────────────
+  // 近处这一层全在这里：广场地面（斜着看是个圆）、后沿矮围栏、长方形祭坛 +
+  // 坛上的金银珠宝水果、主事的凝光（站在祭坛前面）、左右两个仆从，
+  // 还有围一圈看热闹的史莱姆。层数安排：
+  //   围栏 -2（压在远处大殿前面）→ 广场地面 4 → 后一排人 4.5 → 祭坛 5 →
+  //   坛上的东西 5.5 → 仆从 5.8 → 凝光 6 → 最前面那一排 13（画在史莱姆前面）
+  private buildTerracePlaza(cx: number, top: number) {
+    // 后沿矮围栏：两段铺满左半边（2300~3450），底边坐在台面上
+    ;[2587, 3162].forEach((x) => {
+      this.add.image(x, top, 'terrace-pwall').setOrigin(0.5, 1).setDepth(-2)
+    })
+
+    // 广场地面
+    this.add.image(cx, top + 14, 'terrace-plaza').setDepth(4)
+
+    // 围观的：后一排（站在祭坛后面，画在史莱姆后面）
+    const behind: [number, number, number, string][] = [
+      [cx - 300, top - 24, 0.8, 'harbor-slime-a'],
+      [cx - 206, top - 34, 0.7, 'harbor-slime-c'],
+      [cx - 112, top - 30, 0.78, 'harbor-slime-b'],
+      [cx + 112, top - 30, 0.78, 'harbor-slime-d'],
+      [cx + 206, top - 34, 0.7, 'harbor-slime-a'],
+      [cx + 300, top - 24, 0.8, 'harbor-slime-c'],
+    ]
+
+    behind.forEach(([x, y, scale, key]) => {
+      this.add.image(x, y, key).setOrigin(0.5, 1).setScale(scale).setDepth(4.5)
+    })
+
+    // 祭坛 + 坛上摆的金银珠宝水果
+    this.add.image(cx, top, 'terrace-altar').setOrigin(0.5, 1).setDepth(5)
+    this.add.image(cx, top - 44, 'terrace-offerings').setOrigin(0.5, 1).setDepth(5.5)
+
+    // 两个仆从（一左一右跟在凝光身边）
+    this.add.image(cx - 68, top + 10, 'npc-attendant').setOrigin(0.5, 1).setDepth(5.8)
+    this.add
+      .image(cx + 68, top + 10, 'npc-attendant')
+      .setOrigin(0.5, 1)
+      .setFlipX(true)
+      .setDepth(5.8)
+
+    // 主事的凝光：站在祭坛前面，整身都露得出来
+    this.add.image(cx, top + 12, 'npc-ningguang').setOrigin(0.5, 1).setDepth(6)
+
+    // 最前面那一排看热闹的：画在史莱姆前面，走过广场时会被挡一下
+    const front: [number, number, number, string][] = [
+      [cx - 252, top + 30, 1.0, 'harbor-slime-b'],
+      [cx - 58, top + 38, 1.1, 'harbor-slime-d'],
+      [cx + 150, top + 32, 1.05, 'harbor-slime-a'],
+    ]
+
+    front.forEach(([x, y, scale, key]) => {
+      this.add.image(x, y, key).setOrigin(0.5, 1).setScale(scale).setDepth(13)
+    })
   }
 
   private buildGuards() {
