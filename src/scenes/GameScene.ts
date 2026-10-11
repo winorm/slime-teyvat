@@ -6183,6 +6183,30 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
+    // ① **先看脚踩没踩在半层小平台上**（顺序很重要）：
+    //    人下楼上到小平台时，身体还压着下跑最上面那一级踏面（和小平台同高、就在平台边上），
+    //    要是先按"踩在哪一跑上"判，就会认为"你还在下跑上"→ 层没翻 → 他还是后层；
+    //    这时往楼梯那边一走，挡住他的是上跑（后层）、比脚底高 7 像素，自动上台阶直接把他抬回去 ——
+    //    表现就是"下楼之后又自己上楼"。所以平台优先：踩到平台就翻层，离开平台才按踏面判
+    const onPad = this.flipPads.some(
+      (pad) =>
+        body.right > pad.left &&
+        body.left < pad.right &&
+        Math.abs(body.bottom - pad.top) < 4
+    )
+
+    if (onPad) {
+      if (!this.onFlipPad) {
+        this.onFlipPad = true
+        this.setPlayerLayer(this.lastFlightLayer === 'back' ? 'front' : 'back')
+      }
+
+      return
+    }
+
+    this.onFlipPad = false
+
+    // ② 离开平台之后：脚下踩着哪一跑踏面，就属于哪一层（下楼时贴着小平台那一级也算）
     for (const step of this.stairs) {
       const stepBody = step.body as Phaser.Physics.Arcade.StaticBody
       const onIt =
@@ -6198,30 +6222,12 @@ export class GameScene extends Phaser.Scene {
       const layer = step.getData('layer') as 'front' | 'back'
 
       this.lastFlightLayer = layer
-      this.onFlipPad = false
 
       if (this.playerLayer !== layer) {
         this.setPlayerLayer(layer)
       }
 
       return
-    }
-
-    const onPad = this.flipPads.some(
-      (pad) =>
-        body.right > pad.left &&
-        body.left < pad.right &&
-        Math.abs(body.bottom - pad.top) < 4
-    )
-
-    if (!onPad) {
-      this.onFlipPad = false
-      return
-    }
-
-    if (!this.onFlipPad) {
-      this.onFlipPad = true
-      this.setPlayerLayer(this.lastFlightLayer === 'back' ? 'front' : 'back')
     }
   }
 
