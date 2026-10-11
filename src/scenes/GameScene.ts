@@ -1054,6 +1054,7 @@ export class GameScene extends Phaser.Scene {
   private revealRailDrawn = { x: -99999, y: -99999 }
   // 玉京台那道隔断墙（连券门）：整面盖在玩家前面那一层，每帧在史莱姆身上擦一个透视洞
   private wallRT: Phaser.GameObjects.RenderTexture | null = null
+  private archRT: Phaser.GameObjects.RenderTexture | null = null
   private wallBox = { left: 0, top: 0, width: 0, height: 0 }
   private wallDrawn = { x: -99999, y: -99999 }
   // 玉京台那种折返楼梯：踩上去翻层的半层小平台（`PlatformDef.layerFlip`），
@@ -4831,10 +4832,14 @@ export class GameScene extends Phaser.Scene {
     const wallL = 3280
     const wallTp = 595
     const wall = this.add.graphics()
+    // 券门那一半（靠镜头这一侧的洞壁 + 券石圈）单独画在第二张图上 —— 它要带透视洞
+    const arch = this.add.graphics()
 
     // 墙面上任一点：世界高度 h、深度 z → 屏幕（和台面用的是同一套投影）
+    // baseDrop：墙立得比玩家那条线**更靠近镜头**，所以它的墙脚要画到地面线以下
+    const baseDrop = 46
     const wpX = (x0: number, h: number, z: number) =>
-      new Phaser.Math.Vector2(xAt(x0, z) - wallL, yOf(z) - h * sOf(z) - wallTp)
+      new Phaser.Math.Vector2(xAt(x0, z) - wallL, yOf(z) + baseDrop - h * sOf(z) - wallTp)
     const wp = (h: number, z: number) => wpX(wallX, h, z)
     const quad = (h0: number, h1: number, z0: number, z1: number, color: number) => {
       wall.fillStyle(color, 1)
@@ -4849,7 +4854,7 @@ export class GameScene extends Phaser.Scene {
 
     // 主墙（券门往里那一段）
     quad(0, wallTopH, doorZ, farZ, 0xb8ae98)
-    // 券门上方那一段墙：下边界就是券线本身（所以墙和券是一块面）
+    // 券门上方那一段墙：下边界就是券线本身
     const above: Phaser.Math.Vector2[] = []
     for (let i = 0; i <= 16; i++) {
       const p = arcPt(i / 16, archR)
@@ -4857,6 +4862,14 @@ export class GameScene extends Phaser.Scene {
     }
     wall.fillStyle(0xb8ae98, 1)
     wall.fillPoints([...above, wp(wallTopH, doorZ), wp(wallTopH, 0)], true)
+
+    // 门洞里面（能看见的那截洞壁）填成暗色，"挡住玩家"的就是这一块；
+    // 它和靠镜头这半边的券石圈一起画在第二张图上，那张图会擦一个透视洞
+    arch.fillStyle(0x3a3630, 1)
+    arch.fillPoints(
+      [...above.slice().reverse(), wp(0, doorZ), wp(0, 0)],
+      true
+    )
 
     // ── 立体：墙有厚度（40），所以要看得到顶面、靠人这一头的端面、以及券的厚度 ──
     // 券石圈：同一圈画两遍 —— 靠人这一面（wallX−20）亮一点、里面那一面（wallX+20）暗一点，
@@ -4874,9 +4887,9 @@ export class GameScene extends Phaser.Scene {
       return pts
     }
     wall.fillStyle(0x9a907c, 1)
-    wall.fillPoints(ringAt(wallX + wallT / 2, archR + 12, archR), true)   // 里面那面（暗）
-    wall.fillStyle(0xd3cbb8, 1)
-    wall.fillPoints(ringAt(wallX - wallT / 2, archR + 12, archR), true)   // 靠人这面（亮）
+    wall.fillPoints(ringAt(wallX + wallT / 2, archR + 12, archR), true)   // 里面那面（暗，留在墙上）
+    arch.fillStyle(0xd3cbb8, 1)
+    arch.fillPoints(ringAt(wallX - wallT / 2, archR + 12, archR), true)   // 靠人这面（亮，带透视）
     // 靠人这一头的端面（z=0）：券门上方那截 —— 墙在这里"断"出一个厚度
     wall.fillStyle(0xc6bda9, 1)
     wall.fillPoints(
@@ -4907,16 +4920,23 @@ export class GameScene extends Phaser.Scene {
     // 门额：券顶上面一块匾
     quad(apexH + 18, apexH + 52, 24, doorZ - 24, 0xd9a441)
 
-    // 墙生成一张贴图，然后整面盖到**玩家前面那一层**（12.5）的 RenderTexture 上，
-    // 每帧在史莱姆身上擦一个透视洞 —— 人走进券门时被墙的近侧挡住，但身上那圈能看见自己
+    // 两张图各自生成贴图，再各盖一层 RenderTexture 到**玩家前面**：
+    //   墙 12.5：不擦洞 —— 它是真的挡住人（脚还伸到地面线以下）
+    //   券门 12.6：擦洞 —— 靠镜头这半边的洞壁和券石圈是透视的，人走到门洞里能看见自己
     wall.generateTexture('terrace-wall-art', 200, 320)
     wall.destroy()
+    arch.generateTexture('terrace-arch-art', 200, 320)
+    arch.destroy()
 
     this.wallBox = { left: wallL, top: wallTp, width: 200, height: 320 }
     this.wallRT = this.add
       .renderTexture(this.wallBox.left, this.wallBox.top, this.wallBox.width, this.wallBox.height)
       .setOrigin(0, 0)
       .setDepth(12.5)
+    this.archRT = this.add
+      .renderTexture(this.wallBox.left, this.wallBox.top, this.wallBox.width, this.wallBox.height)
+      .setOrigin(0, 0)
+      .setDepth(12.6)
     this.wallDrawn = { x: -99999, y: -99999 }
 
     // ⑥ 站在台面上的东西：只写"世界 x + 深度 z"，屏幕位置/大小/层数全由上面三个函数给
@@ -6681,11 +6701,12 @@ export class GameScene extends Phaser.Scene {
       .setDepth(12)
   }
 
-  // 隔断墙：把那张贴图盖进 RenderTexture，再在史莱姆身上擦一个透视洞
+  // 隔断墙（12.5，不擦洞，真的挡人）+ 券门靠镜头那半边（12.6，擦一个透视洞）
   private updateWall() {
-    const rt = this.wallRT
+    const wallRT = this.wallRT
+    const archRT = this.archRT
 
-    if (!rt) {
+    if (!wallRT || !archRT) {
       return
     }
 
@@ -6699,10 +6720,14 @@ export class GameScene extends Phaser.Scene {
 
     const { left, top } = this.wallBox
 
-    rt.clear()
-    rt.stamp('terrace-wall-art', undefined, 0, 0, { originX: 0, originY: 0 })
-    rt.erase('reveal-blob', px - left, py - top)
-    rt.render()
+    wallRT.clear()
+    wallRT.stamp('terrace-wall-art', undefined, 0, 0, { originX: 0, originY: 0 })
+    wallRT.render()
+
+    archRT.clear()
+    archRT.stamp('terrace-arch-art', undefined, 0, 0, { originX: 0, originY: 0 })
+    archRT.erase('reveal-blob', px - left, py - top)
+    archRT.render()
 
     this.wallDrawn = { x: px, y: py }
   }
