@@ -5080,6 +5080,139 @@ export class GameScene extends Phaser.Scene {
     seat(plazaX - 70, 50, 'npc-attendant')
     seat(plazaX + 70, 50, 'npc-attendant', true)
     seat(plazaX, 40, 'npc-ningguang')
+
+    // ⑦ 右半边：池塘 + 水上桥（用户定的"逃跑时潜伏的地方，有池塘和水上桥"）
+    //    池塘 = 台面上的一块水面：水面比台面低 pondDrop（离地 −pondDrop），
+    //    用和广场圆一样的逐行投影画（远窄近宽）；岸边一圈浅石、水面两道水纹。
+    //    桥 = 走线上一条木桥，横跨池塘，人从桥上走过去
+    const pondCX = 3980
+    const pondCZ = 200
+    const pondR = 230
+    const pondDrop = 26
+
+    const pond = this.add.graphics().setDepth(0.13)
+    const pondHalf = (z: number, r: number) => {
+      const dz = z - pondCZ
+      const v = r * r - dz * dz
+
+      return v > 0 ? Math.sqrt(v) : 0
+    }
+
+    for (let y = Math.ceil(yOf(pondCZ + pondR) + pondDrop * sOf(pondCZ + pondR)); y <= yOf(0) + pondDrop; y++) {
+      // 先反解这一行对应的深度 z（水面比台面低 pondDrop，所以用 yOf(z)+pondDrop×s(z) 反解）
+      let z = -1
+
+      for (let t = 0; t <= 60; t++) {
+        const zz = (t / 60) * (pondCZ + pondR + 20)
+        const yy = yOf(zz) + pondDrop * sOf(zz)
+
+        if (yy <= y) {
+          z = zz
+          break
+        }
+      }
+
+      if (z < 0) {
+        continue
+      }
+
+      const s = sOf(z)
+      const shore = pondHalf(z, pondR)
+
+      if (shore <= 0) {
+        continue
+      }
+
+      const cxRow = xAt(pondCX, z)
+
+      // 岸边（浅石）→ 水面
+      pond.fillStyle(0xd3cbb8, 1)
+      pond.fillRect(cxRow - shore * s, y, shore * 2 * s, 1)
+      pond.fillStyle(0x4a7f96, 0.92)
+      pond.fillRect(cxRow - shore * s * 0.94, y, shore * 2 * s * 0.94, 1)
+      // 两道水纹（按行错开，看着有波光）
+      if (y % 9 === 0) {
+        pond.fillStyle(0xbfe0e8, 0.5)
+        pond.fillRect(cxRow - shore * s * 0.5, y, shore * s * 0.5, 1)
+      }
+    }
+
+    // 水面最里面那一道岸（远处那一头），补一条深色岸线
+    pond.lineStyle(3, 0x8f8776, 1)
+    pond.strokePoints(
+      (() => {
+        const pts: Phaser.Math.Vector2[] = []
+
+        for (let i = 0; i <= 24; i++) {
+          const z = pondCZ + pondR * Math.cos((i / 24) * Math.PI - Math.PI / 2)
+          const half = Math.abs(pondR * Math.sin((i / 24) * Math.PI - Math.PI / 2))
+          const s = sOf(z)
+
+          pts.push(new Phaser.Math.Vector2(xAt(pondCX, z) - half * s, yOf(z) + pondDrop * s))
+        }
+
+        return pts
+      })(),
+      false
+    )
+
+    // 水上桥：走线上一条木桥（桥面在走线上，桥下压一条深色阴影表示悬空）
+    const bridgeZ = 40
+    const bridgeL = 3700
+    const bridgeR = 4260
+    const deck = this.add.graphics().setDepth(0.2)
+
+    // 桥面
+    deck.fillStyle(0x8a6034, 1)
+    deck.fillPoints(
+      [
+        wpX(bridgeL, 0, bridgeZ - 30),
+        wpX(bridgeR, 0, bridgeZ - 30),
+        wpX(bridgeR, 0, bridgeZ + 30),
+        wpX(bridgeL, 0, bridgeZ + 30),
+      ],
+      true
+    )
+    // 桥面木纹 + 两端桥墩
+    for (let i = 0; i <= 8; i++) {
+      const x = bridgeL + ((bridgeR - bridgeL) * i) / 8
+
+      deck.fillStyle(0xa8794a, 1)
+      deck.fillPoints(
+        [
+          wpX(x, 1.5, bridgeZ - 30),
+          wpX(x + 6, 1.5, bridgeZ - 30),
+          wpX(x + 6, 1.5, bridgeZ + 30),
+          wpX(x, 1.5, bridgeZ + 30),
+        ],
+        true
+      )
+    }
+    // 靠里那侧的栏杆：立柱 + 横杆
+    deck.fillStyle(0x6f4423, 1)
+    for (let i = 0; i <= 5; i++) {
+      const x = bridgeL + ((bridgeR - bridgeL) * i) / 5
+
+      deck.fillPoints(
+        [
+          wpX(x - 3, 0, bridgeZ + 26),
+          wpX(x + 3, 0, bridgeZ + 26),
+          wpX(x + 3, 26, bridgeZ + 26),
+          wpX(x - 3, 26, bridgeZ + 26),
+        ],
+        true
+      )
+    }
+    deck.fillStyle(0x7a4c28, 1)
+    deck.fillPoints(
+      [
+        wpX(bridgeL, 24, bridgeZ + 26),
+        wpX(bridgeR, 24, bridgeZ + 26),
+        wpX(bridgeR, 28, bridgeZ + 26),
+        wpX(bridgeL, 28, bridgeZ + 26),
+      ],
+      true
+    )
   }
 
   private buildGuards() {
