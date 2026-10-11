@@ -168,6 +168,7 @@ export class BootScene extends Phaser.Scene {
     this.makeTerraceHouses()
     this.makeTerracePlaza()
     this.makeSlimeShadow()
+    this.makeTerracePaving()
 
     this.makeEyeGlow()
 
@@ -5259,6 +5260,43 @@ export class BootScene extends Phaser.Scene {
 
     servant.generateTexture('npc-attendant', 32, 44)
     servant.destroy()
+  }
+
+  // 台面上的走道（400x44，一段接一段能拼）：顶边一道亮线就是玩家走路那条线，
+  // 下面是大块石板 + 前沿的压边阴影 —— 整条台面的地面用它铺满
+  private makeTerracePaving() {
+    const gfx = this.add.graphics()
+
+    // 前沿压边（暗）
+    gfx.fillStyle(0x8a8069, 1)
+    gfx.fillRect(0, 30, 400, 14)
+    gfx.fillStyle(0x6f6857, 1)
+    gfx.fillRect(0, 41, 400, 3)
+    // 石板
+    gfx.fillStyle(0xb8ae98, 1)
+    gfx.fillRect(0, 4, 400, 28)
+    gfx.fillStyle(0xa89f8a, 1)
+    gfx.fillRect(0, 18, 400, 14)
+    // 石板缝（竖缝错开）
+    gfx.fillStyle(0x9a907c, 1)
+    gfx.fillRect(0, 17, 400, 2)
+
+    for (let x = 0; x < 400; x += 50) {
+      gfx.fillRect(x, 4, 2, 13)
+    }
+
+    for (let x = 25; x < 400; x += 50) {
+      gfx.fillRect(x, 19, 2, 13)
+    }
+
+    // 顶边亮线：玩家走路那条线
+    gfx.fillStyle(0xe6dfcd, 1)
+    gfx.fillRect(0, 0, 400, 4)
+    gfx.fillStyle(0xffffff, 0.5)
+    gfx.fillRect(0, 0, 400, 1)
+
+    gfx.generateTexture('terrace-paving', 400, 44)
+    gfx.destroy()
   }
 
   // 脚下的接地影：一个软椭圆。2D 里玩家只站在一条线上，

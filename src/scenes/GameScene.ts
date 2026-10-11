@@ -279,6 +279,7 @@ type HarborPiece = {
   scale?: number
   dy?: number
   alpha?: number
+  tint?: number          // 远的东西压一层青灰（空气透视）
   depth?: number        // 后景默认 -5；人群压在房屋前面就给 -4 之类
   randomScale?: number  // 每次盖上去随机缩放一点（人群用，显得热闹）
 }
@@ -481,20 +482,21 @@ const HARBOR_BLOCKS: Record<
   terrace: [
     {
       // 第一版：请仙典仪的大殿 —— **在远处**：缩小一档、底座抬到围栏后面、
-      // 压一层薄雾（alpha），看着比近处的连廊远一截。dx 575 = 左半边正中间 2875
-      decor: [{ dx: 575, key: 'terrace-hall', scale: 0.82, dy: -38, alpha: 0.92, depth: -7 }],
+      // 再压一层青灰（tint + alpha）当空气透视。dx 575 = 左半边正中间 2875
+      decor: [{ dx: 575, key: 'terrace-hall', scale: 0.82, dy: -38, alpha: 0.86, tint: 0xc4d2dc, depth: -7 }],
       front: [],
     },
     {
       // 第二版：逃跑那一片的连廊（575 一段，一段接一段拼成一条长廊；
       // dx 287 = 摆在段中间，所以一段正好盖住 at ~ at+575）
-      decor: [{ dx: 287, key: 'terrace-wing' }],
+      decor: [{ dx: 287, key: 'terrace-wing', tint: 0xe4ecf0 }],
       front: [],
     },
     {
-      // 第三版：中间的拱门 —— 背面一层在史莱姆后面（depth 5，压在房子前面），
-      // 正面两根门柱画在史莱姆前面，人从中间门洞穿过去
-      decor: [{ dx: 230, key: 'terrace-arch', depth: 5 }],
+      // 第三版：中间的拱门 —— 背面一层在史莱姆后面、但压在广场那批东西（4~6）前面：
+      // 门是立在台面沿口（玩家那条线）上的，是最靠前的一件静物，所以给 6.5；
+      // 正面两根门柱 13（画在史莱姆前面），人从中间门洞穿过去
+      decor: [{ dx: 230, key: 'terrace-arch', depth: 6.5 }],
       front: [{ dx: 230, key: 'terrace-arch-front' }],
     },
   ],
@@ -1622,6 +1624,8 @@ export class GameScene extends Phaser.Scene {
             )
             .setOrigin(0.5, 1)
             .setScale((piece.scale ?? 1) * jitter)
+            .setTint(piece.tint ?? 0xffffff)
+            .setAlpha(piece.alpha ?? 1)
             .setDepth(piece.depth ?? -5)
         })
 
@@ -4689,6 +4693,12 @@ export class GameScene extends Phaser.Scene {
   //   围栏 -2（压在远处大殿前面）→ 广场地面 4 → 后一排人 4.5 → 祭坛 5 →
   //   坛上的东西 5.5 → 仆从 5.8 → 凝光 6 → 最前面那一排 13（画在史莱姆前面）
   private buildTerracePlaza(cx: number, top: number) {
+    // 台面的走道：整条能走的地面（2650~4250）都铺满石板（400 一段，四段正好），
+    // 每段顶边那道亮线就是玩家走路那条线；压在最底下那层台面前面、装饰后面
+    for (let x = 2850; x <= 4050; x += 400) {
+      this.add.image(x, top, 'terrace-paving').setOrigin(0.5, 0).setDepth(3.5)
+    }
+
     // 后沿矮围栏：两段铺满左半边（2300~3450），底边坐在台面上
     ;[2587, 3162].forEach((x) => {
       this.add.image(x, top, 'terrace-pwall').setOrigin(0.5, 1).setDepth(-2)
@@ -4707,13 +4717,16 @@ export class GameScene extends Phaser.Scene {
       [cx + 112, top - 30, 0.78, 'harbor-slime-d'],
       [cx + 206, top - 34, 0.7, 'harbor-slime-a'],
       [cx + 300, top - 24, 0.8, 'harbor-slime-c'],
-      // 广场前沿两角各一个（也在人后面，只是离得近一点）
+      // 广场前沿两角各一个：脚底 874 比祭坛（872）更靠前，所以层数要压过祭坛
       [cx - 330, top - 6, 0.9, 'harbor-slime-d'],
       [cx + 330, top - 6, 0.9, 'harbor-slime-b'],
     ]
 
     behind.forEach(([x, y, scale, key]) => {
-      this.add.image(x, y, key).setOrigin(0.5, 1).setScale(scale).setDepth(4.5)
+      // 越靠前（脚底越低）画得越前：祭坛是 5，前沿这两只给 5.2
+      const depth = y > top - 12 ? 5.2 : 4.5
+
+      this.add.image(x, y, key).setOrigin(0.5, 1).setScale(scale).setDepth(depth)
     })
 
     // 祭坛 + 坛上摆的金银珠宝水果（底座也落在广场里侧）
