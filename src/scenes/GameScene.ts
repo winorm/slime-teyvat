@@ -486,8 +486,9 @@ const HARBOR_BLOCKS: Record<
       front: [],
     },
     {
-      // 第二版：逃跑那一片的连廊（460 一段，一段接一段拼成一条长廊）
-      decor: [{ dx: 230, key: 'terrace-wing' }],
+      // 第二版：逃跑那一片的连廊（575 一段，一段接一段拼成一条长廊；
+      // dx 287 = 摆在段中间，所以一段正好盖住 at ~ at+575）
+      decor: [{ dx: 287, key: 'terrace-wing' }],
       front: [],
     },
     {

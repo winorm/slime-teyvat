@@ -915,10 +915,10 @@ export const LEVELS: LevelDef[] = [
       // 2300 → 4600（5 段宽）是玉京台自己的背景（新做的两座巨型房子）：
       // 左半边一整座请仙典仪的大殿（屋脊画在画面外，站在台面上只看得到下面一截），中间一道拱门，
       // 右半边是连廊——一段 460，一段接一段连起来，玩家从拱门过来就在这条廊里躲
-      { at: 2300, kind: 'terrace' },            // 左半边：请仙典仪大殿（一整座，占 1150）
-      { at: 3220, kind: 'terrace', variant: 3 },// 中间：拱门（3450，左右两半的分界）
-      { at: 3680, kind: 'terrace', variant: 2 },// 右半边：连廊 1
-      { at: 4140, kind: 'terrace', variant: 2 },// 右半边：连廊 2（和上一段接上）
+      { at: 2300, kind: 'terrace' },            // 左半边：请仙典仪大殿（一整座，占 2300~3450）
+      { at: 3220, kind: 'terrace', variant: 3 },// 中间：拱门（落在 3450，左右两半的分界）
+      { at: 3450, kind: 'terrace', variant: 2 },// 右半边：连廊 1（3450~4025）
+      { at: 4025, kind: 'terrace', variant: 2 },// 右半边：连廊 2（4025~4600，和上一段接上）
       { at: 4600, kind: 'street', variant: 3 },// 街道③：两栋房子 + 右侧背向摊位
       { at: 5060, kind: 'suburb', variant: 3 },// 郊区③：最空的一版
       { at: 5520, kind: 'suburb', variant: 2 },// 郊区②：大厅 + 小屋 + 路边摊
