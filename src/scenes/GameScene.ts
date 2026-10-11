@@ -493,10 +493,10 @@ const HARBOR_BLOCKS: Record<
       front: [],
     },
     {
-      // 第三版：中间的拱门 —— 背面一层在史莱姆后面、但压在广场那批东西（4~6）前面：
-      // 门是立在台面沿口（玩家那条线）上的，是最靠前的一件静物，所以给 6.5；
+      // 第三版：中间的拱门 —— 背面一层在史莱姆后面、但压在广场那批东西（0.15~0.7）前面：
+      // 门是立在台面沿口（玩家那条线）上的，比广场里侧的都靠前，所以给 0.8；
       // 正面两根门柱 13（画在史莱姆前面），人从中间门洞穿过去
-      decor: [{ dx: 230, key: 'terrace-arch', depth: 6.5 }],
+      decor: [{ dx: 230, key: 'terrace-arch', depth: 0.8 }],
       front: [{ dx: 230, key: 'terrace-arch-front' }],
     },
   ],
@@ -4690,13 +4690,16 @@ export class GameScene extends Phaser.Scene {
   // 近处这一层全在这里：广场地面（斜着看是个圆）、后沿矮围栏、长方形祭坛 +
   // 坛上的金银珠宝水果、主事的凝光（站在祭坛前面）、左右两个仆从，
   // 还有围一圈看热闹的史莱姆。层数安排：
-  //   围栏 -2（压在远处大殿前面）→ 广场地面 4 → 后一排人 4.5 → 祭坛 5 →
-  //   坛上的东西 5.5 → 仆从 5.8 → 凝光 6 → 最前面那一排 13（画在史莱姆前面）
+  //   **关键**：这一关的史莱姆会换层（树前层 9~11、树后层 1.05~1.3），
+  //   所以台面上的静物一律要落在 **0.1~0.9** 这一档（平台本体 0 之上、后层玩家 1.05 之下），
+  //   这样玩家不管在哪一层都站在它们前面 —— 否则后层玩家(1.2)会被广场压在下面。
+  //   围栏 -2（压在远处大殿前面）→ 走道 0.15 → 广场地面 0.3 → 后一排人 0.4 →
+  //   前沿两只 0.45 → 祭坛 0.5 → 坛上的东西 0.55 → 仆从 0.6 → 凝光 0.7 → 拱门背面 0.8
   private buildTerracePlaza(cx: number, top: number) {
     // 台面的走道：整条能走的地面（2650~4250）都铺满石板（400 一段，四段正好），
-    // 每段顶边那道亮线就是玩家走路那条线；压在最底下那层台面前面、装饰后面
+    // 每段顶边那道亮线就是玩家走路那条线
     for (let x = 2850; x <= 4050; x += 400) {
-      this.add.image(x, top, 'terrace-paving').setOrigin(0.5, 0).setDepth(3.5)
+      this.add.image(x, top, 'terrace-paving').setOrigin(0.5, 0).setDepth(0.15)
     }
 
     // 后沿矮围栏：两段铺满左半边（2300~3450），底边坐在台面上
@@ -4706,7 +4709,7 @@ export class GameScene extends Phaser.Scene {
 
     // 广场地面：椭圆的**下沿正好压在玩家走的那条线（top）上** ——
     // 这样人是"贴着广场前沿走"，永远不会站进椭圆中间，看不出自己在广场的哪一块
-    this.add.image(cx, top - 29, 'terrace-plaza').setDepth(4)
+    this.add.image(cx, top - 29, 'terrace-plaza').setDepth(0.3)
 
     // 围观的：一圈人全摆在广场里侧（脚都落在 top 以上，也就是比玩家那条线远），
     // 谁都不会盖住玩家 —— 之前把三只摆在 top 以下（画在人前面），人一进广场就没了
@@ -4724,25 +4727,25 @@ export class GameScene extends Phaser.Scene {
 
     behind.forEach(([x, y, scale, key]) => {
       // 越靠前（脚底越低）画得越前：祭坛是 5，前沿这两只给 5.2
-      const depth = y > top - 12 ? 5.2 : 4.5
+      const depth = y > top - 12 ? 0.45 : 0.4
 
       this.add.image(x, y, key).setOrigin(0.5, 1).setScale(scale).setDepth(depth)
     })
 
     // 祭坛 + 坛上摆的金银珠宝水果（底座也落在广场里侧）
-    this.add.image(cx, top - 8, 'terrace-altar').setOrigin(0.5, 1).setDepth(5)
-    this.add.image(cx, top - 52, 'terrace-offerings').setOrigin(0.5, 1).setDepth(5.5)
+    this.add.image(cx, top - 8, 'terrace-altar').setOrigin(0.5, 1).setDepth(0.5)
+    this.add.image(cx, top - 52, 'terrace-offerings').setOrigin(0.5, 1).setDepth(0.55)
 
     // 两个仆从（一左一右跟在凝光身边）
-    this.add.image(cx - 68, top - 4, 'npc-attendant').setOrigin(0.5, 1).setDepth(5.8)
+    this.add.image(cx - 68, top - 4, 'npc-attendant').setOrigin(0.5, 1).setDepth(0.6)
     this.add
       .image(cx + 68, top - 4, 'npc-attendant')
       .setOrigin(0.5, 1)
       .setFlipX(true)
-      .setDepth(5.8)
+      .setDepth(0.6)
 
     // 主事的凝光：站在祭坛前面一点，整身都露得出来
-    this.add.image(cx, top - 2, 'npc-ningguang').setOrigin(0.5, 1).setDepth(6)
+    this.add.image(cx, top - 2, 'npc-ningguang').setOrigin(0.5, 1).setDepth(0.7)
   }
 
   private buildGuards() {
