@@ -4778,14 +4778,16 @@ export class BootScene extends Phaser.Scene {
       }
     }
 
-    // 琉璃绿瓦的飞檐：底边压在 baseY（墙顶），竖瓦垄往上收，两头上翘，
-    // 檐口一道瓦当、脊上一条屋脊 + 金宝顶
+    // 琉璃绿瓦的屋顶：底边压在 baseY（墙顶），竖瓦垄往上收，
+    // 檐口一道瓦当、脊上一条屋脊 + 金宝顶。
+    // corners = 两头上翘的飞檐（单独一栋房子用）；连廊要一段接一段拼，传 false 就是平檐
     const glazedRoof = (
       gfx: Phaser.GameObjects.Graphics,
       cx: number,
       baseY: number,
       half: number,
-      thickness: number
+      thickness: number,
+      corners = true
     ) => {
       const topHalf = half * 0.36
 
@@ -4808,123 +4810,207 @@ export class BootScene extends Phaser.Scene {
       gfx.fillRect(cx - topHalf, baseY - thickness, topHalf * 2, 2)
       gfx.fillStyle(TILE_DARK, 1)
       gfx.fillRect(cx - half, baseY - 2, half * 2, 3)
-      gfx.fillTriangle(cx - half, baseY - 1, cx - half - 8, baseY - 14, cx - half + 5, baseY - 6)
-      gfx.fillTriangle(cx + half, baseY - 1, cx + half + 8, baseY - 14, cx + half - 5, baseY - 6)
+
+      if (corners) {
+        gfx.fillTriangle(cx - half, baseY - 1, cx - half - 8, baseY - 14, cx - half + 5, baseY - 6)
+        gfx.fillTriangle(cx + half, baseY - 1, cx + half + 8, baseY - 14, cx + half - 5, baseY - 6)
+      }
+
       gfx.fillRect(cx - topHalf + 2, baseY - thickness - 4, topHalf * 2 - 4, 4)
       gfx.fillStyle(GOLD, 1)
       gfx.fillRect(cx - 3, baseY - thickness - 11, 6, 7)
     }
 
-    // ① 请仙典仪的大殿（460x190）：两级白石台基 + 一层殿身 + 重檐琉璃顶
+    // ① 请仙典仪的大殿（1150x340，**一整座**盖住左半边）：两级白石台基 + 两侧配殿 +
+    //    中间的重檐大殿。立在台面上只能看到楼高的三分之一左右，
+    //    所以屋脊和宝顶是故意画在画面外那个高度上的
     const hall = this.add.graphics()
 
-    // 台基
+    // 台基（一整条贯通）
     hall.fillStyle(STONE_DARK, 1)
-    hall.fillRect(0, 166, 460, 24)
+    hall.fillRect(0, 302, 1150, 38)
     hall.fillStyle(STONE, 1)
-    hall.fillRect(0, 166, 460, 4)
+    hall.fillRect(0, 302, 1150, 4)
     hall.fillStyle(STONE_MID, 1)
-    hall.fillRect(30, 155, 400, 12)
+    hall.fillRect(30, 288, 1090, 14)
     hall.fillStyle(STONE, 1)
-    hall.fillRect(30, 155, 400, 3)
+    hall.fillRect(30, 288, 1090, 4)
     // 中间踏跺
     hall.fillStyle(STONE, 1)
-    hall.fillRect(196, 166, 68, 22)
+    hall.fillRect(545, 302, 60, 34)
     hall.fillStyle(STONE_DARK, 1)
-    hall.fillRect(196, 173, 68, 2)
-    hall.fillRect(196, 181, 68, 2)
+    hall.fillRect(545, 312, 60, 2)
+    hall.fillRect(545, 322, 60, 2)
 
-    // 一层殿身：白石墙 + 朱红立柱 + 格窗
+    // 两侧配殿：一层，白墙 + 长排朱红柱 + 一整条格窗
     hall.fillStyle(STONE, 1)
-    hall.fillRect(36, 96, 388, 60)
-    ;[36, 142, 248, 354].forEach((x) => {
+    hall.fillRect(20, 176, 1110, 112)
+    lattice(hall, 44, 196, 336, 52)
+    lattice(hall, 770, 196, 336, 52)
+    ;[20, 99, 178, 257, 336, 415, 735, 814, 893, 972, 1051, 1130].forEach((x) => {
       hall.fillStyle(WOOD, 1)
-      hall.fillRect(x, 96, 14, 60)
+      hall.fillRect(x, 172, 13, 116)
       hall.fillStyle(WOOD_DARK, 1)
-      hall.fillRect(x + 11, 96, 3, 60)
+      hall.fillRect(x + 10, 172, 3, 116)
     })
-    lattice(hall, 62, 112, 60, 34)
-    lattice(hall, 170, 112, 56, 34)
-    lattice(hall, 276, 112, 60, 34)
-    hall.fillStyle(WOOD_DARK, 1)
-    hall.fillRect(36, 96, 388, 4)
     hall.fillStyle(STONE_DARK, 1)
-    hall.fillRect(36, 152, 388, 4)
+    hall.fillRect(20, 284, 1110, 4)
+    glazedRoof(hall, 217, 172, 205, 18, false)
+    glazedRoof(hall, 932, 172, 205, 18, false)
 
-    // 下层屋檐
-    glazedRoof(hall, 230, 96, 226, 15)
-
-    // 二层殿身（收进一截）：匾额 + 两扇格窗
+    // 中间大殿：一层殿身
     hall.fillStyle(STONE, 1)
-    hall.fillRect(96, 48, 268, 34)
-    ;[96, 172, 256].forEach((x) => {
+    hall.fillRect(415, 100, 320, 188)
+    ;[415, 500, 585, 670, 735].forEach((x) => {
       hall.fillStyle(WOOD, 1)
-      hall.fillRect(x, 48, 12, 34)
+      hall.fillRect(x, 100, 14, 188)
+      hall.fillStyle(WOOD_DARK, 1)
+      hall.fillRect(x + 11, 100, 3, 188)
     })
-    lattice(hall, 120, 56, 40, 20)
-    lattice(hall, 300, 56, 40, 20)
-    hall.fillStyle(GOLD, 1)
-    hall.fillRect(196, 52, 68, 18)
-    hall.fillStyle(INK, 1)
-    hall.fillRect(199, 55, 62, 12)
-    hall.fillStyle(GOLD, 1)
-    hall.fillRect(206, 60, 8, 3)
-    hall.fillRect(222, 60, 8, 3)
-    hall.fillRect(238, 60, 8, 3)
+    lattice(hall, 442, 122, 44, 60)
+    lattice(hall, 527, 122, 44, 60)
+    lattice(hall, 612, 122, 44, 60)
+    lattice(hall, 687, 122, 36, 60)
     hall.fillStyle(WOOD_DARK, 1)
-    hall.fillRect(96, 48, 268, 4)
+    hall.fillRect(415, 100, 320, 5)
 
-    // 主屋顶
-    glazedRoof(hall, 230, 48, 200, 24)
+    // 大殿下层屋檐
+    glazedRoof(hall, 575, 100, 176, 16)
 
-    hall.generateTexture('terrace-hall', 460, 190)
+    // 大殿二层（收进一截）+ 匾额
+    hall.fillStyle(STONE, 1)
+    hall.fillRect(480, 52, 190, 48)
+    ;[480, 658].forEach((x) => {
+      hall.fillStyle(WOOD, 1)
+      hall.fillRect(x, 52, 12, 48)
+    })
+    lattice(hall, 504, 62, 40, 28)
+    lattice(hall, 608, 62, 40, 28)
+    hall.fillStyle(GOLD, 1)
+    hall.fillRect(543, 58, 64, 18)
+    hall.fillStyle(INK, 1)
+    hall.fillRect(546, 61, 58, 12)
+    hall.fillStyle(GOLD, 1)
+    hall.fillRect(553, 66, 7, 3)
+    hall.fillRect(568, 66, 7, 3)
+    hall.fillRect(583, 66, 7, 3)
+    hall.fillStyle(WOOD_DARK, 1)
+    hall.fillRect(480, 52, 190, 4)
+
+    // 大殿主屋顶（脊和宝顶故意高到画面外）
+    glazedRoof(hall, 575, 52, 150, 26)
+
+    hall.generateTexture('terrace-hall', 1150, 340)
     hall.destroy()
 
-    // ② 逃跑那一片的连廊 / 厢房（460x165）：长排朱红柱 + 白墙 + 檐下挂灯笼
+    // ② 逃跑那一片的连廊（460x165，**一段接一段能拼**）：平檐、通长的格窗，
+    //    柱距 460/6、灯笼距 460/4，接缝处正好接得上，想要多长就多铺几段
     const wing = this.add.graphics()
 
-    // 台基
+    // 台基（通长，左右不留边）
     wing.fillStyle(STONE_DARK, 1)
     wing.fillRect(0, 144, 460, 21)
     wing.fillStyle(STONE, 1)
     wing.fillRect(0, 144, 460, 4)
     wing.fillStyle(STONE_MID, 1)
-    wing.fillRect(20, 136, 420, 9)
+    wing.fillRect(0, 136, 460, 8)
     wing.fillStyle(STONE, 1)
-    wing.fillRect(20, 136, 420, 3)
+    wing.fillRect(0, 136, 460, 2)
 
-    // 廊身：白墙 + 一排在外的朱红柱 + 一整条格窗
+    // 廊身：白墙 + 通长格窗 + 一排朱红柱
     wing.fillStyle(STONE, 1)
-    wing.fillRect(26, 84, 408, 52)
-    lattice(wing, 52, 100, 96, 26)
-    lattice(wing, 182, 100, 96, 26)
-    lattice(wing, 312, 100, 96, 26)
-    ;[26, 94, 162, 230, 298, 366, 434].forEach((x) => {
+    wing.fillRect(0, 88, 460, 48)
+    wing.fillStyle(INK, 1)
+    wing.fillRect(0, 102, 460, 26)
+    wing.fillStyle(GOLD, 1)
+    wing.fillRect(0, 102, 460, 2)
+    wing.fillRect(0, 126, 460, 2)
+
+    for (let gx = 3; gx < 460; gx += 6) {
+      wing.fillRect(gx, 104, 1, 22)
+    }
+
+    ;[33, 110, 187, 263, 340, 417].forEach((x) => {
       wing.fillStyle(WOOD, 1)
-      wing.fillRect(x, 82, 13, 62)
+      wing.fillRect(x, 86, 13, 64)
       wing.fillStyle(WOOD_DARK, 1)
-      wing.fillRect(x + 10, 82, 3, 62)
+      wing.fillRect(x + 10, 86, 3, 64)
     })
     wing.fillStyle(STONE_DARK, 1)
-    wing.fillRect(26, 136, 408, 4)
+    wing.fillRect(0, 146, 460, 4)
 
-    // 檐下三盏灯笼
-    ;[120, 230, 340].forEach((x) => {
+    // 檐下挂灯笼（四盏，间距 115，接得上）
+    ;[58, 173, 288, 403].forEach((x) => {
       wing.fillStyle(WOOD_DARK, 1)
-      wing.fillRect(x - 1, 74, 2, 8)
+      wing.fillRect(x - 1, 76, 2, 10)
       wing.fillStyle(LANTERN, 1)
-      wing.fillRect(x - 7, 82, 14, 14)
+      wing.fillRect(x - 8, 86, 16, 14)
       wing.fillStyle(GOLD, 1)
-      wing.fillRect(x - 7, 82, 14, 2)
-      wing.fillRect(x - 7, 94, 14, 2)
-      wing.fillRect(x - 1, 96, 2, 4)
+      wing.fillRect(x - 8, 86, 16, 2)
+      wing.fillRect(x - 8, 96, 16, 2)
+      wing.fillRect(x - 1, 100, 2, 5)
     })
 
-    // 屋顶
-    glazedRoof(wing, 230, 74, 214, 26)
+    // 平檐屋顶（通长，两边不上翘，接起来是一条）
+    glazedRoof(wing, 230, 76, 230, 26, false)
 
     wing.generateTexture('terrace-wing', 460, 165)
     wing.destroy()
+
+    // ③ 中间的拱门（玩家从请仙典仪那边穿过它进右边的连廊）：
+    //    背面一层 = 门框、弧顶、琉璃顶、匾额（压在史莱姆后面）；
+    //    正面两根门柱 = 单独一张贴图，画在史莱姆前面（人从中间走过去）
+    const arch = this.add.graphics()
+
+    // 台基
+    arch.fillStyle(STONE_DARK, 1)
+    arch.fillRect(0, 190, 220, 20)
+    arch.fillStyle(STONE, 1)
+    arch.fillRect(0, 190, 220, 4)
+    // 里面两根门柱（中间 84~136 是门洞）
+    ;[62, 136].forEach((x) => {
+      arch.fillStyle(WOOD, 1)
+      arch.fillRect(x, 96, 22, 94)
+      arch.fillStyle(WOOD_DARK, 1)
+      arch.fillRect(x + 18, 96, 4, 94)
+      arch.fillStyle(GOLD, 1)
+      arch.fillRect(x, 108, 22, 3)
+      arch.fillRect(x, 176, 22, 3)
+    })
+    // 弧顶 + 金边
+    arch.fillStyle(WOOD, 1)
+    arch.fillRect(34, 74, 152, 24)
+    arch.fillTriangle(34, 74, 34, 98, 22, 98)
+    arch.fillTriangle(186, 74, 186, 98, 198, 98)
+    arch.fillStyle(GOLD, 1)
+    arch.fillRect(34, 74, 152, 3)
+    // 匾额
+    arch.fillStyle(GOLD, 1)
+    arch.fillRect(84, 78, 52, 16)
+    arch.fillStyle(INK, 1)
+    arch.fillRect(87, 81, 46, 10)
+    // 琉璃顶
+    glazedRoof(arch, 110, 74, 100, 18)
+
+    arch.generateTexture('terrace-arch', 220, 210)
+    arch.destroy()
+
+    const archFront = this.add.graphics()
+
+    ;[30, 164].forEach((x) => {
+      archFront.fillStyle(STONE_MID, 1)
+      archFront.fillRect(x - 4, 140, 32, 20)
+      archFront.fillStyle(WOOD, 1)
+      archFront.fillRect(x, 44, 24, 100)
+      archFront.fillStyle(WOOD_DARK, 1)
+      archFront.fillRect(x + 20, 44, 4, 100)
+      archFront.fillStyle(GOLD, 1)
+      archFront.fillRect(x, 44, 24, 4)
+      archFront.fillRect(x, 132, 24, 4)
+    })
+
+    archFront.generateTexture('terrace-arch-front', 220, 160)
+    archFront.destroy()
   }
 
   private makeBackgrounds() {

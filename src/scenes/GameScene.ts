@@ -480,14 +480,21 @@ const HARBOR_BLOCKS: Record<
   // 屋脊比台面上的史莱姆高、但整座屋顶都在镜头里（高 ~190）
   terrace: [
     {
-      // 第一版：请仙典仪的大殿
-      decor: [{ dx: 230, key: 'terrace-hall' }],
+      // 第一版：请仙典仪的大殿（**一整座**盖住左半边；屋脊故意画到画面外，
+      // 立在台面上只看得到下面一截。dx 575 = 摆在左半边正中间 2875）
+      decor: [{ dx: 575, key: 'terrace-hall' }],
       front: [],
     },
     {
-      // 第二版：逃跑那一片的连廊 / 厢房
+      // 第二版：逃跑那一片的连廊（460 一段，一段接一段拼成一条长廊）
       decor: [{ dx: 230, key: 'terrace-wing' }],
       front: [],
+    },
+    {
+      // 第三版：中间的拱门 —— 背面一层在史莱姆后面（depth 5，压在房子前面），
+      // 正面两根门柱画在史莱姆前面，人从中间门洞穿过去
+      decor: [{ dx: 230, key: 'terrace-arch', depth: 5 }],
+      front: [{ dx: 230, key: 'terrace-arch-front' }],
     },
   ],
 }
