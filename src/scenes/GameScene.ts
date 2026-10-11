@@ -6236,11 +6236,13 @@ export class GameScene extends Phaser.Scene {
         const lowX = def.from.x
         const highX = def.to.x
         const toHigh = Math.sign(highX - lowX) || 1
-        // 穿过整条楼梯（到了高的那一头外侧），或者已经走出去老远（低端外侧 60 像素）
+        // 身体越过楼梯**高的那一头**（楼梯的高端离地 140，人在下面走不会碰到，所以到这儿就能解除），
+        // 或者从落地那侧走开 40 像素 —— 两种都算"这次穿过去用完了"。
+        // 用完就立刻恢复：这样从右边回到楼梯口时，往右走又能正常上楼（用户要的这个）
         const passed =
-          toHigh > 0 ? body.left > highX + 6 : body.right < highX - 6
+          toHigh > 0 ? body.left > highX - 2 : body.right < highX + 2
         const walkedAway =
-          toHigh > 0 ? body.right < lowX - 60 : body.left > lowX + 60
+          toHigh > 0 ? body.right < lowX - 40 : body.left > lowX + 40
         const movedOn = standingFlight >= 0 && standingFlight !== this.passUnderFlight
 
         if (passed || walkedAway || movedOn) {
