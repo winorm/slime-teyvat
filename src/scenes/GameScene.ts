@@ -6185,10 +6185,9 @@ export class GameScene extends Phaser.Scene {
   // 下楼过来切回前层（好下下跑）。上和下共用同一个 x 时，只有靠"你是踩着哪一跑上来的"
   // 才能区分（见「踩过的坑」四十二）。
   private updateStairLayers(body: Phaser.Physics.Arcade.Body) {
-    if (this.flipPads.length === 0) {
-      return
-    }
-
+    // 换层那部分（flipPads）只有玉京台那种折返楼梯用得上 —— 但下面「下跑穿过去」
+    // 是通用机制（第七关地面的那一跑也用了），所以这里不能整体提前 return
+    const hasFlipPads = this.flipPads.length > 0
     const defs = this.level.stairs ?? []
     let standingFlight = -1
 
@@ -6211,11 +6210,14 @@ export class GameScene extends Phaser.Scene {
 
       const layer = step.getData('layer') as 'front' | 'back'
 
-      this.lastFlightLayer = layer
       standingFlight = step.getData('flight') as number
 
-      if (this.playerLayer !== layer) {
-        this.setPlayerLayer(layer)
+      if (hasFlipPads) {
+        this.lastFlightLayer = layer
+
+        if (this.playerLayer !== layer) {
+          this.setPlayerLayer(layer)
+        }
       }
 
       break
