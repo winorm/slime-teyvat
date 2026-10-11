@@ -4821,8 +4821,9 @@ export class GameScene extends Phaser.Scene {
     //    近端 3450、远端 xAt(3450, 500)=3307，顶边也跟着降（210 → 135）
     const wallX = 3450
     const doorZ = 130          // 券门的洞宽（沿着墙的进深方向）
-    const springH = 68         // 起券高度：两侧直墙到这儿，再往上起半圆券。
-                               // 压得比较低 —— 门楣（门上方那块墙）正好落在史莱姆头顶附近
+    // 门洞净高：**从地面往上量**。史莱姆体型 26，这里给 32 ——
+    // 门楣正好擦着头顶过去，跳起来就被"门上方那块墙"挡住
+    const springH = 32
     const archR = doorZ / 2    // 券的半径（半圆券，半径=洞宽的一半）
     const apexH = springH + archR  // 券顶（68 + 65 = 133）
     const wallTopH = 250       // 墙高（券顶上面还留一截，放门额）
@@ -4837,13 +4838,12 @@ export class GameScene extends Phaser.Scene {
     // 都只是背景画面，直接画在场景里就行
     const gateTop = this.add.graphics()
 
-    // 墙面上任一点：世界高度 h、深度 z → 屏幕（和台面用的是同一套投影）
-    // baseDrop：墙立得比玩家那条线**更靠近镜头**，所以它的墙脚要画到地面线以下
-    const baseDrop = 46
-    // 统一基准：所有贴着墙面的东西都画在**近面**（wallX − 墙厚/2）上，
-    // 端面、卷石圈再各自按近/远两面算 —— 以前墙面画在中面，和端面差 20 像素
+    // 墙面上任一点：**离地高度 h**、深度 z → 屏幕。
+    // 基准就是地面：yOf(z) 是"台面上底在这个深度上的那条线"，和广场上的人群、祭坛、
+    // 围栏用的是同一个函数 —— 墙就站在那条线上，不许自己往下沉。
+    // 所有贴着墙面的东西都画在**近面**（wallX − 墙厚/2）上，端面、券石圈再各自按近/远两面算
     const wpX = (x0: number, h: number, z: number) =>
-      new Phaser.Math.Vector2(xAt(x0, z) - wallL, yOf(z) + baseDrop - h * sOf(z) - wallTp)
+      new Phaser.Math.Vector2(xAt(x0, z) - wallL, yOf(z) - h * sOf(z) - wallTp)
     const wp = (h: number, z: number) => wpX(wallX - wallT / 2, h, z)
     const quad = (h0: number, h1: number, z0: number, z1: number, color: number) => {
       wall.fillStyle(color, 1)
