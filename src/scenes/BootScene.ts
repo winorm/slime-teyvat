@@ -5082,27 +5082,28 @@ export class BootScene extends Phaser.Scene {
     // ② 广场地面：圆形广场斜着看就是一个扁椭圆，外圈石沿 + 内圈玉纹 + 中心圆盘
     const plaza = this.add.graphics()
 
-    // 直径 800 的圆 → 800 x 114（800 ÷ 7），这才是 1:7 俯角下的正圆
+    // 直径 560 的圆 → 560 x 80（560 ÷ 7），这才是 1:7 俯角下的正圆，
+    // 大小正好放进台面 85 像素的进深里
     plaza.fillStyle(STONE_DEEP, 1)
-    plaza.fillEllipse(400, 57, 800, 114)
+    plaza.fillEllipse(280, 40, 560, 80)
     plaza.fillStyle(STONE_DARK, 1)
-    plaza.fillEllipse(400, 57, 782, 108)
+    plaza.fillEllipse(280, 40, 546, 75)
     plaza.fillStyle(STONE_MID, 1)
-    plaza.fillEllipse(400, 57, 700, 98)
+    plaza.fillEllipse(280, 40, 490, 68)
     plaza.fillStyle(STONE, 1)
-    plaza.fillEllipse(400, 57, 640, 92)
+    plaza.fillEllipse(280, 40, 448, 64)
     plaza.lineStyle(3, JADE, 1)
-    plaza.strokeEllipse(400, 57, 640, 92)
+    plaza.strokeEllipse(280, 40, 448, 64)
     plaza.lineStyle(2, GOLD, 0.9)
-    plaza.strokeEllipse(400, 57, 520, 74)
+    plaza.strokeEllipse(280, 40, 364, 52)
     plaza.fillStyle(TILE, 1)
-    plaza.fillEllipse(400, 57, 150, 22)
+    plaza.fillEllipse(280, 40, 105, 15)
     plaza.fillStyle(TILE_LIGHT, 1)
-    plaza.fillEllipse(400, 54, 150, 15)
+    plaza.fillEllipse(280, 38, 105, 10)
     plaza.fillStyle(GOLD, 1)
-    plaza.fillEllipse(400, 57, 44, 7)
+    plaza.fillEllipse(280, 40, 31, 5)
 
-    plaza.generateTexture('terrace-plaza', 800, 114)
+    plaza.generateTexture('terrace-plaza', 560, 80)
     plaza.destroy()
 
     // ③ 长方形祭坛（200x64）：座 + 前脸（带线脚）+ 台面（露出来的一层）
@@ -5263,48 +5264,50 @@ export class BootScene extends Phaser.Scene {
     servant.destroy()
   }
 
-  // 台面的地面（400x120，一段接一段能拼）：这是**台子的顶面** —— 底边压在玩家
-  // 走路那条线上，往上 120 像素 ≈ 台子进深 850 ÷ 7（俯角 1:7）。
-  // 越往远处越淡（空气透视）；竖缝 50 一格、横缝 24 一格，全是等距直线、不向远处收
+  // 台面的地面（400x85）：这是**台子的顶面**，底边是台子的**前沿**（走线往下 25 像素）。
+  // 玩家走路那条线落在离底边 25 像素的地方 —— 也就是人站在台面上、身前还有一小截
+  // 地面，而不是站在台子的边沿上。85 像素 ≈ 台子进深 600 ÷ 7（俯角 1:7）。
+  // 越往远处越淡（空气透视）；竖缝 50、横缝 24 一格，等距直线、不向远处收
   private makeTerracePaving() {
     const gfx = this.add.graphics()
 
-    gfx.fillStyle(0xb8ae98, 1)
-    gfx.fillRect(0, 0, 400, 120)
     gfx.fillStyle(0xc6bda9, 1)
-    gfx.fillRect(0, 0, 400, 34)
+    gfx.fillRect(0, 0, 400, 24)
     gfx.fillStyle(0xbfb6a1, 1)
-    gfx.fillRect(0, 34, 400, 22)
+    gfx.fillRect(0, 24, 400, 16)
+    gfx.fillStyle(0xb8ae98, 1)
+    gfx.fillRect(0, 40, 400, 20)
+    // 走线以前那一段（离镜头更近）压暗一档
+    gfx.fillStyle(0xada394, 1)
+    gfx.fillRect(0, 60, 400, 25)
     gfx.fillStyle(0x9a907c, 1)
 
-    for (let y = 22; y < 120; y += 24) {
+    for (let y = 24; y < 85; y += 24) {
       gfx.fillRect(0, y, 400, 2)
     }
 
     for (let x = 0; x < 400; x += 50) {
-      gfx.fillRect(x, 0, 2, 120)
+      gfx.fillRect(x, 0, 2, 85)
     }
 
-    // 贴着走线的那道暗边（顶面到此为止，再往下就是台子的立面）
-    gfx.fillStyle(0x8a8069, 1)
-    gfx.fillRect(0, 118, 400, 2)
+    // 前沿那道暗边（再往下就是台子的立面）
+    gfx.fillStyle(0x8f8776, 1)
+    gfx.fillRect(0, 83, 400, 2)
 
-    gfx.generateTexture('terrace-floor', 400, 120)
+    gfx.generateTexture('terrace-floor', 400, 85)
     gfx.destroy()
 
-    // 走线下面那道翻边（只留 14 像素高，别占立面）
+    // 前沿那道翻边（只留 10 像素高，别占立面）
     const curb = this.add.graphics()
 
     curb.fillStyle(0xe6dfcd, 1)
-    curb.fillRect(0, 0, 400, 4)
-    curb.fillStyle(0xffffff, 0.5)
-    curb.fillRect(0, 0, 400, 1)
+    curb.fillRect(0, 0, 400, 3)
     curb.fillStyle(0xa89f8a, 1)
-    curb.fillRect(0, 4, 400, 6)
+    curb.fillRect(0, 3, 400, 4)
     curb.fillStyle(0x8a8069, 1)
-    curb.fillRect(0, 10, 400, 4)
+    curb.fillRect(0, 7, 400, 3)
 
-    curb.generateTexture('terrace-paving', 400, 14)
+    curb.generateTexture('terrace-paving', 400, 10)
     curb.destroy()
   }
 

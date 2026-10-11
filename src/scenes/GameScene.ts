@@ -482,23 +482,23 @@ const HARBOR_BLOCKS: Record<
   terrace: [
     {
       // 第一版：请仙典仪的大殿 —— **在台子顶面之外、更远处**：缩小一档、
-      // 脚底抬到顶面远边再往上 10 像素（dy -130 → 750，围栏正好站在它前面）、
+      // 脚底落在顶面远边再往上 10 像素（dy -70 → 810，围栏正好站在它前面）、
       // 再压一层青灰（tint + alpha）当空气透视。dx 575 = 左半边正中间 2875
-      decor: [{ dx: 575, key: 'terrace-hall', scale: 0.82, dy: -130, alpha: 0.86, tint: 0xc4d2dc, depth: -7 }],
+      decor: [{ dx: 575, key: 'terrace-hall', scale: 0.82, dy: -70, alpha: 0.86, tint: 0xc4d2dc, depth: -7 }],
       front: [],
     },
     {
       // 第二版：逃跑那一片的连廊（575 一段，一段接一段拼成一条长廊；
       // dx 287 = 摆在段中间，所以一段正好盖住 at ~ at+575）。
-      // 脚底落在**顶面的远边**（dy -120 → 760），不然会被新铺的顶面盖住下半截
-      decor: [{ dx: 287, key: 'terrace-wing', dy: -120, tint: 0xe4ecf0 }],
+      // 脚底落在**顶面的远边**（dy -60 → 820），不然会被新铺的顶面盖住下半截
+      decor: [{ dx: 287, key: 'terrace-wing', dy: -60, tint: 0xe4ecf0 }],
       front: [],
     },
     {
       // 第三版：中间的拱门 —— 背面一层在史莱姆后面、但压在广场那批东西前面：
-      // 门是立在台面沿口（玩家那条线）上的，比广场里侧的都靠前，所以给 0.75；
+      // 门是立在玩家那条线上的，比广场里侧的都靠前，所以给 0.62；
       // 正面两根门柱 13（画在史莱姆前面），人从中间门洞穿过去
-      decor: [{ dx: 230, key: 'terrace-arch', depth: 0.75 }],
+      decor: [{ dx: 230, key: 'terrace-arch', depth: 0.62 }],
       front: [{ dx: 230, key: 'terrace-arch-front' }],
     },
   ],
@@ -4697,22 +4697,24 @@ export class GameScene extends Phaser.Scene {
   //   这样玩家不管在哪一层都站在它们前面 —— 否则后层玩家(1.2)会被广场压在下面。
   //   远边（顶面最里面）从这里往里是背景：大殿 -7、连廊 -5。
   //   顶面这一层由远到近：顶面地面 0.12 → 翻边 0.16 → 广场地面 0.3 → 围栏 0.32 →
-  //   围观的 0.39~0.48 → 前沿两只/祭坛 0.72 → 坛上的东西 0.73 → 仆从 0.735 →
-  //   凝光 0.74 → 拱门背面 0.75
+  //   围观的 0.36~0.51 → 前沿两只/祭坛 0.58 → 坛上的东西 0.59 → 仆从 0.59 →
+  //   凝光 0.61 → 拱门背面 0.62
   private buildTerracePlaza(cx: number, top: number) {
-    // 顶面的远边：进深 850 ÷ 7 ≈ 120 像素（就是我们的俯角 1:7）
-    const far = top - 120
+    // 台子的前沿在走线下面 25 像素；顶面从那里往上 85 像素（≈ 进深 600 ÷ 7）
+    const front = top + 25
+    const far = front - 85
 
     // ① **台子的顶面本身**：整条能走的地面（2650~4250）铺满石板（400 一段，四段正好）。
-    //    底边压在走线上、往上 120 像素 —— 以前这里只有一个小椭圆，其余是空的
-    //    （能看穿到后面的天空），所以"地面"看着缺了一块，现在整块补上
+    //    底边是台子的前沿（走线往下 25），往上 85 像素到远边 —— 玩家那条线落在
+    //    离前沿 25 像素的地方，所以是"站在台面上、身前还有一小截地面"，
+    //    而不是踩在台子的边沿上
     for (let x = 2850; x <= 4050; x += 400) {
       this.add.image(x, far, 'terrace-floor').setOrigin(0.5, 0).setDepth(0.12)
     }
 
-    // 走线下面那道翻边（再往下就是台子的立面，不能占太多）
+    // 前沿那道翻边（再往下就是台子的立面，不能占太多）
     for (let x = 2850; x <= 4050; x += 400) {
-      this.add.image(x, top, 'terrace-paving').setOrigin(0.5, 0).setDepth(0.16)
+      this.add.image(x, front, 'terrace-paving').setOrigin(0.5, 0).setDepth(0.16)
     }
 
     // ② 后沿矮围栏：脚底落在**顶面的远边**上（以前站在走线上，把半个广场挡住了）
@@ -4720,20 +4722,20 @@ export class GameScene extends Phaser.Scene {
       this.add.image(x, far, 'terrace-pwall').setOrigin(0.5, 1).setDepth(0.32)
     })
 
-    // ③ 广场地面：直径 800 的圆 → 800x114，下沿正好压在走线上（贴着广场前沿走）
-    this.add.image(cx, top - 57, 'terrace-plaza').setDepth(0.3)
+    // ③ 广场地面：直径 560 的圆 → 560x80，下沿正好压在台子的前沿上
+    this.add.image(cx, front - 40, 'terrace-plaza').setDepth(0.3)
 
     // ④ 围观的：脚底按台子顶面从远排到近，层数用同一个公式算 ——
     //    "脚底越低＝越靠前"这条规则对每件东西都自动成立
-    const depthAt = (y: number) => 0.3 + (y - far) * 0.00375
+    const depthAt = (y: number) => 0.3 + (y - far) * (0.45 / 85)
 
     const crowd: [number, number, number, string][] = [
-      [cx - 300, far + 26, 0.72, 'harbor-slime-a'],
-      [cx - 206, far + 38, 0.75, 'harbor-slime-c'],
-      [cx - 112, far + 48, 0.78, 'harbor-slime-b'],
-      [cx + 112, far + 48, 0.78, 'harbor-slime-d'],
-      [cx + 206, far + 38, 0.75, 'harbor-slime-a'],
-      [cx + 300, far + 26, 0.72, 'harbor-slime-c'],
+      [cx - 300, far + 12, 0.72, 'harbor-slime-a'],
+      [cx - 206, far + 24, 0.75, 'harbor-slime-c'],
+      [cx - 112, far + 36, 0.78, 'harbor-slime-b'],
+      [cx + 112, far + 36, 0.78, 'harbor-slime-d'],
+      [cx + 206, far + 24, 0.75, 'harbor-slime-a'],
+      [cx + 300, far + 12, 0.72, 'harbor-slime-c'],
       // 前沿两角各一个（离走线最近、最大的两只，仍在人后面）
       [cx - 330, top - 8, 0.9, 'harbor-slime-d'],
       [cx + 330, top - 8, 0.9, 'harbor-slime-b'],
