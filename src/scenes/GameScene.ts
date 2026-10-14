@@ -1585,6 +1585,15 @@ export class GameScene extends Phaser.Scene {
     this.riteVortex = null
     this.riteClouds = []
     this.riteMarks = []
+    // 这两张 RenderTexture 是关卡里现造的，而**场景实例是复用的**：上一局的那张已经跟着
+    // 场景一起销毁了，这里必须把引用清成 null。不清的话，下一关每帧的 updateWall /
+    // updateRevealRails 还会拿着那张**已经销毁的**贴图去 render，Phaser 内部会在一个
+    // matrix 为 null 的相机上赋值，直接抛 "Cannot set properties of null"（2026/10/14 踩到：
+    // 第八关里清档 → 开新游戏 → 点一下屏幕就炸）
+    this.wallRT = null
+    this.wallDrawn = { x: -99999, y: -99999 }
+    this.revealRailRT = null
+    this.revealRailDrawn = { x: -99999, y: -99999 }
     this.platforms = this.physics.add.staticGroup()
     this.pillars = this.physics.add.staticGroup()
     this.orbs = this.physics.add.staticGroup()
@@ -7194,7 +7203,8 @@ export class GameScene extends Phaser.Scene {
   private updateWall() {
     const wallRT = this.wallRT
 
-    if (!wallRT) {
+    // `active` 也要看：场景实例复用，上一局销毁掉的贴图引用可能还在（保险起见再挡一道）
+    if (!wallRT || !wallRT.active) {
       return
     }
 
@@ -7223,7 +7233,8 @@ export class GameScene extends Phaser.Scene {
     const rt = this.revealRailRT
     const rails = this.level.revealRails ?? []
 
-    if (!rt || rails.length === 0) {
+    // 同上：场景实例复用，上一局那张贴图可能已经销毁了
+    if (!rt || !rt.active || rails.length === 0) {
       return
     }
 
