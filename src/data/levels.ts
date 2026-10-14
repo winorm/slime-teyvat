@@ -868,45 +868,46 @@ export const LEVELS: LevelDef[] = [
       { x: 2355, y: 1023, width: 110, height: 6, brick: true, rail: false, layerFlip: true },   // 2300~2410
       { x: 4545, y: 1023, width: 110, height: 6, brick: true, rail: false, layerFlip: true },   // 4490~4600
 
-      // ④ 追击段（出玉京台 → 宝箱）：**背景里那排房子的屋檐全做成单向平台**，
+      // ④ 追击段（出玉京台 → 宝箱）：**背景里那排房子的屋檐全做成单向平台**。
+      //    尺寸严格照贴图里真正画出来的那道**檐口**来 —— roof() 里那一条是
+      //    `fillRect(cx − half, baseY − 5, half × 2, 6)`，也就是「宽 2×half、厚 6」，
+      //    所以平台正好盖在那道檐口上：不会比屋檐宽、也不会比屋檐厚。
+      //    （屋檐顶面 = 贴图里 baseY − 5 那一行；house-a 宽 146 / b 236 / c 118 / d 134）
       //    玩家可以顺着屋檐跑，也可以走地面（地面每隔一栋房子挂着发射岩刺的造物机关）。
-      //    没房子的空当里摆一摞三级木箱（左→右越来越高，每级 44，一跳 48 留 4 余量），
-      //    从地面踩着木箱就能跳上屋檐；木箱整摞摆在空当正中，不压到任何一栋房子下面。
-      //    屋檐之间跳不过去的（落差 73 那种）补一块空中断裂平台。
-      //    数据是照岩史莱姆真实的跳跃弧算出来的（速度 90 / 跳力 240 / 重力 600）：
-      //    上坡的一跳横向最多 33，下坡和平跳能到 44~65。
+      //    空当里**只留两摞三级木箱**（第一组和最外面那组），从地面踩着它就能上屋檐；
+      //    木箱整摞摆在空当正中，不压到任何一栋房子下面。
+      //    剩下几个接不上的空当用"空中断裂平台"补，高度都取"两边都跳得到、余量最大"那一档。
+      //    数据照岩史莱姆真实的跳跃弧算（速度 90 / 跳力 240 / 重力 600），
+      //    空隙上限那张表见开发笔记「踩过的坑」六十七。
       //    y 的写法：单向平台 y = 顶 + height/2；木箱是实心墩子，y = (顶 + 1160) ÷ 2
-      //  A · 屋檐（贴着背景那排房子的屋檐线，顶面就是屋檐的高度）
-      { x: 4690, y: 1094, width: 120, height: 10, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 · 顶 1089
-      { x: 4880, y: 1021, width: 146, height: 10, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 · 顶 1016
-      { x: 5160, y: 1094, width: 120, height: 10, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 · 顶 1089
-      { x: 5480, y: 1100.3, width: 110, height: 10, oneWay: true, overlay: true, rail: false, railBar: false }, // 屋檐 · 顶 1095.3
-      { x: 5610, y: 1074, width: 238, height: 10, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 · 顶 1069
-      { x: 5910, y: 1094, width: 120, height: 10, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 · 顶 1089
-      { x: 6100, y: 1021, width: 146, height: 10, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 · 顶 1016
-      { x: 6360, y: 1094, width: 120, height: 10, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 · 顶 1089
-      { x: 6560, y: 1021, width: 146, height: 10, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 · 顶 1016
-      { x: 6820, y: 1094, width: 120, height: 10, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 · 顶 1089
-      //  B · 空当里的三级木箱
+      //  A · 屋檐（= 贴图里那道檐口：宽 2×half、厚 6，正好盖在上面）
+      { x: 4690, y: 1090, width: 118, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 c · 顶 1087
+      { x: 4880, y: 1014, width: 146, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 a · 顶 1011
+      { x: 5160, y: 1090, width: 118, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 c · 顶 1087
+      { x: 5480, y: 1096.7, width: 109, height: 6, oneWay: true, overlay: true, rail: false, railBar: false }, // 屋檐 c(0.92) · 顶 1093.7
+      { x: 5610, y: 1067, width: 236, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 b · 顶 1064
+      { x: 5910, y: 1090, width: 118, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 c · 顶 1087
+      { x: 6100, y: 1014, width: 146, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 a · 顶 1011
+      { x: 6360, y: 1090, width: 118, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 c · 顶 1087
+      { x: 6560, y: 1014, width: 146, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 a · 顶 1011
+      { x: 6820, y: 1090, width: 118, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 c · 顶 1087
+      //  B · 三级木箱：只留第一组和最外面那组
       { x: 4987, y: 1138, width: 36, height: 44, plank: true, overlay: true, rail: false, railBar: false },     // 木箱 · 顶 1116
       { x: 5027, y: 1116, width: 36, height: 88, plank: true, overlay: true, rail: false, railBar: false },     // 木箱 · 顶 1072
       { x: 5067, y: 1094, width: 36, height: 132, plank: true, overlay: true, rail: false, railBar: false },    // 木箱 · 顶 1028
-      { x: 5282, y: 1138, width: 36, height: 44, plank: true, overlay: true, rail: false, railBar: false },     // 木箱 · 顶 1116
-      { x: 5322, y: 1116, width: 36, height: 88, plank: true, overlay: true, rail: false, railBar: false },     // 木箱 · 顶 1072
-      { x: 5362, y: 1094, width: 36, height: 132, plank: true, overlay: true, rail: false, railBar: false },    // 木箱 · 顶 1028
-      { x: 5750, y: 1138, width: 36, height: 44, plank: true, overlay: true, rail: false, railBar: false },     // 木箱 · 顶 1116
-      { x: 5790, y: 1116, width: 36, height: 88, plank: true, overlay: true, rail: false, railBar: false },     // 木箱 · 顶 1072
-      { x: 5830, y: 1094, width: 36, height: 132, plank: true, overlay: true, rail: false, railBar: false },    // 木箱 · 顶 1028
-      { x: 6197, y: 1138, width: 36, height: 44, plank: true, overlay: true, rail: false, railBar: false },     // 木箱 · 顶 1116
-      { x: 6237, y: 1116, width: 36, height: 88, plank: true, overlay: true, rail: false, railBar: false },     // 木箱 · 顶 1072
-      { x: 6277, y: 1094, width: 36, height: 132, plank: true, overlay: true, rail: false, railBar: false },    // 木箱 · 顶 1028
       { x: 6657, y: 1138, width: 36, height: 44, plank: true, overlay: true, rail: false, railBar: false },     // 木箱 · 顶 1116
       { x: 6697, y: 1116, width: 36, height: 88, plank: true, overlay: true, rail: false, railBar: false },     // 木箱 · 顶 1072
       { x: 6737, y: 1094, width: 36, height: 132, plank: true, overlay: true, rail: false, railBar: false },    // 木箱 · 顶 1028（宝箱在这上面）
-      //  C · 两段屋檐之间补的空中断裂平台
-      { x: 4779, y: 1058, width: 44, height: 12, oneWay: true, overlay: true, rail: false, railBar: false },    // 断桥 · 顶 1052
-      { x: 5999, y: 1058, width: 44, height: 12, oneWay: true, overlay: true, rail: false, railBar: false },    // 断桥 · 顶 1052
-      { x: 6454, y: 1058, width: 44, height: 12, oneWay: true, overlay: true, rail: false, railBar: false },    // 断桥 · 顶 1052
+      //  C · 屋檐之间接不上的空当补的空中断裂平台
+      { x: 4779, y: 1055, width: 44, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },     // 断桥 · 顶 1052
+      { x: 5266, y: 1087, width: 44, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },     // 断桥 · 顶 1084
+      { x: 5326, y: 1087, width: 44, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },     // 断桥 · 顶 1084
+      { x: 5386, y: 1087, width: 44, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },     // 断桥 · 顶 1084
+      { x: 5774, y: 1077, width: 44, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },     // 断桥 · 顶 1074
+      { x: 5819, y: 1077, width: 44, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },     // 断桥 · 顶 1074
+      { x: 5999, y: 1055, width: 44, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },     // 断桥 · 顶 1052
+      { x: 6236, y: 1053, width: 44, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },     // 断桥 · 顶 1050
+      { x: 6454, y: 1055, width: 44, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },     // 断桥 · 顶 1052
     ],
 
     // ③ 玉京台的两条双层楼梯（一跑一半高，两跑一样高，正好嵌在台面左右两边）：
@@ -953,13 +954,13 @@ export const LEVELS: LevelDef[] = [
     monuments: [],
     // 发射岩刺的造物机关：**每隔一栋房子**挂一个在屋檐底下，只往下打 ——
     // 走地面这条线就躲这个；嫌挤就跳上屋檐走上面那一条
-    // y 都落在屋檐平台**下面**一点（屋檐板占 10 像素高），机关才不会埋在板子里
+    // y 都落在屋檐平台**下面**一点（檐口板占 6 像素高），机关才不会埋在板子里
     launchers: [
-      { x: 4690, y: 1103, interval: 2.2 },
-      { x: 5160, y: 1103, interval: 2.2 },
-      { x: 5610, y: 1083, interval: 2.2 },
-      { x: 6100, y: 1030, interval: 2.2 },
-      { x: 6560, y: 1030, interval: 2.2 },
+      { x: 4690, y: 1101, interval: 2.2 },
+      { x: 5160, y: 1101, interval: 2.2 },
+      { x: 5610, y: 1078, interval: 2.2 },
+      { x: 6100, y: 1025, interval: 2.2 },
+      { x: 6560, y: 1025, interval: 2.2 },
     ],
 
     // ③ 玉京台左半边：请仙典仪的广场（圆形广场 + 长方形祭坛 + 围观的 + 凝光和两个仆从）。
