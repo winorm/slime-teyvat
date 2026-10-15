@@ -170,6 +170,7 @@ export class BootScene extends Phaser.Scene {
     this.makeTerraceGate()
     this.makeTerraceCenser()
     this.makeRiteProps()
+    this.makeCloudRetainerCrane()
     this.makeSlimeShadow()
     this.makeTerracePaving()
 
@@ -5284,6 +5285,103 @@ export class BootScene extends Phaser.Scene {
 
     servant.generateTexture('npc-attendant', 32, 44)
     servant.destroy()
+  }
+
+  // ── 留云借风真君 · 鸟兽形态（130x112）：白鹤 ──────────────────────
+  //   白身 + 青蓝的翅尖和尾羽 + 金饰头冠；长颈长喙长腿，一眼能认出是鹤。
+  //   她是璃月的仙人、也是"造物机关"那一套的发明者，所以翅根压了金线、
+  //   冠上缀了金珠和一点朱红，留一点"会做机关、也贵气"的味道。脸朝右，和其他 NPC 一致。
+  //   当前只是**先做出来给人看的样子**，还没有正式放进任何一关
+  private makeCloudRetainerCrane() {
+    const WHITE = 0xf4f6f8
+    const SHADE = 0xd6e0ea
+    const BLUE = 0x3a5f8f
+    const BLUE_DEEP = 0x27415f
+    const GOLD = 0xd9a441
+    const GOLD_LIGHT = 0xf0d07a
+    const BEAK = 0x4a5560
+    const LEG = 0x7a5f38
+    const LEG_DARK = 0x5f4a2c
+    const INK = 0x2a2a34
+
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    // ① 两条腿（先画，压在身子下面）：细长 + 三趾
+    ;[58, 72].forEach((x, i) => {
+      const color = i === 0 ? LEG : LEG_DARK
+
+      g.fillStyle(color, 1)
+      g.fillRect(x, 64, 3, 40)
+      g.fillRect(x - 6, 101, 10, 3)
+      g.fillRect(x + 1, 101, 9, 3)
+    })
+
+    // ② 尾羽：从身子后头甩出去，末端收成青蓝
+    g.fillStyle(WHITE, 1)
+    g.fillPoints([P(34, 42), P(10, 50), P(12, 64), P(40, 62)], true)
+    g.fillStyle(SHADE, 1)
+    g.fillPoints([P(26, 46), P(8, 54), P(10, 62), P(30, 60)], true)
+    g.fillStyle(BLUE, 1)
+    g.fillPoints([P(10, 50), P(4, 56), P(12, 58)], true)
+    g.fillStyle(BLUE_DEEP, 1)
+    g.fillPoints([P(12, 58), P(3, 62), P(14, 64)], true)
+
+    // ③ 身子：深色描一圈，再压白 + 下腹一点冷灰
+    g.fillStyle(INK, 1)
+    g.fillEllipse(62, 46, 66, 46)
+    g.fillStyle(WHITE, 1)
+    g.fillEllipse(62, 45, 62, 42)
+    g.fillStyle(SHADE, 1)
+    g.fillEllipse(60, 55, 48, 20)
+
+    // ④ 折起来的翅膀：白底 + 一道金线 + 几道羽纹，翅尖青蓝收尾
+    g.fillStyle(WHITE, 1)
+    g.fillPoints([P(42, 26), P(88, 30), P(92, 58), P(48, 62)], true)
+    g.lineStyle(2, GOLD, 1)
+    g.lineBetween(46, 30, 88, 34)
+    g.lineStyle(1, 0xb9c6d4, 1)
+    ;[40, 48, 56].forEach((y) => g.lineBetween(48, y, 84, y + 3))
+    g.fillStyle(BLUE, 1)
+    g.fillPoints([P(78, 44), P(98, 52), P(92, 64), P(78, 60)], true)
+    g.fillStyle(BLUE_DEEP, 1)
+    g.fillPoints([P(86, 52), P(100, 58), P(94, 66), P(86, 62)], true)
+
+    // ⑤ 脖子：一串由粗到细的小圆，从身子前上方绕一道 S 到头顶
+    for (let i = 0; i <= 20; i++) {
+      const t = i / 20
+      const x = 88 + t * 10 - Math.sin(t * Math.PI) * 7
+      const y = 44 - t * 32
+
+      g.fillStyle(INK, 1)
+      g.fillCircle(x, y, 7.5 - t * 3.6)
+      g.fillStyle(i === 0 ? SHADE : WHITE, 1)
+      g.fillCircle(x, y, 6.2 - t * 3.4)
+    }
+
+    // ⑥ 头 + 长喙 + 眼睛
+    g.fillStyle(INK, 1)
+    g.fillEllipse(97, 12, 19, 17)
+    g.fillStyle(WHITE, 1)
+    g.fillEllipse(97, 12, 16, 14)
+    g.fillStyle(BEAK, 1)
+    g.fillPoints([P(103, 9), P(128, 14), P(103, 17)], true)
+    g.fillStyle(0x37404a, 1)
+    g.fillPoints([P(104, 10), P(126, 14), P(104, 14)], true)
+    g.fillStyle(INK, 1)
+    g.fillCircle(101, 10, 2)
+
+    // ⑦ 头冠：两道金线 + 一颗金珠 + 一点朱红
+    g.lineStyle(3, GOLD, 1)
+    g.lineBetween(92, 6, 99, 3)
+    g.lineBetween(91, 10, 97, 6)
+    g.fillStyle(GOLD_LIGHT, 1)
+    g.fillCircle(92, 4, 2.4)
+    g.fillStyle(0xc0392b, 1)
+    g.fillCircle(96, 8, 1.6)
+
+    g.generateTexture('npc-cloud-retainer-crane', 130, 112)
+    g.destroy()
   }
 
   // ── 请仙典仪祭坛两边的香炉（26x32）：三足鼎式 ────────────────────
