@@ -5352,7 +5352,9 @@ export class BootScene extends Phaser.Scene {
     g.lineBetween(86, 84, 58, 90)
     g.lineBetween(84, 92, 62, 97)
 
-    // ⑥ 脖子：一条二阶贝塞尔，从身子前上方绕一道很轻的 S 到头上
+    // ⑥ 脖子：一条二阶贝塞尔，从身子前上方绕一道很轻的 S 到头上。
+    //   **必须分两趟画**：先把整串轮廓圆铺满，再把整串白圆压上去 ——
+    //   交替着画的话，后一个圆的深色边会把前一个圆的白心盖掉，整条脖子会变黑
     const neck = (t: number) => ({
       x: (1 - t) * (1 - t) * 92 + 2 * (1 - t) * t * 84 + t * t * 106,
       y: (1 - t) * (1 - t) * 86 + 2 * (1 - t) * t * 56 + t * t * 36,
@@ -5364,9 +5366,26 @@ export class BootScene extends Phaser.Scene {
       const r = 6.4 - t * 2.8
 
       g.fillStyle(INK, 1)
-      g.fillCircle(p.x, p.y, r + 1.4)
+      g.fillCircle(p.x, p.y, r + 1.3)
+    }
+
+    for (let i = 0; i <= 22; i++) {
+      const t = i / 22
+      const p = neck(t)
+      const r = 6.4 - t * 2.8
+
       g.fillStyle(WHITE, 1)
       g.fillCircle(p.x, p.y, r)
+    }
+
+    // 圆柱的那点明暗：靠后（左）一侧压一条很淡的冷灰，脖子才是圆的、不是一根扁带
+    for (let i = 0; i <= 22; i++) {
+      const t = i / 22
+      const p = neck(t)
+      const r = 6.4 - t * 2.8
+
+      g.fillStyle(SHADE, 0.55)
+      g.fillCircle(p.x - r * 0.42, p.y, r * 0.42)
     }
 
     // ⑦ 头（小、圆）+ 细长的喙
@@ -5379,11 +5398,27 @@ export class BootScene extends Phaser.Scene {
     g.fillStyle(BEAK_DARK, 1)
     g.fillPoints([P(113, 34), P(127, 39), P(113, 36)], true)
 
-    // ⑧ 丹顶：头顶那一片朱红 —— 仙鹤最认得出的记号；额前留一小撮白羽，别红到喙根
+    // ⑧ 头冠：不做成一块红贴片，而是**几根红色小羽**立在头顶 ——
+    //   中间一根最长、两边两根短，羽尖稍微往后翘；根上压一小片红当"底座"。
+    //   额前留一小撮白羽，别让红一直红到喙根
+    const feather = (x: number, y: number, len: number, lean: number) => {
+      g.fillStyle(CROWN, 1)
+      g.fillPoints(
+        [P(x - 3, y), P(x + 3, y), P(x + lean + 1.5, y - len), P(x + lean - 1.5, y - len)],
+        true
+      )
+      g.fillStyle(CROWN_LIGHT, 1)
+      g.fillPoints(
+        [P(x - 1, y - 1), P(x + 1.4, y - 1), P(x + lean, y - len + 2), P(x + lean - 1, y - len + 2)],
+        true
+      )
+    }
+
     g.fillStyle(CROWN, 1)
-    g.fillEllipse(103, 27, 15, 8)
-    g.fillStyle(CROWN_LIGHT, 1)
-    g.fillEllipse(103, 26, 13, 5)
+    g.fillEllipse(105, 28, 13, 5)
+    feather(100, 28, 8, -3)
+    feather(105, 27, 13, -2)
+    feather(110, 28, 7, -1)
     g.fillStyle(WHITE, 1)
     g.fillEllipse(111, 30, 7, 6)
 
