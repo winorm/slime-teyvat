@@ -5292,20 +5292,22 @@ export class BootScene extends Phaser.Scene {
   //   这一版按真鹤的比例来：**腿占一半身高、身子是横着的蛋形、脖子细长带 S 弯、
   //   头小、喙细长、头顶一块朱红（丹顶）**，再加上仙鹤最标志性的**深色翼羽**
   //   —— 就是垂在尾巴后面那一束，很多人会当成尾巴。
-  //   配色还是留云那套：白身 + 青黑翼羽 + 金饰，脸朝右，和其他 NPC 一致。
+  //   配色（2026/10/15 用户定）：**主色蓝、翼羽和脚环用青、黄只留一点点给头冠那几根小羽**，
+  //   脸朝右，和其他 NPC 一致。
   private makeCloudRetainerCrane() {
-    const WHITE = 0xf6f8fa
-    const SHADE = 0xdfe8f0
-    const PLUME = 0x2b3a4a
-    const PLUME_DARK = 0x1e2a36
-    const GOLD = 0xd9a441
-    const CROWN = 0xc0392b
-    const CROWN_LIGHT = 0xd94f3d
-    const BEAK = 0x3f4a56
-    const BEAK_DARK = 0x2c343d
-    const LEG = 0x4a5560
-    const LEG_DARK = 0x333c46
-    const INK = 0x232830
+    // 配色（2026/10/15 用户定）：**主色蓝、翼羽用青、黄只留一点点给头冠那几根毛**
+    const BLUE = 0x4a7fb5        // 主色：身子 / 脖子 / 头
+    const BLUE_LIGHT = 0x8ec2e8  // 受光面（背脊、头顶）
+    const BLUE_DEEP = 0x2f5c8c   // 暗面（下腹、脖子后侧）
+    const CYAN = 0x2e93a8        // 青色：翼羽那一束、翅尖、翼前缘、脚环
+    const CYAN_DEEP = 0x1c6a7c   // 青色深处（羽尖）
+    const YELLOW = 0xefc94c      // 少量黄毛：头冠那几根小羽
+    const YELLOW_LIGHT = 0xfae08a
+    const BEAK = 0x35505f
+    const BEAK_DARK = 0x243743
+    const LEG = 0x35505f
+    const LEG_DARK = 0x243743
+    const INK = 0x1a2634
 
     const g = this.add.graphics()
     const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
@@ -5323,13 +5325,13 @@ export class BootScene extends Phaser.Scene {
     g.fillRect(53, 142, 11, 3)
     g.fillRect(56, 145, 6, 2)
     g.fillRect(61, 143, 8, 3)
-    g.fillStyle(GOLD, 1)
+    g.fillStyle(CYAN, 1)
     g.fillRect(56, 126, 8, 3)
 
     // ③ 深色翼羽：从翼后甩出去、往下垂的那一束
-    g.fillStyle(PLUME, 1)
+    g.fillStyle(CYAN, 1)
     g.fillPoints([P(48, 86), P(24, 104), P(22, 122), P(42, 120), P(56, 100)], true)
-    g.fillStyle(PLUME_DARK, 1)
+    g.fillStyle(CYAN_DEEP, 1)
     g.fillPoints([P(30, 106), P(20, 120), P(34, 122), P(40, 112)], true)
     g.lineStyle(1, 0x16202a, 1)
     g.lineBetween(44, 90, 30, 118)
@@ -5338,17 +5340,20 @@ export class BootScene extends Phaser.Scene {
     // ④ 身子：横着的蛋形，深色描一圈再压白
     g.fillStyle(INK, 1)
     g.fillEllipse(66, 88, 66, 36)
-    g.fillStyle(WHITE, 1)
+    g.fillStyle(BLUE, 1)
     g.fillEllipse(66, 87, 62, 32)
-    g.fillStyle(SHADE, 1)
+    // 背上先铺一道受光面（等会儿收拢的翅膀压上来，只剩顶上这圈亮边露在外面）
+    g.fillStyle(BLUE_LIGHT, 0.75)
+    g.fillEllipse(62, 79, 46, 11)
+    g.fillStyle(BLUE_DEEP, 1)
     g.fillEllipse(62, 96, 46, 14)
 
     // ⑤ 收起来的翅膀：一道金线当翼前缘，后面几道羽纹
-    g.fillStyle(WHITE, 1)
+    g.fillStyle(BLUE, 1)
     g.fillPoints([P(88, 74), P(96, 88), P(86, 100), P(52, 100), P(44, 84)], true)
-    g.lineStyle(2, GOLD, 1)
+    g.lineStyle(2, CYAN, 1)
     g.lineBetween(88, 74, 48, 82)
-    g.lineStyle(1, 0xc4d2e0, 1)
+    g.lineStyle(1, CYAN_DEEP, 1)
     g.lineBetween(86, 84, 58, 90)
     g.lineBetween(84, 92, 62, 97)
 
@@ -5374,25 +5379,37 @@ export class BootScene extends Phaser.Scene {
       const p = neck(t)
       const r = 6.4 - t * 2.8
 
-      g.fillStyle(WHITE, 1)
+      g.fillStyle(BLUE, 1)
       g.fillCircle(p.x, p.y, r)
     }
 
-    // 圆柱的那点明暗：靠后（左）一侧压一条很淡的冷灰，脖子才是圆的、不是一根扁带
+    // 圆柱的那点明暗：靠后（左）一侧压一道暗的，脖子才是圆的、不是一根扁带
     for (let i = 0; i <= 22; i++) {
       const t = i / 22
       const p = neck(t)
       const r = 6.4 - t * 2.8
 
-      g.fillStyle(SHADE, 0.55)
+      g.fillStyle(BLUE_DEEP, 0.55)
       g.fillCircle(p.x - r * 0.42, p.y, r * 0.42)
+    }
+
+    // 迎光的那一侧（右）再提一道亮的，光算作从右上来
+    for (let i = 0; i <= 22; i++) {
+      const t = i / 22
+      const p = neck(t)
+      const r = 6.4 - t * 2.8
+
+      g.fillStyle(BLUE_LIGHT, 0.38)
+      g.fillCircle(p.x + r * 0.36, p.y, r * 0.34)
     }
 
     // ⑦ 头（小、圆）+ 细长的喙
     g.fillStyle(INK, 1)
     g.fillEllipse(106, 33, 17, 15)
-    g.fillStyle(WHITE, 1)
+    g.fillStyle(BLUE, 1)
     g.fillEllipse(106, 33, 14, 12)
+    g.fillStyle(BLUE_LIGHT, 0.6)
+    g.fillEllipse(104, 30, 9, 5)
     g.fillStyle(BEAK, 1)
     g.fillPoints([P(112, 30), P(128, 39), P(112, 37)], true)
     g.fillStyle(BEAK_DARK, 1)
@@ -5400,26 +5417,26 @@ export class BootScene extends Phaser.Scene {
 
     // ⑧ 头冠：不做成一块红贴片，而是**几根红色小羽**立在头顶 ——
     //   中间一根最长、两边两根短，羽尖稍微往后翘；根上压一小片红当"底座"。
-    //   额前留一小撮白羽，别让红一直红到喙根
+    //   额前留一小撮浅色的羽，别让黄一直黄到喙根
     const feather = (x: number, y: number, len: number, lean: number) => {
-      g.fillStyle(CROWN, 1)
+      g.fillStyle(YELLOW, 1)
       g.fillPoints(
         [P(x - 3, y), P(x + 3, y), P(x + lean + 1.5, y - len), P(x + lean - 1.5, y - len)],
         true
       )
-      g.fillStyle(CROWN_LIGHT, 1)
+      g.fillStyle(YELLOW_LIGHT, 1)
       g.fillPoints(
         [P(x - 1, y - 1), P(x + 1.4, y - 1), P(x + lean, y - len + 2), P(x + lean - 1, y - len + 2)],
         true
       )
     }
 
-    g.fillStyle(CROWN, 1)
+    g.fillStyle(YELLOW, 1)
     g.fillEllipse(105, 28, 13, 5)
     feather(100, 28, 8, -3)
     feather(105, 27, 13, -2)
     feather(110, 28, 7, -1)
-    g.fillStyle(WHITE, 1)
+    g.fillStyle(BLUE_LIGHT, 1)
     g.fillEllipse(111, 30, 7, 6)
 
     // ⑨ 眼睛最后点，别被红冠盖住
