@@ -6214,6 +6214,45 @@ export class GameScene extends Phaser.Scene {
     )
     const baseY = Math.max(from.y, to.y, groundTop)
 
+    // 这一列往下画到哪儿就**再也看不见了**：前面（depth 更大）那些跑里，离它最近的那条踏面线。
+    // 那条线以下全被前面那一跑自己的实心台体盖住，画了也是白发。
+    // 第七关那种"一跑一跑往上叠"的盘山道必须这么截：九关第一版每列都一路画到地面，
+    // 七跑堆出 34 万条绘制指令，整关掉到十几帧（见「踩过的坑」）
+    const allRuns = this.level.stairs ?? []
+    const ownDepth = def.depth ?? (layer === 'back' ? 1 : 3)
+
+    const coverAt = (x: number) => {
+      let cover = baseY
+
+      for (const other of allRuns) {
+        if (other === def || other.to.x === other.from.x) {
+          continue
+        }
+
+        // 不比这一跑靠前的，盖不住它
+        if ((other.depth ?? ((other.layer ?? 'front') === 'back' ? 1 : 3)) <= ownDepth) {
+          continue
+        }
+
+        if (x < Math.min(other.from.x, other.to.x) || x > Math.max(other.from.x, other.to.x)) {
+          continue
+        }
+
+        const t = (x - other.from.x) / (other.to.x - other.from.x)
+        const y = other.from.y + (other.to.y - other.from.y) * t
+
+        if (y < cover) {
+          cover = y
+        }
+      }
+
+      return cover
+    }
+
+    // 一列的下沿：两端都量一遍取更深的那条，宁可多画一点也别露出缝
+    const columnBottom = (left: number, top: number) =>
+      Math.max(top, Math.min(baseY, Math.max(coverAt(left + 1), coverAt(left + run - 1))))
+
     const stoneFace = 0x6a5a48
     const stoneLight = 0x7c6a56
     const stoneTop = 0x8a765f
@@ -6228,8 +6267,9 @@ export class GameScene extends Phaser.Scene {
         const near = from.x + dir * run * i
         const top = from.y - rise * (i + 1)
         const left = dir > 0 ? near : near - run
+        const bottom = columnBottom(left, top)
 
-        gfx.fillRect(left, top, run, baseY - top)
+        gfx.fillRect(left, top, run, bottom - top)
       }
     } else {
       gfx.fillPoints(
@@ -6249,16 +6289,17 @@ export class GameScene extends Phaser.Scene {
       const top = from.y - rise * (i + 1)
       const left = dir > 0 ? near : near - run
       const course = Math.max(6, Math.round(run / 2))
+      const bottom = columnBottom(left, top)
 
       gfx.fillStyle(stoneDark, 0.3)
 
-      for (let y = top + course; y < baseY - 1; y += course) {
+      for (let y = top + course; y < bottom - 1; y += course) {
         gfx.fillRect(left + 1, y, run - 2, 1)
       }
 
       gfx.fillStyle(stoneDark, 0.22)
 
-      for (let y = top + course, k = 0; y < baseY - 1; y += course, k++) {
+      for (let y = top + course, k = 0; y < bottom - 1; y += course, k++) {
         gfx.fillRect(left + (k % 2 === 0 ? 1 : run - 2), y - course, 1, course)
       }
     }
