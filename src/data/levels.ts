@@ -884,10 +884,8 @@ export const LEVELS: LevelDef[] = [
       { x: 1470, y: 949, width: 134, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 d · 顶 946
       { x: 1595, y: 1090, width: 118, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },  // 屋檐 c · 顶 1087
       { x: 1920, y: 1014, width: 146, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },  // 屋檐 a · 顶 1011
-      //  B · 开头那一摞三级木箱（每级 44，一跳 48 留 4 余量）
-      { x: 208, y: 1138, width: 36, height: 44, plank: true, overlay: true, rail: false, railBar: false },    // 木箱 · 顶 1116
-      { x: 248, y: 1116, width: 36, height: 88, plank: true, overlay: true, rail: false, railBar: false },    // 木箱 · 顶 1072
-      { x: 288, y: 1094, width: 36, height: 132, plank: true, overlay: true, rail: false, railBar: false },   // 木箱 · 顶 1028
+      //  （开头那一摞木箱按用户要求删了；这一段现在只有屋檐本身是落脚点，
+      //   从地面上去要靠旁边的断桥 —— 见下面 C 段 x 142 那块）
       //  C · 屋檐之间接不上的空当补的空中断裂平台
       { x: 142, y: 1105, width: 44, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },    // 断桥 · 顶 1102
       { x: 912, y: 1052, width: 44, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },    // 断桥 · 顶 1049

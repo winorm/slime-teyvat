@@ -1063,6 +1063,19 @@ export class GameScene extends Phaser.Scene {
   private wallRT: Phaser.GameObjects.RenderTexture | null = null
   private wallBox = { left: 0, top: 0, width: 0, height: 0 }
   private wallDrawn = { x: -99999, y: -99999 }
+  // 「史莱姆这一层前面」那些**背面朝向**的摊位 / 房子（港口打包 front 里 depth 13 的那几个）：
+  // 做成 RenderTexture，每帧在史莱姆身上和还没捡的原石身上擦一个透视洞，
+  // 不然人一走到它们后面就被整个盖住、原石也看不见了
+  private harborFrontRTs: {
+    rt: Phaser.GameObjects.RenderTexture
+    key: string
+    left: number
+    top: number
+    width: number
+    height: number
+    scale: number
+    drawn: string
+  }[] = []
   // 玉京台那种折返楼梯：踩上去翻层的半层小平台（`PlatformDef.layerFlip`），
   // 以及"上一次站在哪一跑楼梯上"—— 靠它区分上楼还是下楼
   private flipPads: { left: number; right: number; top: number }[] = []
@@ -1594,6 +1607,8 @@ export class GameScene extends Phaser.Scene {
     this.wallDrawn = { x: -99999, y: -99999 }
     this.revealRailRT = null
     this.revealRailDrawn = { x: -99999, y: -99999 }
+    // 同理：这些 RenderTexture 是建关卡时现造的，场景实例复用，引用必须清干净
+    this.harborFrontRTs = []
     this.platforms = this.physics.add.staticGroup()
     this.pillars = this.physics.add.staticGroup()
     this.orbs = this.physics.add.staticGroup()
@@ -1703,15 +1718,32 @@ export class GameScene extends Phaser.Scene {
 
         pack.front.forEach((piece) => {
           const ground = this.harborGroundAt(block.at + piece.dx)
+          const px = block.at + piece.dx
+          const py = ground + (piece.dy ?? 0) + harborBottomPad(this, piece.key)
+          const scale = piece.scale ?? 1
+
+          // 背面朝向的摊位 / 房子：做成 RenderTexture，好在史莱姆和原石身上擦透视洞
+          // （往 RT 里 draw Game Object 在这版 Phaser 上不可靠，所以用 stamp + 贴图键）
+          if (piece.key === 'harbor-stall-back' || piece.key === 'harbor-house-back') {
+            const source = this.textures.get(piece.key).getSourceImage() as unknown as HTMLCanvasElement
+            const width = Math.round(source.width * scale)
+            const height = Math.round(source.height * scale)
+            const left = px - width / 2
+            const top = py - height
+            const rt = this.add
+              .renderTexture(left, top, width, height)
+              .setOrigin(0, 0)
+              .setAlpha(piece.alpha ?? 1)
+              .setDepth(13)
+
+            this.harborFrontRTs.push({ rt, key: piece.key, left, top, width, height, scale, drawn: '' })
+            return
+          }
 
           this.add
-            .image(
-              block.at + piece.dx,
-              ground + (piece.dy ?? 0) + harborBottomPad(this, piece.key),
-              piece.key
-            )
+            .image(px, py, piece.key)
             .setOrigin(0.5, 1)
-            .setScale(piece.scale ?? 1)
+            .setScale(scale)
             .setAlpha(piece.alpha ?? 1)
             .setDepth(13)
         })
@@ -7254,6 +7286,48 @@ export class GameScene extends Phaser.Scene {
     this.wallDrawn = { x: px, y: py }
   }
 
+  // 背面朝向的摊位 / 房子上擦透视洞（和树干 / 栏杆 / 券门墙同一套做法）：
+  // 只有"洞"真的压到这块范围内才重画一次，平时整块贴图就那样放着，别每帧白跑
+  private updateHarborFronts() {
+    if (this.harborFrontRTs.length === 0) {
+      return
+    }
+
+    const targets = [{ x: this.slime.x, y: this.slime.y }]
+
+    ;(this.gems.getChildren() as Phaser.Physics.Arcade.Sprite[]).forEach((gem) => {
+      if (gem.active) {
+        targets.push({ x: gem.x, y: gem.y })
+      }
+    })
+
+    this.harborFrontRTs.forEach((piece) => {
+      // 透视洞本身是 200x168 的一块软椭圆，中心离这块多远才算压上去
+      const near = targets.filter(
+        (t) =>
+          t.x > piece.left - 100 &&
+          t.x < piece.left + piece.width + 100 &&
+          t.y > piece.top - 84 &&
+          t.y < piece.top + piece.height + 84
+      )
+      const stamp = near.map((t) => Math.round(t.x) + ',' + Math.round(t.y)).join('|')
+
+      if (stamp === piece.drawn) {
+        return
+      }
+
+      piece.drawn = stamp
+      piece.rt.clear()
+      piece.rt.stamp(piece.key, undefined, piece.width / 2, piece.height, {
+        originX: 0.5,
+        originY: 1,
+        scale: piece.scale,
+      })
+      near.forEach((t) => piece.rt.erase('reveal-blob', t.x - piece.left, t.y - piece.top))
+      piece.rt.render()
+    })
+  }
+
   private updateRevealRails() {
     const rt = this.revealRailRT
     const rails = this.level.revealRails ?? []
@@ -9457,6 +9531,8 @@ export class GameScene extends Phaser.Scene {
     this.updateLayerReveals()
     // 玉京台那种画在玩家前面的栏杆：也在玩家身上擦透视洞
     this.updateRevealRails()
+    // 背面朝向的摊位 / 房子：史莱姆和原石走到后面时也透出来
+    this.updateHarborFronts()
     // 玉京台那道隔断墙（连券门）：同一套做法
     this.updateWall()
     // 折返楼梯的换层（站在哪一跑上 / 踩到半层小平台）
