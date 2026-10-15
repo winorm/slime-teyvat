@@ -3775,7 +3775,9 @@ export class GameScene extends Phaser.Scene {
         skills.push('X 雷闪　C 雷鸣')
       }
 
-      if (unlocked.some((key) => ELEMENTS[key].canHover)) {
+      // 长按空格也跟着「当前是什么史莱姆」走，和上面岩 / 雷两条一个规矩：
+      // 光解锁了风还不行，得现在就穿着风史莱姆这层皮，否则提示了一按没反应
+      if (ELEMENTS[this.element].canHover) {
         // 悬浮和缓降都吃体力，键位说明里要写出来，不然玩家以为能无限飘
         skills.push('长按空格 悬浮／缓降（耗体力）')
       }
