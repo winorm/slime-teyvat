@@ -26,11 +26,7 @@ import { DEV_MODE } from '../state/progress'
 export const DEV_LEVEL_MODE =
   DEV_MODE && new URLSearchParams(location.search).has('dev')
 
-// 展品表：形状和 GameScene 里那套 DevExhibit 一致（这里只用到 prop 一种）。
-// 加它是为了**先找个地方把新贴图摆出来给人看**，样子定了再挪进正式关卡
-type DevExhibitLike = { kind: 'prop'; x: number; label: string; key: string; scale?: number }
-
-export const DEV_LEVEL: LevelDef & { devExhibits: DevExhibitLike[] } = {
+export const DEV_LEVEL: LevelDef = {
   name: '测试关卡 · 沙盒',
   intro:
     '测试关卡：只有 DEV_MODE 打开、\n并且地址带 ?dev=1 时才进得来。\n左边是各个机制区，右边一大片\n是留给以后新设计的空地。',
@@ -43,12 +39,6 @@ export const DEV_LEVEL: LevelDef & { devExhibits: DevExhibitLike[] } = {
   bg: 'field',
   music: 'music-field',
   goal: { x: 4520, y: 846, kind: 'chest', prompt: '打开' },
-
-  // 留云借风真君 · 鸟兽形态（预览用）：摆在右边那片空地上。
-  // 第九关「那个女人」开工的时候把这条删掉，挪到正式关卡里
-  devExhibits: [
-    { kind: 'prop', x: 4200, label: '留云借风真君 · 鸟兽形态', key: 'npc-cloud-retainer-crane' },
-  ],
 
   platforms: [
     // 整条地面（顶面 860）

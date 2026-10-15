@@ -5287,100 +5287,111 @@ export class BootScene extends Phaser.Scene {
     servant.destroy()
   }
 
-  // ── 留云借风真君 · 鸟兽形态（130x112）：白鹤 ──────────────────────
-  //   白身 + 青蓝的翅尖和尾羽 + 金饰头冠；长颈长喙长腿，一眼能认出是鹤。
-  //   她是璃月的仙人、也是"造物机关"那一套的发明者，所以翅根压了金线、
-  //   冠上缀了金珠和一点朱红，留一点"会做机关、也贵气"的味道。脸朝右，和其他 NPC 一致。
-  //   当前只是**先做出来给人看的样子**，还没有正式放进任何一关
+  // ── 留云借风真君 · 鸟兽形态（130x152）：仙鹤（照丹顶鹤的比例重画）──────
+  //   上一版画丑了：身子又圆又胖、脖子几乎竖直、腿太短、喙像一根横条。
+  //   这一版按真鹤的比例来：**腿占一半身高、身子是横着的蛋形、脖子细长带 S 弯、
+  //   头小、喙细长、头顶一块朱红（丹顶）**，再加上仙鹤最标志性的**深色翼羽**
+  //   —— 就是垂在尾巴后面那一束，很多人会当成尾巴。
+  //   配色还是留云那套：白身 + 青黑翼羽 + 金饰，脸朝右，和其他 NPC 一致。
   private makeCloudRetainerCrane() {
-    const WHITE = 0xf4f6f8
-    const SHADE = 0xd6e0ea
-    const BLUE = 0x3a5f8f
-    const BLUE_DEEP = 0x27415f
+    const WHITE = 0xf6f8fa
+    const SHADE = 0xdfe8f0
+    const PLUME = 0x2b3a4a
+    const PLUME_DARK = 0x1e2a36
     const GOLD = 0xd9a441
-    const GOLD_LIGHT = 0xf0d07a
-    const BEAK = 0x4a5560
-    const LEG = 0x7a5f38
-    const LEG_DARK = 0x5f4a2c
-    const INK = 0x2a2a34
+    const CROWN = 0xc0392b
+    const CROWN_LIGHT = 0xd94f3d
+    const BEAK = 0x3f4a56
+    const BEAK_DARK = 0x2c343d
+    const LEG = 0x4a5560
+    const LEG_DARK = 0x333c46
+    const INK = 0x232830
 
     const g = this.add.graphics()
     const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
 
-    // ① 两条腿（先画，压在身子下面）：细长 + 三趾
-    ;[58, 72].forEach((x, i) => {
-      const color = i === 0 ? LEG : LEG_DARK
+    // ① 后面那条腿（压深一档，做出前后）
+    g.fillStyle(LEG_DARK, 1)
+    g.fillRect(71, 100, 3, 43)
+    g.fillRect(66, 141, 12, 3)
+    g.fillRect(73, 143, 8, 3)
 
-      g.fillStyle(color, 1)
-      g.fillRect(x, 64, 3, 40)
-      g.fillRect(x - 6, 101, 10, 3)
-      g.fillRect(x + 1, 101, 9, 3)
+    // ② 前面那条腿：长、细，中间看得见踝关节，再挂一个金环（仙人身上的饰）
+    g.fillStyle(LEG, 1)
+    g.fillRect(58, 96, 3, 47)
+    g.fillCircle(59, 120, 2.6)
+    g.fillRect(53, 142, 11, 3)
+    g.fillRect(56, 145, 6, 2)
+    g.fillRect(61, 143, 8, 3)
+    g.fillStyle(GOLD, 1)
+    g.fillRect(56, 126, 8, 3)
+
+    // ③ 深色翼羽：从翼后甩出去、往下垂的那一束
+    g.fillStyle(PLUME, 1)
+    g.fillPoints([P(48, 86), P(24, 104), P(22, 122), P(42, 120), P(56, 100)], true)
+    g.fillStyle(PLUME_DARK, 1)
+    g.fillPoints([P(30, 106), P(20, 120), P(34, 122), P(40, 112)], true)
+    g.lineStyle(1, 0x16202a, 1)
+    g.lineBetween(44, 90, 30, 118)
+    g.lineBetween(50, 94, 38, 120)
+
+    // ④ 身子：横着的蛋形，深色描一圈再压白
+    g.fillStyle(INK, 1)
+    g.fillEllipse(66, 88, 66, 36)
+    g.fillStyle(WHITE, 1)
+    g.fillEllipse(66, 87, 62, 32)
+    g.fillStyle(SHADE, 1)
+    g.fillEllipse(62, 96, 46, 14)
+
+    // ⑤ 收起来的翅膀：一道金线当翼前缘，后面几道羽纹
+    g.fillStyle(WHITE, 1)
+    g.fillPoints([P(88, 74), P(96, 88), P(86, 100), P(52, 100), P(44, 84)], true)
+    g.lineStyle(2, GOLD, 1)
+    g.lineBetween(88, 74, 48, 82)
+    g.lineStyle(1, 0xc4d2e0, 1)
+    g.lineBetween(86, 84, 58, 90)
+    g.lineBetween(84, 92, 62, 97)
+
+    // ⑥ 脖子：一条二阶贝塞尔，从身子前上方绕一道很轻的 S 到头上
+    const neck = (t: number) => ({
+      x: (1 - t) * (1 - t) * 92 + 2 * (1 - t) * t * 84 + t * t * 106,
+      y: (1 - t) * (1 - t) * 86 + 2 * (1 - t) * t * 56 + t * t * 36,
     })
 
-    // ② 尾羽：从身子后头甩出去，末端收成青蓝
-    g.fillStyle(WHITE, 1)
-    g.fillPoints([P(34, 42), P(10, 50), P(12, 64), P(40, 62)], true)
-    g.fillStyle(SHADE, 1)
-    g.fillPoints([P(26, 46), P(8, 54), P(10, 62), P(30, 60)], true)
-    g.fillStyle(BLUE, 1)
-    g.fillPoints([P(10, 50), P(4, 56), P(12, 58)], true)
-    g.fillStyle(BLUE_DEEP, 1)
-    g.fillPoints([P(12, 58), P(3, 62), P(14, 64)], true)
-
-    // ③ 身子：深色描一圈，再压白 + 下腹一点冷灰
-    g.fillStyle(INK, 1)
-    g.fillEllipse(62, 46, 66, 46)
-    g.fillStyle(WHITE, 1)
-    g.fillEllipse(62, 45, 62, 42)
-    g.fillStyle(SHADE, 1)
-    g.fillEllipse(60, 55, 48, 20)
-
-    // ④ 折起来的翅膀：白底 + 一道金线 + 几道羽纹，翅尖青蓝收尾
-    g.fillStyle(WHITE, 1)
-    g.fillPoints([P(42, 26), P(88, 30), P(92, 58), P(48, 62)], true)
-    g.lineStyle(2, GOLD, 1)
-    g.lineBetween(46, 30, 88, 34)
-    g.lineStyle(1, 0xb9c6d4, 1)
-    ;[40, 48, 56].forEach((y) => g.lineBetween(48, y, 84, y + 3))
-    g.fillStyle(BLUE, 1)
-    g.fillPoints([P(78, 44), P(98, 52), P(92, 64), P(78, 60)], true)
-    g.fillStyle(BLUE_DEEP, 1)
-    g.fillPoints([P(86, 52), P(100, 58), P(94, 66), P(86, 62)], true)
-
-    // ⑤ 脖子：一串由粗到细的小圆，从身子前上方绕一道 S 到头顶
-    for (let i = 0; i <= 20; i++) {
-      const t = i / 20
-      const x = 88 + t * 10 - Math.sin(t * Math.PI) * 7
-      const y = 44 - t * 32
+    for (let i = 0; i <= 22; i++) {
+      const t = i / 22
+      const p = neck(t)
+      const r = 6.4 - t * 2.8
 
       g.fillStyle(INK, 1)
-      g.fillCircle(x, y, 7.5 - t * 3.6)
-      g.fillStyle(i === 0 ? SHADE : WHITE, 1)
-      g.fillCircle(x, y, 6.2 - t * 3.4)
+      g.fillCircle(p.x, p.y, r + 1.4)
+      g.fillStyle(WHITE, 1)
+      g.fillCircle(p.x, p.y, r)
     }
 
-    // ⑥ 头 + 长喙 + 眼睛
+    // ⑦ 头（小、圆）+ 细长的喙
     g.fillStyle(INK, 1)
-    g.fillEllipse(97, 12, 19, 17)
+    g.fillEllipse(106, 33, 17, 15)
     g.fillStyle(WHITE, 1)
-    g.fillEllipse(97, 12, 16, 14)
+    g.fillEllipse(106, 33, 14, 12)
     g.fillStyle(BEAK, 1)
-    g.fillPoints([P(103, 9), P(128, 14), P(103, 17)], true)
-    g.fillStyle(0x37404a, 1)
-    g.fillPoints([P(104, 10), P(126, 14), P(104, 14)], true)
+    g.fillPoints([P(112, 30), P(128, 39), P(112, 37)], true)
+    g.fillStyle(BEAK_DARK, 1)
+    g.fillPoints([P(113, 34), P(127, 39), P(113, 36)], true)
+
+    // ⑧ 丹顶：头顶那一片朱红 —— 仙鹤最认得出的记号；额前留一小撮白羽，别红到喙根
+    g.fillStyle(CROWN, 1)
+    g.fillEllipse(103, 27, 15, 8)
+    g.fillStyle(CROWN_LIGHT, 1)
+    g.fillEllipse(103, 26, 13, 5)
+    g.fillStyle(WHITE, 1)
+    g.fillEllipse(111, 30, 7, 6)
+
+    // ⑨ 眼睛最后点，别被红冠盖住
     g.fillStyle(INK, 1)
-    g.fillCircle(101, 10, 2)
+    g.fillCircle(108, 31, 2)
 
-    // ⑦ 头冠：两道金线 + 一颗金珠 + 一点朱红
-    g.lineStyle(3, GOLD, 1)
-    g.lineBetween(92, 6, 99, 3)
-    g.lineBetween(91, 10, 97, 6)
-    g.fillStyle(GOLD_LIGHT, 1)
-    g.fillCircle(92, 4, 2.4)
-    g.fillStyle(0xc0392b, 1)
-    g.fillCircle(96, 8, 1.6)
-
-    g.generateTexture('npc-cloud-retainer-crane', 130, 112)
+    g.generateTexture('npc-cloud-retainer-crane', 130, 152)
     g.destroy()
   }
 

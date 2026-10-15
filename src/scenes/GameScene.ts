@@ -946,6 +946,22 @@ function devHarborBlockRoom(): DevLevelDef {
   return level
 }
 
+// ⑪ 人物：专门用来审角色的样子 —— 新画的 NPC 先摆这儿看，定稿了再挪进正式关卡。
+//    别人的展厅是一类机制一间，这间只放"人"
+function devCharacterRoom(): DevLevelDef {
+  const level = devRoomShell(
+    '测试 · 人物',
+    '人物展厅：\n新画的人物先摆在这儿看，\n定稿了再挪进正式关卡。',
+    1400
+  )
+
+  level.devExhibits = [
+    { kind: 'prop', x: 420, label: '留云借风真君 · 鸟兽形态', key: 'npc-cloud-retainer-crane' },
+  ]
+
+  return level
+}
+
 const DEV_ROOMS: DevRoomDef[] = [
   { label: '七天神像', level: devStatueRoom() },
   { label: '元素方碑', level: devMonumentRoom() },
@@ -956,6 +972,7 @@ const DEV_ROOMS: DevRoomDef[] = [
   { label: '潜行', level: devStealthRoom() },
   { label: '追击', level: devChaseRoom() },
   { label: '港口打包', level: devHarborBlockRoom() },
+  { label: '人物', level: devCharacterRoom() },
   { label: '综合沙盒', level: DEV_LEVEL },
 ]
 
