@@ -9578,6 +9578,13 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    // 爬山关：`cameraBias` 是**恒定**的跟随偏移 —— 镜头一直往上抬那么多，史莱姆就落在
+    // 画面下半部分，往上爬时先看见的是"接下来要爬的那一段"。（和上面 cameraLift 不共存；
+    // 这里每帧写一次，是因为 startFollow / 复活 / 重进关卡都会把跟随偏移清成 0）
+    if (!lift && this.level.cameraBias) {
+      camera.setFollowOffset(0, this.level.cameraBias)
+    }
+
     // 水利电梯：轿厢跟到当前高度，站在上面的人跟着走
     this.updateLift()
 
