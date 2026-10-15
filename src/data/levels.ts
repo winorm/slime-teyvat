@@ -841,7 +841,8 @@ export const LEVELS: LevelDef[] = [
 
     width: 6900,
     height: 1200,
-    // 岩是上一关带过来的；雷是本关新给的（雷神像还没画，先用 unlocks 顶着）
+    // 岩是上一关带过来的；雷是本关新给的 —— **雷神像留到第 11 关才出现**（用户定的），
+    // 所以这一关不给神像，直接用 unlocks 把雷发下来
     startElement: 'rock',
     unlocks: ['wind', 'thunder'],
     spawn: { x: 60, y: 1120 },
@@ -867,6 +868,36 @@ export const LEVELS: LevelDef[] = [
       // layerFlip —— 站上去翻一层：上楼过来就切到后层（好上上跑），下楼过来就切回前层（好下下跑）
       { x: 2355, y: 1023, width: 110, height: 6, brick: true, rail: false, layerFlip: true },   // 2300~2410
       { x: 4545, y: 1023, width: 110, height: 6, brick: true, rail: false, layerFlip: true },   // 4490~4600
+
+      // ② 前往玉京台那一段（x 0~2300）：和追击段同一套做法 ——
+      //    背景房子的屋檐全做成单向平台（尺寸照贴图里那道檐口：宽 2×half、厚 6），
+      //    最开头摆一摞三级木箱当上房顶的起点，屋檐之间接不上的空当补空中断裂平台。
+      //    地面上每隔一栋房子的屋檐下挂一门发射机关（见下面的 launchers），
+      //    三颗原石就放在其中三门的正下方 —— 想拿就得在岩刺下面走一趟。
+      //  A · 屋檐（c 宽 118 / a 宽 146 / b 宽 236 / d 宽 134，都厚 6）
+      { x: 75, y: 1090, width: 118, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 c · 顶 1087
+      { x: 385, y: 1014, width: 146, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 a · 顶 1011
+      { x: 600, y: 1067, width: 236, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 b · 顶 1064
+      { x: 830, y: 1090, width: 118, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 c · 顶 1087
+      { x: 993, y: 1014, width: 146, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 a · 顶 1011
+      { x: 1139, y: 1014, width: 146, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },  // 屋檐 a · 顶 1011
+      { x: 1470, y: 949, width: 134, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },   // 屋檐 d · 顶 946
+      { x: 1595, y: 1090, width: 118, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },  // 屋檐 c · 顶 1087
+      { x: 1920, y: 1014, width: 146, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },  // 屋檐 a · 顶 1011
+      //  B · 开头那一摞三级木箱（每级 44，一跳 48 留 4 余量）
+      { x: 208, y: 1138, width: 36, height: 44, plank: true, overlay: true, rail: false, railBar: false },    // 木箱 · 顶 1116
+      { x: 248, y: 1116, width: 36, height: 88, plank: true, overlay: true, rail: false, railBar: false },    // 木箱 · 顶 1072
+      { x: 288, y: 1094, width: 36, height: 132, plank: true, overlay: true, rail: false, railBar: false },   // 木箱 · 顶 1028
+      //  C · 屋檐之间接不上的空当补的空中断裂平台
+      { x: 142, y: 1105, width: 44, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },    // 断桥 · 顶 1102
+      { x: 912, y: 1052, width: 44, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },    // 断桥 · 顶 1049
+      { x: 1222, y: 998, width: 44, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },    // 断桥 · 顶 995
+      { x: 1305, y: 982, width: 44, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },    // 断桥 · 顶 979
+      { x: 1387, y: 965, width: 44, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },    // 断桥 · 顶 962
+      { x: 1660, y: 1075, width: 44, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },   // 断桥 · 顶 1072
+      { x: 1725, y: 1060, width: 44, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },   // 断桥 · 顶 1057
+      { x: 1790, y: 1044, width: 44, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },   // 断桥 · 顶 1041
+      { x: 1855, y: 1029, width: 44, height: 6, oneWay: true, overlay: true, rail: false, railBar: false },   // 断桥 · 顶 1026
 
       // ④ 追击段（出玉京台 → 宝箱）：**背景里那排房子的屋檐全做成单向平台**。
       //    尺寸严格照贴图里真正画出来的那道**檐口**来 —— roof() 里那一条是
@@ -948,14 +979,26 @@ export const LEVELS: LevelDef[] = [
     ],
 
     orbs: [],
-    gems: [],
+    // 三颗原石全摆在「前往玉京台」那段：**就放在发射机关的正下方**（地面上），
+    // 想吃就得在岩刺底下走一趟；嫌危险就跳上屋檐走上面那条
+    gems: [
+      { x: 600, y: 1147 },
+      { x: 1470, y: 1147 },
+      { x: 1920, y: 1147 },
+    ],
     blessings: [],
     hazards: [],
     monuments: [],
     // 发射岩刺的造物机关：**每隔一栋房子**挂一个在屋檐底下，只往下打 ——
-    // 走地面这条线就躲这个；嫌挤就跳上屋檐走上面那一条
-    // y 都落在屋檐平台**下面**一点（檐口板占 6 像素高），机关才不会埋在板子里
+    // 走地面这条线就躲这个；嫌挤就跳上屋檐走上面那一条。
+    // y 都落在屋檐平台**下面**一点（檐口板占 6 像素高），机关才不会埋在板子里。
+    // 前五门在「前往玉京台」那段（0~2300），后五门在追击段（4600~6760）
     launchers: [
+      { x: 75, y: 1101, interval: 2.2 },
+      { x: 600, y: 1078, interval: 2.2 },
+      { x: 993, y: 1025, interval: 2.2 },
+      { x: 1470, y: 960, interval: 2.2 },
+      { x: 1920, y: 1025, interval: 2.2 },
       { x: 4690, y: 1101, interval: 2.2 },
       { x: 5160, y: 1101, interval: 2.2 },
       { x: 5610, y: 1078, interval: 2.2 },
@@ -975,7 +1018,7 @@ export const LEVELS: LevelDef[] = [
     ],
 
     // 走出玉京台（右端 4600）、脚落到地面（1160）之后触发追击演出，身后生成三个千岩军；
-    // 追击场地还没做，现在就是一段平地，跑到尽头的宝箱（6520）开箱过关
+    // 紧接着就是那段屋檐跑酷（见下面 platforms 的 ④ 段），跑到最后一摞木箱顶上开宝箱过关
     chaseAt: 4620,
     chaseOnLand: true,
     squadCount: 3,
@@ -1010,7 +1053,14 @@ export const LEVELS: LevelDef[] = [
       { at: 6440, kind: 'suburb' },            // 最后一段：铺到关卡最右边，建筑一路不断
     ],
 
-    hints: [],
+    // 世界里的提示文字（`makeHint` 画在对应坐标上）。这四句都不含操作键位，
+    // 所以不会被「这一类提示过了就不再出现」那套吃掉，每次进关都会显示
+    hints: [
+      { x: 240, y: 1085, text: '向右前往玉京台' },
+      { x: 2650, y: 1085, text: '上楼观看请仙典仪' },
+      { x: 3700, y: 840, text: '岩化时静止不动，则不会被发现' },
+      { x: 4110, y: 840, text: '岩柱可阻挡千岩军视野' },
+    ],
   },
 
 ]

@@ -5256,6 +5256,31 @@ export class GameScene extends Phaser.Scene {
       seat(plazaX + 70, 50, 'npc-attendant', true)
     )
 
+    // 祭坛两边各摆一个香炉（用户要的）：三足鼎 + 一缕往上飘的青烟。
+    // 摆在 z=45（比祭坛的 z=60 靠前一点），层数自然压在祭坛前面、人后面
+    ;[-120, 120].forEach((dx) => {
+      const censer = seat(plazaX + dx, 45, 'terrace-censer')
+
+      for (let i = 0; i < 3; i++) {
+        const puff = this.add
+          .image(censer.x, censer.y - 30 * sOf(45), 'pixel')
+          .setDisplaySize(3, 3)
+          .setTint(0xe8e2d0)
+          .setAlpha(0)
+          .setDepth(depthAt(45) + 0.01)
+
+        this.tweens.add({
+          targets: puff,
+          y: puff.y - 24,
+          scale: 2.4,
+          alpha: { from: 0.4, to: 0 },
+          duration: 2600,
+          delay: i * 860,
+          repeat: -1,
+        })
+      }
+    })
+
     this.plazaNing = seat(plazaX, 40, 'npc-ningguang')
     this.plazaCrowd.push(this.plazaNing)
 

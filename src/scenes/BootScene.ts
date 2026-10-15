@@ -168,6 +168,7 @@ export class BootScene extends Phaser.Scene {
     this.makeTerraceHouses()
     this.makeTerracePlaza()
     this.makeTerraceGate()
+    this.makeTerraceCenser()
     this.makeRiteProps()
     this.makeSlimeShadow()
     this.makeTerracePaving()
@@ -5283,6 +5284,53 @@ export class BootScene extends Phaser.Scene {
 
     servant.generateTexture('npc-attendant', 32, 44)
     servant.destroy()
+  }
+
+  // ── 请仙典仪祭坛两边的香炉（26x32）：三足鼎式 ────────────────────
+  //   双耳 + 口沿 + 上宽下窄的鼎身 + 三只足，青铜色压一道金纹；
+  //   青烟不画进贴图，由 GameScene 用几个会往上飘的小方块做
+  private makeTerraceCenser() {
+    const BRONZE = 0x8a6a3a
+    const BRONZE_LIGHT = 0xa8823f
+    const BRONZE_DARK = 0x5a4630
+    const GOLD = 0xd9a441
+
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    // 双耳
+    g.fillStyle(BRONZE_DARK, 1)
+    g.fillRect(2, 7, 3, 6)
+    g.fillRect(21, 7, 3, 6)
+    g.fillStyle(BRONZE_LIGHT, 1)
+    g.fillRect(3, 8, 1, 5)
+    g.fillRect(22, 8, 1, 5)
+
+    // 口沿
+    g.fillStyle(BRONZE_LIGHT, 1)
+    g.fillRect(3, 11, 20, 4)
+    g.fillStyle(GOLD, 1)
+    g.fillRect(3, 11, 20, 1)
+
+    // 鼎身：上宽下窄
+    g.fillStyle(BRONZE, 1)
+    g.fillPoints([P(5, 15), P(21, 15), P(18, 25), P(8, 25)], true)
+    g.fillStyle(BRONZE_LIGHT, 1)
+    g.fillPoints([P(6, 15), P(9, 15), P(10, 25), P(9, 25)], true)
+    g.fillStyle(BRONZE_DARK, 1)
+    g.fillPoints([P(18, 15), P(21, 15), P(18, 25), P(17, 25)], true)
+    g.fillStyle(GOLD, 1)
+    g.fillRect(7, 19, 12, 1)
+
+    // 三只足（中间那只压深一点，做出前后）
+    g.fillStyle(BRONZE_DARK, 1)
+    g.fillRect(7, 25, 3, 6)
+    g.fillRect(16, 25, 3, 6)
+    g.fillStyle(0x4a3a28, 1)
+    g.fillRect(11, 25, 3, 5)
+
+    g.generateTexture('terrace-censer', 26, 32)
+    g.destroy()
   }
 
   // ── 玉京台的匾额（132x118）：进、出各立一座 ────────────────────────
