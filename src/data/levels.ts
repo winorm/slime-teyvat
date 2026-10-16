@@ -90,6 +90,13 @@ export type SlopeDef = {
   y: number         // 拱顶那条走线 y
   width: number     // 跨度：以 x 为中心，左右各 width ÷ 2（两端高度 = y + rise）
   rise: number      // 两端比拱顶低多少（＝拱高）
+  // 只用这条拱的一段（默认 tStart = -1、tEnd = 1 ＝整条拱）。
+  // 盘山道就是这么拼出来的：**半条拱 = 一条单调上升的坡** ——
+  //   tStart 0 / tEnd 1（rise 为正）：从拱顶那种"平"起步，越走越陡（＝起步要缓）；
+  //   tStart -1 / tEnd 0（rise 为正）：越走越平（＝收口，走到平台上不硌脚）。
+  // 两条这样的坡首尾相接，接缝处的斜率都是 0，所以接起来是光滑的
+  tStart?: number
+  tEnd?: number
   depthTo?: number  // 土体向下填到哪条 y（不写＝拱顶往下 90）
   tint?: number     // 土体颜色（不写＝该主题的地面色）
   grass?: boolean   // 沿着弧面铺一条草带

@@ -969,21 +969,47 @@ function devSlopeRoom(): DevLevelDef {
   const level = devRoomShell(
     '测试 · 拱形土坡',
     '拱形土坡实验台：\n走线是一条真的弧，不是台阶。\n左右走走、顶上跳一下，\n看脚底跟不跟得上弧面。',
-    1900
+    2900
   )
 
-  level.platforms = [{ x: 950, y: DEV_GROUND_TOP + 20, width: 1900, height: 40, grass: true }]
+  level.platforms = [
+    { x: 1450, y: DEV_GROUND_TOP + 20, width: 2900, height: 40, grass: true },
+    // 盘山道的转角平台：**左端必须正好落在下跑收平的那一点（x 2500、顶面 720）**，
+    // 多伸出去一截就是一道坎，人爬坡上来会被它挡住（第一版伸到 2440，实测卡在 x 2424）
+    { x: 2560, y: 723, width: 120, height: 6, grass: true, depth: 3 },
+    // 上跑尽头的上层平台（360 这一层）
+    { x: 1800, y: 363, width: 120, height: 6, grass: true, depth: 2.4 },
+    // 引道顶上的掉头平台（640 这一层）：走到这儿要往回走，平台伸出去一截就不怕冲过头掉下去
+    { x: 2780, y: 643, width: 80, height: 6, grass: true, depth: 3 },
+  ]
 
   level.slopes = [
     // 缓坡：拱顶 760、两端落到 860（＝地面线），跨度 700
     { x: 700, y: 760, width: 700, rise: 100, grass: true },
     // 陡坡：拱顶 560、两端同样落在 860，跨度 460（两端坡度接近 69°）
     { x: 1500, y: 560, width: 460, rise: 300, grass: true },
+    // ── 叠两层：盘山道 ────────────────────────────────────────────────
+    // 一笔写清楚这一层的走向：地面 860 →（下跑）→ 720 转角 →（引道）→ 640 →（上跑）→ 360 上层平台。
+    // 关键是**四条坡在接缝处的斜率都对上了**（都等于 2·rise ÷ half），所以走上去是光滑的：
+    //   下跑端点斜率 0（收平）→ 转角平台是平的 ✓
+    //   引道上端斜率 0 → 上跑 a 起点斜率 0 ✓
+    //   上跑 a 在 x=2300 处的斜率 +0.636 → 上跑 b 同一点也是 +0.636 ✓（b 的 rise 就是照这个反推的）
+    // 下跑：地面 860（x 1900）升到 720（x 2500），越走越平
+    { x: 2500, y: 720, width: 1200, rise: 140, tStart: -1, tEnd: 0, grass: true, depthTo: DEV_GROUND_TOP, depth: 2.3 },
+    // 引道（转角那一下）：从平台右边 720 再往上抬 80，到 640 —— 掉头就靠它把人送到上跑那一层
+    { x: 2740, y: 640, width: 240, rise: 80, tStart: -1, tEnd: 0, grass: true, depthTo: DEV_GROUND_TOP, depth: 2.2 },
+    // 上跑 a：从 640（x 2740）往左升到 500（x 2300），越走越陡
+    { x: 2740, y: 640, width: 880, rise: -140, tStart: -1, tEnd: 0, grass: true, depthTo: DEV_GROUND_TOP, depth: 2.05 },
+    // 上跑 b：从 500（x 2300）继续往左升到 360（x 1860），到顶收平（和下跑同一套写法，方向相反）
+    { x: 1860, y: 360, width: 880, rise: 140, tStart: 0, tEnd: 1, grass: true, depthTo: DEV_GROUND_TOP, depth: 2.05 },
   ]
 
   level.hints = [
     { x: 300, y: 740, text: '拱形土坡 · 缓（拱高 100 / 跨 700）' },
     { x: 1500, y: 470, text: '拱形土坡 · 陡（拱高 300 / 跨 460）' },
+    { x: 2150, y: 680, text: '叠两层 · 下跑（1900→2500，860→720）' },
+    { x: 2300, y: 450, text: '叠两层 · 上跑（2740→1860，640→360）' },
+    { x: 2700, y: 600, text: '走到这儿掉头' },
   ]
 
   return level
@@ -6243,12 +6269,17 @@ export class GameScene extends Phaser.Scene {
       const earth = def.tint ?? groundColor
       const bottom = def.depthTo ?? def.y + 90
       const depth = def.depth ?? 2
+      // 只画这条拱的一段（默认整条）—— 盘山道的每一跑就是半条拱
+      const t0 = def.tStart ?? -1
+      const t1 = def.tEnd ?? 1
+      const x0 = def.x + half * t0
+      const x1 = def.x + half * t1
       // 每 6 像素采一个点，弧面看着就是光滑的（一段弧最多几十个点）
-      const steps = Math.max(12, Math.round(def.width / 6))
+      const steps = Math.max(8, Math.round(Math.abs(x1 - x0) / 6))
       const surface: Phaser.Math.Vector2[] = []
 
       for (let i = 0; i <= steps; i++) {
-        const x = def.x - half + (def.width * i) / steps
+        const x = x0 + ((x1 - x0) * i) / steps
         const t = (x - def.x) / half
 
         surface.push(new Phaser.Math.Vector2(x, def.y + def.rise * t * t))
@@ -6261,8 +6292,8 @@ export class GameScene extends Phaser.Scene {
       gfx.fillPoints(
         [
           ...surface,
-          new Phaser.Math.Vector2(def.x + half, bottom),
-          new Phaser.Math.Vector2(def.x - half, bottom),
+          new Phaser.Math.Vector2(x1, bottom),
+          new Phaser.Math.Vector2(x0, bottom),
         ],
         true
       )
@@ -6278,8 +6309,8 @@ export class GameScene extends Phaser.Scene {
       if (def.grass) {
         const segment = 60
 
-        for (let x = def.x - half; x < def.x + half; x += segment) {
-          const width = Math.min(segment, def.x + half - x)
+        for (let x = Math.min(x0, x1); x < Math.max(x0, x1); x += segment) {
+          const width = Math.min(segment, Math.max(x0, x1) - x)
           const mid = x + width / 2
           const t = (mid - def.x) / half
 
@@ -6300,12 +6331,18 @@ export class GameScene extends Phaser.Scene {
 
     if (defs && defs.length > 0 && !this.inputLocked && !this.blinkAiming) {
       const x = body.center.x
+      // 盘山道的好几跑会在 x 上重叠，**脚下最近的那条弧面才算数** ——
+      // 按数组顺序取第一条的话，走到拐角处会被下面那一跑抢走（见「踩过的坑」）
+      let best: number | null = null
+      let bestOff = Number.POSITIVE_INFINITY
 
       for (const def of defs) {
         const half = def.width / 2
         const t = (x - def.x) / half
+        const t0 = def.tStart ?? -1
+        const t1 = def.tEnd ?? 1
 
-        if (t < -1 || t > 1) {
+        if (t < t0 || t > t1) {
           continue
         }
 
@@ -6317,12 +6354,23 @@ export class GameScene extends Phaser.Scene {
           continue
         }
 
+        const off = Math.abs(feet - surface)
+
+        if (off < bestOff) {
+          bestOff = off
+          best = surface
+        }
+      }
+
+      if (best !== null) {
         grip = true
         this.slime.setVelocityY(0)
-        this.slime.setY(surface - body.height / 2)
+        // 脚底比弧面**高 1 像素**：弧的尽头要是接上一块平台（顶面高度正好等于弧面），
+        // 只差零点几像素也会被 Arcade 按"最浅方向"往横里推，人就卡在接缝上了 ——
+        // 抬 1 像素谁也不会看出来，但接缝从此不咬人（见「踩过的坑」）
+        this.slime.setY(best - body.height / 2 - 1)
         body.setAllowGravity(false)
         this.slopeGravityOff = true
-        break
       }
     }
 
