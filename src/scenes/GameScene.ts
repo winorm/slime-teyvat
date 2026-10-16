@@ -970,19 +970,19 @@ function devSlopeRoom(): DevLevelDef {
     '测试 · 拱形土坡',
     '拱形土坡实验台：\n走线是一条真的弧，不是台阶。\n左右走走、顶上跳一下，\n看脚底跟不跟得上弧面。',
     // 宽度要盖住掉头平台（一直铺到 2980）：关卡边界就是这里的宽度，写小了人会被挡在平台前面
-    3200
+    3400
   )
 
   level.platforms = [
-    { x: 1600, y: DEV_GROUND_TOP + 20, width: 3200, height: 40, grass: true },
+    { x: 1700, y: DEV_GROUND_TOP + 20, width: 3400, height: 40, grass: true },
     // 盘山道的转角平台：**左端必须正好落在下跑收平的那一点（x 2500、顶面 720）**，
     // 多伸出去一截就是一道坎，人爬坡上来会被它挡住（第一版伸到 2440，实测卡在 x 2424）
     { x: 2560, y: 723, width: 120, height: 6, grass: true, depth: 3 },
-    // 上跑尽头的上层平台（357 这一层）
-    { x: 1800, y: 360, width: 120, height: 6, grass: true, depth: 2.4 },
-    // 引道顶上的掉头平台（640 这一层）：2740~3020，**比上跑的起点（2900）再往右伸出去一截**。
-    // 上楼时走到这儿往左**跳**上上跑；下楼时顺着上跑走到头，正好落回这块平台
-    { x: 2880, y: 643, width: 280, height: 6, grass: true, depth: 3 },
+    // 上跑尽头的上层平台（372 这一层，在后层）
+    { x: 1900, y: 375, width: 120, height: 6, grass: true, depth: 1.9 },
+    // 缓坡顶上的平台（600）：上楼走到这儿翻层再往左上，下楼顺着上跑下来落在这儿。
+    // 右端一直顶到关卡边（3400 宽、边界在 3384），免得往右走过头掉下去
+    { x: 3242, y: 603, width: 284, height: 6, grass: true, depth: 3 },
   ]
 
   level.slopes = [
@@ -998,21 +998,37 @@ function devSlopeRoom(): DevLevelDef {
     //   上跑 a 在 x=2300 处的斜率 +0.636 → 上跑 b 同一点也是 +0.636 ✓（b 的 rise 就是照这个反推的）
     // 下跑：地面 860（x 1900）升到 720（x 2500），越走越平
     { x: 2500, y: 720, width: 1200, rise: 140, tStart: -1, tEnd: 0, grass: true, depthTo: DEV_GROUND_TOP, depth: 2.3 },
-    // 引道（转角那一下）：从平台右边 720 再往上抬 80，到 640 —— 掉头就靠它把人送到上跑那一层
-    { x: 2740, y: 640, width: 240, rise: 80, tStart: -1, tEnd: 0, grass: true, depthTo: DEV_GROUND_TOP, depth: 2.2 },
-    // 上跑 a：起点在 x 2900、600 —— **比掉头平台高 40 像素**，在拐角处往左跳一下就上去了。
-    // 不能和平台接在同一个高度上：端点一重合，"脚下最近的那条"就成了抛硬币（实测会骑着上跑往回爬）
-    { x: 2900, y: 600, width: 1200, rise: -140, tStart: -1, tEnd: 0, grass: true, depthTo: DEV_GROUND_TOP, depth: 2.05 },
-    // 上跑 b：从 460（x 2300）继续往左升到 357（x 1860），到顶收平（和下跑同一套写法，方向相反）
-    { x: 1860, y: 357, width: 880, rise: 103, tStart: 0, tEnd: 1, grass: true, depthTo: DEV_GROUND_TOP, depth: 2.05 },
+    // 引道（转角那一下）：从转角平台右边（x 2620、720）抬到 640（x 2860）。
+    // **底必须够缓**（2·rise ÷ half ≤ 0.7 左右）：贴地"开始骑"只认脚底离弧面 2 像素以内的，
+    // 底太陡的话，人从平台边上迈出去的第一步就已经掉到弧面下面十几像素，直接被判成"在弧底下"进不去
+    // （第一版 240 宽、底 53°，实测就在这儿掉回地面）
+    { x: 2860, y: 640, width: 480, rise: 80, tStart: -1, tEnd: 0, grass: true, depthTo: DEV_GROUND_TOP, depth: 2.2 },
+    // 缓坡：掉头平台（2860、640）走到缓坡顶（3100、600）—— **一条能直接走上去的坡**，
+    // 不用跳。坡顶是平的，和上面那条上跑的起点同高，翻层之后接着就往左上
+    { x: 3100, y: 600, width: 480, rise: 40, tStart: -1, tEnd: 0, grass: true, depthTo: DEV_GROUND_TOP, depth: 2.2 },
+    // 上跑 a（**后层**）：起点 x 3100、600（就在缓坡顶上），往左升到 460（x 2400）。
+    // 它和缓坡在下头这一段是重叠的 —— 靠 layer 分开，贴地只认当前那一层
+    { x: 3100, y: 600, width: 1400, rise: -140, tStart: -1, tEnd: 0, grass: true, depthTo: DEV_GROUND_TOP, layer: 'back', depth: 1.8 },
+    // 上跑 b（后层）：从 460（x 2400）继续往左升到 372（x 1960），到顶收平
+    { x: 1960, y: 372, width: 880, rise: 88, tStart: 0, tEnd: 1, grass: true, depthTo: DEV_GROUND_TOP, layer: 'back', depth: 1.8 },
   ]
 
   level.hints = [
     { x: 300, y: 740, text: '拱形土坡 · 缓（拱高 100 / 跨 700）' },
     { x: 1500, y: 470, text: '拱形土坡 · 陡（拱高 300 / 跨 460）' },
     { x: 2150, y: 680, text: '叠两层 · 下跑（1900→2500，860→720）' },
-    { x: 2300, y: 420, text: '叠两层 · 上跑（2900→1860，600→357）' },
-    { x: 2830, y: 600, text: '走到这儿往左跳上去、再掉头' },
+    { x: 2400, y: 420, text: '叠两层 · 上跑（3100→1960，600→372，后层）' },
+    { x: 2950, y: 640, text: '顺这条缓坡走上上跑' },
+  ]
+
+  // 拐角的两道翻层判定区（和玉京台折返楼梯一个思路：两条跑 x 重叠，靠层分开）：
+  //   站在坡顶往**左**走 → 翻到后层，贴地就认上跑 a 了，一路往上
+  //   顺着上跑走到头、往**右**走 → 翻回前层，贴地认缓坡，一路下来
+  level.depthGates = [
+    // 坡顶平台靠左这一小段：往左走 → 翻到后层（接着就骑上跑 a 往上）
+    { x: 3120, y: 587, width: 40, height: 40, dir: -1 },
+    // 平台靠右这一小段：往右走 → 翻回前层（再往回走就是缓坡下坡）
+    { x: 3300, y: 587, width: 40, height: 40, dir: 1 },
   ]
 
   return level
@@ -6380,7 +6396,8 @@ export class GameScene extends Phaser.Scene {
       const earth = def.tint ?? groundColor
       // 土体默认一路填到地面线：坡"也相当于地面"，底下不能是空的（用户 2026/10/16 定）
       const bottom = def.depthTo ?? groundTop
-      const depth = def.depth ?? 2
+      // 后层的坡默认画在前层后面（前层盖后层），和平台的 depth 约定一致
+      const depth = def.depth ?? (def.layer === 'back' ? 1.8 : 2.3)
       // 只画这条拱的一段（默认整条）—— 盘山道的每一跑就是半条拱
       const t0 = def.tStart ?? -1
       const t1 = def.tEnd ?? 1
@@ -6454,6 +6471,12 @@ export class GameScene extends Phaser.Scene {
       let bestOff = Number.POSITIVE_INFINITY
 
       defs.forEach((def, index) => {
+        // 盘山道的上下两跑在拐角处 x 重叠、必然碰头，所以按层分开：
+        // 只认**当前这一层**的坡（翻层靠 depthGates，和玉京台折返楼梯一个思路）
+        if ((def.layer ?? 'front') !== this.playerLayer) {
+          return
+        }
+
         const half = def.width / 2
         const t = (x - def.x) / half
         const t0 = def.tStart ?? -1
