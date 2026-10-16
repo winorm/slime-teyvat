@@ -969,18 +969,20 @@ function devSlopeRoom(): DevLevelDef {
   const level = devRoomShell(
     '测试 · 拱形土坡',
     '拱形土坡实验台：\n走线是一条真的弧，不是台阶。\n左右走走、顶上跳一下，\n看脚底跟不跟得上弧面。',
-    2900
+    // 宽度要盖住掉头平台（一直铺到 2980）：关卡边界就是这里的宽度，写小了人会被挡在平台前面
+    3200
   )
 
   level.platforms = [
-    { x: 1450, y: DEV_GROUND_TOP + 20, width: 2900, height: 40, grass: true },
+    { x: 1600, y: DEV_GROUND_TOP + 20, width: 3200, height: 40, grass: true },
     // 盘山道的转角平台：**左端必须正好落在下跑收平的那一点（x 2500、顶面 720）**，
     // 多伸出去一截就是一道坎，人爬坡上来会被它挡住（第一版伸到 2440，实测卡在 x 2424）
     { x: 2560, y: 723, width: 120, height: 6, grass: true, depth: 3 },
-    // 上跑尽头的上层平台（360 这一层）
-    { x: 1800, y: 363, width: 120, height: 6, grass: true, depth: 2.4 },
-    // 引道顶上的掉头平台（640 这一层）：走到这儿要往回走，平台伸出去一截就不怕冲过头掉下去
-    { x: 2780, y: 643, width: 80, height: 6, grass: true, depth: 3 },
+    // 上跑尽头的上层平台（357 这一层）
+    { x: 1800, y: 360, width: 120, height: 6, grass: true, depth: 2.4 },
+    // 引道顶上的掉头平台（640 这一层）：2740~3020，**比上跑的起点（2900）再往右伸出去一截**。
+    // 上楼时走到这儿往左**跳**上上跑；下楼时顺着上跑走到头，正好落回这块平台
+    { x: 2880, y: 643, width: 280, height: 6, grass: true, depth: 3 },
   ]
 
   level.slopes = [
@@ -998,18 +1000,19 @@ function devSlopeRoom(): DevLevelDef {
     { x: 2500, y: 720, width: 1200, rise: 140, tStart: -1, tEnd: 0, grass: true, depthTo: DEV_GROUND_TOP, depth: 2.3 },
     // 引道（转角那一下）：从平台右边 720 再往上抬 80，到 640 —— 掉头就靠它把人送到上跑那一层
     { x: 2740, y: 640, width: 240, rise: 80, tStart: -1, tEnd: 0, grass: true, depthTo: DEV_GROUND_TOP, depth: 2.2 },
-    // 上跑 a：从 640（x 2740）往左升到 500（x 2300），越走越陡
-    { x: 2740, y: 640, width: 880, rise: -140, tStart: -1, tEnd: 0, grass: true, depthTo: DEV_GROUND_TOP, depth: 2.05 },
-    // 上跑 b：从 500（x 2300）继续往左升到 360（x 1860），到顶收平（和下跑同一套写法，方向相反）
-    { x: 1860, y: 360, width: 880, rise: 140, tStart: 0, tEnd: 1, grass: true, depthTo: DEV_GROUND_TOP, depth: 2.05 },
+    // 上跑 a：起点在 x 2900、600 —— **比掉头平台高 40 像素**，在拐角处往左跳一下就上去了。
+    // 不能和平台接在同一个高度上：端点一重合，"脚下最近的那条"就成了抛硬币（实测会骑着上跑往回爬）
+    { x: 2900, y: 600, width: 1200, rise: -140, tStart: -1, tEnd: 0, grass: true, depthTo: DEV_GROUND_TOP, depth: 2.05 },
+    // 上跑 b：从 460（x 2300）继续往左升到 357（x 1860），到顶收平（和下跑同一套写法，方向相反）
+    { x: 1860, y: 357, width: 880, rise: 103, tStart: 0, tEnd: 1, grass: true, depthTo: DEV_GROUND_TOP, depth: 2.05 },
   ]
 
   level.hints = [
     { x: 300, y: 740, text: '拱形土坡 · 缓（拱高 100 / 跨 700）' },
     { x: 1500, y: 470, text: '拱形土坡 · 陡（拱高 300 / 跨 460）' },
     { x: 2150, y: 680, text: '叠两层 · 下跑（1900→2500，860→720）' },
-    { x: 2300, y: 450, text: '叠两层 · 上跑（2740→1860，640→360）' },
-    { x: 2700, y: 600, text: '走到这儿掉头' },
+    { x: 2300, y: 420, text: '叠两层 · 上跑（2900→1860，600→357）' },
+    { x: 2830, y: 600, text: '走到这儿往左跳上去、再掉头' },
   ]
 
   return level
@@ -1228,6 +1231,16 @@ export class GameScene extends Phaser.Scene {
   // 和 stepRise 一个用法 —— onGround 认它，跳跃、体力回复、落地音才都正常
   private slopeGrip = false
   private slopeGravityOff = false
+  // 这一帧骑的是第几条坡（−1 ＝ 没骑）。**判断"要不要开始骑"和"要不要继续骑"是两套标准**：
+  // 开始骑只认"人站在弧面上、或者从上面落下来"；已经在骑的那条只要还在脚下附近就继续骑。
+  // 不分开的话，顺着一条坡下来、另一条弧正好从头顶横过时，人会被那条弧**从底下捞起来**，
+  // 一路倒着爬回去（2026/10/16 实测：下坡变成上坡，见「踩过的坑」）
+  private slopeIndex = -1
+  // 上一帧的脚底 y：判断"这一帧是不是从弧面上方跨到了下方"要用它 ——
+  // 掉得快的时候一帧就跨过整条吸附带，只看当前这一帧会当成"人在弧底下"而漏接（见「踩过的坑」）
+  private slopePrevFeet = 0
+  // 柱脚常驻的那一圈泥（跟着柱子一起消失）
+  private pillarFoot: Phaser.GameObjects.Graphics | null = null
   private stairCamTime = 0
 
   private element: ElementKey = 'none'
@@ -2582,7 +2595,14 @@ export class GameScene extends Phaser.Scene {
 
     this.buildStairs()
     // 拱形土坡（走线是弧的那段地面）：只画 + 每帧贴地，不做碰撞体
-    this.buildSlopes(palette.ground)
+    this.buildSlopes(
+      palette.ground,
+      // 关卡里最低那块平台的顶面＝地面线：坡的土体默认就填到这条线
+      this.level.platforms.reduce(
+        (lowest, item) => Math.max(lowest, item.y - item.height / 2),
+        Number.NEGATIVE_INFINITY
+      )
+    )
     this.buildRevealRails()
     this.buildStairPadBodies()
 
@@ -4496,6 +4516,23 @@ export class GameScene extends Phaser.Scene {
     this.gates.getChildren().forEach(scan)
     this.pillars.getChildren().forEach(scan)
 
+    // 拱形土坡**也相当于地面**：落点压在弧面以下（＝钻进土里）就不算空位，
+    // 不然雷史莱姆一格闪就穿到山体里去了（用户 2026/10/16 定）
+    ;(this.level.slopes ?? []).forEach((def) => {
+      const half = def.width / 2
+      const t = (cx - def.x) / half
+      const t0 = def.tStart ?? -1
+      const t1 = def.tEnd ?? 1
+
+      if (t < t0 || t > t1) {
+        return
+      }
+
+      if (box.bottom > def.y + def.rise * t * t + 2) {
+        hit = true
+      }
+    })
+
     return !hit
   }
 
@@ -5957,6 +5994,8 @@ export class GameScene extends Phaser.Scene {
   // 真正生成：从落点上方掉下来，动画期间不参与碰撞，落点就是预览里那一个
   private spawnRockPillar(x: number, landTop: number, spawnBottom: number) {
     this.rockPillar?.destroy()
+    this.pillarFoot?.destroy()
+    this.pillarFoot = null
 
     // 只进 pillars 组：柱子不进 platforms，玩家就能直接穿过去，只有岩刺会被它挡住
     const pillar = this.pillars.create(x, 0, 'rock-pillar') as Phaser.Physics.Arcade.Sprite
@@ -5983,6 +6022,7 @@ export class GameScene extends Phaser.Scene {
         playSfx(this, 'sfx-land', 0.4)
         this.cameras.main.shake(160, 0.005)
         this.spawnPillarDust(x, landTop)
+        this.pillarFoot = this.makePillarFoot(x, landTop)
       },
     })
 
@@ -5992,7 +6032,33 @@ export class GameScene extends Phaser.Scene {
       }
 
       pillar.destroy()
+      this.pillarFoot?.destroy()
+      this.pillarFoot = null
     })
+  }
+
+  // 柱脚常驻的一圈泥：柱子压在弧面上时（就相当于地面是斜的），底边总有一侧会露出缝，
+  // 用一堆土疙瘩把接缝盖住 —— 顺便让"这根柱子是砸进地里的"看着更实（用户 2026/10/16 要）
+  private makePillarFoot(x: number, groundY: number) {
+    const gfx = this.add.graphics().setDepth(3.2)
+    // 每粒土一个小方块，左右铺开、高低不一，底下压一层暗色当阴影
+    const clods: Array<[number, number, number]> = [
+      [-16, 1, 4],
+      [-11, -2, 5],
+      [-5, 0, 6],
+      [2, -3, 5],
+      [8, 1, 4],
+      [14, -1, 4],
+    ]
+
+    gfx.fillStyle(0x4a3a26, 0.45)
+    gfx.fillEllipse(x, groundY + 2, 40, 7)
+    gfx.fillStyle(0x6b5a3a, 1)
+    clods.forEach(([dx, dy, size]) => gfx.fillRect(x + dx, groundY + dy - size / 2, size, size))
+    gfx.fillStyle(0x8a7f6a, 1)
+    clods.forEach(([dx, dy, size]) => gfx.fillRect(x + dx, groundY + dy - size / 2, size, 1))
+
+    return gfx
   }
 
   // 柱脚正下方最高的那块地形顶面；底下是空的（悬崖、洞口）就返回 null
@@ -6014,6 +6080,51 @@ export class GameScene extends Phaser.Scene {
 
       if (landTop === null || body.top < landTop) {
         landTop = body.top
+      }
+    })
+
+    // 拱形土坡也算地形：柱脚这条横带压在哪条弧上，就落在那条弧**最低的那一点**上 ——
+    // 柱子的底是平的，压在斜面上如果按最高点落，低的那一侧会悬空；按最低点落，
+    // 高的那一侧埋进土里一点，正好被常驻的泥土盖住（用户 2026/10/16 要的）
+    ;(this.level.slopes ?? []).forEach((def) => {
+      const half = def.width / 2
+      let deepest: number | null = null
+
+      for (let step = 0; step <= 4; step++) {
+        const sx = x - halfWidth + ((halfWidth * 2) / 4) * step
+        const t = (sx - def.x) / half
+        const t0 = def.tStart ?? -1
+        const t1 = def.tEnd ?? 1
+
+        if (t < t0 || t > t1) {
+          return
+        }
+
+        const surface = def.y + def.rise * t * t
+
+        if (surface >= fromY && (deepest === null || surface > deepest)) {
+          deepest = surface
+        }
+      }
+
+      if (deepest !== null && (landTop === null || deepest < landTop)) {
+        landTop = deepest
+      }
+
+      // 弧面在柱脚下面、但柱脚这条带上只有一部分压着弧（另一部分悬空）时，
+      // 也按压着的那部分落地 —— 上面那个循环已经把这个情况圈进来了
+      if (deepest === null) {
+        const t = (x - def.x) / half
+        const t0 = def.tStart ?? -1
+        const t1 = def.tEnd ?? 1
+
+        if (t >= t0 && t <= t1) {
+          const surface = def.y + def.rise * t * t
+
+          if (surface >= fromY && (landTop === null || surface < landTop)) {
+            landTop = surface
+          }
+        }
       }
     })
 
@@ -6255,7 +6366,7 @@ export class GameScene extends Phaser.Scene {
   //   · 物理：updateSlopes() 每帧把脚底按到曲线上、临时关掉重力，onGround 认它，
   //           所以跳跃、体力回复、落地音效都跟站在平地上一样。
   // 曲线是一条抛物线而不是正圆弧，是为了每帧算高度只要一次乘法（几万个石头方块都省下来了）。
-  private buildSlopes(groundColor: number) {
+  private buildSlopes(groundColor: number, groundTop: number) {
     const lighten = (color: number, amount: number) => {
       const r = Math.min(255, ((color >> 16) & 0xff) + amount)
       const g = Math.min(255, ((color >> 8) & 0xff) + amount)
@@ -6267,7 +6378,8 @@ export class GameScene extends Phaser.Scene {
     ;(this.level.slopes ?? []).forEach((def) => {
       const half = def.width / 2
       const earth = def.tint ?? groundColor
-      const bottom = def.depthTo ?? def.y + 90
+      // 土体默认一路填到地面线：坡"也相当于地面"，底下不能是空的（用户 2026/10/16 定）
+      const bottom = def.depthTo ?? groundTop
       const depth = def.depth ?? 2
       // 只画这条拱的一段（默认整条）—— 盘山道的每一跑就是半条拱
       const t0 = def.tStart ?? -1
@@ -6305,19 +6417,23 @@ export class GameScene extends Phaser.Scene {
         true
       )
 
-      // ③ 草带：沿弧面一段一段铺 'grass-top'（每段 60 宽、跟着曲线走），土坡顶才像山坡
+      // ③ 草带：**一整条**沿着弧面铺（不是一段一段的贴图 —— 那样弧一缓一陡就看出接缝了）。
+      //    配色照抄 grass-top 那张贴图：底下 5 像素深绿、上面 2 像素亮绿
       if (def.grass) {
-        const segment = 60
-
-        for (let x = Math.min(x0, x1); x < Math.max(x0, x1); x += segment) {
-          const width = Math.min(segment, Math.max(x0, x1) - x)
-          const mid = x + width / 2
-          const t = (mid - def.x) / half
-
-          this.add
-            .tileSprite(mid, def.y + def.rise * t * t, width, 7, 'grass-top')
-            .setDepth(depth + 0.1)
+        // 沿弧面的一条带子：从「弧面上方 topOffset」铺到「下方 bottomOffset」
+        const band = (topOffset: number, bottomOffset: number, color: number) => {
+          gfx.fillStyle(color, 1)
+          gfx.fillPoints(
+            [
+              ...surface.map((p) => new Phaser.Math.Vector2(p.x, p.y + topOffset)),
+              ...surface.map((p) => new Phaser.Math.Vector2(p.x, p.y + bottomOffset)).reverse(),
+            ],
+            true
+          )
         }
+
+        band(-2, 3, 0x5f8a3a)
+        band(-2, 0, 0x7fb04a)
       }
     })
   }
@@ -6334,16 +6450,17 @@ export class GameScene extends Phaser.Scene {
       // 盘山道的好几跑会在 x 上重叠，**脚下最近的那条弧面才算数** ——
       // 按数组顺序取第一条的话，走到拐角处会被下面那一跑抢走（见「踩过的坑」）
       let best: number | null = null
+      let bestIndex = -1
       let bestOff = Number.POSITIVE_INFINITY
 
-      for (const def of defs) {
+      defs.forEach((def, index) => {
         const half = def.width / 2
         const t = (x - def.x) / half
         const t0 = def.tStart ?? -1
         const t1 = def.tEnd ?? 1
 
         if (t < t0 || t > t1) {
-          continue
+          return
         }
 
         const surface = def.y + def.rise * t * t
@@ -6351,16 +6468,30 @@ export class GameScene extends Phaser.Scene {
 
         // 脚底比弧面高太多（在弧上方飞过去）或低太多（在弧底下）都不算踩着
         if (body.velocity.y < -8 || feet < surface - 6 || feet > surface + 20) {
-          continue
+          return
         }
 
         const off = Math.abs(feet - surface)
 
-        if (off < bestOff) {
-          bestOff = off
-          best = surface
+        // **不是正在骑的这一条**时，只有"站在它上面、或者从上面落下来"才接管。
+        // 脚底比弧面**低 2 像素以上**（＝人在这条弧底下，比如正顺着另一条坡往下走、
+        // 这条弧从头顶横过）就不理它 —— 不然后者会把人从底下捞起来、倒着爬回去
+        // （2026/10/16 实测：下楼变成上楼）
+        // 例外：**上一帧还在弧面之上**（正往下掉穿过来）—— 那是落在这条弧上，要接住
+        const fallingOnto = this.slopePrevFeet <= surface + 2
+
+        if (index !== this.slopeIndex && feet > surface + 2 && !fallingOnto) {
+          return
         }
-      }
+
+        if (off >= bestOff) {
+          return
+        }
+
+        bestOff = off
+        best = surface
+        bestIndex = index
+      })
 
       if (best !== null) {
         grip = true
@@ -6372,9 +6503,12 @@ export class GameScene extends Phaser.Scene {
         body.setAllowGravity(false)
         this.slopeGravityOff = true
       }
+
+      this.slopeIndex = grip ? bestIndex : -1
     }
 
     this.slopeGrip = grip
+    this.slopePrevFeet = body.bottom
 
     // 松开弧面就把重力还回去（只有"是我关的"才还，别把雷闪瞄准那种关掉的又打开）
     if (!grip && this.slopeGravityOff) {
