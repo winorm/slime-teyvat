@@ -10,6 +10,7 @@ import {
   type RepairDef,
   type MonsterDef,
   type StairDef,
+  type SlopeDef,
 } from '../data/levels'
 import {
   progress,
@@ -4544,7 +4545,9 @@ export class GameScene extends Phaser.Scene {
         return
       }
 
-      if (box.bottom > def.y + def.rise * t * t + 2) {
+      const surface = this.slopeSurfaceAt(def, cx)
+
+      if (surface !== null && box.bottom > surface + 2) {
         hit = true
       }
     })
@@ -6116,9 +6119,9 @@ export class GameScene extends Phaser.Scene {
           return
         }
 
-        const surface = def.y + def.rise * t * t
+        const surface = this.slopeSurfaceAt(def, sx)
 
-        if (surface >= fromY && (deepest === null || surface > deepest)) {
+        if (surface !== null && surface >= fromY && (deepest === null || surface > deepest)) {
           deepest = surface
         }
       }
@@ -6130,14 +6133,10 @@ export class GameScene extends Phaser.Scene {
       // 弧面在柱脚下面、但柱脚这条带上只有一部分压着弧（另一部分悬空）时，
       // 也按压着的那部分落地 —— 上面那个循环已经把这个情况圈进来了
       if (deepest === null) {
-        const t = (x - def.x) / half
-        const t0 = def.tStart ?? -1
-        const t1 = def.tEnd ?? 1
+        {
+          const surface = this.slopeSurfaceAt(def, x)
 
-        if (t >= t0 && t <= t1) {
-          const surface = def.y + def.rise * t * t
-
-          if (surface >= fromY && (landTop === null || surface < landTop)) {
+          if (surface !== null && surface >= fromY && (landTop === null || surface < landTop)) {
             landTop = surface
           }
         }
@@ -6409,9 +6408,8 @@ export class GameScene extends Phaser.Scene {
 
       for (let i = 0; i <= steps; i++) {
         const x = x0 + ((x1 - x0) * i) / steps
-        const t = (x - def.x) / half
 
-        surface.push(new Phaser.Math.Vector2(x, def.y + def.rise * t * t))
+        surface.push(new Phaser.Math.Vector2(x, this.slopeSurfaceAt(def, x) ?? def.y))
       }
 
       const gfx = this.add.graphics().setDepth(depth)
@@ -6455,6 +6453,31 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
+  // 拱形土坡的弧面高度：**所有地方都走这一个函数**（画面取样、贴地、岩柱落点、雷闪判定），
+  // 换形状只改这里。t 是"从 tStart 到 tEnd"的参数，tEnd 那一端最高（y 最小）。
+  //   arch —— 抛物线，中段平、两头陡（山头 / 土包）
+  //   ramp —— smoothstep，两头平、中段陡（盘山道的每一跑）
+  private slopeSurfaceAt(def: SlopeDef, x: number): number | null {
+    const half = def.width / 2
+    const t = (x - def.x) / half
+    const t0 = def.tStart ?? -1
+    const t1 = def.tEnd ?? 1
+
+    if (t < t0 || t > t1 || t1 === t0) {
+      return null
+    }
+
+    if (def.mode === 'ramp') {
+      // u 从 0（起点，低）走到 1（终点，高）
+      const u = (t - t0) / (t1 - t0)
+      const s = u * u * (3 - 2 * u)
+
+      return def.y + def.rise * (1 - s)
+    }
+
+    return def.y + def.rise * t * t
+  }
+
   // 每帧的贴地：人在弧的 x 范围内、脚底贴着弧面，就把脚底按到曲线上。
   // 三种情况不接管 —— 正在往上飞（起跳 / 被顶）、脚底离面太远（比如从高处掉下来）、
   // 输入被锁（演出 / 雷闪瞄准，那两种自己管重力）。
@@ -6486,7 +6509,12 @@ export class GameScene extends Phaser.Scene {
           return
         }
 
-        const surface = def.y + def.rise * t * t
+        const surface = this.slopeSurfaceAt(def, x)
+
+        if (surface === null) {
+          return
+        }
+
         const feet = body.bottom
 
         // 脚底比弧面高太多（在弧上方飞过去）或低太多（在弧底下）都不算踩着
