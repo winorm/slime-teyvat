@@ -78,6 +78,24 @@ export type StairDef = {
   passUnder?: boolean
 }
 
+// 拱形土坡（2026/10/16 新增）：**走线本身是一条真的弧**，不是台阶拼出来的。
+// 顶面高度按抛物线算：y(x) = y + rise × t²，其中 t = (x − 中心) ÷ (跨度 ÷ 2)，
+// 所以中间最高（y）、两端各低 rise，是一条左右对称的拱。
+//
+// 物理上 Arcade 只有轴对齐矩形、没有斜面，所以这一段不走碰撞体，靠"贴地"接管：
+// 人走进弧的 x 范围、脚底贴着弧面时，GameScene.updateSlopes() 每帧把脚底按曲线按上去、
+// 临时关掉重力、当成站在地上（跳跃、体力回复都照常 —— onGround 把这一条也算进去了）。
+export type SlopeDef = {
+  x: number         // 拱顶（最高处）所在 x
+  y: number         // 拱顶那条走线 y
+  width: number     // 跨度：以 x 为中心，左右各 width ÷ 2（两端高度 = y + rise）
+  rise: number      // 两端比拱顶低多少（＝拱高）
+  depthTo?: number  // 土体向下填到哪条 y（不写＝拱顶往下 90）
+  tint?: number     // 土体颜色（不写＝该主题的地面色）
+  grass?: boolean   // 沿着弧面铺一条草带
+  depth?: number    // 画在第几层（不写＝2，和背景岩层同一档）
+}
+
 // 带透视的栏杆：画在玩家前面（depth 12），玩家走到它后面时在它身上擦一个洞，
 // 于是史莱姆不会被栏杆挡死 —— 和第七关那棵古树用的是同一套做法。
 // 每段是 from → to 的一条直线（水平的、倾斜的都行），样式取 'rail-stone' 这张贴图
@@ -216,6 +234,7 @@ export type LevelDef = {
   goal: GoalDef
   platforms: PlatformDef[]
   stairs?: StairDef[]
+  slopes?: SlopeDef[]                      // 拱形土坡：走线是弧的一段地面（第九关的"爬山"要用）
   revealRails?: RevealRailDef[]            // 带透视的栏杆（玉京台那种：画在玩家前面，靠近时擦洞）
   // 按高度自动切「前层 / 后层」（玉京台那种两层楼梯用）：脚底在这条线**以上**算后层、
   // 以下算前层。走到半层平台就自动翻层，不用踩判定区，来回走也不会翻错

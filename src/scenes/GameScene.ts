@@ -962,6 +962,33 @@ function devCharacterRoom(): DevLevelDef {
   return level
 }
 
+// ⑫ 拱形土坡：走线本身是一条**真的弧**（`slopes`），不是台阶拼的 —— 给第九关的"爬山"试路。
+//    两座拱：左边缓的（拱高 100、跨 700），右边陡的（拱高 300、跨 460）。
+//    两座的两端都落在同一水平线上（DEV_GROUND_TOP），所以走到哪一段都是连着的地面
+function devSlopeRoom(): DevLevelDef {
+  const level = devRoomShell(
+    '测试 · 拱形土坡',
+    '拱形土坡实验台：\n走线是一条真的弧，不是台阶。\n左右走走、顶上跳一下，\n看脚底跟不跟得上弧面。',
+    1900
+  )
+
+  level.platforms = [{ x: 950, y: DEV_GROUND_TOP + 20, width: 1900, height: 40, grass: true }]
+
+  level.slopes = [
+    // 缓坡：拱顶 760、两端落到 860（＝地面线），跨度 700
+    { x: 700, y: 760, width: 700, rise: 100, grass: true },
+    // 陡坡：拱顶 560、两端同样落在 860，跨度 460（两端坡度接近 69°）
+    { x: 1500, y: 560, width: 460, rise: 300, grass: true },
+  ]
+
+  level.hints = [
+    { x: 300, y: 740, text: '拱形土坡 · 缓（拱高 100 / 跨 700）' },
+    { x: 1500, y: 470, text: '拱形土坡 · 陡（拱高 300 / 跨 460）' },
+  ]
+
+  return level
+}
+
 const DEV_ROOMS: DevRoomDef[] = [
   { label: '七天神像', level: devStatueRoom() },
   { label: '元素方碑', level: devMonumentRoom() },
@@ -974,6 +1001,8 @@ const DEV_ROOMS: DevRoomDef[] = [
   { label: '港口打包', level: devHarborBlockRoom() },
   { label: '人物', level: devCharacterRoom() },
   { label: '综合沙盒', level: DEV_LEVEL },
+  // 新展厅一律**加在最后**：前面的下标是 `?room=N` 认的，插在中间会把老书签挪位
+  { label: '拱形土坡', level: devSlopeRoom() },
 ]
 
 const DEV_PORTALS: DevPortalRef[] = DEV_ROOMS.map((room, index) => ({
@@ -1003,7 +1032,8 @@ const DEV_HUB: DevLevelDef = {
   ...devRoomShell(
     '测试关卡 · 大厅',
     '测试关卡 · 大厅\n一排门各通一间展厅，\n站到门前按 F 进去。',
-    2700
+    // 12 扇门了：260 + 11 × 230 = 2790，大厅至少要有这么宽
+    3100
   ),
   spawn: { x: 90, y: 820 },
   hints: [{ x: 90, y: 740, text: '开发用的测试大厅（正式关卡里没有）' }],
@@ -1168,6 +1198,10 @@ export class GameScene extends Phaser.Scene {
   private wasOnGround = false
   private stepRise = 0
   private stepTop = 0
+  // 拱形土坡（走线是弧的那种地面）：这一帧脚底是不是被弧面接管着。
+  // 和 stepRise 一个用法 —— onGround 认它，跳跃、体力回复、落地音才都正常
+  private slopeGrip = false
+  private slopeGravityOff = false
   private stairCamTime = 0
 
   private element: ElementKey = 'none'
@@ -2521,6 +2555,8 @@ export class GameScene extends Phaser.Scene {
     })
 
     this.buildStairs()
+    // 拱形土坡（走线是弧的那段地面）：只画 + 每帧贴地，不做碰撞体
+    this.buildSlopes(palette.ground)
     this.buildRevealRails()
     this.buildStairPadBodies()
 
@@ -6182,6 +6218,121 @@ export class GameScene extends Phaser.Scene {
     }
 
     spike.destroy()
+  }
+
+  // ── 拱形土坡（2026/10/16）：**走线是一条真的弧** ─────────────────────────────
+  // 关卡数据里写 `slopes: [{ x, y, width, rise }]`，顶面高度 y(x) = y + rise × t²
+  // （t = (x − 中心) ÷ (跨度 ÷ 2)），中拱最高、两端最低，是一条连续的曲线 —— 不是台阶拼的。
+  //
+  // Arcade 物理只有轴对齐矩形，做不了斜面，所以这类地面**只用"贴地"接管**：
+  //   · 画面：这里按曲线采样铺一块土体 + 顶面亮边（可选草带），只画不挡人；
+  //   · 物理：updateSlopes() 每帧把脚底按到曲线上、临时关掉重力，onGround 认它，
+  //           所以跳跃、体力回复、落地音效都跟站在平地上一样。
+  // 曲线是一条抛物线而不是正圆弧，是为了每帧算高度只要一次乘法（几万个石头方块都省下来了）。
+  private buildSlopes(groundColor: number) {
+    const lighten = (color: number, amount: number) => {
+      const r = Math.min(255, ((color >> 16) & 0xff) + amount)
+      const g = Math.min(255, ((color >> 8) & 0xff) + amount)
+      const b = Math.min(255, (color & 0xff) + amount)
+
+      return (r << 16) | (g << 8) | b
+    }
+
+    ;(this.level.slopes ?? []).forEach((def) => {
+      const half = def.width / 2
+      const earth = def.tint ?? groundColor
+      const bottom = def.depthTo ?? def.y + 90
+      const depth = def.depth ?? 2
+      // 每 6 像素采一个点，弧面看着就是光滑的（一段弧最多几十个点）
+      const steps = Math.max(12, Math.round(def.width / 6))
+      const surface: Phaser.Math.Vector2[] = []
+
+      for (let i = 0; i <= steps; i++) {
+        const x = def.x - half + (def.width * i) / steps
+        const t = (x - def.x) / half
+
+        surface.push(new Phaser.Math.Vector2(x, def.y + def.rise * t * t))
+      }
+
+      const gfx = this.add.graphics().setDepth(depth)
+
+      // ① 土体：弧线 + 底边围起来的一整块
+      gfx.fillStyle(earth, 1)
+      gfx.fillPoints(
+        [
+          ...surface,
+          new Phaser.Math.Vector2(def.x + half, bottom),
+          new Phaser.Math.Vector2(def.x - half, bottom),
+        ],
+        true
+      )
+
+      // ② 顶面压一条 4 像素的亮边（光从上来），弧面才有厚度、不像一块贴纸
+      gfx.fillStyle(lighten(earth, 0x1c), 1)
+      gfx.fillPoints(
+        [...surface, ...surface.map((p) => new Phaser.Math.Vector2(p.x, p.y + 4)).reverse()],
+        true
+      )
+
+      // ③ 草带：沿弧面一段一段铺 'grass-top'（每段 60 宽、跟着曲线走），土坡顶才像山坡
+      if (def.grass) {
+        const segment = 60
+
+        for (let x = def.x - half; x < def.x + half; x += segment) {
+          const width = Math.min(segment, def.x + half - x)
+          const mid = x + width / 2
+          const t = (mid - def.x) / half
+
+          this.add
+            .tileSprite(mid, def.y + def.rise * t * t, width, 7, 'grass-top')
+            .setDepth(depth + 0.1)
+        }
+      }
+    })
+  }
+
+  // 每帧的贴地：人在弧的 x 范围内、脚底贴着弧面，就把脚底按到曲线上。
+  // 三种情况不接管 —— 正在往上飞（起跳 / 被顶）、脚底离面太远（比如从高处掉下来）、
+  // 输入被锁（演出 / 雷闪瞄准，那两种自己管重力）。
+  private updateSlopes(body: Phaser.Physics.Arcade.Body) {
+    const defs = this.level.slopes
+    let grip = false
+
+    if (defs && defs.length > 0 && !this.inputLocked && !this.blinkAiming) {
+      const x = body.center.x
+
+      for (const def of defs) {
+        const half = def.width / 2
+        const t = (x - def.x) / half
+
+        if (t < -1 || t > 1) {
+          continue
+        }
+
+        const surface = def.y + def.rise * t * t
+        const feet = body.bottom
+
+        // 脚底比弧面高太多（在弧上方飞过去）或低太多（在弧底下）都不算踩着
+        if (body.velocity.y < -8 || feet < surface - 6 || feet > surface + 20) {
+          continue
+        }
+
+        grip = true
+        this.slime.setVelocityY(0)
+        this.slime.setY(surface - body.height / 2)
+        body.setAllowGravity(false)
+        this.slopeGravityOff = true
+        break
+      }
+    }
+
+    this.slopeGrip = grip
+
+    // 松开弧面就把重力还回去（只有"是我关的"才还，别把雷闪瞄准那种关掉的又打开）
+    if (!grip && this.slopeGravityOff) {
+      body.setAllowGravity(true)
+      this.slopeGravityOff = false
+    }
   }
 
   // 木楼梯：一级一级木踏板（三角形切面）+ 底下斜撑的木梁 + 斜扶栏和立柱。
@@ -9921,9 +10072,11 @@ export class GameScene extends Phaser.Scene {
     }
 
     const element = ELEMENTS[this.element]
+    // 拱形土坡：这一段走线是弧，先按曲线把脚底接管掉，再算"算不算站在地上"
+    this.updateSlopes(body)
     // 自动上台阶的那几帧人在空中，但动画和音效要按「还在走路」算，
     // 不然每上一级都会当成一次落地：压缩一下、放一声落地音，比抖还难看
-    const onGround = body.blocked.down || this.stepRise > 0
+    const onGround = body.blocked.down || this.stepRise > 0 || this.slopeGrip
 
     this.tryAutoStep(onGround, dt)
     // 正在自动上台阶：把镜头的纵向跟随临时调紧，人就不会在屏幕上弹一下再沉回来。
