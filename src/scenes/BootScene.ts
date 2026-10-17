@@ -5570,7 +5570,8 @@ export class BootScene extends Phaser.Scene {
 
   // ── 岩石横截面 3 种（56x34 的岩块）──────────────────────────────────
   private makeRockStrata() {
-    const bands = [0x6b5340, 0x5c4a3a, 0x77604a, 0x4f4033]
+    // 横截面也用崖面那套石头色（用户 2026/10/17 定的四档），贴在岩壁上才融得进去
+    const bands = [0x73665a, 0x5e5348, 0x8a7c69, 0x453d34]
 
     const a = this.add.graphics()
     a.fillStyle(bands[0], 1)

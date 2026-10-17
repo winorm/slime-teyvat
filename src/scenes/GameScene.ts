@@ -6455,14 +6455,23 @@ export class GameScene extends Phaser.Scene {
 
       const gfx = this.add.graphics().setDepth(depth)
 
-      // ① 土体：弧线 + 底边围起来的一整块
-      gfx.fillStyle(earth, 1)
+      // ① 坡体分两层（2026/10/17 用户定）：**走的地方留一条泥土**，再往下一律是岩石
+      //    —— 上下爬坡的背景不能还是一片土黄，得是裸露的石头
+      const SOIL = 26
+      const rock = 0x6a5e52
+
+      gfx.fillStyle(rock, 1)
       gfx.fillPoints(
         [
-          ...surface,
+          ...surface.map((p) => new Phaser.Math.Vector2(p.x, p.y + SOIL)),
           new Phaser.Math.Vector2(x1, bottom),
           new Phaser.Math.Vector2(x0, bottom),
         ],
+        true
+      )
+      gfx.fillStyle(earth, 1)
+      gfx.fillPoints(
+        [...surface, ...surface.map((p) => new Phaser.Math.Vector2(p.x, p.y + SOIL)).reverse()],
         true
       )
 

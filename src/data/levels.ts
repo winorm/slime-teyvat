@@ -1,4 +1,4 @@
-import type { ElementKey } from './elements'
+﻿import type { ElementKey } from './elements'
 
 export type PlatformDef = {
   x: number
@@ -1220,7 +1220,7 @@ export const LEVELS: LevelDef[] = [
       { x: 3175, y: 463, width: 550, height: 6, grass: true, depth: 3 },
       // ③ **整张地图底下铺一条实心的**（1360~1500，全宽）：一是地面下沿不能看见背景，
       //    二是这一条就是"山的脚"，哪一跑掉下来都落在它上面，不会掉出世界外面去
-      { x: 1725, y: 1430, width: 3450, height: 140, tint: 0x5c4835, depth: 1.0 },
+      { x: 1725, y: 1430, width: 3450, height: 140, tint: 0x5e5348, depth: 1.0 },
       // ④ 每块平台下面也一路填到地面，各分三层当岩石的横截面（只画不挡人，深度都在 1.1 上下）
       // 平台下面的填色压在**所有坡**后面（坡在 1.05~1.15）：原来给到 1.16，
       // 最底下那一层就盖在下跑的路面上了（用户 2026/10/17 发现的）
@@ -1292,8 +1292,7 @@ export const LEVELS: LevelDef[] = [
     decor: [
       // 悬崖树**只长在整座山的左右边缘**（用户 2026/10/17 定）：三段土地各自是一个整体，
       // 它们底下不会再冒树。放大到 2 倍。
-      //   左边缘：转角平台 2 那块填色的左沿在 x=400，树翻过来、根贴住 400，冠甩到崖外
-      { x: 324, y: 1180, key: 'tree-cliff-b', flip: true, scale: 2, depth: 1.16 },
+      //   （第一段坡下面那棵删掉了 —— 用户 2026/10/17 定：三段土地底下不长树）
       //   右边缘：山体最右边那道崖面在 x=3450，树翻过来、根贴住 3450，冠压在崖面上
       { x: 3374, y: 700, key: 'tree-cliff-a', flip: true, scale: 2, depth: 1.16 },
       // 崖面本身的样子（用户 2026/10/17 要的）：突出来的岩石 + 崖沿上的草（草根垂下来）。
@@ -1326,6 +1325,11 @@ export const LEVELS: LevelDef[] = [
       // 崖面上的岩石横截面
       { x: 1980, y: 1300, key: 'rock-strata-a', scale: 1.4, depth: 1.16 },
       { x: 2310, y: 1010, key: 'rock-strata-c', scale: 1.4, depth: 1.16 },
+      // 岩体里再掺几段横截面（用户 2026/10/17：任意融合进去）
+      { x: 820, y: 1290, key: 'rock-strata-b', scale: 1.6, depth: 1.16 },
+      { x: 1360, y: 1250, key: 'rock-strata-a', scale: 1.2, flip: true, depth: 1.16 },
+      { x: 2620, y: 720, key: 'rock-strata-b', scale: 1.3, flip: true, depth: 1.16 },
+      { x: 3000, y: 900, key: 'rock-strata-c', scale: 1.5, depth: 1.16 },
       // 山脚：石子、石堆（都放大了一档）
       { x: 300, y: 1360, key: 'pebble-a', scale: 1.8, depth: 1.2 },
       { x: 520, y: 1360, key: 'stone-pile', scale: 1.6, depth: 1.2 },
