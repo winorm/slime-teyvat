@@ -1324,8 +1324,14 @@ export const LEVELS: LevelDef[] = [
         text: '琥珀里冻着一个戴草帽、披蓑衣的史莱姆……',
       },
     ],
-    // 山脚第一爬前放一枚疾风符：拾取后 10 秒移动速度 ×1.6
-    speedItems: [{ x: 700, y: 1360, duration: 10, multiplier: 1.6 }],
+    // 每块高度不变的平台各一枚疾风符（山顶除外）：山脚 / F1 / C1 / F2 / C2
+    speedItems: [
+      { x: 650, y: 1360, duration: 10, multiplier: 1.6 },
+      { x: 2400, y: 1160, duration: 10, multiplier: 1.6 },
+      { x: 3480, y: 1010, duration: 10, multiplier: 1.6 },
+      { x: 2525, y: 810, duration: 10, multiplier: 1.6 },
+      { x: 1750, y: 710, duration: 10, multiplier: 1.6 },
+    ],
 
     // 把新画的素材先堆到这一关看看效果（2026/10/17）。
     // 分层约定（从下往上）：山体填色 1.0~1.12 → 坡面 1.05~1.15 → 岩石横截面 1.16
