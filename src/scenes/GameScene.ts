@@ -4536,15 +4536,6 @@ export class GameScene extends Phaser.Scene {
     // 拱形土坡**也相当于地面**：落点压在弧面以下（＝钻进土里）就不算空位，
     // 不然雷史莱姆一格闪就穿到山体里去了（用户 2026/10/16 定）
     ;(this.level.slopes ?? []).forEach((def) => {
-      const half = def.width / 2
-      const t = (cx - def.x) / half
-      const t0 = def.tStart ?? -1
-      const t1 = def.tEnd ?? 1
-
-      if (t < t0 || t > t1) {
-        return
-      }
-
       const surface = this.slopeSurfaceAt(def, cx)
 
       if (surface !== null && box.bottom > surface + 2) {
@@ -6106,19 +6097,10 @@ export class GameScene extends Phaser.Scene {
     // 柱子的底是平的，压在斜面上如果按最高点落，低的那一侧会悬空；按最低点落，
     // 高的那一侧埋进土里一点，正好被常驻的泥土盖住（用户 2026/10/16 要的）
     ;(this.level.slopes ?? []).forEach((def) => {
-      const half = def.width / 2
       let deepest: number | null = null
 
       for (let step = 0; step <= 4; step++) {
         const sx = x - halfWidth + ((halfWidth * 2) / 4) * step
-        const t = (sx - def.x) / half
-        const t0 = def.tStart ?? -1
-        const t1 = def.tEnd ?? 1
-
-        if (t < t0 || t > t1) {
-          return
-        }
-
         const surface = this.slopeSurfaceAt(def, sx)
 
         if (surface !== null && surface >= fromY && (deepest === null || surface > deepest)) {
@@ -6463,7 +6445,9 @@ export class GameScene extends Phaser.Scene {
     const t0 = def.tStart ?? -1
     const t1 = def.tEnd ?? 1
 
-    if (t < t0 || t > t1 || t1 === t0) {
+    // 注意 tStart 可以比 tEnd 大（＝这一跑是**往左升**的，比如盘山道的中跑），
+    // 所以区间要按大小两头比，不能写成 t < t0 || t > t1
+    if (t1 === t0 || t < Math.min(t0, t1) || t > Math.max(t0, t1)) {
       return null
     }
 
@@ -6500,15 +6484,7 @@ export class GameScene extends Phaser.Scene {
           return
         }
 
-        const half = def.width / 2
-        const t = (x - def.x) / half
-        const t0 = def.tStart ?? -1
-        const t1 = def.tEnd ?? 1
-
-        if (t < t0 || t > t1) {
-          return
-        }
-
+        // 范围判断交给 slopeSurfaceAt（它认得 tStart > tEnd 的往左升的坡）
         const surface = this.slopeSurfaceAt(def, x)
 
         if (surface === null) {
