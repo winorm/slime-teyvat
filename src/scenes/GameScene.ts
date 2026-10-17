@@ -6456,7 +6456,7 @@ export class GameScene extends Phaser.Scene {
       .image(lake.x, lake.y, 'summit-lake')
       .setOrigin(0.5, 0.5)
       .setDepth(0.86)
-      .setScale((lake.width ?? 800) / 800, (lake.height ?? 140) / 140)
+      .setScale((lake.width ?? 1000) / 1000, (lake.height ?? 180) / 180)
 
     const fall = this.level.waterfall
 

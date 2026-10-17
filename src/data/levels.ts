@@ -1189,81 +1189,84 @@ export const LEVELS: LevelDef[] = [
     intro:
       '逃出璃月港的路上，一位气质不凡的先生叫住了我。\n他说自己只是个客卿，让我去北边的高山上找仙人求助。\n既然已经走投无路，那就去试试吧。',
 
-    // **圆台形山体**（2026/10/17 第三版）：下宽上窄，越往上每一跑越短。
-    //   山脚 0~520（顶面 1360）
-    //   右爬 R1 520→2320（1800 宽，升 200）→ 平地 F1 2320~2580（1160）
-    //   右爬 R2 2580→3280（700 宽，升 150）→ 转角 C1 3280~3540（1010）
-    //   左爬 L1 3540→2840（700 宽，升 200，后层）→ 平地 F2 2600~2840（810）
-    //   左爬半段 L2 2600→2250（350 宽，升 100，后层）→ 转角 C2 2050~2250（710）
-    //   右爬 R3 2050→2650（600 宽，升 250）→ 山顶 2050~2650（460）
-    // 山顶宽度严格等于最后一段右爬（600），中心 2350 也是 R3 的中心。
-    width: 3720,
+    // **圆台形山体**（2026/10/17 第四版）：底座 0~4400，中轴 2200，山顶 1600~2800。
+    //   山脚 0~800（顶面 1360）
+    //   右爬 R1 800→1900（1100 宽，升 200）→ 平地 F1 1900~2500（1160）
+    //   右爬 R2 2500→3200（700 宽，升 150）→ 转角 C1 3200~3450（1010）
+    //   左爬 L1 3450→2650（800 宽，升 200，后层）→ 平地 F2 2400~2650（810）
+    //   左爬半段 L2 2400→1800（600 宽，升 100，后层）→ 转角 C2 1600~1800（710）
+    //   右爬 R3 1600→2800（1200 宽，升 250）→ 山顶 1600~2800（1200）
+    // 山顶中心 2200 就是整座山的中轴；湖是环形，泉眼在中轴，瀑布从泉眼落到地面。
+    width: 4400,
     height: 1500,
     startElement: 'rock',
     unlocks: ['wind'],
     spawn: { x: 80, y: 1347 },
     bg: 'liyue',
     cameraBias: 56,
-    goal: { x: 2600, y: 446, kind: 'chest', prompt: '打开' },
+    goal: { x: 2740, y: 446, kind: 'chest', prompt: '打开' },
 
     platforms: [
-      // 山脚 0~520
-      { x: 260, y: 1380, width: 520, height: 40, grass: true },
+      // 山脚 0~800
+      { x: 400, y: 1380, width: 800, height: 40, grass: true },
       // F1 平地 / C1 转角 / F2 后层平地 / C2 转角 / 山顶
-      { x: 2450, y: 1163, width: 260, height: 6, grass: true, depth: 3 },
-      { x: 3410, y: 1013, width: 260, height: 6, grass: true, depth: 3 },
-      { x: 2720, y: 813, width: 240, height: 6, grass: true, depth: 1.1, layer: 'back' },
-      { x: 2150, y: 713, width: 200, height: 6, grass: true, depth: 3 },
-      { x: 2350, y: 463, width: 600, height: 6, grass: true, depth: 3 },
+      { x: 2200, y: 1163, width: 600, height: 6, grass: true, depth: 3 },
+      { x: 3325, y: 1013, width: 250, height: 6, grass: true, depth: 3 },
+      { x: 2525, y: 813, width: 250, height: 6, grass: true, depth: 1.1, layer: 'back' },
+      { x: 1700, y: 713, width: 200, height: 6, grass: true, depth: 3 },
+      { x: 2200, y: 463, width: 1200, height: 6, grass: true, depth: 3 },
       // 山脚底下：泥土 + 岩石
-      { x: 260, y: 1430, width: 520, height: 140, tint: 0x8a6a4a, depth: 1.0 },
-      { x: 2120, y: 1430, width: 3200, height: 140, tint: 0x5e5348, depth: 1.0 },
+      { x: 400, y: 1430, width: 800, height: 140, tint: 0x8a6a4a, depth: 1.0 },
+      { x: 2600, y: 1430, width: 3600, height: 140, tint: 0x5e5348, depth: 1.0 },
       // 平台填色。F2/C2/山顶压到 0.9：它们和最后几跑在 x 上重叠，
       // 如果还画在 1.1 会盖住坡面；0.9 在坡体后面，只露坡面以上的崖身。
-      ...platformFill(2450, 260, 1160, 1360, 1.0),
-      ...platformFill(3410, 260, 1010, 1360, 1.02),
-      ...platformFill(2720, 240, 810, 1360, 0.9),
-      ...platformFill(2150, 200, 710, 1360, 0.9),
-      ...platformFill(2350, 600, 460, 1360, 0.9),
+      ...platformFill(2200, 600, 1160, 1360, 1.0),
+      ...platformFill(3325, 250, 1010, 1360, 1.02),
+      ...platformFill(2525, 250, 810, 1360, 0.9),
+      ...platformFill(1700, 200, 710, 1360, 0.9),
+      ...platformFill(2200, 1200, 460, 1360, 0.9),
+      // 左右两侧的山肩：只画不挡人，把底座撑宽（0~4400）
+      ...platformFill(400, 800, 1200, 1360, 0.9),
+      ...platformFill(3925, 950, 1010, 1360, 0.9),
     ],
 
     // R1 右爬 → F1 平地 → R2 右爬 → C1 转角 → L1 左爬（后层）→
     // F2 平地（后层）→ L2 左爬半段（后层）→ C2 转角 → R3 右爬 → 山顶
     slopes: [
-      // R1：520→2320，1360→1160
-      { x: 2320, y: 1160, width: 3600, rise: 200, tStart: -1, tEnd: 0, mode: 'ramp', grass: true, depthTo: 1360, depth: 1.15, frontFace: {} },
-      // R2：2580→3280，1160→1010
-      { x: 3280, y: 1010, width: 1400, rise: 150, tStart: -1, tEnd: 0, mode: 'ramp', grass: true, depthTo: 1360, depth: 1.15, frontFace: {} },
-      // L1：3540→2840，1010→810（后层）
-      { x: 2840, y: 810, width: 1400, rise: 200, tStart: 1, tEnd: 0, mode: 'ramp', grass: true, layer: 'back', depthTo: 1360, depth: 1.1, frontFace: {} },
-      // L2：2600→2250，810→710（后层，半段）
-      { x: 2250, y: 710, width: 700, rise: 100, tStart: 1, tEnd: 0, mode: 'ramp', grass: true, layer: 'back', depthTo: 1360, depth: 1.1, frontFace: {} },
-      // R3：2050→2650，710→460
-      { x: 2650, y: 460, width: 1200, rise: 250, tStart: -1, tEnd: 0, mode: 'ramp', grass: true, depthTo: 1360, depth: 1.05, frontFace: {} },
+      // R1：800→1900，1360→1160
+      { x: 1900, y: 1160, width: 2200, rise: 200, tStart: -1, tEnd: 0, mode: 'ramp', grass: true, depthTo: 1360, depth: 1.15, frontFace: {} },
+      // R2：2500→3200，1160→1010
+      { x: 3200, y: 1010, width: 1400, rise: 150, tStart: -1, tEnd: 0, mode: 'ramp', grass: true, depthTo: 1360, depth: 1.15, frontFace: {} },
+      // L1：3450→2650，1010→810（后层）
+      { x: 2650, y: 810, width: 1600, rise: 200, tStart: 1, tEnd: 0, mode: 'ramp', grass: true, layer: 'back', depthTo: 1360, depth: 1.1, frontFace: {} },
+      // L2：2400→1800，810→710（后层，半段）
+      { x: 1800, y: 710, width: 1200, rise: 100, tStart: 1, tEnd: 0, mode: 'ramp', grass: true, layer: 'back', depthTo: 1360, depth: 1.1, frontFace: {} },
+      // R3：1600→2800，710→460
+      { x: 2800, y: 460, width: 2400, rise: 250, tStart: -1, tEnd: 0, mode: 'ramp', grass: true, depthTo: 1360, depth: 1.05, frontFace: {} },
     ],
 
     depthGates: [
-      // C1 右端：到 3540 掉头向左 → 翻后层，接 L1
-      { x: 3480, y: 997, width: 120, height: 40, dir: -1 },
-      // C2 左端：到 2050 掉头向右 → 翻前层，接 R3
-      { x: 2100, y: 697, width: 100, height: 40, dir: 1 },
+      // C1 右端：到 3450 掉头向左 → 翻后层，接 L1
+      { x: 3390, y: 997, width: 120, height: 40, dir: -1 },
+      // C2 左端：到 1600 掉头向右 → 翻前层，接 R3
+      { x: 1660, y: 697, width: 120, height: 40, dir: 1 },
     ],
 
     mistBands: [
-      { x: 1900, y: 850, width: 1500, alpha: 0.5, depth: 1.16, drift: 42, duration: 26000 },
-      { x: 2100, y: 1150, width: 1250, alpha: 0.38, depth: 1.16, drift: -36, duration: 32000 },
+      { x: 2000, y: 850, width: 1800, alpha: 0.5, depth: 1.16, drift: 42, duration: 26000 },
+      { x: 2200, y: 1150, width: 1500, alpha: 0.38, depth: 1.16, drift: -36, duration: 32000 },
     ],
 
-    // 山顶湖：透视椭圆，画在峰顶背景；下半截被山顶平台挡住，只露出湖面
-    summitLake: { x: 2350, y: 430, width: 600, height: 140 },
-    // 瀑布：从湖心一路落到地面，遇到 R3 / L2 / F1 三条走线就断开一小段
+    // 山顶湖：环形透视水面，外径 1000、泉眼 260×80；下半截被山顶平台挡住
+    summitLake: { x: 2200, y: 430, width: 1000, height: 180 },
+    // 瀑布：从泉眼一路落到地面，遇到 R3 / L2 / F1 三条走线就断开一小段
     waterfall: {
-      x: 2350,
+      x: 2200,
       width: 42,
       segments: [
         { y: 440, height: 135 },
-        { y: 595, height: 125 },
-        { y: 740, height: 410 },
+        { y: 595, height: 179 },
+        { y: 794, height: 356 },
         { y: 1180, height: 180 },
       ],
     },
@@ -1274,7 +1277,7 @@ export const LEVELS: LevelDef[] = [
     // 所以三颗的序号正好是 0 / 1 / 2，捡满了 HUD 就是三颗全亮，不会多出来第四颗
     gems: [
       { x: 150, y: 1347 },    // ① 山脚（顶面 1360）
-      { x: 2150, y: 447 },    // ② 山顶（顶面 460），放在柳树左边
+      { x: 1650, y: 447 },    // ② 山顶（顶面 460），放在湖环左边
     ],
     blessings: [],
     hazards: [],
@@ -1282,8 +1285,8 @@ export const LEVELS: LevelDef[] = [
     // 琥珀（2026/10/17）：摆在两块转角平台上，**要用岩柱的岩共鸣震开**。
     // 里面冻的东西不一样：一块是原石，一块是野猪。第三个平台（山顶）留给仙人和小考验
     ambers: [
-      { x: 3410, y: 1010, loot: 'gem', gemIndex: 2 },
-      { x: 2180, y: 710, loot: 'boar' },
+      { x: 3325, y: 1010, loot: 'gem', gemIndex: 2 },
+      { x: 1700, y: 710, loot: 'boar' },
     ],
 
     // 把新画的素材先堆到这一关看看效果（2026/10/17）。
@@ -1291,43 +1294,41 @@ export const LEVELS: LevelDef[] = [
     //   → 崖壁 1.17 → 崖沿草 / 碎石锥 1.18 → 崖树 1.19 → 后层玩家 1.2 → 前层玩家 10。
     // 崖树必须压在崖壁上面（1.19），不然树根会被岩面盖住，看起来像浮在半空。
     decor: [
-      // 右外缘：C1 的右沿 3540。崖壁摆在 3538~3646，上沿 1010。
-      { x: 3597, y: 1360, key: 'cliff-wall-350', depth: 1.17 },
-      { x: 3590, y: 1364, key: 'cliff-talus', depth: 1.18 },
-      // 上层左沿 2050：整面背景崖（894 高，上沿 466），压在下层坡体后面，
-      // 只露出下层坡面以上那一截。
-      { x: 1993, y: 1360, key: 'cliff-wall-r', flip: true, depth: 1.0 },
-      // 山顶右沿 2650：从山顶 460 落到 F2 的 810，补上峰顶右侧那一截崖面
-      { x: 2707, y: 810, key: 'cliff-wall-350', depth: 1.0 },
-      { x: 1980, y: 900, key: 'tree-cliff-a', depth: 1.19 },
+      // 右外缘：右侧山肩到 4400，崖壁摆在 4292~4400，上沿 1010
+      { x: 4351, y: 1360, key: 'cliff-wall-350', depth: 1.17 },
+      { x: 4340, y: 1364, key: 'cliff-talus', depth: 1.18 },
+      // 上层左沿 1600：整面背景崖（894 高，上沿 466），压在下层坡体后面
+      { x: 1543, y: 1360, key: 'cliff-wall-r', flip: true, depth: 1.0 },
+      // 山顶右沿 2800：从山顶 460 落到 L1 坡面（约 830~860）
+      { x: 2857, y: 880, key: 'cliff-wall-420', depth: 1.0 },
+      // 崖树：只留在上层左沿
+      { x: 1535, y: 900, key: 'tree-cliff-a', depth: 1.19 },
       // 崖沿草
-      { x: 3625, y: 1040, key: 'cliff-grass', scale: 1.4, flip: true, depth: 1.18 },
-      { x: 3600, y: 1280, key: 'cliff-grass', scale: 1.3, flip: true, depth: 1.18 },
-      { x: 1998, y: 500, key: 'cliff-grass', scale: 1.3, flip: true, depth: 1.18 },
-      { x: 1970, y: 1120, key: 'cliff-grass', scale: 1.2, flip: true, depth: 1.18 },
-      // 崖面上的岩石横截面
-      { x: 1980, y: 1300, key: 'rock-strata-a', scale: 1.4, depth: 1.16 },
-      { x: 2310, y: 1010, key: 'rock-strata-c', scale: 1.4, depth: 1.16 },
-      // 岩体里再掺几段横截面（用户 2026/10/17：任意融合进去）
-      { x: 820, y: 1290, key: 'rock-strata-b', scale: 1.6, depth: 1.16 },
-      { x: 1360, y: 1250, key: 'rock-strata-a', scale: 1.2, flip: true, depth: 1.16 },
-      { x: 2620, y: 720, key: 'rock-strata-b', scale: 1.3, flip: true, depth: 1.16 },
-      { x: 3000, y: 900, key: 'rock-strata-c', scale: 1.5, depth: 1.16 },
-      // 山脚：石子、石堆（都放大了一档）
-      { x: 300, y: 1360, key: 'pebble-a', scale: 1.8, depth: 1.2 },
-      { x: 420, y: 1360, key: 'stone-pile', scale: 1.6, depth: 1.2 },
-      { x: 500, y: 1360, key: 'pebble-c', scale: 1.8, depth: 1.2 },
+      { x: 4385, y: 1050, key: 'cliff-grass', scale: 1.4, flip: true, depth: 1.18 },
+      { x: 4360, y: 1280, key: 'cliff-grass', scale: 1.3, flip: true, depth: 1.18 },
+      { x: 1590, y: 500, key: 'cliff-grass', scale: 1.3, flip: true, depth: 1.18 },
+      { x: 1520, y: 1120, key: 'cliff-grass', scale: 1.2, flip: true, depth: 1.18 },
+      { x: 2880, y: 480, key: 'cliff-grass', scale: 1.4, flip: true, depth: 1.18 },
+      { x: 2840, y: 700, key: 'cliff-grass', scale: 1.2, flip: true, depth: 1.18 },
+      // 岩体里的岩石横截面（旧坐标全部换掉，压深一点，别浮在坡面上）
+      { x: 1200, y: 1340, key: 'rock-strata-a', scale: 1.4, depth: 1.16 },
+      { x: 3000, y: 1080, key: 'rock-strata-b', scale: 1.4, depth: 1.16 },
+      { x: 3900, y: 1250, key: 'rock-strata-c', scale: 1.4, depth: 1.16 },
+      // 山脚石子
+      { x: 250, y: 1360, key: 'pebble-a', scale: 1.8, depth: 1.2 },
+      { x: 500, y: 1360, key: 'stone-pile', scale: 1.6, depth: 1.2 },
+      { x: 700, y: 1360, key: 'pebble-c', scale: 1.8, depth: 1.2 },
       // 山顶：一棵巨大的垂柳，树干顺着崖壁盘着往上；树下石桌石凳、桌上一壶三杯，
       // 杯口三缕热气（'tea-steam' 会自动加一段往上飘的循环动画）
-      // 山顶 2050~2650：柳树 2420（冠铺 2300~2540），茶桌 2450 在树叶下面，
-      // 宝箱在 2600、原石在 2150，左右都留得开
-      { x: 2420, y: 460, key: 'willow-summit', depth: 1.2 },
-      { x: 2450, y: 460, key: 'tea-table', depth: 1.22 },
-      { x: 2405, y: 460, key: 'tea-bench', depth: 1.22 },
-      { x: 2496, y: 460, key: 'tea-bench', depth: 1.22 },
-      { x: 2442, y: 440, key: 'tea-steam', depth: 1.24 },
-      { x: 2452, y: 436, key: 'tea-steam', depth: 1.24 },
-      { x: 2462, y: 441, key: 'tea-steam', depth: 1.24 },
+      // 山顶 1600~2800：柳树 2500（冠铺 2380~2620），茶桌 2530，
+      // 宝箱 2740、原石 1650，湖环中心 2200
+      { x: 2500, y: 460, key: 'willow-summit', depth: 1.2 },
+      { x: 2530, y: 460, key: 'tea-table', depth: 1.22 },
+      { x: 2485, y: 460, key: 'tea-bench', depth: 1.22 },
+      { x: 2576, y: 460, key: 'tea-bench', depth: 1.22 },
+      { x: 2522, y: 440, key: 'tea-steam', depth: 1.24 },
+      { x: 2532, y: 436, key: 'tea-steam', depth: 1.24 },
+      { x: 2542, y: 441, key: 'tea-steam', depth: 1.24 },
     ],
 
     hints: [

@@ -6101,6 +6101,7 @@ export class BootScene extends Phaser.Scene {
     wall('cliff-wall-r', 118, 894, 23, 108)
     wall('cliff-buttress', 56, 896, 37, 50)
     wall('cliff-wall-350', 118, 350, 41, 108)
+    wall('cliff-wall-420', 118, 420, 43, 108)
 
     // 碎石锥（100x44）：崖脚那一扇碎石 —— 山体和平地之间真正的过渡。
     // 每颗碎石都按三角形当时的左右边界放，不会飘到坡外面去。
@@ -6979,64 +6980,62 @@ export class BootScene extends Phaser.Scene {
     g.destroy()
   }
 
-  // 山顶湖（800x140）：透视椭圆的水面，外圈是石岸，越靠远岸水色越浅。
+  // 山顶湖（1000x180）：环形透视水面，外圈石岸、中间是泉眼空洞。
   private makeSummitLake() {
-    const W = 800
-    const H = 140
+    const W = 1000
+    const H = 180
     const g = this.add.graphics()
     const cx = W / 2
     const cy = H / 2
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
 
-    // 透视湖面：一圈石岸包着一层椭圆水面，远岸窄、近岸宽
-    g.fillStyle(0x4f453b, 1)
-    g.fillEllipse(cx, cy, 800, 140)
-    g.fillStyle(0x6a5e52, 1)
-    g.fillEllipse(cx, cy + 2, 780, 130)
-    g.fillStyle(0x73665a, 1)
-    g.fillEllipse(cx, cy + 4, 760, 120)
+    // 画一圈椭圆环：外椭圆和内椭圆之间填色，中心保持透明（泉眼）
+    const ring = (ow: number, oh: number, iw: number, ih: number, color: number, alpha = 1) => {
+      const segments = 56
 
-    // 水由深到浅：最外圈深、靠远岸浅
-    const water = [
-      { w: 740, h: 102, color: 0x3f7f9e },
-      { w: 710, h: 94, color: 0x4f8fa8 },
-      { w: 660, h: 82, color: 0x5f9fb8 },
-      { w: 590, h: 66, color: 0x7fb9cc },
-    ]
+      g.fillStyle(color, alpha)
 
-    water.forEach((layer) => {
-      g.fillStyle(layer.color, 1)
-      g.fillEllipse(cx, cy + 4, layer.w, layer.h)
-    })
+      for (let i = 0; i < segments; i++) {
+        const a0 = (i / segments) * Math.PI * 2
+        const a1 = ((i + 1) / segments) * Math.PI * 2
 
-    // 横向波纹：只在椭圆水面里，越靠中间越长
-    for (let i = 0; i < 7; i++) {
-      const y = cy - 36 + i * 11
-      const t = (y - (cy - 46)) / 92
-      const half = Math.sqrt(Math.max(0, 1 - (t * 2 - 1) ** 2)) * 330
-
-      if (half < 40) {
-        continue
+        g.fillPoints(
+          [
+            P(cx + Math.cos(a0) * ow * 0.5, cy + Math.sin(a0) * oh * 0.5),
+            P(cx + Math.cos(a1) * ow * 0.5, cy + Math.sin(a1) * oh * 0.5),
+            P(cx + Math.cos(a1) * iw * 0.5, cy + Math.sin(a1) * ih * 0.5),
+            P(cx + Math.cos(a0) * iw * 0.5, cy + Math.sin(a0) * ih * 0.5),
+          ],
+          true
+        )
       }
-
-      g.fillStyle(0xd7eef4, 0.2 + (i % 2) * 0.1)
-      g.fillRect(cx - half + 30, y, (half - 30) * 2, 1)
     }
 
-    // 近岸一圈湿痕
-    g.lineStyle(2, 0xe7f7fb, 0.3)
-    g.strokeEllipse(cx, cy + 4, 720, 88)
+    // 石岸
+    ring(1000, 180, 900, 146, 0x4f453b)
+    ring(982, 168, 920, 150, 0x6a5e52)
+    ring(962, 156, 940, 154, 0x73665a)
 
-    // 岸边碎石
-    let seed = 19
+    // 水面：外圈浅、靠泉眼深
+    ring(940, 156, 280, 84, 0x7fb9cc)
+    ring(900, 144, 280, 84, 0x6fa9bf)
+    ring(846, 130, 280, 84, 0x5f98af)
+    ring(790, 116, 280, 84, 0x4f8fa8)
+    ring(736, 104, 280, 84, 0x3f7f9e)
+
+    // 外岸碎石：沿最外圈撒一圈
+    let seed = 23
     const rnd = () => {
       seed = (seed * 1664525 + 1013904223) >>> 0
       return seed / 4294967296
     }
 
-    for (let i = 0; i < 26; i++) {
-      const angle = Math.PI * (0.08 + rnd() * 0.84)
-      const x = cx - Math.cos(angle) * (350 + rnd() * 35)
-      const y = cy + 8 + Math.sin(angle) * (58 + rnd() * 8)
+    for (let i = 0; i < 34; i++) {
+      const angle = rnd() * Math.PI * 2
+      const rx = 480 + rnd() * 18
+      const ry = 86 + rnd() * 8
+      const x = cx + Math.cos(angle) * rx
+      const y = cy + Math.sin(angle) * ry
       const size = 3 + rnd() * 6
 
       g.fillStyle(i % 3 === 0 ? 0x8a7c69 : i % 3 === 1 ? 0x5e5348 : 0x73665a, 1)
