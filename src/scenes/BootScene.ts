@@ -5759,60 +5759,106 @@ export class BootScene extends Phaser.Scene {
     c.destroy()
   }
 
-  // ── 山顶那棵巨大的垂柳（2026/10/17 用户要的）：树干顺着崖壁**盘着往上升**，
-  //   冠是一大蓬往下垂的柳条 —— 150x200，摆在 460 的山顶平台上，顶能够到 260
+  // ── 山顶那棵巨大的垂柳（2026/10/17 用户定稿的形态）──────────────────
+  //   ① 底部粗、往上收细；② 主干**先往左弯**，过了腰再**向右上侧伸长**；
+  //   ③ 冠又宽又密，而且要**盖住每根枝条的末端**（枝梢不能光秃秃地露出来）；
+  //   ④ 底下垂一大蓬柳条。190x240，摆在 460 的山顶平台上，顶能够到 220
   private makeSummitWillow() {
     const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
     const g = this.add.graphics()
 
-    // ① 根：从平台边往两边扒开
-    g.fillStyle(0x3d2c1d, 1)
-    g.fillPoints([P(52, 200), P(74, 200), P(70, 176), P(58, 176)], true)
-    g.fillTriangle(52, 200, 26, 199, 62, 184)
-    g.fillTriangle(74, 200, 104, 199, 66, 184)
-    // ② 主杆：扭着往上（四个弯），越往上越细
-    g.fillStyle(0x412f1f, 1)
-    g.fillPoints(
-      [P(58, 190), P(70, 190), P(76, 150), P(66, 126), P(74, 96), P(64, 74), P(70, 46), P(62, 46), P(54, 76), P(58, 98), P(50, 128), P(56, 152)],
-      true
-    )
-    g.fillStyle(0x543e29, 1)
-    g.fillPoints([P(61, 190), P(67, 190), P(72, 150), P(62, 126), P(70, 96), P(60, 74), P(66, 47), P(63, 47), P(57, 76), P(54, 98), P(55, 128), P(59, 152)], true)
-    // 树皮上的几道竖纹
-    g.fillStyle(0x2e2116, 0.7)
-    for (const bark of [[60, 170, 2, 14], [65, 140, 1, 18], [58, 108, 2, 12], [63, 70, 1, 16], [60, 50, 1, 12]]) {
-      g.fillRect(bark[0], bark[1], bark[2], bark[3])
-    }
-    // ③ 三根横出的粗枝
-    g.fillStyle(0x412f1f, 1)
-    g.fillPoints([P(58, 96), P(62, 100), P(24, 62), P(22, 56)], true)
-    g.fillPoints([P(66, 78), P(69, 82), P(116, 52), P(118, 46)], true)
-    g.fillPoints([P(62, 46), P(66, 50), P(96, 22), P(98, 16)], true)
+    // 主干的脊线：底部粗、先向左弓、过了腰再往右上伸
+    const spine: Array<[number, number, number]> = [
+      [98, 238, 26],
+      [92, 214, 23],
+      [74, 188, 19],
+      [62, 162, 16],
+      [72, 136, 13],
+      [94, 112, 11],
+      [120, 86, 9],
+      [146, 62, 7],
+      [170, 42, 5],
+    ]
 
-    // ④ 柳条：一大蓬往下垂，越长越淡
-    const strand = (x0: number, y0: number, len: number, sway: number, color: number) => {
-      g.fillStyle(color, 1)
-      for (let i = 0; i < len; i += 4) {
-        const x = x0 + Math.sin((i / len) * Math.PI * 2) * sway
-        g.fillRect(x, y0 + i, 2, 4)
+    // 沿脊线一段段铺成四边形：先铺一圈深色轮廓，再压本体，再点一道受光侧
+    const segment = (from: number, to: number, grow: number, color: number, alpha = 1) => {
+      g.fillStyle(color, alpha)
+      for (let i = from; i < to; i++) {
+        const a = spine[i]
+        const b = spine[i + 1]
+        g.fillPoints(
+          [
+            P(a[0] - a[2] - grow, a[1] + 1),
+            P(a[0] + a[2] + grow, a[1] + 1),
+            P(b[0] + b[2] + grow, b[1] - 1),
+            P(b[0] - b[2] - grow, b[1] - 1),
+          ],
+          true
+        )
       }
     }
-    for (let i = 0; i < 22; i++) {
-      const x = 10 + i * 6
-      const top = 18 + ((i * 7) % 18)
-      const len = 60 + ((i * 13) % 70)
-      const color = i % 3 === 0 ? 0x4e7a38 : i % 3 === 1 ? 0x6f9a4a : 0x8cba5e
-      strand(x, top, len, 3 + (i % 3), color)
-    }
-    // ⑤ 冠顶那一层压住柳条的根
-    g.fillStyle(0x5c8a3c, 1)
-    g.fillEllipse(64, 26, 104, 30)
-    g.fillStyle(0x6f9a4a, 1)
-    g.fillEllipse(60, 20, 84, 22)
-    g.fillStyle(0x8cba5e, 1)
-    g.fillEllipse(54, 14, 52, 14)
 
-    g.generateTexture('willow-summit', 150, 200)
+    segment(0, spine.length - 1, 2, 0x33241a)
+    segment(0, spine.length - 1, 0, 0x412f1f)
+    // 受光的一侧（右边那条窄带）
+    g.fillStyle(0x543e29, 1)
+    for (let i = 0; i < spine.length - 1; i++) {
+      const a = spine[i]
+      const b = spine[i + 1]
+      g.fillPoints(
+        [P(a[0] + a[2] * 0.35, a[1] + 1), P(a[0] + a[2] * 0.8, a[1] + 1), P(b[0] + b[2] * 0.8, b[1] - 1), P(b[0] + b[2] * 0.35, b[1] - 1)],
+        true
+      )
+    }
+    // 树皮竖纹
+    g.fillStyle(0x2a1d13, 0.7)
+    for (const bark of [[86, 214, 3, 18], [72, 186, 2, 16], [64, 158, 2, 18], [82, 128, 2, 16], [106, 100, 2, 14], [134, 72, 1, 16]]) {
+      g.fillRect(bark[0], bark[1], bark[2], bark[3])
+    }
+    // 底部的粗大板根
+    g.fillStyle(0x33241a, 1)
+    g.fillTriangle(72, 238, 34, 239, 88, 216)
+    g.fillTriangle(124, 238, 164, 239, 108, 216)
+
+    // 四根粗枝：末端都伸进冠里（下面会被叶团盖住）
+    g.fillStyle(0x412f1f, 1)
+    g.fillPoints([P(70, 132), P(76, 137), P(26, 84), P(22, 78)], true)
+    g.fillPoints([P(96, 110), P(102, 114), P(58, 52), P(54, 48)], true)
+    g.fillPoints([P(124, 84), P(129, 88), P(146, 34), P(150, 30)], true)
+    g.fillPoints([P(146, 62), P(150, 66), P(186, 44), P(188, 38)], true)
+
+    // 冠：宽、密，五团叠起来，把四根枝的末端全盖住
+    const clump = (cx: number, cy: number, w: number, h: number) => {
+      g.fillStyle(0x4e7a38, 1)
+      g.fillEllipse(cx, cy, w, h)
+      g.fillStyle(0x6f9a4a, 1)
+      g.fillEllipse(cx - w * 0.06, cy - h * 0.2, w * 0.86, h * 0.66)
+      g.fillStyle(0x8cba5e, 1)
+      g.fillEllipse(cx - w * 0.14, cy - h * 0.32, w * 0.52, h * 0.36)
+    }
+    clump(30, 74, 62, 44)
+    clump(62, 44, 76, 52)
+    clump(104, 26, 92, 54)
+    clump(150, 30, 74, 46)
+    clump(178, 44, 56, 38)
+
+    // 柳条：从冠的下垂下来，密一点
+    const strand = (x0: number, y0: number, len: number, sway: number, color: number) => {
+      g.fillStyle(color, 1)
+      for (let i = 0; i < len; i += 3) {
+        const x = x0 + Math.sin((i / len) * Math.PI * 2 + x0) * sway
+        g.fillRect(x, y0 + i, 2, 3)
+      }
+    }
+    for (let i = 0; i < 32; i++) {
+      const x = 8 + i * 5.6
+      const top = 46 + ((i * 11) % 30)
+      const len = 70 + ((i * 17) % 80)
+      const color = i % 3 === 0 ? 0x41682f : i % 3 === 1 ? 0x5f8a3a : 0x7fb04a
+      strand(x, top, len, 3 + (i % 4), color)
+    }
+
+    g.generateTexture('willow-summit', 190, 240)
     g.destroy()
   }
 
