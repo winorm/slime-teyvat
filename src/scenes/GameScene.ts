@@ -6805,32 +6805,57 @@ export class GameScene extends Phaser.Scene {
     }
 
     // 人影：戴草帽、披蓑衣的史莱姆。出来说两句，再自己走掉
-    const npc = this.add.image(x, y, 'npc-straw-slime').setOrigin(0.5, 1).setDepth(6)
-    this.tweens.add({ targets: npc, y: y - 6, duration: 380, ease: 'Back.easeOut' })
+    const npc = this.add
+      .image(x, y - 2, 'npc-straw-slime')
+      .setOrigin(0.5, 1)
+      .setDepth(6)
+      .setScale(0.25)
+      .setAlpha(0.35)
 
-    this.showDialogue(
-      '戴草帽的史莱姆',
-      ['……多谢。山里雾大，我还以为要一直困在琥珀里了。', '有缘再见。'],
-      () => {
-        const dir = this.slime.x <= npc.x ? 1 : -1
-        const startX = npc.x
-        const startY = npc.y
-
-        npc.setFlipX(dir < 0)
-
+    // 出场 1 秒：先从琥珀里弹出来、放大，再落回地面；落地后才开始对话
+    this.tweens.add({
+      targets: npc,
+      y: y - 16,
+      scaleX: 1,
+      scaleY: 1,
+      alpha: 1,
+      duration: 550,
+      ease: 'Back.easeOut',
+      onComplete: () => {
         this.tweens.add({
           targets: npc,
-          x: startX + dir * 170,
-          duration: 1200,
-          ease: 'Linear',
-          onUpdate: (tween) => {
-            npc.setY(startY - Math.abs(Math.sin(tween.progress * Math.PI * 4)) * 3)
-            npc.setAlpha(1 - Math.max(0, (tween.progress - 0.55) / 0.45))
-          },
-          onComplete: () => npc.destroy(),
+          y,
+          duration: 450,
+          ease: 'Bounce.easeOut',
         })
-      }
-    )
+      },
+    })
+
+    this.time.delayedCall(1000, () => {
+      this.showDialogue(
+        '戴草帽的史莱姆',
+        ['……多谢。山里雾大，我还以为要一直困在琥珀里了。', '有缘再见。'],
+        () => {
+          const dir = this.slime.x <= npc.x ? 1 : -1
+          const startX = npc.x
+          const startY = npc.y
+
+          npc.setFlipX(dir < 0)
+
+          this.tweens.add({
+            targets: npc,
+            x: startX + dir * 170,
+            duration: 1200,
+            ease: 'Linear',
+            onUpdate: (tween) => {
+              npc.setY(startY - Math.abs(Math.sin(tween.progress * Math.PI * 4)) * 3)
+              npc.setAlpha(1 - Math.max(0, (tween.progress - 0.55) / 0.45))
+            },
+            onComplete: () => npc.destroy(),
+          })
+        }
+      )
+    })
   }
 
   // ── 岩共鸣 ────────────────────────────────────────────────────────
