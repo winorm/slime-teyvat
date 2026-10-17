@@ -5464,73 +5464,102 @@ export class BootScene extends Phaser.Scene {
     g.destroy()
   }
 
-  // ── 悬崖上的树 3 种（2026/10/17 用户要的素材）────────────────────────
-  //   a 斜长的崖松 · b 矮壮宽冠、树杈上带鸟巢 · c 被风刮歪的一棵
-  //   三棵都画了往外扎的根，摆到崖边才站得住
+  // ── 长在**垂直崖壁上**的树 3 种（2026/10/17 用户要的：不是站在平地上，是从崖壁里长出来）──
+  //   照黄山松 / 崖柏的样子来：
+  //   ① 根不是扎进土里，而是**像手指一样扒在岩面上**，往左（贴壁那一侧）铺开；
+  //   ② 树干从石缝里**横着探出来**，再折向上；
+  //   ③ 树冠被风吹成**平顶**、往一侧压（迎风那侧几乎没有枝，背风那侧甩出去）；
+  //   ④ 树身常常比冠还要歪、还要细，一半的体量在崖外悬着。
+  //   所以贴图左边那一列就是"贴壁"的方向 —— 摆到关卡里的垂直崖面上，根正好压住岩壁。
   private makeCliffTrees() {
     const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
 
     const a = this.add.graphics()
+    // ① 根：四股往左铺开、扒在岩面上
+    a.fillStyle(0x4a3524, 1)
+    for (const root of [[0, 24, 12, 30], [0, 36, 14, 40], [0, 48, 13, 48], [2, 57, 14, 54]]) {
+      a.fillPoints(
+        [P(root[0], root[1]), P(root[2], root[3] - 3), P(root[2] + 5, root[3] + 1), P(root[0], root[1] + 4)],
+        true
+      )
+    }
+    // ② 树干：从缝里横着出去，再折向上
     a.fillStyle(0x3a2a1c, 1)
-    a.fillPoints([P(22, 66), P(28, 66), P(34, 30), P(29, 30)], true)
+    a.fillPoints([P(6, 41), P(11, 46), P(38, 21), P(44, 15), P(48, 20), P(40, 26), P(13, 51)], true)
     a.fillStyle(0x513c26, 1)
-    a.fillPoints([P(23, 66), P(25, 66), P(31, 30), P(29, 30)], true)
-    a.fillStyle(0x3a2a1c, 1)
-    a.fillTriangle(22, 66, 8, 71, 24, 61)
-    a.fillTriangle(28, 66, 42, 71, 26, 61)
-    const pine = (cx: number, cy: number, w: number, h: number) => {
+    a.fillPoints([P(8, 44), P(11, 45), P(42, 18), P(45, 19)], true)
+    // ③ 平顶松冠：三层，全往右压
+    const pad = (cx: number, cy: number, w: number, h: number) => {
       a.fillStyle(0x2f5136, 1)
       a.fillEllipse(cx, cy, w, h)
       a.fillStyle(0x46754a, 1)
-      a.fillEllipse(cx - 2, cy - 2, w * 0.7, h * 0.55)
+      a.fillEllipse(cx - 1, cy - 2, w * 0.72, h * 0.5)
     }
-    pine(32, 30, 46, 18)
-    pine(30, 18, 38, 15)
-    pine(28, 8, 26, 12)
-    a.generateTexture('tree-cliff-a', 62, 72)
+    pad(52, 20, 40, 13)
+    pad(56, 11, 30, 11)
+    pad(46, 27, 26, 9)
+    a.generateTexture('tree-cliff-a', 76, 64)
     a.destroy()
 
     const b = this.add.graphics()
+    // 根：三股短的
+    b.fillStyle(0x4a3524, 1)
+    for (const root of [[0, 34, 12, 38], [0, 44, 14, 46], [1, 53, 12, 52]]) {
+      b.fillPoints(
+        [P(root[0], root[1]), P(root[2], root[3] - 3), P(root[2] + 5, root[3] + 1), P(root[0], root[1] + 4)],
+        true
+      )
+    }
+    // 短而粗的树干，探出崖面就分叉
     b.fillStyle(0x3a2a1c, 1)
-    b.fillRect(28, 40, 8, 30)
+    b.fillPoints([P(6, 46), P(12, 51), P(30, 30), P(36, 24), P(39, 30), P(33, 35), P(14, 55)], true)
     b.fillStyle(0x513c26, 1)
-    b.fillRect(29, 40, 3, 30)
+    b.fillPoints([P(8, 49), P(12, 50), P(35, 27), P(37, 28)], true)
+    // 一根斜杈，树冠比 a 更散
     b.fillStyle(0x3a2a1c, 1)
-    b.fillTriangle(34, 46, 54, 30, 36, 48)
+    b.fillPoints([P(30, 30), P(33, 34), P(46, 20), P(44, 17)], true)
     b.fillStyle(0x2f5136, 1)
-    b.fillEllipse(32, 26, 60, 30)
+    b.fillEllipse(46, 22, 44, 17)
     b.fillStyle(0x46754a, 1)
-    b.fillEllipse(28, 22, 42, 19)
+    b.fillEllipse(42, 17, 30, 12)
     b.fillStyle(0x2a4830, 1)
-    b.fillEllipse(44, 34, 30, 14)
+    b.fillEllipse(55, 1 + 27, 26, 11)
+    // **鸟巢**：卡在分叉那一处（枝条编成的一圈 + 两枚浅色的蛋）
     b.fillStyle(0x5b4326, 1)
-    b.fillEllipse(52, 32, 22, 11)
+    b.fillEllipse(36, 30, 20, 9)
     b.fillStyle(0x6f5430, 1)
-    b.fillEllipse(52, 30, 17, 7)
+    b.fillEllipse(36, 28, 15, 6)
     b.fillStyle(0x3a2a1c, 1)
-    for (const x of [44, 47, 50, 53, 56, 59]) {
-      b.fillRect(x, 27 + (x % 2), 5, 1)
+    for (const x of [29, 32, 35, 38, 41]) {
+      b.fillRect(x, 27 + (x % 2), 4, 1)
     }
     b.fillStyle(0xf2e6c8, 1)
-    b.fillCircle(50, 29, 2.4)
-    b.fillCircle(55, 29, 2.4)
-    b.generateTexture('tree-cliff-b', 66, 72)
+    b.fillCircle(34, 27, 2.2)
+    b.fillCircle(38, 27, 2.2)
+    b.generateTexture('tree-cliff-b', 76, 64)
     b.destroy()
 
     const c = this.add.graphics()
+    // 旗形：风常年往右刮 —— 树干几乎是平的，枝全甩到右边，左边那侧一根枝都没有
+    c.fillStyle(0x4a3524, 1)
+    for (const root of [[0, 30, 10, 34], [0, 42, 12, 44], [1, 52, 10, 50]]) {
+      c.fillPoints(
+        [P(root[0], root[1]), P(root[2], root[3] - 3), P(root[2] + 5, root[3] + 1), P(root[0], root[1] + 4)],
+        true
+      )
+    }
     c.fillStyle(0x3a2a1c, 1)
-    c.fillPoints([P(24, 68), P(30, 68), P(34, 52), P(46, 34), P(39, 32), P(28, 52)], true)
+    c.fillPoints([P(6, 39), P(10, 45), P(48, 32), P(52, 26), P(56, 31), P(47, 38), P(12, 50)], true)
     c.fillStyle(0x513c26, 1)
-    c.fillPoints([P(25, 68), P(27, 68), P(31, 52), P(42, 35), P(39, 34), P(26, 52)], true)
-    c.fillStyle(0x3a2a1c, 1)
-    c.fillTriangle(24, 68, 10, 72, 27, 63)
+    c.fillPoints([P(8, 42), P(11, 44), P(50, 30), P(52, 31)], true)
+    // 往右甩出去的冠（扁长的两片）+ 底下一小片
     c.fillStyle(0x2f5136, 1)
-    c.fillEllipse(46, 28, 40, 17)
+    c.fillEllipse(58, 24, 36, 12)
     c.fillStyle(0x46754a, 1)
-    c.fillEllipse(50, 22, 30, 12)
+    c.fillEllipse(60, 21, 26, 8)
     c.fillStyle(0x2a4830, 1)
-    c.fillEllipse(36, 36, 26, 10)
-    c.generateTexture('tree-cliff-c', 66, 72)
+    c.fillEllipse(46, 35, 24, 8)
+    c.generateTexture('tree-cliff-c', 78, 60)
     c.destroy()
   }
 
@@ -5638,7 +5667,7 @@ export class BootScene extends Phaser.Scene {
     g.destroy()
   }
 
-  // ── 桦木 3 种（白杆 + 黑横斑 + 嫩绿树冠）────────────────────────────
+  // ── 桦木 2 种（白杆 + 黑横斑 + 嫩绿树冠）—— 用户 2026/10/17 只留 a、c ──
   private makeBirches() {
     const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
     const canopy = (g: Phaser.GameObjects.Graphics, cx: number, cy: number, w: number, h: number) => {
@@ -5664,19 +5693,6 @@ export class BootScene extends Phaser.Scene {
     canopy(a, 24, 16, 34, 26)
     a.generateTexture('birch-a', 48, 72)
     a.destroy()
-
-    const b = this.add.graphics()
-    for (const trunk of [[20, 26, 30], [26, 34, 22], [32, 18, 36]]) {
-      b.fillStyle(0xe8e4d8, 1)
-      b.fillPoints([P(trunk[0] - 2, 70), P(trunk[0] + 1, 70), P(trunk[1] + 1, 70 - trunk[2]), P(trunk[1] - 1, 70 - trunk[2])], true)
-    }
-    b.fillStyle(0x2c2622, 1)
-    for (const mark of [[21, 44], [27, 52], [33, 40], [23, 34], [30, 46]]) {
-      b.fillRect(mark[0], mark[1], 3, 1)
-    }
-    canopy(b, 26, 18, 44, 30)
-    b.generateTexture('birch-b', 56, 72)
-    b.destroy()
 
     const c = this.add.graphics()
     c.fillStyle(0xe8e4d8, 1)
