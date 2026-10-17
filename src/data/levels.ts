@@ -1294,6 +1294,19 @@ export const LEVELS: LevelDef[] = [
       { x: 324, y: 1180, key: 'tree-cliff-b', flip: true, scale: 2, depth: 1.16 },
       //   右边缘：山体最右边那道崖面在 x=3450，树翻过来、根贴住 3450，冠压在崖面上
       { x: 3374, y: 700, key: 'tree-cliff-a', flip: true, scale: 2, depth: 1.16 },
+      // 崖面本身的样子（用户 2026/10/17 要的）：突出来的岩石 + 崖沿上的草（草根垂下来）。
+      // 三道崖面各摆几件：左边缘 x=400、山顶平台左沿 x=2200、右边缘 x=3450
+      { x: 402, y: 780, key: 'cliff-grass', scale: 1.4, depth: 1.17 },
+      { x: 410, y: 1010, key: 'cliff-rock', scale: 1.8, flip: true, depth: 1.17 },
+      { x: 404, y: 1180, key: 'cliff-grass', scale: 1.2, flip: true, depth: 1.17 },
+      { x: 408, y: 1300, key: 'cliff-rock', scale: 1.4, depth: 1.17 },
+      { x: 2202, y: 470, key: 'cliff-grass', scale: 1.5, depth: 1.17 },
+      { x: 2212, y: 700, key: 'cliff-rock', scale: 2, depth: 1.17 },
+      { x: 2204, y: 1080, key: 'cliff-grass', scale: 1.3, flip: true, depth: 1.17 },
+      { x: 3448, y: 480, key: 'cliff-grass', scale: 1.5, flip: true, depth: 1.17 },
+      { x: 3438, y: 760, key: 'cliff-rock', scale: 2, depth: 1.17 },
+      { x: 3446, y: 1010, key: 'cliff-rock', scale: 1.5, flip: true, depth: 1.17 },
+      { x: 3442, y: 1240, key: 'cliff-grass', scale: 1.4, flip: true, depth: 1.17 },
       // 崖面上的岩石横截面
       { x: 1980, y: 1300, key: 'rock-strata-a', scale: 1.4, depth: 1.16 },
       { x: 2310, y: 1010, key: 'rock-strata-c', scale: 1.4, depth: 1.16 },

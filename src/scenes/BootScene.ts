@@ -182,6 +182,7 @@ export class BootScene extends Phaser.Scene {
     this.makePeachTrees()
     this.makeSummitWillow()
     this.makeTeaSet()
+    this.makeCliffDetails()
     this.makeSlimeShadow()
     this.makeTerracePaving()
 
@@ -5945,6 +5946,57 @@ export class BootScene extends Phaser.Scene {
     steam.fillEllipse(5, 2, 3, 3)
     steam.generateTexture('tea-steam', 10, 16)
     steam.destroy()
+  }
+
+  // ── 崖面上的零碎（2026/10/17 用户要的"悬崖真正的样子"）──────────────
+  //   cliff-rock：从崖壁里突出来的一块岩石（上面受光、下面留暗）
+  //   cliff-grass：崖沿上的一丛草 + 垂下去几条草根，根上还挂着土
+  private makeCliffDetails() {
+    const rock = this.add.graphics()
+    // 底下那道暗（和崖壁接住）
+    rock.fillStyle(0x3a2f26, 0.55)
+    rock.fillEllipse(16, 19, 30, 12)
+    // 岩体：一块往外鼓的石头
+    rock.fillStyle(0x54463a, 1)
+    rock.fillPoints([new Phaser.Math.Vector2(1, 20), new Phaser.Math.Vector2(6, 9), new Phaser.Math.Vector2(18, 4), new Phaser.Math.Vector2(30, 10), new Phaser.Math.Vector2(31, 20)], true)
+    // 受光的上表面
+    rock.fillStyle(0x6f5d4b, 1)
+    rock.fillPoints([new Phaser.Math.Vector2(4, 12), new Phaser.Math.Vector2(18, 5), new Phaser.Math.Vector2(29, 11), new Phaser.Math.Vector2(18, 15)], true)
+    rock.fillStyle(0x83705c, 1)
+    rock.fillPoints([new Phaser.Math.Vector2(7, 12), new Phaser.Math.Vector2(18, 7), new Phaser.Math.Vector2(26, 11), new Phaser.Math.Vector2(17, 13)], true)
+    // 下缘压暗 + 一道裂缝
+    rock.fillStyle(0x332a22, 1)
+    rock.fillPoints([new Phaser.Math.Vector2(1, 20), new Phaser.Math.Vector2(31, 20), new Phaser.Math.Vector2(27, 22), new Phaser.Math.Vector2(5, 22)], true)
+    rock.lineStyle(1, 0x332a22, 0.8)
+    rock.lineBetween(20, 12, 23, 20)
+    rock.generateTexture('cliff-rock', 32, 24)
+    rock.destroy()
+
+    const grass = this.add.graphics()
+    // 一小撮土
+    grass.fillStyle(0x4a3a28, 1)
+    grass.fillEllipse(13, 12, 20, 6)
+    // 草叶：长短不一、往两边散
+    grass.fillStyle(0x5f8a3a, 1)
+    grass.fillRect(12, 3, 2, 9)
+    grass.fillRect(7, 5, 2, 7)
+    grass.fillRect(18, 5, 2, 7)
+    grass.fillStyle(0x7fb04a, 1)
+    grass.fillTriangle(11, 12, 15, 12, 10, 1)
+    grass.fillTriangle(6, 12, 9, 12, 4, 3)
+    grass.fillTriangle(17, 12, 20, 12, 23, 2)
+    grass.fillStyle(0x86bb52, 1)
+    grass.fillRect(13, 2, 1, 4)
+    // 垂下去的草根（末端挂着一点土）
+    grass.fillStyle(0x6b5334, 1)
+    grass.fillRect(6, 14, 1, 8)
+    grass.fillRect(12, 14, 1, 11)
+    grass.fillRect(19, 14, 1, 7)
+    grass.fillStyle(0x4a3a28, 1)
+    grass.fillRect(11, 24, 3, 2)
+    grass.fillRect(5, 21, 2, 2)
+    grass.generateTexture('cliff-grass', 26, 28)
+    grass.destroy()
   }
 
   private makeCloudRetainerCrane() {
