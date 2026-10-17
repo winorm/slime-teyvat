@@ -1163,6 +1163,7 @@ export class GameScene extends Phaser.Scene {
   private level!: LevelDef
   private slime!: Phaser.Physics.Arcade.Sprite
   private platforms!: Phaser.Physics.Arcade.StaticGroup
+  private blockers!: Phaser.Physics.Arcade.StaticGroup
   private stairs: Phaser.Physics.Arcade.Sprite[] = []
   // 玩家现在是在树前面还是树后面（第七关「绕树而上」用）
   private playerLayer: 'front' | 'back' = 'front'
@@ -1753,6 +1754,7 @@ export class GameScene extends Phaser.Scene {
     // 同理：这些 RenderTexture 是建关卡时现造的，场景实例复用，引用必须清干净
     this.harborFrontRTs = []
     this.platforms = this.physics.add.staticGroup()
+    this.blockers = this.physics.add.staticGroup()
     this.pillars = this.physics.add.staticGroup()
     this.orbs = this.physics.add.staticGroup()
 
@@ -2673,6 +2675,15 @@ export class GameScene extends Phaser.Scene {
       }
     })
 
+    // 纯碰撞边缘：画面由 decor 的山峰/树/大石头负责，这里只放看不见的实体
+    ;(this.level.blockers ?? []).forEach((def) => {
+      const blocker = this.blockers.create(def.x, def.y, 'pixel') as Phaser.Physics.Arcade.Sprite
+
+      blocker.setVisible(false)
+      blocker.setDisplaySize(def.width, def.height)
+      blocker.refreshBody()
+    })
+
     this.buildStairs()
     // 拱形土坡（走线是弧的那段地面）：只画 + 每帧贴地，不做碰撞体
     this.buildSlopes(
@@ -2863,6 +2874,8 @@ export class GameScene extends Phaser.Scene {
       // 楼板补片则让它做到「树前层是完整楼板，树后层才露出楼梯井」
       return layer === undefined || layer === this.playerLayer
     })
+
+    this.physics.add.collider(this.slime, this.blockers)
 
     this.physics.add.overlap(this.slime, this.orbs, (_slime, orb) => {
       const orbSprite = orb as Phaser.Physics.Arcade.Sprite

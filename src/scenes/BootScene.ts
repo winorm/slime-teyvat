@@ -183,6 +183,8 @@ export class BootScene extends Phaser.Scene {
     this.makeSummitWillow()
     this.makeTeaSet()
     this.makeCliffDetails()
+    this.makeSummitPeak()
+    this.makeBoulderBig()
     this.makeMountainMist()
     this.makeSummitLake()
     this.makeWaterfall()
@@ -6943,6 +6945,109 @@ export class BootScene extends Phaser.Scene {
 
     gfx.generateTexture('terrace-paving', 400, 10)
     gfx.destroy()
+  }
+
+  // 山顶边缘的岩峰（120x170）：两座高低错落的尖峰，底边贴住山顶
+  private makeSummitPeak() {
+    const LIT = 0x8a7c69
+    const MID = 0x73665a
+    const DARK = 0x5e5348
+    const CRACK = 0x453d34
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    const body: Array<[number, number]> = [
+      [4, 170],
+      [16, 118],
+      [30, 64],
+      [44, 26],
+      [56, 8],
+      [68, 42],
+      [82, 88],
+      [98, 54],
+      [116, 170],
+    ]
+
+    g.fillStyle(MID, 1)
+    g.fillPoints([...body.map(([x, y]) => P(x, y))], true)
+
+    // 受光面 / 背光面
+    g.fillStyle(LIT, 1)
+    g.fillPoints([P(56, 8), P(68, 42), P(74, 92), P(58, 126), P(48, 80)], true)
+    g.fillStyle(DARK, 1)
+    g.fillPoints([P(30, 64), P(44, 26), P(48, 80), P(40, 126), P(24, 132)], true)
+    g.fillStyle(LIT, 0.7)
+    g.fillPoints([P(98, 54), P(108, 94), P(104, 132), P(90, 110), P(88, 82)], true)
+
+    // 横向层理
+    g.lineStyle(1, CRACK, 0.55)
+    for (const y of [70, 96, 122, 148]) {
+      g.lineBetween(10, y, 112, y)
+    }
+
+    // 裂缝
+    g.lineStyle(1, CRACK, 0.75)
+    g.lineBetween(56, 10, 50, 78)
+    g.lineBetween(62, 58, 76, 118)
+    g.lineBetween(96, 58, 92, 112)
+
+    // 山脚草和碎石
+    g.fillStyle(0x5f8a3a, 1)
+    for (let i = 0; i < 8; i++) {
+      const x = 8 + i * 14
+      g.fillRect(x, 164 - (i % 3) * 2, 2, 5 + (i % 3) * 2)
+    }
+
+    g.fillStyle(0x6a5e52, 1)
+    g.fillEllipse(22, 164, 12, 6)
+    g.fillEllipse(102, 162, 10, 5)
+
+    g.generateTexture('summit-peak', 120, 170)
+    g.destroy()
+  }
+
+  // 转角平台边缘的大石块（96x70）：一整块，不是碎石堆
+  private makeBoulderBig() {
+    const LIT = 0x8a7c69
+    const MID = 0x73665a
+    const DARK = 0x5e5348
+    const CRACK = 0x453d34
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    g.fillStyle(MID, 1)
+    g.fillPoints(
+      [
+        P(8, 64),
+        P(12, 38),
+        P(28, 18),
+        P(54, 8),
+        P(76, 16),
+        P(90, 38),
+        P(88, 64),
+      ],
+      true
+    )
+
+    g.fillStyle(LIT, 1)
+    g.fillPoints([P(28, 18), P(54, 8), P(64, 20), P(44, 32), P(24, 32)], true)
+    g.fillStyle(DARK, 1)
+    g.fillPoints([P(8, 64), P(12, 38), P(24, 32), P(40, 52), P(30, 64)], true)
+    g.fillStyle(DARK, 0.7)
+    g.fillPoints([P(54, 8), P(76, 16), P(90, 38), P(72, 52), P(58, 34)], true)
+
+    g.lineStyle(1, CRACK, 0.7)
+    g.lineBetween(40, 18, 34, 44)
+    g.lineBetween(34, 44, 46, 60)
+    g.lineBetween(66, 24, 70, 50)
+
+    g.fillStyle(0x5f8a3a, 1)
+    g.fillRect(18, 60, 2, 6)
+    g.fillRect(22, 62, 2, 5)
+    g.fillRect(78, 60, 2, 6)
+
+    g.generateTexture('boulder-big', 96, 70)
+    g.destroy()
   }
 
   // 山腰的雾带（1200x56）：中间厚、上下和左右两端渐淡。

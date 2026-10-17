@@ -261,6 +261,9 @@ export type LevelDef = {
   spawn: { x: number; y: number }
   goal: GoalDef
   platforms: PlatformDef[]
+  // 纯碰撞边缘（不画）：山顶/转角平台的防掉落挡板。
+  // 画面由 decor 里的山峰、树、大石块负责，这里只放一个看不见的实体。
+  blockers?: { x: number; y: number; width: number; height: number }[]
   stairs?: StairDef[]
   slopes?: SlopeDef[]                      // 拱形土坡：走线是弧的一段地面（第九关的"爬山"要用）
   // 山腰的雾带（第九关）：世界坐标里的一条横向薄雾，缓慢左右飘。
@@ -1232,6 +1235,15 @@ export const LEVELS: LevelDef[] = [
       ...platformFill(3925, 950, 1010, 1360, 0.9),
     ],
 
+    // 防掉落挡板：山顶左右沿、C1 右沿、C2 左沿。
+    // 只挡人不画，画面上的山峰/树/大石头在 decor 里。
+    blockers: [
+      { x: 1590, y: 360, width: 20, height: 200 }, // 山顶左沿：260~460，连跳/悬浮也翻不过去
+      { x: 2810, y: 360, width: 20, height: 200 }, // 山顶右沿
+      { x: 3460, y: 950, width: 20, height: 120 }, // C1 右沿：890~1010
+      { x: 1590, y: 660, width: 20, height: 100 }, // C2 左沿：610~710
+    ],
+
     // R1 右爬 → F1 平地 → R2 右爬 → C1 转角 → L1 左爬（后层）→
     // F2 平地（后层）→ L2 左爬半段（后层）→ C2 转角 → R3 右爬 → 山顶
     slopes: [
@@ -1312,6 +1324,12 @@ export const LEVELS: LevelDef[] = [
       { x: 1520, y: 1120, key: 'cliff-grass', scale: 1.2, flip: true, depth: 1.18 },
       { x: 2880, y: 480, key: 'cliff-grass', scale: 1.4, flip: true, depth: 1.18 },
       { x: 2840, y: 700, key: 'cliff-grass', scale: 1.2, flip: true, depth: 1.18 },
+      // 边缘防掉落的画面：山顶两座岩峰、C1 右沿的崖树、C2 左沿的大石块。
+      // 实体挡板在上面 blockers 里，这些只负责让玩家看出"这里过不去"。
+      { x: 1590, y: 460, key: 'summit-peak', flip: true, depth: 1.15 },
+      { x: 2810, y: 460, key: 'summit-peak', depth: 1.15 },
+      { x: 3460, y: 1010, key: 'tree-cliff-a', flip: true, scale: 1.8, depth: 1.19 },
+      { x: 1590, y: 710, key: 'boulder-big', scale: 1.2, depth: 1.15 },
       // 岩体里的岩石横截面（旧坐标全部换掉，压深一点，别浮在坡面上）
       { x: 1200, y: 1340, key: 'rock-strata-a', scale: 1.4, depth: 1.16 },
       { x: 3000, y: 1080, key: 'rock-strata-b', scale: 1.4, depth: 1.16 },
