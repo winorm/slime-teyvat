@@ -173,6 +173,7 @@ export class BootScene extends Phaser.Scene {
     this.makeCloudRetainerCrane()
     this.makeAmber()
     this.makeAmberBoar()
+    this.makeAmberNpc()
     this.makeAmberStand()
     this.makeCliffTrees()
     this.makeRockStrata()
@@ -5470,6 +5471,99 @@ export class BootScene extends Phaser.Scene {
     g.fillCircle(4, 8, 0.7)
 
     g.generateTexture('amber-boar', 26, 18)
+    g.destroy()
+  }
+
+  // 琥珀里的人影彩蛋：戴草帽、披蓑衣的史莱姆（44x42）
+  private makeAmberNpc() {
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    // 落地影
+    g.fillStyle(0x1a140f, 0.22)
+    g.fillEllipse(22, 40, 30, 4)
+
+    // 蓑衣后片
+    g.fillStyle(0x5f4627, 1)
+    g.fillPoints([P(10, 20), P(34, 20), P(39, 38), P(5, 38)], true)
+    g.fillStyle(0x795b32, 1)
+    g.fillPoints([P(12, 21), P(32, 21), P(36, 36), P(8, 36)], true)
+
+    // 后片的草茎
+    g.fillStyle(0x9a7842, 0.8)
+    for (let x = 10; x <= 34; x += 4) {
+      g.fillRect(x, 22, 1, 13)
+    }
+
+    // 史莱姆本体
+    g.fillStyle(0x2c3a22, 1)
+    g.fillEllipse(22, 30, 30, 19)
+    g.fillStyle(0x86b45c, 1)
+    g.fillEllipse(22, 29, 28, 17)
+    g.fillStyle(0x9ccb70, 1)
+    g.fillEllipse(20, 27, 20, 10)
+    g.fillStyle(0xffffff, 0.45)
+    g.fillEllipse(16, 25, 8, 4)
+
+    // 眼睛
+    g.fillStyle(0xf4f1e4, 1)
+    g.fillEllipse(16, 30, 6, 5)
+    g.fillEllipse(28, 30, 6, 5)
+    g.fillStyle(0x1b2218, 1)
+    g.fillCircle(16, 30, 1.7)
+    g.fillCircle(28, 30, 1.7)
+    g.fillStyle(0x1b2218, 0.8)
+    g.fillRect(20, 34, 4, 1)
+
+    // 蓑衣前襟：两片盖在身体两侧，露出脸
+    g.fillStyle(0x6b4f2c, 1)
+    g.fillPoints([P(8, 21), P(16, 21), P(14, 38), P(4, 38)], true)
+    g.fillPoints([P(28, 21), P(36, 21), P(40, 38), P(30, 38)], true)
+    g.fillStyle(0x9a7842, 1)
+    for (let y = 23; y <= 35; y += 4) {
+      g.fillRect(8, y, 6, 1)
+      g.fillRect(31, y, 6, 1)
+    }
+
+    // 草帽：帽檐 + 帽冠 + 红带
+    g.fillStyle(0x6b4a24, 1)
+    g.fillEllipse(22, 17, 40, 9)
+    g.fillStyle(0xc39a52, 1)
+    g.fillEllipse(22, 16, 38, 8)
+    g.fillStyle(0xd9b46a, 1)
+    g.fillEllipse(22, 16, 32, 6)
+
+    g.fillStyle(0x6b4a24, 1)
+    g.fillEllipse(22, 10, 22, 13)
+    g.fillStyle(0xc39a52, 1)
+    g.fillEllipse(22, 9, 20, 12)
+    g.fillStyle(0xd9b46a, 1)
+    g.fillEllipse(20, 8, 14, 8)
+
+    // 帽冠的草编纹
+    g.lineStyle(1, 0x8b6230, 0.7)
+    for (let y = 7; y <= 13; y += 3) {
+      g.lineBetween(13, y, 31, y)
+    }
+    for (let x = 15; x <= 29; x += 5) {
+      g.lineBetween(x, 5, x, 14)
+    }
+
+    // 红带
+    g.fillStyle(0x8a3f2a, 1)
+    g.fillRect(13, 13, 18, 2)
+    g.fillStyle(0xb85a3a, 1)
+    g.fillRect(13, 13, 18, 1)
+
+    // 帽檐上的几道草茎和一小截帽绳
+    g.fillStyle(0x9b7538, 0.75)
+    g.fillRect(5, 17, 34, 1)
+    g.fillStyle(0x6b4a24, 1)
+    g.fillRect(31, 18, 1, 4)
+    g.fillStyle(0xd9b46a, 1)
+    g.fillCircle(32, 22, 1.4)
+
+    g.generateTexture('npc-straw-slime', 44, 42)
     g.destroy()
   }
 
