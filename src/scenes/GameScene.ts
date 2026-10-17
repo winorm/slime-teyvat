@@ -7111,11 +7111,11 @@ export class GameScene extends Phaser.Scene {
     })
 
     def.stones.forEach((st) => {
-      const sprite = this.trialStoneGroup.create(st.x, st.y + 16, 'pixel') as Phaser.Physics.Arcade.Sprite
+      const sprite = this.trialStoneGroup.create(st.x, st.y + 6, 'pixel') as Phaser.Physics.Arcade.Sprite
 
-      // 隐形碰撞箱：整块倒三角浮石的矩形包围盒。下方和侧面都挡人，
-      // 只能从侧面跳到上表面；画面另用 trial-stone 贴图。
-      sprite.setDisplaySize(48, 32)
+      // 隐形碰撞箱只覆盖白色石体的上半部。下方/侧面仍会挡人，但绿色尖端
+      // 不参与碰撞，避免卡住从段尾跳向安全台的路线；画面另用 trial-stone 贴图。
+      sprite.setDisplaySize(48, 12)
       sprite.setTint(0x8a7c69)
       sprite.refreshBody()
       sprite.setDepth(3)
@@ -7143,11 +7143,6 @@ export class GameScene extends Phaser.Scene {
       })
 
       this.trialStones.push({ sprite, visual, glow, section: st.section, triggered: false })
-      this.add
-        .image(st.x, st.y + 34, 'cloud-puff')
-        .setScale(0.3)
-        .setAlpha(0.35)
-        .setDepth(2.8)
     })
 
     this.physics.add.collider(this.slime, this.trialStoneGroup, (_slime, stone) => {
