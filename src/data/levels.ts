@@ -13,6 +13,7 @@ export type PlatformDef = {
   plank?: boolean   // 表面盖一层木板（木桥用，同样只做画面）
   tint?: number     // 覆盖主题配色：村庄断墙、矿洞岩壁这类要单独上色的块
   depth?: number    // 画在哪一层：古树的后层楼梯给 1（会被树干挡住），前层给 3
+  hidden?: boolean  // 只碰撞不画（秘境云台：画面用 decor 的 cloud-puff）
   // 只画不挡人：台体、基座这类"当背景看的墙"用（玉京台下面那道墙就是它）。
   // 画面照旧画，但不参与碰撞，史莱姆可以从它前面走过去
   solid?: boolean   // 不写＝参与碰撞

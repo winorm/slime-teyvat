@@ -2470,6 +2470,11 @@ export class GameScene extends Phaser.Scene {
       // 分层：古树的后层楼梯给 1（会被树干挡住），前层给 3；不写就是原来的 0
       platform.setDepth(def.depth ?? 0)
 
+      // 只碰撞不画的台面（秘境云台）：碰撞体照旧，画面交给下面的云朵
+      if (def.hidden) {
+        platform.setVisible(false)
+      }
+
       // 只画不挡人的台体（玉京台下面那道墙）：不参与碰撞，人从它前面走过去
       if (def.solid === false) {
         const ghostBody = platform.body as Phaser.Physics.Arcade.StaticBody
