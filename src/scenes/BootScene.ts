@@ -184,6 +184,8 @@ export class BootScene extends Phaser.Scene {
     this.makeTeaSet()
     this.makeCliffDetails()
     this.makeMountainMist()
+    this.makeSummitLake()
+    this.makeWaterfall()
     this.makeSlimeShadow()
     this.makeTerracePaving()
 
@@ -6973,6 +6975,113 @@ export class BootScene extends Phaser.Scene {
     }
 
     g.generateTexture('mountain-mist', W, H)
+    g.destroy()
+  }
+
+  // 山顶湖（800x56）：上沿是远岸的碎石脊，中间是分层的水面，下沿是湿漉漉的岸石。
+  // 全部用横向色带 / 直条，不画弧线。
+  private makeSummitLake() {
+    const W = 800
+    const H = 56
+    const g = this.add.graphics()
+
+    // 远岸：一条深色石脊，顶上几块参差的石头
+    g.fillStyle(0x4f453b, 1)
+    g.fillRect(0, 0, W, 7)
+
+    for (let x = 0; x < W; x += 37) {
+      const h = 3 + ((x * 13) % 8)
+      g.fillTriangle(x, 7, x + 22, 7, x + 10, 7 - h)
+    }
+
+    // 水面色带：远（上）浅、近（下）深
+    const water = [0x7fb9cc, 0x6fa9bf, 0x5f98af, 0x50879e, 0x437b93]
+
+    water.forEach((color, index) => {
+      g.fillStyle(color, 1)
+      g.fillRect(0, 7 + index * 6, W, 6)
+    })
+
+    // 横向波纹
+    for (let i = 0; i < 6; i++) {
+      const y = 12 + i * 5
+      const x = 30 + ((i * 97) % 170)
+      const w = 70 + ((i * 53) % 190)
+
+      g.fillStyle(0xd7eef4, 0.22 + (i % 2) * 0.1)
+      g.fillRect(x, y, Math.min(w, W - x - 20), 1)
+    }
+
+    // 近岸石缘
+    g.fillStyle(0x6a5e52, 1)
+    g.fillRect(0, 37, W, 19)
+    g.fillStyle(0x5e5348, 1)
+    g.fillRect(0, 46, W, 10)
+    g.fillStyle(0x8a7c69, 0.5)
+    g.fillRect(0, 37, W, 2)
+    g.fillStyle(0xe7f7fb, 0.28)
+    g.fillRect(0, 35, W, 2)
+
+    // 岸边碎石
+    let seed = 19
+    const rnd = () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0
+      return seed / 4294967296
+    }
+
+    for (let i = 0; i < 22; i++) {
+      const x = 8 + rnd() * (W - 16)
+      const y = 40 + rnd() * 12
+      const size = 3 + rnd() * 6
+
+      g.fillStyle(i % 3 === 0 ? 0x8a7c69 : i % 3 === 1 ? 0x5e5348 : 0x73665a, 1)
+      g.fillEllipse(x, y, size, size * 0.55)
+    }
+
+    g.generateTexture('summit-lake', W, H)
+    g.destroy()
+  }
+
+  // 瀑布（42x180）：一条直着落下的水柱，靠几条竖直亮纹和底部白沫表现流动。
+  private makeWaterfall() {
+    const W = 42
+    const H = 180
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    // 后面一层暗水，给水柱一点厚度
+    g.fillStyle(0x2f5666, 0.4)
+    g.fillRect(10, 0, 22, 174)
+
+    // 上窄下宽的水柱
+    g.fillStyle(0x6fa9bf, 0.92)
+    g.fillPoints([P(12, 0), P(30, 0), P(34, 170), P(8, 170)], true)
+    g.fillStyle(0x9fd3df, 0.92)
+    g.fillPoints([P(15, 0), P(26, 0), P(29, 165), P(12, 165)], true)
+    g.fillStyle(0xd9f3f8, 0.62)
+    g.fillRect(19, 0, 4, 166)
+
+    // 竖直亮纹：长短交错，不是匀速直线
+    for (let i = 0; i < 7; i++) {
+      const x = 10 + ((i * 7) % 22)
+      const y = (i * 23) % 42
+      const h = 32 + ((i * 37) % 72)
+
+      g.fillStyle(0xffffff, 0.18 + (i % 3) * 0.08)
+      g.fillRect(x, y, 2, h)
+    }
+
+    // 底部白沫与两侧水花
+    g.fillStyle(0xcfeef5, 0.35)
+    g.fillEllipse(7, 150, 10, 18)
+    g.fillEllipse(35, 145, 9, 16)
+    g.fillStyle(0xeaf9fc, 0.8)
+    g.fillEllipse(21, 168, 30, 10)
+    g.fillStyle(0xffffff, 0.55)
+    g.fillEllipse(14, 171, 16, 8)
+    g.fillEllipse(28, 172, 14, 7)
+
+    g.generateTexture('waterfall', W, H)
     g.destroy()
   }
 

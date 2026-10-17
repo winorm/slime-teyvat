@@ -2007,6 +2007,7 @@ export class GameScene extends Phaser.Scene {
     })
 
     this.buildMistBands()
+    this.buildSummitLake()
 
     // 古树主干：一条竖着平铺的树皮带，画在前后两层楼梯中间（默认 depth 2）
     if (this.level.trunk) {
@@ -6442,6 +6443,61 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
+  // 山顶湖 + 瀑布（第九关）：湖和湖下的背景岩台都画在坡体后面，
+  // 坡体在前面挡住下半截，只露出湖面、崖肩和中间那段瀑布。
+  private buildSummitLake() {
+    const lake = this.level.summitLake
+
+    if (!lake) {
+      return
+    }
+
+    const width = lake.width ?? 720
+    const baseY = lake.baseY ?? lake.y + 150
+    const left = lake.x - width / 2
+
+    // 湖下的背景岩台：一块矩形，坡体画在它前面，自然裁出崖肩
+    const shelf = this.add.graphics().setDepth(0.95)
+
+    shelf.fillStyle(0x5e5348, 1)
+    shelf.fillRect(left, lake.y, width, baseY - lake.y)
+
+    // 横向岩层
+    for (let i = 0; i < 3; i++) {
+      const bandY = lake.y + 30 + i * 46
+
+      if (bandY > baseY - 10) {
+        break
+      }
+
+      shelf.fillStyle(i % 2 === 0 ? 0x6a5e52 : 0x574c41, 0.65)
+      shelf.fillRect(left, bandY, width, i === 0 ? 10 : 7)
+    }
+
+    // 两道直裂缝
+    shelf.fillStyle(0x453d34, 0.4)
+    shelf.fillRect(left + width * 0.22, lake.y + 18, 3, baseY - lake.y - 18)
+    shelf.fillRect(left + width * 0.71, lake.y + 24, 2, baseY - lake.y - 24)
+
+    // 湖面
+    this.add
+      .image(lake.x, lake.y, 'summit-lake')
+      .setOrigin(0.5, 1)
+      .setDepth(0.96)
+      .setScale(width / 800, 1)
+
+    // 瀑布：从湖的左端落下来，底端会被上坡的坡体挡住，看起来像落在山体后面
+    const fall = this.level.waterfall
+
+    if (fall) {
+      this.add
+        .image(fall.x, fall.y, 'waterfall')
+        .setOrigin(0.5, 0)
+        .setDepth(0.97)
+        .setScale((fall.width ?? 42) / 42, (fall.height ?? 180) / 180)
+    }
+  }
+
   // ── 拱形土坡（2026/10/16）：**走线是一条真的弧** ─────────────────────────────
   // 关卡数据里写 `slopes: [{ x, y, width, rise }]`，顶面高度 y(x) = y + rise × t²
   // （t = (x − 中心) ÷ (跨度 ÷ 2)），中拱最高、两端最低，是一条连续的曲线 —— 不是台阶拼的。
@@ -6472,8 +6528,9 @@ export class GameScene extends Phaser.Scene {
       const t1 = def.tEnd ?? 1
       const x0 = def.x + half * t0
       const x1 = def.x + half * t1
-      // 每 6 像素采一个点，弧面看着就是光滑的（一段弧最多几十个点）
-      const steps = Math.max(8, Math.round(Math.abs(x1 - x0) / 6))
+      // 每 12 像素采一个点：480×270 的像素画里已经看不出折线，
+      // 但顶点数直接少一半 —— 第九关三段长坡，这是最省的一块。
+      const steps = Math.max(8, Math.round(Math.abs(x1 - x0) / 12))
       const surface: Phaser.Math.Vector2[] = []
 
       for (let i = 0; i <= steps; i++) {
@@ -6499,110 +6556,115 @@ export class GameScene extends Phaser.Scene {
         true
       )
 
-      // ①·b 山体正面（2026/10/17）：斜岩层 + 中央冲沟。
-      // 全部画在岩石填色**里面**：上边界跟着坡面 + SOIL，所以不会碰到草带；
-      // 下边界不超过 bottom，坡体收窄的地方自动截断。
+      // ①·b 山体正面（2026/10/17 第二版）：**横向岩层 + 直冲沟**。
+      // 第一版是沿着坡面采样的一条条弧带，每条几百个顶点，Graphics 每帧重画太吃性能；
+      // 现在按世界 y 画几条横带，每条只是一个矩形，坡面以上/以下的部分自然被坡体挡住。
       if (def.frontFace) {
-        const cx = (x0 + x1) / 2
-        const strata = [
-          { off: 54, th: 10, color: 0x8a7c69, alpha: 0.5, tilt: -0.06 },
-          { off: 122, th: 16, color: 0x4a4037, alpha: 0.5, tilt: -0.06 },
-          { off: 198, th: 11, color: 0x8a7c69, alpha: 0.42, tilt: -0.05 },
-          { off: 284, th: 14, color: 0x4a4037, alpha: 0.45, tilt: -0.05 },
-          { off: 378, th: 10, color: 0x8a7c69, alpha: 0.34, tilt: -0.04 },
+        let minSurfaceY = Number.POSITIVE_INFINITY
+
+        for (const p of surface) {
+          minSurfaceY = Math.min(minSurfaceY, p.y)
+        }
+
+        const bands = [
+          { off: 80, th: 10, color: 0x8a7c69, alpha: 0.42 },
+          { off: 170, th: 13, color: 0x4a4037, alpha: 0.45 },
+          { off: 270, th: 10, color: 0x8a7c69, alpha: 0.38 },
+          { off: 380, th: 12, color: 0x4a4037, alpha: 0.4 },
+          { off: 500, th: 10, color: 0x8a7c69, alpha: 0.3 },
         ]
 
-        strata.forEach((band) => {
-          const tops: Phaser.Math.Vector2[] = []
-          const bots: Phaser.Math.Vector2[] = []
+        for (const band of bands) {
+          const bandY = minSurfaceY + band.off
 
-          surface.forEach((p) => {
-            const top = Math.max(p.y + SOIL + 6, p.y + band.off + (p.x - cx) * band.tilt)
-            const bot = top + band.th
+          if (bandY + band.th > bottom - 2) {
+            continue
+          }
 
-            if (bot > bottom - 2) {
-              return
+          let left = Number.POSITIVE_INFINITY
+          let right = Number.NEGATIVE_INFINITY
+
+          // 只在「坡面 + 泥土层」以下的那一段画，不会碰到草带
+          for (const p of surface) {
+            if (p.y + SOIL + 10 <= bandY) {
+              left = Math.min(left, p.x)
+              right = Math.max(right, p.x)
             }
+          }
 
-            tops.push(new Phaser.Math.Vector2(p.x, top))
-            bots.push(new Phaser.Math.Vector2(p.x, bot))
-          })
-
-          if (tops.length < 6) {
-            return
+          if (right - left < 20) {
+            continue
           }
 
           gfx.fillStyle(band.color, band.alpha)
-          gfx.fillPoints([...tops, ...bots.reverse()], true)
+          gfx.fillRect(left, bandY, right - left, band.th)
+          gfx.fillStyle(0x453d34, 0.38)
+          gfx.fillRect(left, bandY + band.th - 1, right - left, 1)
+        }
 
-          // 岩层底边压一条细缝，层次才清楚
-          gfx.lineStyle(1, 0x453d34, 0.35)
+        // 两道直裂缝，也是矩形，不再采样曲线
+        for (let k = 0; k < 2; k++) {
+          const crackX = x0 + (x1 - x0) * (0.3 + k * 0.4)
+          const surfaceY = this.slopeSurfaceAt(def, crackX)
 
-          for (let i = 0; i < tops.length - 1; i++) {
-            gfx.lineBetween(tops[i].x, tops[i].y + band.th, tops[i + 1].x, tops[i + 1].y + band.th)
+          if (surfaceY === null) {
+            continue
           }
-        })
+
+          const topY = surfaceY + SOIL + 18
+
+          if (topY + 40 > bottom) {
+            continue
+          }
+
+          gfx.fillStyle(0x4f453b, 0.3)
+          gfx.fillRect(crackX, topY, 3, bottom - topY)
+        }
 
         const gullyX = def.frontFace.gully
 
-        if (gullyX !== undefined && gullyX > x0 + 16 && gullyX < x1 - 16) {
-          const topHalf = 18
-          const bottomHalf = 32
-          const top: Phaser.Math.Vector2[] = []
+        if (gullyX !== undefined && gullyX > x0 + 20 && gullyX < x1 - 20) {
+          const surfaceY = this.slopeSurfaceAt(def, gullyX)
 
-          for (let x = gullyX - topHalf; x <= gullyX + topHalf; x += 4) {
-            const surfaceY = this.slopeSurfaceAt(def, x)
+          if (surfaceY !== null) {
+            const topY = surfaceY + SOIL + 10
 
-            if (surfaceY === null) {
-              continue
-            }
+            if (topY + 30 < bottom) {
+              // 冲沟：上窄下宽的直梯形，沟口是平的
+              gfx.fillStyle(0x4f453b, 0.6)
+              gfx.fillPoints(
+                [
+                  new Phaser.Math.Vector2(gullyX - 18, topY),
+                  new Phaser.Math.Vector2(gullyX + 18, topY),
+                  new Phaser.Math.Vector2(gullyX + 32, bottom),
+                  new Phaser.Math.Vector2(gullyX - 32, bottom),
+                ],
+                true
+              )
 
-            const topY = surfaceY + SOIL + 8
+              // 靠右一侧给一道受光的岩棱
+              gfx.fillStyle(0x7d6f5f, 0.4)
+              gfx.fillPoints(
+                [
+                  new Phaser.Math.Vector2(gullyX + 10, topY),
+                  new Phaser.Math.Vector2(gullyX + 18, topY),
+                  new Phaser.Math.Vector2(gullyX + 32, bottom),
+                  new Phaser.Math.Vector2(gullyX + 23, bottom),
+                ],
+                true
+              )
 
-            if (topY + 6 >= bottom) {
-              continue
-            }
+              // 两道横向石梁，把直沟打断
+              for (let k = 1; k <= 2; k++) {
+                const ry = topY + k * 110
 
-            top.push(new Phaser.Math.Vector2(x, topY))
-          }
+                if (ry > bottom - 20) {
+                  break
+                }
 
-          if (top.length >= 6) {
-            gfx.fillStyle(0x4f453b, 0.62)
-            gfx.fillPoints(
-              [
-                ...top,
-                new Phaser.Math.Vector2(gullyX + bottomHalf, bottom),
-                new Phaser.Math.Vector2(gullyX - bottomHalf, bottom),
-              ],
-              true
-            )
-
-            // 靠右一侧给一道受光的岩棱
-            const rimTop = top[top.length - 1]
-
-            gfx.fillStyle(0x7d6f5f, 0.42)
-            gfx.fillPoints(
-              [
-                rimTop,
-                new Phaser.Math.Vector2(gullyX + bottomHalf, bottom),
-                new Phaser.Math.Vector2(gullyX + bottomHalf - 9, bottom),
-                new Phaser.Math.Vector2(rimTop.x - 9, rimTop.y + 10),
-              ],
-              true
-            )
-
-            // 沟底再压几块横向的石头，别让它像一条纯黑的口子
-            for (let k = 1; k <= 3; k++) {
-              const ry = top[0].y + k * 90
-
-              if (ry > bottom - 20) {
-                break
+                gfx.fillStyle(0x5e5348, 0.5)
+                gfx.fillRect(gullyX - 14, ry, 28, 4)
               }
-
-              gfx.fillStyle(0x5e5348, 0.55)
-              gfx.fillRect(gullyX - topHalf + 3, ry, topHalf * 2 - 6, 4)
-              gfx.fillStyle(0x7a6c5d, 0.35)
-              gfx.fillRect(gullyX - topHalf + 3, ry, topHalf * 2 - 6, 1)
             }
           }
         }

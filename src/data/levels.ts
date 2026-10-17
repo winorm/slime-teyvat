@@ -272,6 +272,11 @@ export type LevelDef = {
     drift?: number
     duration?: number
   }[]
+  // 山顶湖泊（第九关）：x/y 是湖底中心，width 是湖宽；
+  // baseY 是湖下面那层背景岩台的下沿（坡体画在它前面，只露出坡面以上的一截）。
+  summitLake?: { x: number; y: number; width?: number; baseY?: number }
+  // 瀑布（第九关）：x/y 是出水口中心，height 是往下落多长。
+  waterfall?: { x: number; y: number; height?: number; width?: number }
   revealRails?: RevealRailDef[]            // 带透视的栏杆（玉京台那种：画在玩家前面，靠近时擦洞）
   // 按高度自动切「前层 / 后层」（玉京台那种两层楼梯用）：脚底在这条线**以上**算后层、
   // 以下算前层。走到半层平台就自动翻层，不用踩判定区，来回走也不会翻错
@@ -1288,6 +1293,12 @@ export const LEVELS: LevelDef[] = [
       { x: 1450, y: 860, width: 1400, alpha: 0.55, depth: 1.16, drift: 42, duration: 26000 },
       { x: 1250, y: 1150, width: 1150, alpha: 0.42, depth: 1.16, drift: -36, duration: 32000 },
     ],
+
+    // 山顶湖：摆在 1450~2250，右端接上山顶平台（2200），
+    // 下面用一块背景岩台托住；上坡在它前面，所以只露出坡面以上的崖肩。
+    summitLake: { x: 1850, y: 460, width: 800, baseY: 620 },
+    // 瀑布从湖的左端跌到上坡中段（x=1500，坡面约 595）
+    waterfall: { x: 1500, y: 440, height: 180, width: 42 },
 
     orbs: [],
     // **原石总数还是三颗**（用户 2026/10/17 重申）：这里放两颗（山脚、山顶），
