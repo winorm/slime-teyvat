@@ -5337,28 +5337,70 @@ export class BootScene extends Phaser.Scene {
     g.destroy()
   }
 
-  // ── 琥珀的坐台（56x14）：一块石台，琥珀碎了它留下 ─────────────────────
+  // ── 琥珀的"底"（80x16）：不是工业化的石台，是**原始的一堆泥土和草** ────────
+  //   2026/10/17 用户定：琥珀是天然凝在那儿的，底下是一小堆土、长着草，
+  //   土堆顶上压出一圈浅坑，坑沿留着几片琥珀残渣。琥珀碎了这堆土照样留着。
   private makeAmberStand() {
     const g = this.add.graphics()
 
-    // 下层（宽一圈的底）
-    g.fillStyle(0x4a4038, 1)
-    g.fillRect(2, 8, 52, 6)
-    g.fillStyle(0x5b5046, 1)
-    g.fillRect(2, 8, 52, 2)
-    // 上层（窄一点的台面）
-    g.fillStyle(0x6b5f52, 1)
-    g.fillRect(7, 2, 42, 7)
-    g.fillStyle(0x7d6f60, 1)
-    g.fillRect(7, 2, 42, 2)
-    // 台面上一圈浅浅的凹（琥珀坐进去的地方）+ 两道裂纹
-    g.fillStyle(0x8d7f6d, 0.7)
-    g.fillEllipse(28, 4, 30, 4)
-    g.fillStyle(0x3a322c, 0.6)
-    g.fillRect(14, 5, 1, 4)
-    g.fillRect(40, 4, 1, 5)
+    // 土堆：三个椭圆叠出来的不规则土丘（底下宽、上面收、左右不对称）
+    g.fillStyle(0x4a3a28, 1)
+    g.fillEllipse(40, 13, 78, 12)
+    g.fillStyle(0x5b4730, 1)
+    g.fillEllipse(30, 11, 42, 12)
+    g.fillEllipse(52, 11, 36, 11)
+    g.fillStyle(0x6b5540, 1)
+    g.fillEllipse(28, 9, 28, 8)
+    g.fillEllipse(50, 10, 24, 7)
+    // 土堆顶上被琥珀压出来的一圈浅坑
+    g.fillStyle(0x3a2c1c, 0.45)
+    g.fillEllipse(40, 8, 38, 6)
+    g.fillStyle(0x8a6a1c, 0.5)
+    g.fillEllipse(40, 7, 32, 4)
+    // 琥珀残渣：坑沿几片小金块
+    g.fillStyle(0xe8a33a, 1)
+    g.fillPoints(
+      [
+        new Phaser.Math.Vector2(22, 8),
+        new Phaser.Math.Vector2(27, 6),
+        new Phaser.Math.Vector2(30, 9),
+        new Phaser.Math.Vector2(25, 10),
+      ],
+      true
+    )
+    g.fillPoints(
+      [
+        new Phaser.Math.Vector2(52, 7),
+        new Phaser.Math.Vector2(58, 6),
+        new Phaser.Math.Vector2(59, 9),
+        new Phaser.Math.Vector2(53, 10),
+      ],
+      true
+    )
+    g.fillStyle(0xf6c766, 1)
+    g.fillRect(25, 7, 3, 1)
+    g.fillRect(54, 7, 3, 1)
+    g.fillStyle(0xc9741c, 1)
+    g.fillRect(8, 12, 4, 2)
+    g.fillRect(66, 12, 3, 2)
+    // 草：前坡和两侧各长两撮，深浅两层
+    g.fillStyle(0x5f8a3a, 1)
+    g.fillEllipse(12, 11, 18, 5)
+    g.fillEllipse(64, 11, 20, 5)
+    g.fillEllipse(38, 14, 26, 4)
+    g.fillStyle(0x7fb04a, 1)
+    ;[10, 14, 18, 60, 65, 70, 34, 40, 46].forEach((x, index) => {
+      g.fillRect(x, 6 + (index % 3), 1, 3)
+    })
+    g.fillStyle(0x86bb52, 1)
+    ;[13, 62, 68].forEach((x) => g.fillRect(x, 5, 1, 2))
+    // 几粒石子
+    g.fillStyle(0x7d7266, 1)
+    g.fillRect(6, 13, 2, 1)
+    g.fillRect(44, 13, 2, 1)
+    g.fillRect(72, 12, 2, 1)
 
-    g.generateTexture('amber-stand', 56, 14)
+    g.generateTexture('amber-stand', 80, 16)
     g.destroy()
   }
 
