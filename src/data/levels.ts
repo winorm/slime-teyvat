@@ -1216,9 +1216,9 @@ export const LEVELS: LevelDef[] = [
       { x: 400, y: 1380, width: 800, height: 40, grass: true },
       // F1 平地 / C1 转角 / F2 后层平地 / C2 转角 / 山顶
       { x: 2200, y: 1163, width: 600, height: 6, grass: true, depth: 3 },
-      { x: 3325, y: 1013, width: 250, height: 6, grass: true, depth: 3 },
+      { x: 3380, y: 1013, width: 360, height: 6, grass: true, depth: 3 },
       { x: 2525, y: 813, width: 250, height: 6, grass: true, depth: 1.1, layer: 'back' },
-      { x: 1700, y: 713, width: 200, height: 6, grass: true, depth: 3 },
+      { x: 1650, y: 713, width: 300, height: 6, grass: true, depth: 3 },
       { x: 2200, y: 463, width: 1200, height: 6, grass: true, depth: 3 },
       // 山脚底下：泥土 + 岩石
       { x: 400, y: 1430, width: 800, height: 140, tint: 0x8a6a4a, depth: 1.0 },
@@ -1226,9 +1226,9 @@ export const LEVELS: LevelDef[] = [
       // 平台填色。F2/C2/山顶压到 0.9：它们和最后几跑在 x 上重叠，
       // 如果还画在 1.1 会盖住坡面；0.9 在坡体后面，只露坡面以上的崖身。
       ...platformFill(2200, 600, 1160, 1360, 1.0),
-      ...platformFill(3325, 250, 1010, 1360, 1.02),
+      ...platformFill(3380, 360, 1010, 1360, 1.02),
       ...platformFill(2525, 250, 810, 1360, 0.9),
-      ...platformFill(1700, 200, 710, 1360, 0.9),
+      ...platformFill(1650, 300, 710, 1360, 0.9),
       ...platformFill(2200, 1200, 460, 1360, 0.9),
       // 左右两侧的山肩：只画不挡人，把底座撑宽（0~4400）
       ...platformFill(400, 800, 1200, 1360, 0.9),
@@ -1240,8 +1240,8 @@ export const LEVELS: LevelDef[] = [
     blockers: [
       { x: 1590, y: 360, width: 20, height: 200 }, // 山顶左沿：260~460，连跳/悬浮也翻不过去
       { x: 2810, y: 360, width: 20, height: 200 }, // 山顶右沿
-      { x: 3460, y: 950, width: 20, height: 120 }, // C1 右沿：890~1010
-      { x: 1590, y: 660, width: 20, height: 100 }, // C2 左沿：610~710
+      { x: 3570, y: 950, width: 20, height: 120 }, // C1 右沿：3560~3580
+      { x: 1490, y: 660, width: 20, height: 100 }, // C2 左沿：1480~1500
     ],
 
     // R1 右爬 → F1 平地 → R2 右爬 → C1 转角 → L1 左爬（后层）→
@@ -1299,8 +1299,14 @@ export const LEVELS: LevelDef[] = [
     // 琥珀（2026/10/17）：摆在两块转角平台上，**要用岩柱的岩共鸣震开**。
     // 里面冻的东西不一样：一块是原石，一块是野猪。第三个平台（山顶）留给仙人和小考验
     ambers: [
-      { x: 3325, y: 1010, loot: 'gem', gemIndex: 2 },
-      { x: 1700, y: 710, loot: 'boar' },
+      { x: 3380, y: 1010, loot: 'gem', gemIndex: 2 },
+      { x: 1650, y: 710, loot: 'boar' },
+      {
+        x: 2200,
+        y: 1160,
+        loot: 'npc',
+        text: '琥珀里冻着一个人影……他看了我一眼，就化作一缕烟散了。',
+      },
     ],
 
     // 把新画的素材先堆到这一关看看效果（2026/10/17）。
@@ -1328,8 +1334,8 @@ export const LEVELS: LevelDef[] = [
       // 实体挡板在上面 blockers 里，这些只负责让玩家看出"这里过不去"。
       { x: 1590, y: 460, key: 'summit-peak', flip: true, depth: 1.15 },
       { x: 2810, y: 460, key: 'summit-peak', depth: 1.15 },
-      { x: 3460, y: 1010, key: 'tree-cliff-a', flip: true, scale: 1.8, depth: 1.19 },
-      { x: 1590, y: 710, key: 'boulder-big', scale: 1.2, depth: 1.15 },
+      { x: 3570, y: 1010, key: 'tree-cliff-a', flip: true, scale: 1.8, depth: 1.19 },
+      { x: 1490, y: 710, key: 'boulder-big', scale: 1.2, depth: 1.15 },
       // 岩体里的岩石横截面（旧坐标全部换掉，压深一点，别浮在坡面上）
       { x: 1200, y: 1340, key: 'rock-strata-a', scale: 1.4, depth: 1.16 },
       { x: 3000, y: 1080, key: 'rock-strata-b', scale: 1.4, depth: 1.16 },
