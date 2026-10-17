@@ -27,6 +27,14 @@ import { queueAchievementToast } from '../state/achievements'
 import { touchMode, touchText } from '../state/touch'
 import { getMoveMode } from '../state/settings'
 import { DEV_LEVEL, DEV_LEVEL_MODE } from '../data/devLevel'
+import { DOMAIN_LEVEL } from '../data/domainLevel'
+
+type SceneCheckpoint = { x: number; y: number; element?: ElementKey }
+type GameSceneStartData = {
+  domain?: boolean
+  returnPoint?: SceneCheckpoint
+  checkpoint?: SceneCheckpoint
+}
 
 const HOVER = {
   // 风元素削过一轮（用户按玩家反馈选了 B 档）：升得慢一点、耗得快一点、回得也慢一点
@@ -1335,6 +1343,13 @@ export class GameScene extends Phaser.Scene {
   private towerRestored = false
   // 这一局跑的是不是测试沙盒（?dev=1）：是的话原石和通关记录都不进存档
   private devLevel = false
+  // 隐藏的仙家试炼秘境：不是 LEVELS 里的关卡，只从第九关山顶的仙人进入
+  private startData: GameSceneStartData = {}
+  private domainMode = false
+  private domainHearts = 3
+  private domainHeartText: Phaser.GameObjects.Text | null = null
+  private domainLeaving = false
+  private craneNpc: Phaser.GameObjects.Image | null = null
   // 测试关卡现在待在哪一间：-1 = 大厅，0 起 = 大厅里那排传送门的下标。
   // 初值来自地址上的 ?room=N（见 DEV_START_ROOM），用来直接打开某一间
   private devRoom = DEV_START_ROOM
@@ -1578,26 +1593,39 @@ export class GameScene extends Phaser.Scene {
     super('game')
   }
 
+  init(data: GameSceneStartData = {}) {
+    this.startData = data ?? {}
+  }
+
   create() {
     // 测试沙盒（src/data/devLevel.ts）：只在 DEV_MODE 开着 + 地址带 ?dev=1 时进得来。
     // **这里绝对不要动 progress.levelIndex** —— 死亡界面 DeadScene 会拿它去查
     // `LEVELS[progress.levelIndex].name`，之前图省事塞了个越界下标（LEVELS.length），
     // 结果死亡界面在 create() 里就抛错了、三个按钮根本没建出来（表现就是"死了没法复活"）。
     // 沙盒自己的原石 / 通关记录改用下面这个 devLevel 开关挡住，不碰存档
-    this.devLevel = DEV_LEVEL_MODE
+    this.domainMode = this.startData.domain === true
+    this.domainHearts = 3
+    this.domainHeartText = null
+    this.domainLeaving = false
+    this.craneNpc = null
+    this.devLevel = !this.domainMode && DEV_LEVEL_MODE
     // 测试关卡是「大厅 + 展厅」：devRoom < 0 在大厅，其余去对应那间展厅。
     // 换房间走 scene.restart()，所以 devRoom 是在上一帧就定好的
-    this.level = this.devLevel
-      ? this.devRoom >= 0
-        ? (DEV_ROOMS[this.devRoom]?.level ?? DEV_HUB)
-        : DEV_HUB
-      : LEVELS[progress.levelIndex]
+    this.level = this.domainMode
+      ? DOMAIN_LEVEL
+      : this.devLevel
+        ? this.devRoom >= 0
+          ? (DEV_ROOMS[this.devRoom]?.level ?? DEV_HUB)
+          : DEV_HUB
+        : LEVELS[progress.levelIndex]
 
     // 出生点：正常用关卡自己写的；测试关卡从展厅回大厅时站回刚才那扇门的右边一点
     // （不站门上，起身就不会又提示按 F）；地址上带 ?at=1700 时直接出生在那一列
     let spawnPoint = this.level.spawn
 
-    if (this.devLevel && DEV_SPAWN_X !== null) {
+    if (this.startData.checkpoint) {
+      spawnPoint = { x: this.startData.checkpoint.x, y: this.startData.checkpoint.y }
+    } else if (this.devLevel && DEV_SPAWN_X !== null) {
       spawnPoint = { x: DEV_SPAWN_X, y: 820 }
     } else if (!this.devLevel && DEV_SPAWN_X !== null) {
       // 正式关卡也认 ?at=：调试时想直接站到某一列就用它（出生高度沿用关卡自己的）
@@ -2013,6 +2041,14 @@ export class GameScene extends Phaser.Scene {
 
     this.buildMistBands()
     this.buildSummitLake()
+
+    // 山顶的仙人：白鹤形态的留云借风真君，靠近后进入仙家试炼
+    if (this.level.crane) {
+      this.craneNpc = this.add
+        .image(this.level.crane.x, this.level.crane.y, 'npc-cloud-retainer-crane')
+        .setOrigin(0.5, 1)
+        .setDepth(1.2)
+    }
 
     // 古树主干：一条竖着平铺的树皮带，画在前后两层楼梯中间（默认 depth 2）
     if (this.level.trunk) {
@@ -2768,7 +2804,11 @@ export class GameScene extends Phaser.Scene {
     this.goalSprite = this.physics.add.staticSprite(goal.x, goal.y, goal.kind)
     this.goalSprite.setTint(goalColor)
 
-    this.goalReady = goal.after === undefined
+    this.goalReady = goal.after === undefined && !this.level.goalDisabled
+
+    if (this.level.goalDisabled) {
+      this.goalSprite.setVisible(false)
+    }
 
     if (!this.goalReady) {
       this.goalSprite.setVisible(false).setScale(0)
@@ -3322,8 +3362,18 @@ export class GameScene extends Phaser.Scene {
         ? this.level.statue.grants
         : null
 
+    if (this.domainMode) {
+      progress.current = 'rock'
+    } else if (this.startData.checkpoint?.element) {
+      progress.current = this.startData.checkpoint.element
+    }
+
     this.applyElement(progress.current)
     this.refreshGemHud()
+
+    if (this.domainMode) {
+      this.buildDomainHud()
+    }
 
     // 存档里"小龙已经救出来了"：方碑全亮、四道门全开、笼子空了、宝箱已经在塔中央。
     // 统一放在这儿补，而不是去各个创建处加分支 —— 这时候方碑 / 门 / 笼子 / 宝箱都已经建好了
@@ -3511,6 +3561,10 @@ export class GameScene extends Phaser.Scene {
   // 最后再和存档里的解锁表取交集。所以哪怕存档里已经有岩元素，
   // 回到第一关也切不出来，得按关卡顺序重新把神像摸一遍
   private switchElement(key: ElementKey) {
+    if (this.domainMode) {
+      return
+    }
+
     if (this.inputLocked || key === this.element || !this.availableElements().includes(key)) {
       return
     }
@@ -3521,6 +3575,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private availableElements(): ElementKey[] {
+    if (this.domainMode) {
+      return ELEMENT_ORDER.slice()
+    }
+
     // 测试关卡：不按关卡进度卡元素，解锁过什么就能切什么。
     // 不这么写的话，?dev=1 进来时 progress.levelIndex 还在第一关，
     // 上面那圈只认"前十关发过的元素"，沙盒里就只剩一个"无"能用了
@@ -3883,8 +3941,101 @@ export class GameScene extends Phaser.Scene {
     )
   }
 
+  // 秘境的特殊三心 HUD：不用常规死亡界面，三颗心归零就直接清场回山顶
+  private buildDomainHud() {
+    this.domainHeartText = this.add
+      .text(16, 8, this.domainHeartString(), {
+        fontFamily: 'sans-serif',
+        fontSize: '15px',
+        color: '#e05a5a',
+      })
+      .setScrollFactor(0)
+      .setDepth(HUD_DEPTH)
+
+    this.add
+      .text(16, 25, '仙家试炼', {
+        fontFamily: 'sans-serif',
+        fontSize: '10px',
+        color: '#ffd54f',
+      })
+      .setScrollFactor(0)
+      .setDepth(HUD_DEPTH)
+  }
+
+  private domainHeartString() {
+    return this.domainHearts > 0 ? '♥ '.repeat(this.domainHearts).trim() : '♡'
+  }
+
+  private refreshDomainHearts() {
+    this.domainHeartText?.setText(this.domainHeartString())
+  }
+
+  damageDomain(amount = 1) {
+    if (!this.domainMode || this.domainLeaving) {
+      return
+    }
+
+    this.domainHearts = Math.max(0, this.domainHearts - amount)
+    this.refreshDomainHearts()
+    this.cameras.main.shake(120, 0.005)
+
+    if (this.domainHearts <= 0) {
+      this.failDomain()
+      return
+    }
+
+    this.invulnTimer = 1.2
+    this.showMessage(`仙家试炼：还剩 ${this.domainHearts} 颗心`)
+  }
+
+  private failDomain() {
+    if (this.domainLeaving) {
+      return
+    }
+
+    this.domainLeaving = true
+    this.inputLocked = true
+    this.clearTouchInput()
+
+    const fade = this.add
+      .rectangle(0, 0, 480, 270, 0x0a0a14)
+      .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setDepth(210)
+      .setAlpha(0)
+
+    this.tweens.add({
+      targets: fade,
+      alpha: 1,
+      duration: 280,
+      onComplete: () => {
+        const point = this.startData.returnPoint ?? { x: 1960, y: 446, element: 'rock' as ElementKey }
+        this.scene.restart({ checkpoint: point })
+      },
+    })
+  }
+
+  private enterDomain() {
+    this.scene.restart({
+      domain: true,
+      returnPoint: { x: 1960, y: 446, element: this.element },
+    })
+  }
+
+  private talkToCrane() {
+    this.showDialogue(
+      '留云借风真君',
+      [
+        '凡人，你爬上来了。',
+        '想让我下山帮忙，先过三重仙家试炼。',
+        '秘境之门，开。',
+      ],
+      () => this.enterDomain()
+    )
+  }
+
   private refreshHud() {
-    const unlocked = this.availableElements()
+    const unlocked = this.domainMode ? ELEMENT_ORDER.slice() : this.availableElements()
 
     // 岩元素解锁了、而且「当前就是岩史莱姆」，才显示岩柱 / 岩化两个键
     // （键盘的 C / X 本来也只在岩形态下才响应，按钮跟着一致）
@@ -3925,10 +4076,17 @@ export class GameScene extends Phaser.Scene {
       icon.setVisible(true)
       icon.setPosition(18 + index * 20, 40)
       icon.setTexture(this.textures.exists(iconKey) ? iconKey : 'icon-none')
-      icon.setTint(ELEMENTS[key].color)
-      icon.setAlpha(active ? 1 : 0.4)
 
-      this.elementMarks[index].setPosition(icon.x, icon.y).setVisible(active)
+      if (this.domainMode && key !== 'rock') {
+        // 仙家封印：图标保留，灰掉；点击和 Q/E 都在 switchElement 里挡住
+        icon.setTint(0x555566)
+        icon.setAlpha(0.2)
+        this.elementMarks[index].setVisible(false)
+      } else {
+        icon.setTint(ELEMENTS[key].color)
+        icon.setAlpha(active ? 1 : 0.4)
+        this.elementMarks[index].setPosition(icon.x, icon.y).setVisible(active)
+      }
     })
 
     // 没解锁的位置全部收起来
@@ -3938,6 +4096,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.elementHint.setPosition(14 + unlocked.length * 20, 40)
+    this.elementHint.setText(this.domainMode ? '能力被封印' : this.touchMode ? '切换元素' : 'Q / E 切换元素')
 
     // 键位说明跟着当前能力走：当自己是岩史莱姆时才写 X / C，场上有风系才写长按空格
     if (this.keyLegend) {
@@ -10601,7 +10760,7 @@ export class GameScene extends Phaser.Scene {
     this.touchPillarUp = false
     this.touchJumpJust = false
 
-    if (!this.inputLocked) {
+    if (!this.inputLocked && !this.domainMode) {
       if (prevJust) {
         cycleElement(-1, this.availableElements())
         this.applyElement(progress.current)
@@ -11006,6 +11165,21 @@ export class GameScene extends Phaser.Scene {
           this.statueUsed = true
           this.playStatueScene(statue.grants)
         }
+      }
+    }
+
+    // 山顶的仙人：靠近后对话，进入仙家试炼
+    if (!prompt && this.craneNpc && !this.domainMode) {
+      const distance = Phaser.Math.Distance.Between(
+        this.slime.x,
+        this.slime.y,
+        this.craneNpc.x,
+        this.craneNpc.y
+      )
+
+      if (distance < 76) {
+        prompt = this.interactPrefix() + '对话'
+        action = () => this.talkToCrane()
       }
     }
 

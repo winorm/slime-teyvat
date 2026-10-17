@@ -260,6 +260,10 @@ export type LevelDef = {
   startElement: ElementKey
   spawn: { x: number; y: number }
   goal: GoalDef
+  // 本关不摆通关宝箱（第九关的最终宝箱在秘境里，山顶的占位宝箱要关掉）
+  goalDisabled?: boolean
+  // 山顶的仙人（第九关）：靠近按 F 对话，进入仙家试炼
+  crane?: { x: number; y: number }
   platforms: PlatformDef[]
   // 纯碰撞边缘（不画）：山顶/转角平台的防掉落挡板。
   // 画面由 decor 里的山峰、树、大石块负责，这里只放一个看不见的实体。
@@ -1210,6 +1214,8 @@ export const LEVELS: LevelDef[] = [
     bg: 'mountain',
     cameraBias: 56,
     goal: { x: 2740, y: 446, kind: 'chest', prompt: '打开' },
+    goalDisabled: true,
+    crane: { x: 2050, y: 460 },
 
     platforms: [
       // 山脚 0~800
