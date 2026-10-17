@@ -183,6 +183,7 @@ export class BootScene extends Phaser.Scene {
     this.makeSummitWillow()
     this.makeTeaSet()
     this.makeCliffDetails()
+    this.makeMountainMist()
     this.makeSlimeShadow()
     this.makeTerracePaving()
 
@@ -6938,6 +6939,41 @@ export class BootScene extends Phaser.Scene {
 
     gfx.generateTexture('terrace-paving', 400, 10)
     gfx.destroy()
+  }
+
+  // 山腰的雾带（1200x56）：中间厚、上下和左右两端渐淡。
+  // 先按行铺一条很淡的横带，再用几团更亮的云絮把边缘打碎，
+  // 贴到关卡里时整体 alpha 再压一次，只当"空气"，不挡路。
+  private makeMountainMist() {
+    const W = 1200
+    const H = 56
+    const g = this.add.graphics()
+
+    for (let y = 0; y < H; y++) {
+      const vertical = Math.sin((y / (H - 1)) * Math.PI)
+
+      for (let x = 0; x < W; x += 8) {
+        const edge = Math.min(1, x / 90, (W - 1 - x) / 90)
+        const wave = 0.82 + 0.18 * Math.sin(x * 0.011 + y * 0.13)
+
+        g.fillStyle(0xdbe6ea, vertical * edge * wave * 0.16)
+        g.fillRect(x, y, 8, 1)
+      }
+    }
+
+    let seed = 17
+    const rnd = () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0
+      return seed / 4294967296
+    }
+
+    for (let i = 0; i < 18; i++) {
+      g.fillStyle(0xf2f7f9, 0.022 + rnd() * 0.022)
+      g.fillEllipse(40 + rnd() * (W - 80), 16 + rnd() * 24, 90 + rnd() * 160, 10 + rnd() * 12)
+    }
+
+    g.generateTexture('mountain-mist', W, H)
+    g.destroy()
   }
 
   // 脚下的接地影：一个软椭圆。2D 里玩家只站在一条线上，

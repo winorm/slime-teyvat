@@ -113,6 +113,10 @@ export type SlopeDef = {
   //           盘山道每一跑都用这个：进坡、出坡都不硌脚，中段最陡也不会超过 45 度左右。
   // 两种形状用的是同一套参数：t 从 tStart 走到 tEnd，tEnd 那一端永远是最高的（y 最小）
   mode?: 'arch' | 'ramp'
+  // 山体正面的装饰（第九关）：斜岩层 + 一条竖向冲沟。
+  // 这些细节画在坡体的岩石填色**里面**，不会盖到草带和走面。
+  //   gully —— 冲沟中心的世界 x（不写就只画岩层）
+  frontFace?: { gully?: number }
 }
 
 // 带透视的栏杆：画在玩家前面（depth 12），玩家走到它后面时在它身上擦一个洞，
@@ -257,6 +261,17 @@ export type LevelDef = {
   platforms: PlatformDef[]
   stairs?: StairDef[]
   slopes?: SlopeDef[]                      // 拱形土坡：走线是弧的一段地面（第九关的"爬山"要用）
+  // 山腰的雾带（第九关）：世界坐标里的一条横向薄雾，缓慢左右飘。
+  //   x/y 是中心点；width 不写就用贴图原宽；drift 是左右飘的幅度
+  mistBands?: {
+    x: number
+    y: number
+    width?: number
+    alpha?: number
+    depth?: number
+    drift?: number
+    duration?: number
+  }[]
   revealRails?: RevealRailDef[]            // 带透视的栏杆（玉京台那种：画在玩家前面，靠近时擦洞）
   // 按高度自动切「前层 / 后层」（玉京台那种两层楼梯用）：脚底在这条线**以上**算后层、
   // 以下算前层。走到半层平台就自动翻层，不用踩判定区，来回走也不会翻错
@@ -1247,13 +1262,13 @@ export const LEVELS: LevelDef[] = [
     // 三段的 depth 全压在 1.2 以下：人走到后层的深是 1.2，比它大就会把人盖掉
     slopes: [
       // 下跑：x 400（地面对面）→ 1900（转角平台 1 的左沿），顶面 1060
-      { x: 1900, y: 1060, width: 3000, rise: 300, tStart: -1, tEnd: 0, mode: 'ramp', grass: true, depthTo: 1360, depth: 1.15 },
+      { x: 1900, y: 1060, width: 3000, rise: 300, tStart: -1, tEnd: 0, mode: 'ramp', grass: true, depthTo: 1360, depth: 1.15, frontFace: { gully: 1450 } },
       // 中跑：x 1900（转角平台 1 的**左沿**，和下跑顶点同一点）→ 700（转角平台 2 的左沿）。
       // 起点必须落在这块平台的左沿上：平台是个"掉头的湾"（1900~2200），人走到湾里再往回走，
       // 回到 1900 这一点才踏上中跑 —— 要是从 2200 起坡，人在湾里就已经比坡面低十几像素、踏不上去
-      { x: 700, y: 760, width: 2400, rise: 300, tStart: 1, tEnd: 0, mode: 'ramp', grass: true, layer: 'back', depthTo: 1360, depth: 1.1 },
+      { x: 700, y: 760, width: 2400, rise: 300, tStart: 1, tEnd: 0, mode: 'ramp', grass: true, layer: 'back', depthTo: 1360, depth: 1.1, frontFace: { gully: 1450 } },
       // 上跑：x 700（转角平台 2 的右沿）→ 2200（山顶大平台的左沿），顶面 460
-      { x: 2200, y: 460, width: 3000, rise: 300, tStart: -1, tEnd: 0, mode: 'ramp', grass: true, depthTo: 1360, depth: 1.05 },
+      { x: 2200, y: 460, width: 3000, rise: 300, tStart: -1, tEnd: 0, mode: 'ramp', grass: true, depthTo: 1360, depth: 1.05, frontFace: { gully: 1450 } },
     ],
 
     // 拐角的两道翻层判定区（和第七关那棵树、玉京台折返楼梯同一套）：
@@ -1265,6 +1280,13 @@ export const LEVELS: LevelDef[] = [
       { x: 1955, y: 1047, width: 110, height: 40, dir: -1 },
       // 转角平台 2：上跑从 700 起坡，判定区就贴在 700 这一端
       { x: 645, y: 747, width: 110, height: 40, dir: 1 },
+    ],
+
+    // 正面那两条雾带（2026/10/17）：横着慢慢飘，压在坡体之上、崖壁和人物之下。
+    // 一条在山腰，一条在下半段，把大片同色的岩面分成几层。
+    mistBands: [
+      { x: 1450, y: 860, width: 1400, alpha: 0.55, depth: 1.16, drift: 42, duration: 26000 },
+      { x: 1250, y: 1150, width: 1150, alpha: 0.42, depth: 1.16, drift: -36, duration: 32000 },
     ],
 
     orbs: [],
