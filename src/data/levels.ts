@@ -276,6 +276,7 @@ export type LevelDef = {
   blessingEndX?: number
   hazards: HazardDef[]
   monuments: MonumentDef[]
+  ambers?: AmberDef[]                      // 琥珀：岩共鸣才震得开的互动造物
   doors?: DoorDef[]
   notes?: NoteDef[]
   spire?: { x: number; y: number; radius: number }
@@ -323,6 +324,16 @@ export type LevelDef = {
 export type HazardDef = {
   x: number
   gapY: number
+}
+
+// 琥珀（2026/10/17 用户设计的互动造物）：摆在转角平台上的一坨金色树脂，里面冻着东西。
+// **只能用岩柱的「岩共鸣」震开**（岩柱站着的时候，脚下会一圈圈往外散金色光圈），
+// 敲开以后里面的东西就出来了：原石 / 野猪 / 人。
+export type AmberDef = {
+  x: number
+  y: number                                  // 底面那条线（贴地摆）
+  loot?: 'gem' | 'boar' | 'npc'              // 里面冻着什么（不写＝gem）
+  text?: string                              // npc 那一句
 }
 
 export type MonumentDef = {
@@ -1241,6 +1252,12 @@ export const LEVELS: LevelDef[] = [
     blessings: [],
     hazards: [],
     monuments: [],
+    // 琥珀（2026/10/17）：摆在两块转角平台上，**要用岩柱的岩共鸣震开**。
+    // 里面冻的东西不一样：一块是原石，一块是野猪。第三个平台（山顶）留给仙人和小考验
+    ambers: [
+      { x: 2120, y: 1060, loot: 'gem' },
+      { x: 470, y: 760, loot: 'boar' },
+    ],
 
     hints: [
       { x: 150, y: 1285, text: '往山上走，仙人住在山顶' },

@@ -11,6 +11,7 @@ import {
   type MonsterDef,
   type StairDef,
   type SlopeDef,
+  type AmberDef,
 } from '../data/levels'
 import {
   progress,
@@ -1258,6 +1259,13 @@ export class GameScene extends Phaser.Scene {
   private slopePrevFeet = 0
   // 柱脚常驻的那一圈泥（跟着柱子一起消失）
   private pillarFoot: Phaser.GameObjects.Graphics | null = null
+  // ── 琥珀 + 岩共鸣（2026/10/17）────────────────────────────────────
+  // 琥珀摆在转角平台上，里头冻着原石 / 野猪 / 人；**只有岩柱的岩共鸣震得开**。
+  // 岩柱站着的时候，脚下每隔一会儿就往外扩一圈金色光圈，光圈扫到谁就算"共鸣到"谁。
+  private ambers: { sprite: Phaser.GameObjects.Image; def: AmberDef; broken: boolean }[] = []
+  private resonanceGfx: Phaser.GameObjects.Graphics | null = null
+  private resonanceTimer = 0
+  private resonanceRings: { x: number; y: number; r: number }[] = []
   private stairCamTime = 0
 
   private element: ElementKey = 'none'
@@ -2620,6 +2628,7 @@ export class GameScene extends Phaser.Scene {
         Number.NEGATIVE_INFINITY
       )
     )
+    this.buildAmbers()
     this.buildRevealRails()
     this.buildStairPadBodies()
 
@@ -6462,6 +6471,174 @@ export class GameScene extends Phaser.Scene {
     return def.y + def.rise * t * t
   }
 
+  // ── 琥珀 ──────────────────────────────────────────────────────────
+  // 摆在转角平台上，**只有岩柱的岩共鸣震得开**。里头的原石 / 野猪 / 人，
+  // 敲开之前谁都不知道是什么 —— 这是用户 2026/10/17 设计的互动造物。
+  private buildAmbers() {
+    this.ambers = []
+
+    ;(this.level.ambers ?? []).forEach((def) => {
+      const sprite = this.add
+        .image(def.x, def.y - 15, 'amber')
+        .setDepth(5)
+        .setOrigin(0.5, 0.5)
+
+      // 琥珀沉一点，给它一个很慢的呼吸（别晃太狠，像里面的东西在动）
+      this.tweens.add({
+        targets: sprite,
+        scaleX: 1.04,
+        scaleY: 0.97,
+        duration: 1400,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      })
+
+      this.ambers.push({ sprite, def, broken: false })
+    })
+  }
+
+  // 敲开琥珀：碎几片琥珀、把里面的东西放出来
+  private breakAmber(amber: { sprite: Phaser.GameObjects.Image; def: AmberDef; broken: boolean }) {
+    if (amber.broken) {
+      return
+    }
+
+    amber.broken = true
+    const { x, y } = amber.sprite
+
+    // 碎屑：几片琥珀往两边飞、边飞边淡
+    for (let index = 0; index < 6; index++) {
+      const dir = index % 2 === 0 ? 1 : -1
+      const shard = this.add
+        .image(x + dir * 4, y, 'pixel')
+        .setDisplaySize(3 + (index % 3), 3)
+        .setTint(index % 2 === 0 ? 0xf0a83c : 0xc9741c)
+        .setDepth(9)
+
+      this.tweens.add({
+        targets: shard,
+        x: x + dir * (14 + index * 4),
+        y: y - 16 - index * 3,
+        angle: dir * 180,
+        alpha: 0,
+        duration: 420,
+        ease: 'Quad.easeOut',
+        onComplete: () => shard.destroy(),
+      })
+    }
+
+    playSfx(this, 'sfx-interact', 0.4, 0.8)
+    amber.sprite.destroy()
+
+    const loot = amber.def.loot ?? 'gem'
+
+    if (loot === 'gem') {
+      // 一颗"额外的"原石：index 用一个空位，捡了会亮 HUD、也算进这一关的收集
+      const gem = this.gems.create(x, y + 2, 'gem') as Phaser.Physics.Arcade.Sprite
+      gem.setTint(0x6ec6ff)
+      gem.setData('index', 90 + this.ambers.indexOf(amber))
+      gem.setData('layer', null)
+      gem.setDepth(5)
+      this.showMessage('琥珀里冻着一颗原石！')
+      return
+    }
+
+    if (loot === 'boar') {
+      const boar = this.add.image(x, y + 8, 'amber-boar').setDepth(6)
+      this.showMessage('琥珀里居然冻着一头野猪……它醒了，跑了。')
+      this.tweens.add({
+        targets: boar,
+        x: x + 140,
+        y: y - 6,
+        duration: 1100,
+        ease: 'Quad.easeOut',
+        onUpdate: (tween) => boar.setY(y + 8 - Math.abs(Math.sin(tween.progress * Math.PI * 3)) * 10),
+        onComplete: () => boar.destroy(),
+      })
+      return
+    }
+
+    // 人：从琥珀里出来，说一句话就消失（用现成的小跟班贴图，省得再画一个）
+    const npc = this.add.image(x, y + 8, 'npc-attendant').setDepth(6)
+    this.tweens.add({ targets: npc, y: y - 6, duration: 380, ease: 'Back.easeOut' })
+    this.showMessage(amber.def.text ?? '琥珀里冻着一个人……他道了声谢就走了。')
+    this.time.delayedCall(2200, () => {
+      this.tweens.add({ targets: npc, alpha: 0, y: y - 14, duration: 400, onComplete: () => npc.destroy() })
+    })
+  }
+
+  // ── 岩共鸣 ────────────────────────────────────────────────────────
+  // 岩柱还站着的时候，脚下每隔 0.55 秒往外扩一圈金色光圈（画成压扁的椭圆，像贴在地上），
+  // 光圈扫到琥珀就把它震开、扫到**岩**方碑就把碑点亮。半径 170，和岩柱的落点距离同一个量级。
+  private updateResonance(dt: number) {
+    if (!this.resonanceGfx) {
+      this.resonanceGfx = this.add.graphics().setDepth(7.5)
+    }
+
+    const pillar = this.rockPillar
+    const alive = pillar !== null && pillar.active
+
+    if (alive) {
+      this.resonanceTimer -= dt
+
+      if (this.resonanceTimer <= 0) {
+        this.resonanceTimer = 0.55
+        const body = pillar.body as Phaser.Physics.Arcade.StaticBody
+        this.resonanceRings.push({ x: pillar.x, y: body.bottom, r: 0 })
+      }
+    }
+
+    // 光圈往外扩（0.7 秒扩到 175），边扩边淡
+    this.resonanceRings = this.resonanceRings.filter((ring) => {
+      ring.r += 250 * dt
+      return ring.r < 190
+    })
+
+    const gfx = this.resonanceGfx
+    gfx.clear()
+
+    this.resonanceRings.forEach((ring) => {
+      const alpha = Phaser.Math.Clamp(1 - ring.r / 190, 0, 1) * 0.75
+
+      // 画成 1:3.4 的扁椭圆 —— 就是"贴在地面上的一圈金色光圈"
+      gfx.lineStyle(2, 0xf0c24a, alpha)
+      gfx.strokeEllipse(ring.x, ring.y - 2, ring.r * 2, ring.r * 0.6)
+
+      // **每一帧都要判**：光圈是从 0 一点点扩出去的，东西在哪个距离上，就得等那一圈扫到它。
+      // 只看出生那一帧的话，光圈半径还不到 5 像素，什么都扫不到
+      const outer = ring.r + 12
+      const inner = ring.r - 250 * dt - 12
+
+      // 琥珀：距离落在这一帧扫过的那一段里就震开
+      this.ambers.forEach((amber) => {
+        if (amber.broken) {
+          return
+        }
+
+        const distance = Math.hypot(amber.sprite.x - ring.x, amber.sprite.y - ring.y)
+
+        if (distance <= outer && distance >= inner) {
+          this.breakAmber(amber)
+        }
+      })
+
+      // 岩方碑：扫到就点亮（只认岩属性的碑，别的元素留给别的玩法）
+      this.monumentList.forEach((monument) => {
+        if (monument.lit || monument.element !== 'rock') {
+          return
+        }
+
+        const distance = Math.hypot(monument.pillar.x - ring.x, monument.pillar.y - ring.y)
+
+        if (distance <= outer && distance >= inner) {
+          this.lightMonument(monument)
+          playSfx(this, 'sfx-interact', 0.35, 1.1)
+        }
+      })
+    })
+  }
+
   // 每帧的贴地：人在弧的 x 范围内、脚底贴着弧面，就把脚底按到曲线上。
   // 三种情况不接管 —— 正在往上飞（起跳 / 被顶）、脚底离面太远（比如从高处掉下来）、
   // 输入被锁（演出 / 雷闪瞄准，那两种自己管重力）。
@@ -10283,6 +10460,8 @@ export class GameScene extends Phaser.Scene {
     const element = ELEMENTS[this.element]
     // 拱形土坡：这一段走线是弧，先按曲线把脚底接管掉，再算"算不算站在地上"
     this.updateSlopes(body)
+    // 岩共鸣：岩柱还在的时候，脚下一直往外散金色光圈，扫到琥珀 / 岩方碑就算激活
+    this.updateResonance(dt)
     // 自动上台阶的那几帧人在空中，但动画和音效要按「还在走路」算，
     // 不然每上一级都会当成一次落地：压缩一下、放一声落地音，比抖还难看
     const onGround = body.blocked.down || this.stepRise > 0 || this.slopeGrip

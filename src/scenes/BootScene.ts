@@ -171,6 +171,8 @@ export class BootScene extends Phaser.Scene {
     this.makeTerraceCenser()
     this.makeRiteProps()
     this.makeCloudRetainerCrane()
+    this.makeAmber()
+    this.makeAmberBoar()
     this.makeSlimeShadow()
     this.makeTerracePaving()
 
@@ -5294,6 +5296,80 @@ export class BootScene extends Phaser.Scene {
   //   —— 就是垂在尾巴后面那一束，很多人会当成尾巴。
   //   配色（2026/10/15 用户定）：**脖子以上不动，还是原来那套白的**（白脖子、白头、
   //   深色长喙、朱红头冠）；只有**身子改成青白**。脸朝右，和其他 NPC 一致。
+  // ── 琥珀（26x30）：转角平台上那坨金色树脂，里头冻着一点东西 ─────────────
+  //   岩柱的岩共鸣震开它（GameScene.updateResonance）
+  private makeAmber() {
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    // 深色轮廓
+    g.fillStyle(0x5a3210, 1)
+    g.fillEllipse(13, 17, 26, 28)
+    // 主体：深琥珀 → 亮琥珀，右下压深一档
+    g.fillStyle(0xd98a24, 1)
+    g.fillEllipse(13, 17, 22, 25)
+    g.fillStyle(0xf0a83c, 1)
+    g.fillPoints([P(3, 20), P(13, 4), P(23, 20), P(13, 29)], true)
+    g.fillStyle(0xc9741c, 1)
+    g.fillEllipse(16, 22, 12, 10)
+    // 高光
+    g.fillStyle(0xffe0a0, 0.9)
+    g.fillEllipse(8, 10, 5, 7)
+    g.fillStyle(0xfff2cc, 0.8)
+    g.fillCircle(7, 8, 1.6)
+    // 里面冻着的小虫（一眼能看出"里面有东西"）
+    g.fillStyle(0x3a2410, 0.85)
+    g.fillEllipse(14, 19, 5, 3)
+    g.fillRect(11, 18, 1, 3)
+    g.fillRect(16, 18, 1, 3)
+    g.fillRect(13, 21, 3, 1)
+    // 底下一道接地暗影
+    g.fillStyle(0x3a2410, 0.35)
+    g.fillEllipse(13, 30, 20, 3)
+
+    g.generateTexture('amber', 26, 30)
+    g.destroy()
+  }
+
+  // ── 琥珀里的野猪（26x18）：圆滚滚一头，短腿、獠牙、背上一排硬毛 ──────────
+  private makeAmberBoar() {
+    const g = this.add.graphics()
+
+    // 腿
+    g.fillStyle(0x3a2a1c, 1)
+    g.fillRect(6, 13, 2, 4)
+    g.fillRect(11, 14, 2, 3)
+    g.fillRect(17, 14, 2, 3)
+    g.fillRect(21, 13, 2, 4)
+    // 身子
+    g.fillStyle(0x4b3624, 1)
+    g.fillEllipse(14, 9, 22, 13)
+    g.fillStyle(0x5d4530, 1)
+    g.fillEllipse(13, 7, 18, 9)
+    // 头（朝左）
+    g.fillStyle(0x3a2a1c, 1)
+    g.fillEllipse(4, 9, 8, 8)
+    g.fillStyle(0x6b5238, 1)
+    g.fillEllipse(3, 10, 6, 5)
+    // 獠牙
+    g.fillStyle(0xf2e6c8, 1)
+    g.fillTriangle(1, 9, 2, 9, 0, 5)
+    g.fillTriangle(5, 10, 6, 10, 7, 13)
+    // 背毛
+    g.fillStyle(0x2c2016, 1)
+    for (let x = 7; x < 24; x += 3) {
+      g.fillTriangle(x, 3, x + 2, 3, x + 1, 0)
+    }
+    // 眼睛
+    g.fillStyle(0xf2e6c8, 1)
+    g.fillCircle(4, 8, 1.3)
+    g.fillStyle(0x1a140e, 1)
+    g.fillCircle(4, 8, 0.7)
+
+    g.generateTexture('amber-boar', 26, 18)
+    g.destroy()
+  }
+
   private makeCloudRetainerCrane() {
     // 配色（2026/10/15 用户定）：**脖子以上一个字不改，全用回原来那套**；只把**身子**换成青白。
     //   青白 = 白里带一层淡青，所以身子比原来的纯白略沉一档，下腹的暗面也跟着压青
