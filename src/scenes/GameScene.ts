@@ -3615,7 +3615,7 @@ export class GameScene extends Phaser.Scene {
 
   private availableElements(): ElementKey[] {
     if (this.domainMode) {
-      return ELEMENT_ORDER.slice()
+      return ELEMENT_ORDER.slice(0, ELEMENT_ORDER.indexOf('rock') + 1)
     }
 
     // 测试关卡：不按关卡进度卡元素，解锁过什么就能切什么。
@@ -4111,7 +4111,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private refreshHud() {
-    const unlocked = this.domainMode ? ELEMENT_ORDER.slice() : this.availableElements()
+    // 秘境只显示「无 / 风 / 岩」：无和风灰掉，岩后面的元素直接不显示
+    const unlocked = this.domainMode
+      ? ELEMENT_ORDER.slice(0, ELEMENT_ORDER.indexOf('rock') + 1)
+      : this.availableElements()
 
     // 岩元素解锁了、而且「当前就是岩史莱姆」，才显示岩柱 / 岩化两个键
     // （键盘的 C / X 本来也只在岩形态下才响应，按钮跟着一致）
