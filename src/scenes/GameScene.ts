@@ -1351,6 +1351,20 @@ export class GameScene extends Phaser.Scene {
   private domainHeartText: Phaser.GameObjects.Text | null = null
   private domainLeaving = false
   private craneNpc: Phaser.GameObjects.Image | null = null
+  // 第一重试炼：浮石 / 安全台 / 仙家符箓
+  private trialStoneGroup!: Phaser.Physics.Arcade.StaticGroup
+  private trialStones: {
+    sprite: Phaser.Physics.Arcade.Sprite
+    section: number
+    triggered: boolean
+    hideAt?: number
+  }[] = []
+  private trialCheckpoints: { x: number; y: number; index: number }[] = []
+  private trialSection = 0
+  private trialArmed = false
+  private trialResetLock = 0
+  private trialArtifact: Phaser.GameObjects.Image | null = null
+  private trialOneDone = false
   // 测试关卡现在待在哪一间：-1 = 大厅，0 起 = 大厅里那排传送门的下标。
   // 初值来自地址上的 ?room=N（见 DEV_START_ROOM），用来直接打开某一间
   private devRoom = DEV_START_ROOM
@@ -1613,6 +1627,13 @@ export class GameScene extends Phaser.Scene {
     this.domainHeartText = null
     this.domainLeaving = false
     this.craneNpc = null
+    this.trialStones = []
+    this.trialCheckpoints = []
+    this.trialSection = 0
+    this.trialArmed = false
+    this.trialResetLock = 0
+    this.trialArtifact = null
+    this.trialOneDone = false
     this.devLevel = !this.domainMode && DEV_LEVEL_MODE
     // 测试关卡是「大厅 + 展厅」：devRoom < 0 在大厅，其余去对应那间展厅。
     // 换房间走 scene.restart()，所以 devRoom 是在上一帧就定好的
@@ -2928,6 +2949,10 @@ export class GameScene extends Phaser.Scene {
 
     this.physics.add.collider(this.slime, this.blockers)
 
+    if (this.domainMode) {
+      this.buildTrialOne()
+    }
+
     this.physics.add.overlap(this.slime, this.orbs, (_slime, orb) => {
       const orbSprite = orb as Phaser.Physics.Arcade.Sprite
       this.absorb(orbSprite.getData('element') as ElementKey)
@@ -3955,20 +3980,22 @@ export class GameScene extends Phaser.Scene {
   // 秘境的特殊三心 HUD：不用常规死亡界面，三颗心归零就直接清场回山顶
   private buildDomainHud() {
     this.domainHeartText = this.add
-      .text(16, 8, this.domainHeartString(), {
+      .text(240, 8, this.domainHeartString(), {
         fontFamily: 'sans-serif',
         fontSize: '15px',
         color: '#e05a5a',
       })
+      .setOrigin(0.5, 0)
       .setScrollFactor(0)
       .setDepth(HUD_DEPTH)
 
     this.add
-      .text(16, 25, '仙家试炼', {
+      .text(240, 27, '仙家试炼', {
         fontFamily: 'sans-serif',
         fontSize: '10px',
         color: '#ffd54f',
       })
+      .setOrigin(0.5, 0)
       .setScrollFactor(0)
       .setDepth(HUD_DEPTH)
   }
@@ -6990,6 +7017,234 @@ export class GameScene extends Phaser.Scene {
         ?.setText(`疾风加速 ${Math.ceil(this.speedBoostTimer)}s`)
         .setVisible(true)
       break
+    }
+  }
+
+  // 第一重试炼：浮石、分段安全台、顶部仙家符箓
+  private buildTrialOne() {
+    const def = this.level.trialOne
+
+    if (!def) {
+      return
+    }
+
+    this.trialStoneGroup = this.physics.add.staticGroup()
+    this.trialCheckpoints = []
+    this.trialStones = []
+
+    def.checkpoints.forEach((cp, index) => {
+      const platform = this.platforms.create(cp.x, cp.y + 3, 'pixel') as Phaser.Physics.Arcade.Sprite
+
+      platform.setDisplaySize(120, 6)
+      platform.setTint(0x8a7c69)
+      platform.refreshBody()
+      platform.setDepth(3)
+
+      this.trialCheckpoints.push({ x: cp.x, y: cp.y, index: index + 1 })
+      this.add
+        .image(cp.x, cp.y + 8, 'cloud-puff')
+        .setScale(0.55)
+        .setAlpha(0.55)
+        .setDepth(2.9)
+    })
+
+    def.stones.forEach((st) => {
+      const sprite = this.trialStoneGroup.create(st.x, st.y + 4, 'pixel') as Phaser.Physics.Arcade.Sprite
+
+      sprite.setDisplaySize(46, 8)
+      sprite.setTint(0x8a7c69)
+      sprite.refreshBody()
+      sprite.setDepth(3)
+
+      const body = sprite.body as Phaser.Physics.Arcade.StaticBody
+      body.checkCollision.down = false
+      body.checkCollision.left = false
+      body.checkCollision.right = false
+
+      this.trialStones.push({ sprite, section: st.section, triggered: false })
+      this.add
+        .image(st.x, st.y + 9, 'cloud-puff')
+        .setScale(0.38)
+        .setAlpha(0.45)
+        .setDepth(2.8)
+    })
+
+    this.physics.add.collider(this.slime, this.trialStoneGroup, (_slime, stone) => {
+      const record = this.trialStones.find((item) => item.sprite === stone)
+
+      if (record) {
+        this.trialArmed = true
+        this.triggerTrialStone(record)
+      }
+    })
+
+    this.trialArtifact = this.add
+      .image(def.artifact.x, def.artifact.y, 'trial-talisman')
+      .setOrigin(0.5, 1)
+      .setDepth(6)
+
+    const baseY = this.trialArtifact.y
+
+    this.tweens.add({
+      targets: this.trialArtifact,
+      y: baseY - 4,
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    const glow = this.add
+      .image(def.artifact.x, baseY - 14, 'pixel')
+      .setDisplaySize(26, 26)
+      .setTint(0xffd54f)
+      .setAlpha(0.18)
+      .setDepth(5.9)
+
+    this.tweens.add({
+      targets: glow,
+      alpha: 0.35,
+      scaleX: 1.3,
+      scaleY: 1.3,
+      duration: 900,
+      yoyo: true,
+      repeat: -1,
+    })
+  }
+
+  private triggerTrialStone(record: {
+    sprite: Phaser.Physics.Arcade.Sprite
+    triggered: boolean
+    hideAt?: number
+  }) {
+    if (record.triggered) {
+      return
+    }
+
+    record.triggered = true
+    record.hideAt = this.time.now + 900
+
+    this.tweens.add({
+      targets: record.sprite,
+      alpha: 0.45,
+      duration: 160,
+      yoyo: true,
+      repeat: 2,
+    })
+  }
+
+  private resetTrialStones() {
+    this.trialStones.forEach((record) => {
+      record.triggered = false
+      record.hideAt = undefined
+      record.sprite.setVisible(true).setAlpha(1)
+      ;(record.sprite.body as Phaser.Physics.Arcade.StaticBody).enable = true
+    })
+  }
+
+  private updateTrialStones() {
+    this.trialStones.forEach((record) => {
+      if (!record.triggered || record.hideAt === undefined || this.time.now < record.hideAt) {
+        return
+      }
+
+      record.hideAt = undefined
+      record.sprite.setVisible(false).setAlpha(1)
+      ;(record.sprite.body as Phaser.Physics.Arcade.StaticBody).enable = false
+    })
+  }
+
+  private failTrialSection() {
+    if (this.trialResetLock > 0 || this.domainLeaving) {
+      return
+    }
+
+    const starts = [
+      { x: 320, y: 800 },
+      { x: 600, y: 620 },
+      { x: 360, y: 440 },
+    ]
+    const start = starts[this.trialSection] ?? starts[0]
+
+    this.trialResetLock = 0.9
+    this.damageDomain(1)
+
+    if (this.domainLeaving) {
+      return
+    }
+
+    this.resetTrialStones()
+
+    const body = this.slime.body as Phaser.Physics.Arcade.Body
+    body.reset(start.x, start.y - body.height / 2)
+    this.slime.setVelocity(0, 0)
+    this.trialArmed = false
+    this.cameras.main.flash(160, 180, 220, 255)
+  }
+
+  private updateTrialOne(dt: number) {
+    if (!this.domainMode || !this.level.trialOne || this.trialOneDone) {
+      return
+    }
+
+    const body = this.slime.body as Phaser.Physics.Arcade.Body
+
+    if (this.trialResetLock > 0) {
+      this.trialResetLock = Math.max(0, this.trialResetLock - dt)
+    }
+
+    if (body.blocked.down) {
+      for (const cp of this.trialCheckpoints) {
+        if (Math.abs(body.bottom - cp.y) < 4 && Math.abs(this.slime.x - cp.x) < 80 && cp.index > this.trialSection) {
+          this.trialSection = cp.index
+          this.trialArmed = false
+        }
+      }
+    }
+
+    if (this.trialArtifact) {
+      const distance = Phaser.Math.Distance.Between(
+        this.slime.x,
+        this.slime.y,
+        this.trialArtifact.x,
+        this.trialArtifact.y - 16
+      )
+
+      if (distance < 36) {
+        this.trialOneDone = true
+        this.trialArtifact.destroy()
+        this.trialArtifact = null
+        playSfx(this, 'sfx-gem', 0.6)
+        this.cameras.main.flash(220, 255, 230, 150)
+        this.showMessage('第一重试炼通过：获得仙家符箓')
+        return
+      }
+    }
+
+    if (this.trialResetLock > 0) {
+      return
+    }
+
+    if (this.trialSection < 3 && !this.trialArmed) {
+      // 站在段首安全台上不算失败；真正跳离段首之后才开始判掉落
+      const startsY = [800, 620, 440]
+
+      if (body.bottom < startsY[this.trialSection] - 20) {
+        this.trialArmed = true
+      } else {
+        return
+      }
+    }
+
+    const startsY = [800, 620, 440]
+
+    if (
+      this.trialSection < 3 &&
+      this.trialArmed &&
+      body.blocked.down &&
+      body.bottom >= startsY[this.trialSection] - 2
+    ) {
+      this.failTrialSection()
     }
   }
 
@@ -11120,6 +11375,11 @@ export class GameScene extends Phaser.Scene {
     this.updateResonance(dt)
     // 跳砸琥珀：普通跳 / 岩化跳砸都能震碎，不依赖岩柱
     this.updateAmberStomp()
+    // 秘境第一重试炼：分段安全台、浮石消失、掉段扣心
+    if (this.domainMode) {
+      this.updateTrialStones()
+      this.updateTrialOne(dt)
+    }
     // 自动上台阶的那几帧人在空中，但动画和音效要按「还在走路」算，
     // 不然每上一级都会当成一次落地：压缩一下、放一声落地音，比抖还难看
     const onGround = body.blocked.down || this.stepRise > 0 || this.slopeGrip

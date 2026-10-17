@@ -274,6 +274,12 @@ export type LevelDef = {
   goalDisabled?: boolean
   // 山顶的仙人（第九关）：靠近按 F 对话，进入仙家试炼
   crane?: { x: number; y: number }
+  // 秘境第一重试炼：浮石 + 分段安全台 + 顶部仙家符箓
+  trialOne?: {
+    stones: { x: number; y: number; section: number }[]
+    checkpoints: { x: number; y: number }[]
+    artifact: { x: number; y: number }
+  }
   platforms: PlatformDef[]
   // 纯碰撞边缘（不画）：山顶/转角平台的防掉落挡板。
   // 画面由 decor 里的山峰、树、大石块负责，这里只放一个看不见的实体。

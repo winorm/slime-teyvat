@@ -175,6 +175,7 @@ export class BootScene extends Phaser.Scene {
     this.makeAmberBoar()
     this.makeAmberNpc()
     this.makeSpeedCharm()
+    this.makeTrialTalisman()
     this.makeAmberStand()
     this.makeCliffTrees()
     this.makeRockStrata()
@@ -5608,6 +5609,46 @@ export class BootScene extends Phaser.Scene {
     g.fillRect(4, 12, 1, 3)
 
     g.generateTexture('speed-charm', 22, 28)
+    g.destroy()
+  }
+
+  // 仙家符箓（24x32）：黄纸红边、朱砂印、金色符纹和一条小穗
+  private makeTrialTalisman() {
+    const g = this.add.graphics()
+
+    // 纸身
+    g.fillStyle(0x8f3a2a, 1)
+    g.fillRect(3, 4, 18, 25)
+    g.fillStyle(0xf2d06a, 1)
+    g.fillRect(5, 6, 14, 21)
+    g.fillStyle(0xffe9a8, 1)
+    g.fillRect(6, 7, 12, 19)
+
+    // 顶部挂环
+    g.lineStyle(2, 0xd9a441, 1)
+    g.strokeCircle(12, 4, 3)
+
+    // 朱砂印
+    g.fillStyle(0xb03a2e, 1)
+    g.fillRect(8, 20, 8, 6)
+    g.fillStyle(0xf4d6a0, 1)
+    g.fillRect(9, 21, 6, 1)
+    g.fillRect(9, 24, 6, 1)
+
+    // 金色符纹
+    g.lineStyle(1, 0xb8862f, 0.9)
+    g.lineBetween(8, 9, 16, 9)
+    g.lineBetween(12, 9, 12, 18)
+    g.lineBetween(8, 12, 12, 15)
+    g.lineBetween(16, 12, 12, 15)
+
+    // 下面小穗
+    g.fillStyle(0xd9a441, 1)
+    g.fillRect(11, 29, 2, 3)
+    g.fillStyle(0xb03a2e, 1)
+    g.fillRect(10, 31, 4, 1)
+
+    g.generateTexture('trial-talisman', 24, 32)
     g.destroy()
   }
 

@@ -19,6 +19,29 @@ export const DOMAIN_LEVEL: LevelDef = {
     // 秘境底层：隐形碰撞箱，画面由下面的云团铺出来
     { x: 800, y: 820, width: 1600, height: 40, tint: 0x6a5e52, hidden: true },
   ],
+  // 第一重试炼：四块浮石一段，踩上约 0.9 秒后消失；掉下安全台就扣 1 心回段首
+  trialOne: {
+    stones: [
+      { x: 320, y: 760, section: 0 },
+      { x: 380, y: 720, section: 0 },
+      { x: 440, y: 680, section: 0 },
+      { x: 500, y: 640, section: 0 },
+      { x: 600, y: 580, section: 1 },
+      { x: 540, y: 540, section: 1 },
+      { x: 480, y: 500, section: 1 },
+      { x: 420, y: 460, section: 1 },
+      { x: 380, y: 400, section: 2 },
+      { x: 440, y: 360, section: 2 },
+      { x: 500, y: 320, section: 2 },
+      { x: 560, y: 280, section: 2 },
+    ],
+    checkpoints: [
+      { x: 600, y: 620 },
+      { x: 360, y: 440 },
+      { x: 660, y: 260 },
+    ],
+    artifact: { x: 680, y: 240 },
+  },
   // 云台：两排交错的 cloud-puff，顶面刚好托住隐形平台的 y=800
   decor: [
     { x: -40, y: 850, key: 'cloud-puff', scale: 1.45, depth: 0.74 },
@@ -47,5 +70,8 @@ export const DOMAIN_LEVEL: LevelDef = {
   blessings: [],
   hazards: [],
   monuments: [],
-  hints: [{ x: 800, y: 735, text: '仙家试炼 · 三重考验' }],
+  hints: [
+    { x: 800, y: 735, text: '仙家试炼 · 三重考验' },
+    { x: 350, y: 735, text: '跳上浮石，取得仙家符箓' },
+  ],
 }
