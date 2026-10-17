@@ -374,7 +374,9 @@ export type NoteDef = {
 // 越往下的一层往左多伸出去一点（崖脚堆着碎石的样子），左边那道崖壁才不是一刀切。
 // 全是 solid: false：只画不挡人。
 const platformFill = (x: number, width: number, top: number, bottom: number, baseDepth = 1.1) => {
-  const shades = [0x6b5340, 0x644f3c, 0x5c4835]
+  // 山体就用崖面那套石头色（用户 2026/10/17 定的四档，见 BootScene.makeCliffDetails），
+  // 这样填色和贴在它前面的岩面能接得上，不会一块暖褐一块冷灰
+  const shades = [0x73665a, 0x6a5e52, 0x5e5348]
 
   return shades.map((tint, index) => {
     const rows = shades.length
@@ -1296,17 +1298,31 @@ export const LEVELS: LevelDef[] = [
       { x: 3374, y: 700, key: 'tree-cliff-a', flip: true, scale: 2, depth: 1.16 },
       // 崖面本身的样子（用户 2026/10/17 要的）：突出来的岩石 + 崖沿上的草（草根垂下来）。
       // 三道崖面各摆几件：左边缘 x=400、山顶平台左沿 x=2200、右边缘 x=3450
-      { x: 402, y: 780, key: 'cliff-grass', scale: 1.4, depth: 1.17 },
-      { x: 410, y: 1010, key: 'cliff-rock', scale: 1.8, flip: true, depth: 1.17 },
-      { x: 404, y: 1180, key: 'cliff-grass', scale: 1.2, flip: true, depth: 1.17 },
-      { x: 408, y: 1300, key: 'cliff-rock', scale: 1.4, depth: 1.17 },
-      { x: 2202, y: 470, key: 'cliff-grass', scale: 1.5, depth: 1.17 },
-      { x: 2212, y: 700, key: 'cliff-rock', scale: 2, depth: 1.17 },
-      { x: 2204, y: 1080, key: 'cliff-grass', scale: 1.3, flip: true, depth: 1.17 },
-      { x: 3448, y: 480, key: 'cliff-grass', scale: 1.5, flip: true, depth: 1.17 },
-      { x: 3438, y: 760, key: 'cliff-rock', scale: 2, depth: 1.17 },
-      { x: 3446, y: 1010, key: 'cliff-rock', scale: 1.5, flip: true, depth: 1.17 },
-      { x: 3442, y: 1240, key: 'cliff-grass', scale: 1.4, flip: true, depth: 1.17 },
+      // **崖面本身**：一块块参差的岩面摞起来（cliff-face-a/b/c，118x180），沿外沿一段接一段，
+      // 每块错开十几像素、交替用三种形状，边缘就是连续的乱石崖，不是方框。
+      // 左边那条崖面（x=400）翻转过来挂，右边（x=3450）不翻；中间山顶平台左沿（x=2200）翻转。
+      { x: 345, y: 1370, key: 'cliff-face-a', flip: true, depth: 1.17 },
+      { x: 341, y: 1200, key: 'cliff-face-b', flip: true, depth: 1.17 },
+      { x: 347, y: 1030, key: 'cliff-face-c', flip: true, depth: 1.17 },
+      { x: 343, y: 860, key: 'cliff-face-a', flip: true, depth: 1.17 },
+      { x: 2145, y: 1370, key: 'cliff-face-c', flip: true, depth: 1.17 },
+      { x: 2141, y: 1200, key: 'cliff-face-a', flip: true, depth: 1.17 },
+      { x: 2147, y: 1030, key: 'cliff-face-b', flip: true, depth: 1.17 },
+      { x: 2143, y: 860, key: 'cliff-face-c', flip: true, depth: 1.17 },
+      { x: 2141, y: 690, key: 'cliff-face-a', flip: true, depth: 1.17 },
+      { x: 3340, y: 1370, key: 'cliff-face-b', depth: 1.17 },
+      { x: 3344, y: 1200, key: 'cliff-face-c', depth: 1.17 },
+      { x: 3338, y: 1030, key: 'cliff-face-a', depth: 1.17 },
+      { x: 3342, y: 860, key: 'cliff-face-b', depth: 1.17 },
+      { x: 3346, y: 690, key: 'cliff-face-c', depth: 1.17 },
+      { x: 3339, y: 520, key: 'cliff-face-a', depth: 1.17 },
+      // 崖沿上的草（植被，不是崖壁）
+      { x: 402, y: 782, key: 'cliff-grass', scale: 1.4, depth: 1.18 },
+      { x: 404, y: 1180, key: 'cliff-grass', scale: 1.2, flip: true, depth: 1.18 },
+      { x: 2202, y: 472, key: 'cliff-grass', scale: 1.5, depth: 1.18 },
+      { x: 2204, y: 1080, key: 'cliff-grass', scale: 1.3, flip: true, depth: 1.18 },
+      { x: 3448, y: 482, key: 'cliff-grass', scale: 1.5, flip: true, depth: 1.18 },
+      { x: 3442, y: 1240, key: 'cliff-grass', scale: 1.4, flip: true, depth: 1.18 },
       // 崖面上的岩石横截面
       { x: 1980, y: 1300, key: 'rock-strata-a', scale: 1.4, depth: 1.16 },
       { x: 2310, y: 1010, key: 'rock-strata-c', scale: 1.4, depth: 1.16 },

@@ -5948,30 +5948,64 @@ export class BootScene extends Phaser.Scene {
     steam.destroy()
   }
 
-  // ── 崖面上的零碎（2026/10/17 用户要的"悬崖真正的样子"）──────────────
-  //   cliff-rock：从崖壁里突出来的一块岩石（上面受光、下面留暗）
-  //   cliff-grass：崖沿上的一丛草 + 垂下去几条草根，根上还挂着土
+  // ── 崖面（2026/10/17 用户定）：**整面都是裸露的石头**，不是往平面上贴几块圆石 ──
+  //   石头配色就这四档，以后画这一带的岩体都用它（别再各画各的）：
+  //     亮面 0x8a7c69 · 主面 0x73665a · 暗面 0x5e5348 · 石缝 0x453d34
+  //   形状是**有棱有角的块面**：一块一块不等边的多边形拼起来，靠外那条边参差不齐，
+  //   一整段接着一整段摞上去，边缘才是连续的崖（不是一个个方框）。
+  //   贴图右边是参差的外沿、左边是直的（贴住山体）；挂到左边的崖面时 flip 过来。
   private makeCliffDetails() {
-    const rock = this.add.graphics()
-    // 底下那道暗（和崖壁接住）
-    rock.fillStyle(0x3a2f26, 0.55)
-    rock.fillEllipse(16, 19, 30, 12)
-    // 岩体：一块往外鼓的石头
-    rock.fillStyle(0x54463a, 1)
-    rock.fillPoints([new Phaser.Math.Vector2(1, 20), new Phaser.Math.Vector2(6, 9), new Phaser.Math.Vector2(18, 4), new Phaser.Math.Vector2(30, 10), new Phaser.Math.Vector2(31, 20)], true)
-    // 受光的上表面
-    rock.fillStyle(0x6f5d4b, 1)
-    rock.fillPoints([new Phaser.Math.Vector2(4, 12), new Phaser.Math.Vector2(18, 5), new Phaser.Math.Vector2(29, 11), new Phaser.Math.Vector2(18, 15)], true)
-    rock.fillStyle(0x83705c, 1)
-    rock.fillPoints([new Phaser.Math.Vector2(7, 12), new Phaser.Math.Vector2(18, 7), new Phaser.Math.Vector2(26, 11), new Phaser.Math.Vector2(17, 13)], true)
-    // 下缘压暗 + 一道裂缝
-    rock.fillStyle(0x332a22, 1)
-    rock.fillPoints([new Phaser.Math.Vector2(1, 20), new Phaser.Math.Vector2(31, 20), new Phaser.Math.Vector2(27, 22), new Phaser.Math.Vector2(5, 22)], true)
-    rock.lineStyle(1, 0x332a22, 0.8)
-    rock.lineBetween(20, 12, 23, 20)
-    rock.generateTexture('cliff-rock', 32, 24)
-    rock.destroy()
+    const LIT = 0x8a7c69
+    const MID = 0x73665a
+    const DARK = 0x5e5348
+    const CRACK = 0x453d34
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
 
+    // 三块崖面：右边那条外沿各自参差得不一样
+    const slabs: Array<Array<[number, number]>> = [
+      [[96, 0], [72, 26], [92, 58], [70, 92], [94, 126], [74, 158], [88, 180]],
+      [[108, 0], [84, 34], [104, 68], [78, 104], [100, 140], [82, 180]],
+      [[90, 0], [110, 30], [86, 64], [106, 100], [84, 136], [102, 180]],
+    ]
+
+    slabs.forEach((jag, index) => {
+      const g = this.add.graphics()
+      const H = 180
+      const W = 118
+
+      // ① 整块岩体：左边竖直贴住山体，右边沿着参差的折线
+      const body: Phaser.Math.Vector2[] = [P(0, -2), ...jag.map(([x, y]) => P(x, y))]
+      body.push(P(0, H + 2))
+      g.fillStyle(MID, 1)
+      g.fillPoints(body, true)
+
+      // ② 外沿那一圈凿出来的棱：上半段受光、下半段压暗
+      for (let i = 0; i < jag.length - 1; i++) {
+        const a = jag[i]
+        const b = jag[i + 1]
+        g.fillStyle(i < jag.length / 2 ? LIT : DARK, 1)
+        g.fillPoints([P(a[0], a[1]), P(b[0], b[1]), P(b[0] - 13, b[1]), P(a[0] - 13, a[1])], true)
+      }
+
+      // ③ 块面：几片大小不等的棱面（暗一块、亮一块），把石头拆成有角的面
+      g.fillStyle(DARK, 1)
+      g.fillPoints([P(0, 40 + index * 6), P(60, 58 + index * 6), P(52, 96), P(0, 84)], true)
+      g.fillStyle(LIT, 1)
+      g.fillPoints([P(0, 12), P(56, 30), P(62, 46), P(0, 34)], true)
+      g.fillStyle(DARK, 0.7)
+      g.fillPoints([P(0, 120), P(58, 132), P(46, 176), P(0, 168)], true)
+
+      // ④ 石缝
+      g.lineStyle(1, CRACK, 0.9)
+      g.lineBetween(18, 26 + index * 4, 44, 60 + index * 4)
+      g.lineBetween(30, 88, 22, 140)
+      g.lineBetween(46, 96 + index * 3, 62, 150)
+
+      g.generateTexture('cliff-face-' + 'abc'[index], W, H)
+      g.destroy()
+    })
+
+    // 崖沿上的草（这丛草是长在崖沿上的植被，不是崖壁本身）
     const grass = this.add.graphics()
     // 一小撮土
     grass.fillStyle(0x4a3a28, 1)
