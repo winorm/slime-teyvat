@@ -6478,10 +6478,13 @@ export class GameScene extends Phaser.Scene {
     this.ambers = []
 
     ;(this.level.ambers ?? []).forEach((def) => {
+      // 坐台先摆（砸碎了也留着），琥珀坐在它上面
+      this.add.image(def.x, def.y, 'amber-stand').setOrigin(0.5, 1).setDepth(4)
+
       const sprite = this.add
-        .image(def.x, def.y - 15, 'amber')
+        .image(def.x, def.y - 10, 'amber')
         .setDepth(5)
-        .setOrigin(0.5, 0.5)
+        .setOrigin(0.5, 1)
 
       // 琥珀沉一点，给它一个很慢的呼吸（别晃太狠，像里面的东西在动）
       this.tweens.add({
@@ -6537,7 +6540,9 @@ export class GameScene extends Phaser.Scene {
       // 一颗"额外的"原石：index 用一个空位，捡了会亮 HUD、也算进这一关的收集
       const gem = this.gems.create(x, y + 2, 'gem') as Phaser.Physics.Arcade.Sprite
       gem.setTint(0x6ec6ff)
-      gem.setData('index', 90 + this.ambers.indexOf(amber))
+      // **原石总数就三颗**（用户 2026/10/17 定的）：琥珀里这颗算的是关卡里预留的那一颗，
+      // 不是额外多给的。gemIndex 由关卡数据指定（对着 gems 数组里少掉的那一个下标）
+      gem.setData('index', amber.def.gemIndex ?? 0)
       gem.setData('layer', null)
       gem.setDepth(5)
       this.showMessage('琥珀里冻着一颗原石！')
@@ -6577,33 +6582,44 @@ export class GameScene extends Phaser.Scene {
     }
 
     const pillar = this.rockPillar
-    const alive = pillar !== null && pillar.active
+    // **只有柱子落了地才出共鸣**：落下来那一段柱子的刚体是关着的（disableBody），
+    // 所以拿 body.enable 当"已经砸实了"的判据
+    const body = pillar?.body as Phaser.Physics.Arcade.StaticBody | undefined
+    const alive = pillar !== null && pillar.active && body !== undefined && body.enable
 
     if (alive) {
       this.resonanceTimer -= dt
 
       if (this.resonanceTimer <= 0) {
         this.resonanceTimer = 0.55
-        const body = pillar.body as Phaser.Physics.Arcade.StaticBody
         this.resonanceRings.push({ x: pillar.x, y: body.bottom, r: 0 })
       }
     }
 
-    // 光圈往外扩（0.7 秒扩到 175），边扩边淡
+    // 光圈往外扩，扩到 REACH 就消失（范围是 2026/10/17 用户砍下来的一半）
+    const REACH = 96
+
     this.resonanceRings = this.resonanceRings.filter((ring) => {
       ring.r += 250 * dt
-      return ring.r < 190
+      return ring.r < REACH
     })
 
     const gfx = this.resonanceGfx
     gfx.clear()
 
     this.resonanceRings.forEach((ring) => {
-      const alpha = Phaser.Math.Clamp(1 - ring.r / 190, 0, 1) * 0.75
+      const alpha = Phaser.Math.Clamp(1 - ring.r / REACH, 0, 1)
+      const rx = ring.r
+      const ry = ring.r * 0.3
 
-      // 画成 1:3.4 的扁椭圆 —— 就是"贴在地面上的一圈金色光圈"
-      gfx.lineStyle(2, 0xf0c24a, alpha)
-      gfx.strokeEllipse(ring.x, ring.y - 2, ring.r * 2, ring.r * 0.6)
+      // **立体一点**：同一个椭圆画三道 —— 底下那道暗的当影子、中间那道是本体、
+      // 再往上抬 1.5 像素补一道亮的当"高光边"，看起来像地面上凿出来的一圈金色沟槽
+      gfx.lineStyle(4, 0x8a6a1c, alpha * 0.35)
+      gfx.strokeEllipse(ring.x, ring.y + 1, rx * 2, ry * 2)
+      gfx.lineStyle(3, 0xf0c24a, alpha * 0.9)
+      gfx.strokeEllipse(ring.x, ring.y - 1, rx * 2, ry * 2)
+      gfx.lineStyle(1, 0xffe9a8, alpha * 0.85)
+      gfx.strokeEllipse(ring.x, ring.y - 2.5, rx * 2, ry * 2)
 
       // **每一帧都要判**：光圈是从 0 一点点扩出去的，东西在哪个距离上，就得等那一圈扫到它。
       // 只看出生那一帧的话，光圈半径还不到 5 像素，什么都扫不到

@@ -173,6 +173,7 @@ export class BootScene extends Phaser.Scene {
     this.makeCloudRetainerCrane()
     this.makeAmber()
     this.makeAmberBoar()
+    this.makeAmberStand()
     this.makeSlimeShadow()
     this.makeTerracePaving()
 
@@ -5296,38 +5297,68 @@ export class BootScene extends Phaser.Scene {
   //   —— 就是垂在尾巴后面那一束，很多人会当成尾巴。
   //   配色（2026/10/15 用户定）：**脖子以上不动，还是原来那套白的**（白脖子、白头、
   //   深色长喙、朱红头冠）；只有**身子改成青白**。脸朝右，和其他 NPC 一致。
-  // ── 琥珀（26x30）：转角平台上那坨金色树脂，里头冻着一点东西 ─────────────
-  //   岩柱的岩共鸣震开它（GameScene.updateResonance）
+  // ── 琥珀（64x52 = 两倍史莱姆大小，2026/10/17 用户定）：转角平台上那坨金色树脂 ──
+  //   里头冻着一点东西（一眼能看出来）；岩柱的岩共鸣震开它（GameScene.updateResonance）
   private makeAmber() {
     const g = this.add.graphics()
     const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
 
-    // 深色轮廓
+    // 深色轮廓（一个略不规则的蛋形：底宽上尖，像滴下来凝住的树脂）
     g.fillStyle(0x5a3210, 1)
-    g.fillEllipse(13, 17, 26, 28)
-    // 主体：深琥珀 → 亮琥珀，右下压深一档
+    g.fillEllipse(32, 30, 62, 44)
+    g.fillEllipse(32, 16, 42, 26)
+    // 主体：深琥珀打底
     g.fillStyle(0xd98a24, 1)
-    g.fillEllipse(13, 17, 22, 25)
+    g.fillEllipse(32, 30, 57, 39)
+    g.fillEllipse(32, 16, 37, 22)
+    // 受光面（左上）
     g.fillStyle(0xf0a83c, 1)
-    g.fillPoints([P(3, 20), P(13, 4), P(23, 20), P(13, 29)], true)
+    g.fillPoints([P(8, 34), P(26, 6), P(48, 12), P(52, 34), P(32, 46)], true)
+    // 右下压深一档
     g.fillStyle(0xc9741c, 1)
-    g.fillEllipse(16, 22, 12, 10)
+    g.fillEllipse(40, 40, 26, 16)
     // 高光
-    g.fillStyle(0xffe0a0, 0.9)
-    g.fillEllipse(8, 10, 5, 7)
-    g.fillStyle(0xfff2cc, 0.8)
-    g.fillCircle(7, 8, 1.6)
-    // 里面冻着的小虫（一眼能看出"里面有东西"）
-    g.fillStyle(0x3a2410, 0.85)
-    g.fillEllipse(14, 19, 5, 3)
-    g.fillRect(11, 18, 1, 3)
-    g.fillRect(16, 18, 1, 3)
-    g.fillRect(13, 21, 3, 1)
-    // 底下一道接地暗影
-    g.fillStyle(0x3a2410, 0.35)
-    g.fillEllipse(13, 30, 20, 3)
+    g.fillStyle(0xffe0a0, 0.85)
+    g.fillEllipse(20, 16, 10, 16)
+    g.fillStyle(0xfff2cc, 0.85)
+    g.fillCircle(18, 12, 3)
+    // 里面冻着的小虫（放大到看得清）
+    g.fillStyle(0x3a2410, 0.8)
+    g.fillEllipse(34, 32, 12, 7)
+    g.fillEllipse(27, 30, 6, 6)
+    g.fillRect(25, 26, 2, 6)
+    g.fillRect(34, 26, 2, 8)
+    g.fillRect(31, 35, 6, 2)
+    // 底部再压一道暗，跟坐台接得住
+    g.fillStyle(0x3a2410, 0.3)
+    g.fillEllipse(32, 49, 48, 6)
 
-    g.generateTexture('amber', 26, 30)
+    g.generateTexture('amber', 64, 52)
+    g.destroy()
+  }
+
+  // ── 琥珀的坐台（56x14）：一块石台，琥珀碎了它留下 ─────────────────────
+  private makeAmberStand() {
+    const g = this.add.graphics()
+
+    // 下层（宽一圈的底）
+    g.fillStyle(0x4a4038, 1)
+    g.fillRect(2, 8, 52, 6)
+    g.fillStyle(0x5b5046, 1)
+    g.fillRect(2, 8, 52, 2)
+    // 上层（窄一点的台面）
+    g.fillStyle(0x6b5f52, 1)
+    g.fillRect(7, 2, 42, 7)
+    g.fillStyle(0x7d6f60, 1)
+    g.fillRect(7, 2, 42, 2)
+    // 台面上一圈浅浅的凹（琥珀坐进去的地方）+ 两道裂纹
+    g.fillStyle(0x8d7f6d, 0.7)
+    g.fillEllipse(28, 4, 30, 4)
+    g.fillStyle(0x3a322c, 0.6)
+    g.fillRect(14, 5, 1, 4)
+    g.fillRect(40, 4, 1, 5)
+
+    g.generateTexture('amber-stand', 56, 14)
     g.destroy()
   }
 
