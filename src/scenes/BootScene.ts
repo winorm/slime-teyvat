@@ -5301,37 +5301,44 @@ export class BootScene extends Phaser.Scene {
   //   里头冻着一点东西（一眼能看出来）；岩柱的岩共鸣震开它（GameScene.updateResonance）
   private makeAmber() {
     const g = this.add.graphics()
-    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
 
-    // 深色轮廓（一个略不规则的蛋形：底宽上尖，像滴下来凝住的树脂）
+    // 外形（2026/10/17 用户定）：**三个竖着的椭圆并在一起** —— 中间最大、左边中等、右边最小，
+    // 像三坨树脂淌下来凝成了一块。先把三个椭圆的深色轮廓一起铺出来，再统一填色，
+    // 这样轮廓是"连成一整块"的，不会出现三个各自描边的圆
+    const lobes: Array<[number, number, number, number]> = [
+      [30, 26, 38, 48], // 中间：最大
+      [14, 30, 26, 34], // 左边：中等
+      [50, 33, 20, 24], // 右边：最小
+    ]
+
     g.fillStyle(0x5a3210, 1)
-    g.fillEllipse(32, 30, 62, 44)
-    g.fillEllipse(32, 16, 42, 26)
-    // 主体：深琥珀打底
+    lobes.forEach(([x, y, w, h]) => g.fillEllipse(x, y, w, h))
+    // 主体：深琥珀
     g.fillStyle(0xd98a24, 1)
-    g.fillEllipse(32, 30, 57, 39)
-    g.fillEllipse(32, 16, 37, 22)
-    // 受光面（左上）
+    lobes.forEach(([x, y, w, h]) => g.fillEllipse(x, y, w - 4, h - 4))
+    // 受光面：每个椭圆左上再压一层亮琥珀
     g.fillStyle(0xf0a83c, 1)
-    g.fillPoints([P(8, 34), P(26, 6), P(48, 12), P(52, 34), P(32, 46)], true)
-    // 右下压深一档
+    lobes.forEach(([x, y, w, h]) => g.fillEllipse(x - 2, y - 3, (w - 4) * 0.7, (h - 4) * 0.72))
+    // 右下压深一档（只在中间和右边那两坨的底部）
     g.fillStyle(0xc9741c, 1)
-    g.fillEllipse(40, 40, 26, 16)
-    // 高光
+    g.fillEllipse(34, 40, 22, 12)
+    g.fillEllipse(52, 40, 12, 7)
+    // 高光：中间那坨一道长条、右边那坨一点
     g.fillStyle(0xffe0a0, 0.85)
-    g.fillEllipse(20, 16, 10, 16)
+    g.fillEllipse(22, 18, 9, 15)
     g.fillStyle(0xfff2cc, 0.85)
-    g.fillCircle(18, 12, 3)
-    // 里面冻着的小虫（放大到看得清）
+    g.fillCircle(20, 14, 3)
+    g.fillCircle(46, 27, 1.8)
+    // 里面冻着的小虫（放在中间那一坨里，放大到看得清）
     g.fillStyle(0x3a2410, 0.8)
-    g.fillEllipse(34, 32, 12, 7)
-    g.fillEllipse(27, 30, 6, 6)
-    g.fillRect(25, 26, 2, 6)
-    g.fillRect(34, 26, 2, 8)
-    g.fillRect(31, 35, 6, 2)
+    g.fillEllipse(32, 30, 12, 7)
+    g.fillEllipse(25, 28, 6, 6)
+    g.fillRect(23, 24, 2, 6)
+    g.fillRect(32, 24, 2, 8)
+    g.fillRect(29, 33, 6, 2)
     // 底部再压一道暗，跟坐台接得住
     g.fillStyle(0x3a2410, 0.3)
-    g.fillEllipse(32, 49, 48, 6)
+    g.fillEllipse(30, 49, 46, 6)
 
     g.generateTexture('amber', 64, 52)
     g.destroy()
