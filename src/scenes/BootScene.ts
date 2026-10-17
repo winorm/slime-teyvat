@@ -5769,15 +5769,15 @@ export class BootScene extends Phaser.Scene {
 
     // 主干的脊线：底部粗、先向左弓、过了腰再往右上伸
     const spine: Array<[number, number, number]> = [
-      [98, 238, 26],
-      [92, 214, 23],
-      [74, 188, 19],
-      [62, 162, 16],
-      [72, 136, 13],
-      [94, 112, 11],
-      [120, 86, 9],
-      [146, 62, 7],
-      [170, 42, 5],
+      [128, 268, 30],
+      [120, 240, 26],
+      [96, 210, 21],
+      [86, 186, 18],
+      [100, 158, 15],
+      [124, 126, 12],
+      [154, 96, 10],
+      [186, 66, 8],
+      [212, 46, 6],
     ]
 
     // 沿脊线一段段铺成四边形：先铺一圈深色轮廓，再压本体，再点一道受光侧
@@ -5820,12 +5820,35 @@ export class BootScene extends Phaser.Scene {
     g.fillTriangle(72, 238, 34, 239, 88, 216)
     g.fillTriangle(124, 238, 164, 239, 108, 216)
 
-    // 四根粗枝：末端都伸进冠里（下面会被叶团盖住）
-    g.fillStyle(0x412f1f, 1)
-    g.fillPoints([P(70, 132), P(76, 137), P(26, 84), P(22, 78)], true)
-    g.fillPoints([P(96, 110), P(102, 114), P(58, 52), P(54, 48)], true)
-    g.fillPoints([P(124, 84), P(129, 88), P(146, 34), P(150, 30)], true)
-    g.fillPoints([P(146, 62), P(150, 66), P(186, 44), P(188, 38)], true)
+    // 四根**粗壮**的枝：根端最粗、往梢上收，末端都伸进冠里（会被叶团盖住）
+    const limb = (x0: number, y0: number, x1: number, y1: number, w0: number, w1: number) => {
+      const dx = x1 - x0
+      const dy = y1 - y0
+      const len = Math.hypot(dx, dy) || 1
+      const nx = -dy / len
+      const ny = dx / len
+
+      g.fillStyle(0x33241a, 1)
+      g.fillPoints(
+        [P(x0 + nx * (w0 + 2), y0 + ny * (w0 + 2)), P(x1 + nx * (w1 + 2), y1 + ny * (w1 + 2)), P(x1 - nx * (w1 + 2), y1 - ny * (w1 + 2)), P(x0 - nx * (w0 + 2), y0 - ny * (w0 + 2))],
+        true
+      )
+      g.fillStyle(0x412f1f, 1)
+      g.fillPoints(
+        [P(x0 + nx * w0, y0 + ny * w0), P(x1 + nx * w1, y1 + ny * w1), P(x1 - nx * w1, y1 - ny * w1), P(x0 - nx * w0, y0 - ny * w0)],
+        true
+      )
+      g.fillStyle(0x543e29, 1)
+      g.fillPoints(
+        [P(x0 + nx * w0 * 0.7, y0 + ny * w0 * 0.7), P(x0 + nx * w0, y0 + ny * w0), P(x1 + nx * w1, y1 + ny * w1), P(x1 + nx * w1 * 0.7, y1 + ny * w1 * 0.7)],
+        true
+      )
+    }
+
+    limb(96, 178, 44, 122, 11, 6)
+    limb(128, 140, 86, 74, 10, 6)
+    limb(170, 110, 178, 46, 9, 5)
+    limb(200, 70, 236, 52, 8, 4)
 
     // 冠：宽、密，五团叠起来，把四根枝的末端全盖住
     const clump = (cx: number, cy: number, w: number, h: number) => {
@@ -5836,11 +5859,11 @@ export class BootScene extends Phaser.Scene {
       g.fillStyle(0x8cba5e, 1)
       g.fillEllipse(cx - w * 0.14, cy - h * 0.32, w * 0.52, h * 0.36)
     }
-    clump(30, 74, 62, 44)
-    clump(62, 44, 76, 52)
-    clump(104, 26, 92, 54)
-    clump(150, 30, 74, 46)
-    clump(178, 44, 56, 38)
+    clump(44, 122, 60, 46)
+    clump(64, 94, 76, 56)
+    clump(112, 62, 92, 64)
+    clump(168, 46, 96, 60)
+    clump(204, 68, 62, 46)
 
     // 柳条：从冠的下垂下来，密一点
     const strand = (x0: number, y0: number, len: number, sway: number, color: number) => {
@@ -5850,15 +5873,15 @@ export class BootScene extends Phaser.Scene {
         g.fillRect(x, y0 + i, 2, 3)
       }
     }
-    for (let i = 0; i < 32; i++) {
-      const x = 8 + i * 5.6
-      const top = 46 + ((i * 11) % 30)
-      const len = 70 + ((i * 17) % 80)
+    for (let i = 0; i < 36; i++) {
+      const x = 12 + i * 6
+      const top = 70 + ((i * 11) % 34)
+      const len = 80 + ((i * 17) % 90)
       const color = i % 3 === 0 ? 0x41682f : i % 3 === 1 ? 0x5f8a3a : 0x7fb04a
       strand(x, top, len, 3 + (i % 4), color)
     }
 
-    g.generateTexture('willow-summit', 190, 240)
+    g.generateTexture('willow-summit', 240, 270)
     g.destroy()
   }
 

@@ -1297,13 +1297,14 @@ export const LEVELS: LevelDef[] = [
       { x: 660, y: 1360, key: 'pebble-c', scale: 1.8, depth: 1.2 },
       // 山顶：一棵巨大的垂柳，树干顺着崖壁盘着往上；树下石桌石凳、桌上一壶三杯，
       // 杯口三缕热气（'tea-steam' 会自动加一段往上飘的循环动画）
-      { x: 2380, y: 460, key: 'willow-summit', depth: 1.2 },
-      { x: 2560, y: 460, key: 'tea-table', depth: 1.22 },
-      { x: 2490, y: 460, key: 'tea-bench', depth: 1.22 },
-      { x: 2630, y: 460, key: 'tea-bench', depth: 1.22 },
-      { x: 2552, y: 440, key: 'tea-steam', depth: 1.24 },
-      { x: 2562, y: 436, key: 'tea-steam', depth: 1.24 },
-      { x: 2572, y: 441, key: 'tea-steam', depth: 1.24 },
+      // 柳树 2540（贴图 240 宽，冠铺在 2450~2630），茶桌 2570 **正好在树叶下面**
+      { x: 2540, y: 460, key: 'willow-summit', depth: 1.2 },
+      { x: 2570, y: 460, key: 'tea-table', depth: 1.22 },
+      { x: 2525, y: 460, key: 'tea-bench', depth: 1.22 },
+      { x: 2616, y: 460, key: 'tea-bench', depth: 1.22 },
+      { x: 2562, y: 440, key: 'tea-steam', depth: 1.24 },
+      { x: 2572, y: 436, key: 'tea-steam', depth: 1.24 },
+      { x: 2582, y: 441, key: 'tea-steam', depth: 1.24 },
       // 山脚那棵换成小一号的崖松（不要樱花色）
       { x: 980, y: 1360, key: 'tree-cliff-a', scale: 1.1, depth: 1.2 },
     ],
