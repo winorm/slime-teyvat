@@ -1984,6 +1984,26 @@ export class GameScene extends Phaser.Scene {
         .setScale(def.scale ?? 1)
         .setFlipX(def.flip ?? false)
         .setDepth(def.depth ?? -5)
+
+      // 热气（2026/10/17）：三缕茶汽各自往上飘、边飘边淡，循环
+      if (def.key === 'tea-steam') {
+        const wisp = this.children.list[this.children.list.length - 1] as Phaser.GameObjects.Image
+        const baseY = def.y + snap
+
+        this.tweens.add({
+          targets: wisp,
+          y: baseY - 16,
+          alpha: { from: 0.75, to: 0 },
+          duration: 2200 + (def.x % 7) * 160,
+          delay: (def.x % 5) * 260,
+          repeat: -1,
+          ease: 'Sine.easeOut',
+          onRepeat: () => {
+            wisp.setY(baseY)
+            wisp.setAlpha(0.75)
+          },
+        })
+      }
     })
 
     // 古树主干：一条竖着平铺的树皮带，画在前后两层楼梯中间（默认 depth 2）

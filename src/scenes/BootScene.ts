@@ -180,6 +180,8 @@ export class BootScene extends Phaser.Scene {
     this.makeStonePile()
     this.makeBirches()
     this.makePeachTrees()
+    this.makeSummitWillow()
+    this.makeTeaSet()
     this.makeSlimeShadow()
     this.makeTerracePaving()
 
@@ -5755,6 +5757,120 @@ export class BootScene extends Phaser.Scene {
     blossom(c, 34, 34, 18, 11)
     c.generateTexture('peach-c', 68, 76)
     c.destroy()
+  }
+
+  // ── 山顶那棵巨大的垂柳（2026/10/17 用户要的）：树干顺着崖壁**盘着往上升**，
+  //   冠是一大蓬往下垂的柳条 —— 150x200，摆在 460 的山顶平台上，顶能够到 260
+  private makeSummitWillow() {
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+    const g = this.add.graphics()
+
+    // ① 根：从平台边往两边扒开
+    g.fillStyle(0x3d2c1d, 1)
+    g.fillPoints([P(52, 200), P(74, 200), P(70, 176), P(58, 176)], true)
+    g.fillTriangle(52, 200, 26, 199, 62, 184)
+    g.fillTriangle(74, 200, 104, 199, 66, 184)
+    // ② 主杆：扭着往上（四个弯），越往上越细
+    g.fillStyle(0x412f1f, 1)
+    g.fillPoints(
+      [P(58, 190), P(70, 190), P(76, 150), P(66, 126), P(74, 96), P(64, 74), P(70, 46), P(62, 46), P(54, 76), P(58, 98), P(50, 128), P(56, 152)],
+      true
+    )
+    g.fillStyle(0x543e29, 1)
+    g.fillPoints([P(61, 190), P(67, 190), P(72, 150), P(62, 126), P(70, 96), P(60, 74), P(66, 47), P(63, 47), P(57, 76), P(54, 98), P(55, 128), P(59, 152)], true)
+    // 树皮上的几道竖纹
+    g.fillStyle(0x2e2116, 0.7)
+    for (const bark of [[60, 170, 2, 14], [65, 140, 1, 18], [58, 108, 2, 12], [63, 70, 1, 16], [60, 50, 1, 12]]) {
+      g.fillRect(bark[0], bark[1], bark[2], bark[3])
+    }
+    // ③ 三根横出的粗枝
+    g.fillStyle(0x412f1f, 1)
+    g.fillPoints([P(58, 96), P(62, 100), P(24, 62), P(22, 56)], true)
+    g.fillPoints([P(66, 78), P(69, 82), P(116, 52), P(118, 46)], true)
+    g.fillPoints([P(62, 46), P(66, 50), P(96, 22), P(98, 16)], true)
+
+    // ④ 柳条：一大蓬往下垂，越长越淡
+    const strand = (x0: number, y0: number, len: number, sway: number, color: number) => {
+      g.fillStyle(color, 1)
+      for (let i = 0; i < len; i += 4) {
+        const x = x0 + Math.sin((i / len) * Math.PI * 2) * sway
+        g.fillRect(x, y0 + i, 2, 4)
+      }
+    }
+    for (let i = 0; i < 22; i++) {
+      const x = 10 + i * 6
+      const top = 18 + ((i * 7) % 18)
+      const len = 60 + ((i * 13) % 70)
+      const color = i % 3 === 0 ? 0x4e7a38 : i % 3 === 1 ? 0x6f9a4a : 0x8cba5e
+      strand(x, top, len, 3 + (i % 3), color)
+    }
+    // ⑤ 冠顶那一层压住柳条的根
+    g.fillStyle(0x5c8a3c, 1)
+    g.fillEllipse(64, 26, 104, 30)
+    g.fillStyle(0x6f9a4a, 1)
+    g.fillEllipse(60, 20, 84, 22)
+    g.fillStyle(0x8cba5e, 1)
+    g.fillEllipse(54, 14, 52, 14)
+
+    g.generateTexture('willow-summit', 150, 200)
+    g.destroy()
+  }
+
+  // ── 柳树下的石桌石凳 + 茶具（2026/10/17）：桌上一壶三杯，杯口冒热气 ────
+  private makeTeaSet() {
+    // 石桌（44x30）
+    const table = this.add.graphics()
+    table.fillStyle(0x4f463c, 1)
+    table.fillRect(16, 14, 12, 14)
+    table.fillStyle(0x5f564c, 1)
+    table.fillRect(17, 14, 4, 14)
+    table.fillStyle(0x6b6156, 1)
+    table.fillEllipse(22, 12, 42, 12)
+    table.fillStyle(0x8a8073, 1)
+    table.fillEllipse(22, 9, 42, 9)
+    // 茶壶（深陶色 + 壶嘴 + 壶盖钮）
+    table.fillStyle(0x7a4a32, 1)
+    table.fillEllipse(15, 6, 14, 9)
+    table.fillStyle(0x8f5a3e, 1)
+    table.fillEllipse(14, 4, 10, 6)
+    table.fillStyle(0x7a4a32, 1)
+    table.fillTriangle(21, 3, 25, 1, 22, 6)
+    table.fillStyle(0x5f3724, 1)
+    table.fillCircle(14, 1, 1.6)
+    // 三只小茶杯（浅色的，杯口一点茶）
+    for (const cup of [[29, 7], [35, 8], [24, 9]]) {
+      table.fillStyle(0xe8e4d8, 1)
+      table.fillEllipse(cup[0], cup[1], 6, 4)
+      table.fillStyle(0xb98a4a, 1)
+      table.fillEllipse(cup[0], cup[1] - 1, 4, 2)
+    }
+    table.generateTexture('tea-table', 44, 30)
+    table.destroy()
+
+    // 石凳（32x14）
+    const bench = this.add.graphics()
+    bench.fillStyle(0x4f463c, 1)
+    bench.fillRect(4, 8, 4, 6)
+    bench.fillRect(24, 8, 4, 6)
+    bench.fillStyle(0x6b6156, 1)
+    bench.fillRect(1, 5, 30, 5)
+    bench.fillStyle(0x8a8073, 1)
+    bench.fillRect(1, 5, 30, 2)
+    bench.generateTexture('tea-bench', 32, 14)
+    bench.destroy()
+
+    // 热气（10x16）：一道弯着的白汽
+    const steam = this.add.graphics()
+    steam.fillStyle(0xffffff, 0.5)
+    steam.fillEllipse(5, 13, 6, 4)
+    steam.fillStyle(0xffffff, 0.38)
+    steam.fillEllipse(6, 9, 5, 4)
+    steam.fillStyle(0xffffff, 0.26)
+    steam.fillEllipse(4, 5, 4, 4)
+    steam.fillStyle(0xffffff, 0.16)
+    steam.fillEllipse(5, 2, 3, 3)
+    steam.generateTexture('tea-steam', 10, 16)
+    steam.destroy()
   }
 
   private makeCloudRetainerCrane() {

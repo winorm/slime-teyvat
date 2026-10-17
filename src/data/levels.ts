@@ -1262,7 +1262,7 @@ export const LEVELS: LevelDef[] = [
     // 所以三颗的序号正好是 0 / 1 / 2，捡满了 HUD 就是三颗全亮，不会多出来第四颗
     gems: [
       { x: 150, y: 1347 },    // ① 山脚（顶面 1360）
-      { x: 2500, y: 447 },    // ② 山顶大平台（顶面 460）
+      { x: 2760, y: 447 },    // ② 山顶大平台（顶面 460），挪到柳树和茶桌右边
     ],
     blessings: [],
     hazards: [],
@@ -1295,9 +1295,17 @@ export const LEVELS: LevelDef[] = [
       { x: 300, y: 1360, key: 'pebble-a', scale: 1.8, depth: 1.2 },
       { x: 520, y: 1360, key: 'stone-pile', scale: 1.6, depth: 1.2 },
       { x: 660, y: 1360, key: 'pebble-c', scale: 1.8, depth: 1.2 },
-      // 仙桃树：山脚一棵、山顶一棵（替掉原来的桦木）
-      { x: 980, y: 1360, key: 'peach-a', scale: 1.3, depth: 1.2 },
-      { x: 2650, y: 460, key: 'peach-c', scale: 1.2, depth: 1.2 },
+      // 山顶：一棵巨大的垂柳，树干顺着崖壁盘着往上；树下石桌石凳、桌上一壶三杯，
+      // 杯口三缕热气（'tea-steam' 会自动加一段往上飘的循环动画）
+      { x: 2380, y: 460, key: 'willow-summit', depth: 1.2 },
+      { x: 2560, y: 460, key: 'tea-table', depth: 1.22 },
+      { x: 2490, y: 460, key: 'tea-bench', depth: 1.22 },
+      { x: 2630, y: 460, key: 'tea-bench', depth: 1.22 },
+      { x: 2552, y: 440, key: 'tea-steam', depth: 1.24 },
+      { x: 2562, y: 436, key: 'tea-steam', depth: 1.24 },
+      { x: 2572, y: 441, key: 'tea-steam', depth: 1.24 },
+      // 山脚那棵换成小一号的崖松（不要樱花色）
+      { x: 980, y: 1360, key: 'tree-cliff-a', scale: 1.1, depth: 1.2 },
     ],
 
     hints: [
