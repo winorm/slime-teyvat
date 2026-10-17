@@ -161,6 +161,9 @@ export type DecorDef = {
   y: number         // 底边贴着的那条线（地面顶面）
   key: string
   scale?: number
+  flip?: boolean    // 左右翻过来（崖树贴左边还是右边的崖壁，就靠这个）
+  // 画在第几层。不写就是 -5（背景静物，永远在最后面）；崖壁上的树要压在填色之上，给 1.16 左右
+  depth?: number
 }
 
 export type OrbDef = {
@@ -1262,6 +1265,25 @@ export const LEVELS: LevelDef[] = [
     ambers: [
       { x: 2120, y: 1060, loot: 'gem', gemIndex: 2 },
       { x: 470, y: 760, loot: 'boar' },
+    ],
+
+    // 把新画的素材先堆到这一关看看效果（2026/10/17）。崖树挂在崖壁上：
+    // 贴图左边那一列是"贴壁"的方向，所以挂在**右边那种崖面**上要 flip 过来。
+    //   362 那棵挂在转角平台 2 填色的左沿（x=400，岩体在右边）→ flip
+    //   2238 那棵挂在转角平台 1 填色的右沿（x=2200，岩体在左边）→ 不翻
+    //   2162 那棵挂在山顶大平台填色的左沿（x=2200）→ flip
+    // 崖粉（填色）都在 1.0~1.15 层，树给 1.16 才压得住；山脚那几件给 1.2
+    decor: [
+      { x: 362, y: 1180, key: 'tree-cliff-b', flip: true, depth: 1.16 },
+      { x: 2238, y: 1240, key: 'tree-cliff-a', depth: 1.16 },
+      { x: 2162, y: 900, key: 'tree-cliff-c', flip: true, depth: 1.16 },
+      { x: 1980, y: 1300, key: 'rock-strata-a', depth: 1.16 },
+      { x: 2306, y: 1010, key: 'rock-strata-c', depth: 1.16 },
+      { x: 300, y: 1360, key: 'pebble-a', depth: 1.2 },
+      { x: 520, y: 1360, key: 'stone-pile', depth: 1.2 },
+      { x: 640, y: 1360, key: 'pebble-c', depth: 1.2 },
+      { x: 980, y: 1360, key: 'birch-a', depth: 1.2 },
+      { x: 2650, y: 460, key: 'birch-c', depth: 1.2 },
     ],
 
     hints: [

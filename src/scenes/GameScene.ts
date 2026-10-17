@@ -1982,7 +1982,8 @@ export class GameScene extends Phaser.Scene {
         .image(def.x, def.y + snap, def.key)
         .setOrigin(0.5, 1)
         .setScale(def.scale ?? 1)
-        .setDepth(-5)
+        .setFlipX(def.flip ?? false)
+        .setDepth(def.depth ?? -5)
     })
 
     // 古树主干：一条竖着平铺的树皮带，画在前后两层楼梯中间（默认 depth 2）
