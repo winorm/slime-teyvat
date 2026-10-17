@@ -1355,6 +1355,8 @@ export class GameScene extends Phaser.Scene {
   private trialStoneGroup!: Phaser.Physics.Arcade.StaticGroup
   private trialStones: {
     sprite: Phaser.Physics.Arcade.Sprite
+    visual: Phaser.GameObjects.Image
+    glow: Phaser.GameObjects.Image
     section: number
     triggered: boolean
     hideAt?: number
@@ -1365,6 +1367,7 @@ export class GameScene extends Phaser.Scene {
   private trialResetLock = 0
   private trialArtifact: Phaser.GameObjects.Image | null = null
   private trialOneDone = false
+  private trialOneStarted = false
   // 测试关卡现在待在哪一间：-1 = 大厅，0 起 = 大厅里那排传送门的下标。
   // 初值来自地址上的 ?room=N（见 DEV_START_ROOM），用来直接打开某一间
   private devRoom = DEV_START_ROOM
@@ -1634,6 +1637,7 @@ export class GameScene extends Phaser.Scene {
     this.trialResetLock = 0
     this.trialArtifact = null
     this.trialOneDone = false
+    this.trialOneStarted = false
     this.devLevel = !this.domainMode && DEV_LEVEL_MODE
     // 测试关卡是「大厅 + 展厅」：devRoom < 0 在大厅，其余去对应那间展厅。
     // 换房间走 scene.restart()，所以 devRoom 是在上一帧就定好的
@@ -2949,10 +2953,6 @@ export class GameScene extends Phaser.Scene {
 
     this.physics.add.collider(this.slime, this.blockers)
 
-    if (this.domainMode) {
-      this.buildTrialOne()
-    }
-
     this.physics.add.overlap(this.slime, this.orbs, (_slime, orb) => {
       const orbSprite = orb as Phaser.Physics.Arcade.Sprite
       this.absorb(orbSprite.getData('element') as ElementKey)
@@ -4061,6 +4061,24 @@ export class GameScene extends Phaser.Scene {
   }
 
   private talkToCrane() {
+    if (this.domainMode) {
+      if (this.trialOneStarted) {
+        this.showDialogue('留云借风真君', ['第一重试炼已经开始了，去吧。'])
+        return
+      }
+
+      this.showDialogue(
+        '留云借风真君',
+        [
+          '第一重，考的是脚力。',
+          '浮石踩上去就会碎，别停太久。',
+          '到最高处，把仙家符箓取回来。',
+        ],
+        () => this.startTrialOne()
+      )
+      return
+    }
+
     this.showDialogue(
       '留云借风真君',
       [
@@ -4070,6 +4088,16 @@ export class GameScene extends Phaser.Scene {
       ],
       () => this.enterDomain()
     )
+  }
+
+  private startTrialOne() {
+    if (!this.domainMode || this.trialOneStarted) {
+      return
+    }
+
+    this.trialOneStarted = true
+    this.buildTrialOne()
+    this.showMessage('第一重试炼开始：取得仙家符箓')
   }
 
   private refreshHud() {
@@ -7041,6 +7069,30 @@ export class GameScene extends Phaser.Scene {
       platform.setDepth(3)
 
       this.trialCheckpoints.push({ x: cp.x, y: cp.y, index: index + 1 })
+
+      const edge = this.add
+        .image(cp.x, cp.y, 'pixel')
+        .setDisplaySize(124, 3)
+        .setTint(0xffd54f)
+        .setAlpha(0.55)
+        .setDepth(3.05)
+
+      this.tweens.add({
+        targets: edge,
+        alpha: 0.9,
+        duration: 900,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      })
+
+      this.add
+        .image(cp.x, cp.y + 4, 'pixel')
+        .setDisplaySize(120, 8)
+        .setTint(0xffd54f)
+        .setAlpha(0.12)
+        .setDepth(2.95)
+
       this.add
         .image(cp.x, cp.y + 8, 'cloud-puff')
         .setScale(0.55)
@@ -7049,30 +7101,61 @@ export class GameScene extends Phaser.Scene {
     })
 
     def.stones.forEach((st) => {
-      const sprite = this.trialStoneGroup.create(st.x, st.y + 4, 'pixel') as Phaser.Physics.Arcade.Sprite
+      const sprite = this.trialStoneGroup.create(st.x, st.y + 3, 'pixel') as Phaser.Physics.Arcade.Sprite
 
-      sprite.setDisplaySize(46, 8)
+      sprite.setDisplaySize(48, 6)
       sprite.setTint(0x8a7c69)
       sprite.refreshBody()
       sprite.setDepth(3)
+      sprite.setVisible(false)
 
       const body = sprite.body as Phaser.Physics.Arcade.StaticBody
       body.checkCollision.down = false
       body.checkCollision.left = false
       body.checkCollision.right = false
 
-      this.trialStones.push({ sprite, section: st.section, triggered: false })
+      const visual = this.add
+        .image(st.x, st.y, 'trial-stone')
+        .setOrigin(0.5, 0)
+        .setDepth(3.02)
+
+      const glow = this.add
+        .image(st.x, st.y + 24, 'pixel')
+        .setDisplaySize(24, 12)
+        .setTint(0x4dff9a)
+        .setAlpha(0.18)
+        .setDepth(3.01)
+
+      this.tweens.add({
+        targets: glow,
+        alpha: 0.32,
+        duration: 700,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      })
+
+      this.trialStones.push({ sprite, visual, glow, section: st.section, triggered: false })
       this.add
-        .image(st.x, st.y + 9, 'cloud-puff')
-        .setScale(0.38)
-        .setAlpha(0.45)
+        .image(st.x, st.y + 34, 'cloud-puff')
+        .setScale(0.3)
+        .setAlpha(0.35)
         .setDepth(2.8)
     })
 
     this.physics.add.collider(this.slime, this.trialStoneGroup, (_slime, stone) => {
       const record = this.trialStones.find((item) => item.sprite === stone)
+      const playerBody = this.slime.body as Phaser.Physics.Arcade.Body
+      const slab = stone as Phaser.Physics.Arcade.Sprite
+      const top = slab.y - slab.displayHeight / 2
 
-      if (record) {
+      // 只有脚底落在浮石**上表面**时才启动摧毁，侧面/底部碰一下不算
+      if (
+        record &&
+        playerBody.velocity.y >= -5 &&
+        playerBody.bottom <= top + 6 &&
+        playerBody.bottom >= top - 8
+      ) {
         this.trialArmed = true
         this.triggerTrialStone(record)
       }
@@ -7114,6 +7197,8 @@ export class GameScene extends Phaser.Scene {
 
   private triggerTrialStone(record: {
     sprite: Phaser.Physics.Arcade.Sprite
+    visual: Phaser.GameObjects.Image
+    glow: Phaser.GameObjects.Image
     triggered: boolean
     hideAt?: number
   }) {
@@ -7125,7 +7210,7 @@ export class GameScene extends Phaser.Scene {
     record.hideAt = this.time.now + 900
 
     this.tweens.add({
-      targets: record.sprite,
+      targets: record.visual,
       alpha: 0.45,
       duration: 160,
       yoyo: true,
@@ -7137,7 +7222,10 @@ export class GameScene extends Phaser.Scene {
     this.trialStones.forEach((record) => {
       record.triggered = false
       record.hideAt = undefined
+      this.tweens.killTweensOf(record.visual)
       record.sprite.setVisible(true).setAlpha(1)
+      record.visual.setVisible(true).setAlpha(1)
+      record.glow.setVisible(true)
       ;(record.sprite.body as Phaser.Physics.Arcade.StaticBody).enable = true
     })
   }
@@ -7150,6 +7238,8 @@ export class GameScene extends Phaser.Scene {
 
       record.hideAt = undefined
       record.sprite.setVisible(false).setAlpha(1)
+      record.visual.setVisible(false)
+      record.glow.setVisible(false)
       ;(record.sprite.body as Phaser.Physics.Arcade.StaticBody).enable = false
     })
   }
@@ -7183,7 +7273,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateTrialOne(dt: number) {
-    if (!this.domainMode || !this.level.trialOne || this.trialOneDone) {
+    if (!this.domainMode || !this.level.trialOne || !this.trialOneStarted || this.trialOneDone) {
       return
     }
 
@@ -11526,7 +11616,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     // 山顶的仙人：靠近后对话，进入仙家试炼
-    if (!prompt && this.craneNpc && !this.domainMode) {
+    if (!prompt && this.craneNpc) {
       const distance = Phaser.Math.Distance.Between(
         this.slime.x,
         this.slime.y,

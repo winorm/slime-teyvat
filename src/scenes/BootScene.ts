@@ -176,6 +176,7 @@ export class BootScene extends Phaser.Scene {
     this.makeAmberNpc()
     this.makeSpeedCharm()
     this.makeTrialTalisman()
+    this.makeTrialStone()
     this.makeAmberStand()
     this.makeCliffTrees()
     this.makeRockStrata()
@@ -5649,6 +5650,52 @@ export class BootScene extends Phaser.Scene {
     g.fillRect(10, 31, 4, 1)
 
     g.generateTexture('trial-talisman', 24, 32)
+    g.destroy()
+  }
+
+  // 试炼浮石（48x32 = 1.5 个史莱姆宽）：倒三角，上面白石头、下面绿发光石
+  private makeTrialStone() {
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    // 底部绿石的光晕
+    g.fillStyle(0x4dff9a, 0.18)
+    g.fillEllipse(24, 27, 34, 16)
+
+    // 倒三角白石主体
+    g.fillStyle(0x4b5357, 1)
+    g.fillPoints([P(0, 0), P(48, 0), P(24, 32)], true)
+    g.fillStyle(0xdfe6e2, 1)
+    g.fillPoints([P(2, 2), P(46, 2), P(24, 29)], true)
+
+    // 白色受光面 / 灰色背光面
+    g.fillStyle(0xf7fbf7, 1)
+    g.fillPoints([P(3, 2), P(24, 2), P(24, 15), P(15, 2)], true)
+    g.fillStyle(0xbfc9c5, 1)
+    g.fillPoints([P(24, 2), P(46, 2), P(30, 19), P(24, 15)], true)
+    g.fillStyle(0xeef4f0, 1)
+    g.fillPoints([P(6, 4), P(16, 4), P(24, 15), P(24, 24)], true)
+
+    // 上沿的亮边
+    g.fillStyle(0xffffff, 0.9)
+    g.fillRect(2, 2, 44, 2)
+
+    // 底部绿石：尖端一颗发光的绿晶
+    g.fillStyle(0x1f7f56, 1)
+    g.fillPoints([P(14, 18), P(34, 18), P(24, 31)], true)
+    g.fillStyle(0x4fe39a, 1)
+    g.fillPoints([P(16, 19), P(32, 19), P(24, 29)], true)
+    g.fillStyle(0xa8ffd2, 0.9)
+    g.fillPoints([P(19, 20), P(23, 20), P(24, 25)], true)
+    g.fillStyle(0x2fbf7a, 0.55)
+    g.fillEllipse(24, 27, 24, 8)
+
+    // 石缝
+    g.lineStyle(1, 0x8d9994, 0.6)
+    g.lineBetween(10, 7, 19, 15)
+    g.lineBetween(30, 6, 25, 14)
+
+    g.generateTexture('trial-stone', 48, 32)
     g.destroy()
   }
 

@@ -13,6 +13,7 @@ export const DOMAIN_LEVEL: LevelDef = {
   spawn: { x: 80, y: 787 },
   bg: 'mountain',
   cameraBias: 0,
+  crane: { x: 800, y: 800 },
   goal: { x: 1520, y: 786, kind: 'chest', prompt: '打开' },
   goalDisabled: true,
   platforms: [
@@ -71,7 +72,7 @@ export const DOMAIN_LEVEL: LevelDef = {
   hazards: [],
   monuments: [],
   hints: [
-    { x: 800, y: 735, text: '仙家试炼 · 三重考验' },
+    { x: 800, y: 735, text: '与仙人对话，开始第一重试炼' },
     { x: 350, y: 735, text: '跳上浮石，取得仙家符箓' },
   ],
 }
