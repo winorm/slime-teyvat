@@ -6485,17 +6485,7 @@ export class GameScene extends Phaser.Scene {
         .image(def.x, def.y - 10, 'amber')
         .setDepth(5)
         .setOrigin(0.5, 1)
-
-      // 琥珀沉一点，给它一个很慢的呼吸（别晃太狠，像里面的东西在动）
-      this.tweens.add({
-        targets: sprite,
-        scaleX: 1.04,
-        scaleY: 0.97,
-        duration: 1400,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-      })
+      // 用户 2026/10/17 定：**琥珀不要做动态**，就静静凝在那儿
 
       this.ambers.push({ sprite, def, broken: false })
     })

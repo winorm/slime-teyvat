@@ -5312,7 +5312,9 @@ export class BootScene extends Phaser.Scene {
     ]
     // 底部再摊一层**扁平椭圆**（2026/10/17 用户加的）：像树脂淌到地上摊开的那一摊。
     // 先画它，压在三个椭圆下面，所以最底下那一圈是宽的
-    const pool: [number, number, number, number] = [32, 45, 58, 12]
+    // 加宽了一档、又压扁了一点；中心挪到 31，让左右两端正好**卡在三个椭圆的左右外沿**
+    //（1 ~ 61），不会往两边戳出来
+    const pool: [number, number, number, number] = [31, 45, 60, 11]
 
     g.fillStyle(0x5a3210, 1)
     g.fillEllipse(pool[0], pool[1], pool[2], pool[3])
@@ -5327,7 +5329,7 @@ export class BootScene extends Phaser.Scene {
     lobes.forEach(([x, y, w, h]) => g.fillEllipse(x - 2, y - 3, (w - 4) * 0.7, (h - 4) * 0.72))
     // 右下压深一档（只在中间和右边那两坨的底部）
     g.fillStyle(0xc9741c, 1)
-    g.fillEllipse(44, 47, 20, 5)
+    g.fillEllipse(43, 47, 22, 5)
     g.fillEllipse(34, 40, 22, 12)
     g.fillEllipse(52, 40, 12, 7)
     // 高光：中间那坨一道长条、右边那坨一点
@@ -5345,7 +5347,7 @@ export class BootScene extends Phaser.Scene {
     g.fillRect(29, 33, 6, 2)
     // 底部再压一道暗，跟坐台接得住
     g.fillStyle(0x3a2410, 0.3)
-    g.fillEllipse(32, 50, 54, 5)
+    g.fillEllipse(31, 50, 56, 5)
 
     g.generateTexture('amber', 64, 52)
     g.destroy()
