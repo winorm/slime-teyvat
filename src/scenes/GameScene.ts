@@ -1360,6 +1360,7 @@ export class GameScene extends Phaser.Scene {
     section: number
     triggered: boolean
     hideAt?: number
+    reappearAt?: number
   }[] = []
   private trialCheckpoints: { x: number; y: number; index: number }[] = []
   private trialSection = 0
@@ -1368,6 +1369,7 @@ export class GameScene extends Phaser.Scene {
   private trialArtifact: Phaser.GameObjects.Image | null = null
   private trialOneDone = false
   private trialOneStarted = false
+  private trialReturnAt = 0
   // 测试关卡现在待在哪一间：-1 = 大厅，0 起 = 大厅里那排传送门的下标。
   // 初值来自地址上的 ?room=N（见 DEV_START_ROOM），用来直接打开某一间
   private devRoom = DEV_START_ROOM
@@ -1638,6 +1640,7 @@ export class GameScene extends Phaser.Scene {
     this.trialArtifact = null
     this.trialOneDone = false
     this.trialOneStarted = false
+    this.trialReturnAt = 0
     this.devLevel = !this.domainMode && DEV_LEVEL_MODE
     // 测试关卡是「大厅 + 展厅」：devRoom < 0 在大厅，其余去对应那间展厅。
     // 换房间走 scene.restart()，所以 devRoom 是在上一帧就定好的
@@ -4097,6 +4100,13 @@ export class GameScene extends Phaser.Scene {
 
     this.trialOneStarted = true
     this.buildTrialOne()
+
+    const body = this.slime.body as Phaser.Physics.Arcade.Body
+    body.reset(320, 800 - body.height / 2)
+    this.slime.setVelocity(0, 0)
+    this.trialSection = 0
+    this.trialArmed = false
+    this.cameras.main.flash(220, 180, 220, 255)
     this.showMessage('第一重试炼开始：取得仙家符箓')
   }
 
@@ -7101,18 +7111,15 @@ export class GameScene extends Phaser.Scene {
     })
 
     def.stones.forEach((st) => {
-      const sprite = this.trialStoneGroup.create(st.x, st.y + 3, 'pixel') as Phaser.Physics.Arcade.Sprite
+      const sprite = this.trialStoneGroup.create(st.x, st.y + 16, 'pixel') as Phaser.Physics.Arcade.Sprite
 
-      sprite.setDisplaySize(48, 6)
+      // 隐形碰撞箱：整块倒三角浮石的矩形包围盒。下方和侧面都挡人，
+      // 只能从侧面跳到上表面；画面另用 trial-stone 贴图。
+      sprite.setDisplaySize(48, 32)
       sprite.setTint(0x8a7c69)
       sprite.refreshBody()
       sprite.setDepth(3)
       sprite.setVisible(false)
-
-      const body = sprite.body as Phaser.Physics.Arcade.StaticBody
-      body.checkCollision.down = false
-      body.checkCollision.left = false
-      body.checkCollision.right = false
 
       const visual = this.add
         .image(st.x, st.y, 'trial-stone')
@@ -7201,6 +7208,7 @@ export class GameScene extends Phaser.Scene {
     glow: Phaser.GameObjects.Image
     triggered: boolean
     hideAt?: number
+    reappearAt?: number
   }) {
     if (record.triggered) {
       return
@@ -7222,6 +7230,7 @@ export class GameScene extends Phaser.Scene {
     this.trialStones.forEach((record) => {
       record.triggered = false
       record.hideAt = undefined
+      record.reappearAt = undefined
       this.tweens.killTweensOf(record.visual)
       record.sprite.setVisible(true).setAlpha(1)
       record.visual.setVisible(true).setAlpha(1)
@@ -7232,15 +7241,24 @@ export class GameScene extends Phaser.Scene {
 
   private updateTrialStones() {
     this.trialStones.forEach((record) => {
-      if (!record.triggered || record.hideAt === undefined || this.time.now < record.hideAt) {
+      if (record.hideAt !== undefined && this.time.now >= record.hideAt) {
+        record.hideAt = undefined
+        record.reappearAt = this.time.now + 5000
+        record.sprite.setVisible(false).setAlpha(1)
+        record.visual.setVisible(false)
+        record.glow.setVisible(false)
+        ;(record.sprite.body as Phaser.Physics.Arcade.StaticBody).enable = false
         return
       }
 
-      record.hideAt = undefined
-      record.sprite.setVisible(false).setAlpha(1)
-      record.visual.setVisible(false)
-      record.glow.setVisible(false)
-      ;(record.sprite.body as Phaser.Physics.Arcade.StaticBody).enable = false
+      if (record.reappearAt !== undefined && this.time.now >= record.reappearAt) {
+        record.triggered = false
+        record.reappearAt = undefined
+        record.sprite.setVisible(true).setAlpha(1)
+        record.visual.setVisible(true).setAlpha(1)
+        record.glow.setVisible(true)
+        ;(record.sprite.body as Phaser.Physics.Arcade.StaticBody).enable = true
+      }
     })
   }
 
@@ -7307,6 +7325,7 @@ export class GameScene extends Phaser.Scene {
         playSfx(this, 'sfx-gem', 0.6)
         this.cameras.main.flash(220, 255, 230, 150)
         this.showMessage('第一重试炼通过：获得仙家符箓')
+        this.trialReturnAt = this.time.now + 700
         return
       }
     }
@@ -7336,6 +7355,25 @@ export class GameScene extends Phaser.Scene {
     ) {
       this.failTrialSection()
     }
+  }
+
+  private updateTrialReturn() {
+    if (this.trialReturnAt <= 0 || this.time.now < this.trialReturnAt) {
+      return
+    }
+
+    this.trialReturnAt = 0
+
+    if (!this.domainMode || this.domainLeaving) {
+      return
+    }
+
+    const body = this.slime.body as Phaser.Physics.Arcade.Body
+    body.reset(740, 800 - body.height / 2)
+    this.slime.setVelocity(0, 0)
+    this.trialArmed = false
+    this.cameras.main.flash(240, 255, 230, 150)
+    this.showMessage('回到仙人身边')
   }
 
   // 敲开琥珀：碎几片琥珀、把里面的东西放出来
@@ -11469,6 +11507,7 @@ export class GameScene extends Phaser.Scene {
     if (this.domainMode) {
       this.updateTrialStones()
       this.updateTrialOne(dt)
+      this.updateTrialReturn()
     }
     // 自动上台阶的那几帧人在空中，但动画和音效要按「还在走路」算，
     // 不然每上一级都会当成一次落地：压缩一下、放一声落地音，比抖还难看

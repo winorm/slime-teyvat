@@ -5653,49 +5653,72 @@ export class BootScene extends Phaser.Scene {
     g.destroy()
   }
 
-  // 试炼浮石（48x32 = 1.5 个史莱姆宽）：倒三角，上面白石头、下面绿发光石
+  // 试炼浮石（48x34 = 1.5 个史莱姆宽）：不规则倒三角，上面白石头、下面绿发光石
   private makeTrialStone() {
     const g = this.add.graphics()
     const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
 
     // 底部绿石的光晕
     g.fillStyle(0x4dff9a, 0.18)
-    g.fillEllipse(24, 27, 34, 16)
+    g.fillEllipse(24, 28, 36, 18)
 
-    // 倒三角白石主体
+    // 不规则倒三角：上沿宽、下沿收成参差的尖，轮廓故意不对称
+    const body: Array<[number, number]> = [
+      [1, 1],
+      [10, 0],
+      [19, 2],
+      [28, 0],
+      [39, 1],
+      [47, 3],
+      [44, 10],
+      [47, 17],
+      [40, 23],
+      [31, 28],
+      [25, 34],
+      [19, 28],
+      [12, 26],
+      [7, 21],
+      [2, 13],
+      [5, 7],
+    ]
+
     g.fillStyle(0x4b5357, 1)
-    g.fillPoints([P(0, 0), P(48, 0), P(24, 32)], true)
+    g.fillPoints(body.map(([x, y]) => P(x, y)), true)
+
+    const inset = body.map(([x, y]) => P(24 + (x - 24) * 0.94, 1 + (y - 1) * 0.93))
+
     g.fillStyle(0xdfe6e2, 1)
-    g.fillPoints([P(2, 2), P(46, 2), P(24, 29)], true)
+    g.fillPoints(inset, true)
 
-    // 白色受光面 / 灰色背光面
+    // 白色受光面
     g.fillStyle(0xf7fbf7, 1)
-    g.fillPoints([P(3, 2), P(24, 2), P(24, 15), P(15, 2)], true)
+    g.fillPoints([P(4, 3), P(22, 2), P(24, 16), P(15, 6)], true)
+    g.fillStyle(0xe9f1ed, 1)
+    g.fillPoints([P(7, 6), P(18, 5), P(24, 19), P(21, 25), P(12, 17)], true)
+
+    // 灰色背光面
     g.fillStyle(0xbfc9c5, 1)
-    g.fillPoints([P(24, 2), P(46, 2), P(30, 19), P(24, 15)], true)
-    g.fillStyle(0xeef4f0, 1)
-    g.fillPoints([P(6, 4), P(16, 4), P(24, 15), P(24, 24)], true)
+    g.fillPoints([P(24, 2), P(44, 4), P(41, 15), P(34, 22), P(26, 17)], true)
 
-    // 上沿的亮边
-    g.fillStyle(0xffffff, 0.9)
-    g.fillRect(2, 2, 44, 2)
-
-    // 底部绿石：尖端一颗发光的绿晶
+    // 底部绿发光石：不规则的一整块，和白色岩体咬在一起
     g.fillStyle(0x1f7f56, 1)
-    g.fillPoints([P(14, 18), P(34, 18), P(24, 31)], true)
+    g.fillPoints([P(12, 20), P(36, 20), P(33, 27), P(25, 34), P(18, 27), P(10, 24)], true)
     g.fillStyle(0x4fe39a, 1)
-    g.fillPoints([P(16, 19), P(32, 19), P(24, 29)], true)
+    g.fillPoints([P(14, 21), P(34, 21), P(31, 26), P(25, 32), P(20, 26), P(13, 23)], true)
     g.fillStyle(0xa8ffd2, 0.9)
-    g.fillPoints([P(19, 20), P(23, 20), P(24, 25)], true)
+    g.fillPoints([P(18, 22), P(23, 22), P(25, 28)], true)
     g.fillStyle(0x2fbf7a, 0.55)
-    g.fillEllipse(24, 27, 24, 8)
+    g.fillEllipse(24, 28, 28, 10)
 
-    // 石缝
+    // 上沿亮边和石缝
+    g.fillStyle(0xffffff, 0.9)
+    g.fillRect(3, 2, 42, 2)
     g.lineStyle(1, 0x8d9994, 0.6)
-    g.lineBetween(10, 7, 19, 15)
-    g.lineBetween(30, 6, 25, 14)
+    g.lineBetween(9, 7, 18, 16)
+    g.lineBetween(29, 6, 25, 15)
+    g.lineBetween(34, 10, 30, 20)
 
-    g.generateTexture('trial-stone', 48, 32)
+    g.generateTexture('trial-stone', 48, 34)
     g.destroy()
   }
 
