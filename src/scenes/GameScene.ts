@@ -8260,15 +8260,51 @@ export class GameScene extends Phaser.Scene {
     const body = this.slime.body as Phaser.Physics.Arcade.Body
     const target = this.blessed && Math.abs(body.velocity.x) > 10 ? 1 : 0
 
-    // 接地影：踩到地面时把"脚下那条线"记下来，跳起来就停在原地变小变淡 ——
-    // 2D 里玩家永远在同一条线上走，这个影子负责把"这条线在哪"讲清楚
-    if (body.blocked.down) {
+    // 接地影：踩到地面时把"脚下那条线"记下来，跳起来就变小变淡。
+    // **坡面也要算地面**：走坡时脚底是 updateSlopes 接管的，body.blocked.down 是 false，
+    // 只看 blocked.down 的话影子会一直停在上一块平台上（2026/10/17 用户发现）。
+    let shadowGroundY = this.lastGroundY
+    let shadowOverSlope = this.slopeGrip
+
+    if (body.blocked.down || this.slopeGrip) {
       this.lastGroundY = body.bottom
+      shadowGroundY = body.bottom
+    } else if (this.level.slopes && this.level.slopes.length > 0) {
+      // 空中：如果脚下还有一条当前层的坡，让影子贴着那条坡走，
+      // 而不是停在起跳那一点 —— 在坡上跳起来时差别很明显。
+      let nearest: number | null = null
+
+      for (const def of this.level.slopes) {
+        if ((def.layer ?? 'front') !== this.playerLayer) {
+          continue
+        }
+
+        const surface = this.slopeSurfaceAt(def, this.slime.x)
+
+        if (surface === null || surface < body.bottom - 2) {
+          continue
+        }
+
+        if (nearest === null || surface < nearest) {
+          nearest = surface
+        }
+      }
+
+      if (nearest !== null) {
+        shadowGroundY = nearest
+        shadowOverSlope = true
+      }
     }
 
-    const air = Math.max(0, this.lastGroundY - body.bottom)
+    const air = Math.max(0, shadowGroundY - body.bottom)
 
-    this.slimeShadow.setPosition(this.slime.x, this.lastGroundY - 1)
+    // 后层的坡画在 1.1：影子如果还按后层的 1.05 摆，会被坡面盖掉一半。
+    // 在坡上（或坡上方）时把它抬到坡面之上、人物（1.2）之下。
+    if (this.playerLayer === 'back') {
+      this.slimeShadow.setDepth(shadowOverSlope ? 1.19 : 1.05)
+    }
+
+    this.slimeShadow.setPosition(this.slime.x, shadowGroundY - 1)
     this.slimeShadow.setAlpha(Phaser.Math.Clamp(0.6 - air / 240, 0.12, 0.6))
     this.slimeShadow.setScale(Phaser.Math.Clamp(1 - air / 420, 0.55, 1))
 
