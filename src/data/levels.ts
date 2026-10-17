@@ -1220,7 +1220,9 @@ export const LEVELS: LevelDef[] = [
       { x: 3175, y: 463, width: 550, height: 6, grass: true, depth: 3 },
       // ③ **整张地图底下铺一条实心的**（1360~1500，全宽）：一是地面下沿不能看见背景，
       //    二是这一条就是"山的脚"，哪一跑掉下来都落在它上面，不会掉出世界外面去
-      { x: 1725, y: 1430, width: 3450, height: 140, tint: 0x5e5348, depth: 1.0 },
+      // 地面那条水平线**下方**还是泥土（山脚是土）；从第一段坡开始（x≈420）才算山、才是岩石
+      { x: 210, y: 1430, width: 420, height: 140, tint: 0x8a6a4a, depth: 1.0 },
+      { x: 1935, y: 1430, width: 3030, height: 140, tint: 0x5e5348, depth: 1.0 },
       // ④ 每块平台下面也一路填到地面，各分三层当岩石的横截面（只画不挡人，深度都在 1.1 上下）
       // 平台下面的填色压在**所有坡**后面（坡在 1.05~1.15）：原来给到 1.16，
       // 最底下那一层就盖在下跑的路面上了（用户 2026/10/17 发现的）
@@ -1300,21 +1302,23 @@ export const LEVELS: LevelDef[] = [
       // **崖面本身**：一块块参差的岩面摞起来（cliff-face-a/b/c，118x180），沿外沿一段接一段，
       // 每块错开十几像素、交替用三种形状，边缘就是连续的乱石崖，不是方框。
       // 左边那条崖面（x=400）翻转过来挂，右边（x=3450）不翻；中间山顶平台左沿（x=2200）翻转。
-      { x: 345, y: 1370, key: 'cliff-face-a', flip: true, depth: 1.17 },
-      { x: 341, y: 1200, key: 'cliff-face-b', flip: true, depth: 1.17 },
-      { x: 347, y: 1030, key: 'cliff-face-c', flip: true, depth: 1.17 },
-      { x: 343, y: 860, key: 'cliff-face-a', flip: true, depth: 1.17 },
-      { x: 2145, y: 1370, key: 'cliff-face-c', flip: true, depth: 1.17 },
-      { x: 2141, y: 1200, key: 'cliff-face-a', flip: true, depth: 1.17 },
-      { x: 2147, y: 1030, key: 'cliff-face-b', flip: true, depth: 1.17 },
-      { x: 2143, y: 860, key: 'cliff-face-c', flip: true, depth: 1.17 },
-      { x: 2141, y: 690, key: 'cliff-face-a', flip: true, depth: 1.17 },
-      { x: 3340, y: 1370, key: 'cliff-face-b', depth: 1.17 },
-      { x: 3344, y: 1200, key: 'cliff-face-c', depth: 1.17 },
-      { x: 3338, y: 1030, key: 'cliff-face-a', depth: 1.17 },
-      { x: 3342, y: 860, key: 'cliff-face-b', depth: 1.17 },
-      { x: 3346, y: 690, key: 'cliff-face-c', depth: 1.17 },
-      { x: 3339, y: 520, key: 'cliff-face-a', depth: 1.17 },
+      // 每块都**往山体里多压进 22 像素**（真的那条直边藏进岩体里），
+      // 这样外沿那段参差和中间山体是长在一起的，不会有一条硬邦邦的竖缝
+      { x: 367, y: 1370, key: 'cliff-face-a', flip: true, depth: 1.17 },
+      { x: 363, y: 1200, key: 'cliff-face-b', flip: true, depth: 1.17 },
+      { x: 369, y: 1030, key: 'cliff-face-c', flip: true, depth: 1.17 },
+      { x: 365, y: 860, key: 'cliff-face-a', flip: true, depth: 1.17 },
+      { x: 2167, y: 1370, key: 'cliff-face-c', flip: true, depth: 1.17 },
+      { x: 2163, y: 1200, key: 'cliff-face-a', flip: true, depth: 1.17 },
+      { x: 2169, y: 1030, key: 'cliff-face-b', flip: true, depth: 1.17 },
+      { x: 2165, y: 860, key: 'cliff-face-c', flip: true, depth: 1.17 },
+      { x: 2163, y: 690, key: 'cliff-face-a', flip: true, depth: 1.17 },
+      { x: 3318, y: 1370, key: 'cliff-face-b', depth: 1.17 },
+      { x: 3322, y: 1200, key: 'cliff-face-c', depth: 1.17 },
+      { x: 3316, y: 1030, key: 'cliff-face-a', depth: 1.17 },
+      { x: 3320, y: 860, key: 'cliff-face-b', depth: 1.17 },
+      { x: 3324, y: 690, key: 'cliff-face-c', depth: 1.17 },
+      { x: 3317, y: 520, key: 'cliff-face-a', depth: 1.17 },
       // 崖沿上的草（植被，不是崖壁）
       { x: 402, y: 782, key: 'cliff-grass', scale: 1.4, depth: 1.18 },
       { x: 404, y: 1180, key: 'cliff-grass', scale: 1.2, flip: true, depth: 1.18 },

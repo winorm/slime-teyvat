@@ -5568,10 +5568,12 @@ export class BootScene extends Phaser.Scene {
     c.destroy()
   }
 
-  // ── 岩石横截面 3 种（56x34 的岩块）──────────────────────────────────
+  // ── 岩石横截面 3 种（56x34 的岩块）—— 2026/10/17 重做：
+  //   颜色全部贴住山体那档 0x6a5e52，上下只差三五个色号，靠**细石缝**分出层理，
+  //   不再是一深一浅的大色块（那样贴上去像补丁）
   private makeRockStrata() {
-    // 横截面也用崖面那套石头色（用户 2026/10/17 定的四档），贴在岩壁上才融得进去
-    const bands = [0x73665a, 0x5e5348, 0x8a7c69, 0x453d34]
+    const bands = [0x6a5e52, 0x675b4f, 0x6e6256, 0x645849]
+    const seam = 0x554a3f
 
     const a = this.add.graphics()
     a.fillStyle(bands[0], 1)
@@ -5580,7 +5582,7 @@ export class BootScene extends Phaser.Scene {
       a.fillStyle(bands[i % bands.length], 1)
       a.fillRect(0, 6 + i * 7, 56, 4)
     }
-    a.lineStyle(1, 0x2e2620, 1)
+    a.lineStyle(1, seam, 0.75)
     a.lineBetween(20, 0, 26, 16)
     a.lineBetween(26, 16, 22, 34)
     a.generateTexture('rock-strata-a', 56, 34)
@@ -5602,15 +5604,15 @@ export class BootScene extends Phaser.Scene {
     b.destroy()
 
     const c = this.add.graphics()
-    c.fillStyle(bands[2], 1)
+    c.fillStyle(bands[0], 1)
     c.fillRect(0, 0, 56, 34)
-    c.fillStyle(bands[3], 1)
+    c.fillStyle(bands[1], 1)
     c.fillRect(0, 10, 56, 6)
     c.fillRect(0, 24, 56, 5)
     for (const spot of [[12, 12, 9], [30, 15, 7], [44, 26, 8], [20, 28, 6]]) {
-      c.fillStyle(0x8d7f6d, 1)
+      c.fillStyle(0x746858, 1)
       c.fillCircle(spot[0], spot[1], spot[2] / 2)
-      c.fillStyle(0x9d8f7c, 1)
+      c.fillStyle(0x7d7161, 1)
       c.fillCircle(spot[0] - 1, spot[1] - 1, spot[2] / 3)
     }
     c.generateTexture('rock-strata-c', 56, 34)
