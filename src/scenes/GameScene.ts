@@ -1036,6 +1036,34 @@ function devSlopeRoom(): DevLevelDef {
   return level
 }
 
+// ⑬ 悬崖·树·石头：崖上的树 3 种（一种带鸟巢）、桦木 3 种、岩石横截面 3 种、
+//    小石子 3 种、石堆。全是 2026/10/17 用户给第九关点的素材，先摆出来看
+function devCliffRoom(): DevLevelDef {
+  const level = devRoomShell(
+    '测试 · 悬崖·树·石头',
+    '悬崖素材展厅：\n崖树 / 桦木 / 岩石横截面 /\n小石子 / 石堆，\n排成两排看。',
+    1300
+  )
+
+  level.devExhibits = [
+    { kind: 'prop', x: 120, label: '崖松（斜长）', key: 'tree-cliff-a' },
+    { kind: 'prop', x: 260, label: '崖树（带鸟巢）', key: 'tree-cliff-b' },
+    { kind: 'prop', x: 400, label: '风歪树', key: 'tree-cliff-c' },
+    { kind: 'prop', x: 540, label: '桦木 a', key: 'birch-a' },
+    { kind: 'prop', x: 660, label: '桦木 b', key: 'birch-b' },
+    { kind: 'prop', x: 780, label: '桦木 c', key: 'birch-c' },
+    { kind: 'prop', x: 880, label: '岩石横截面 a', key: 'rock-strata-a' },
+    { kind: 'prop', x: 960, label: '岩石横截面 b', key: 'rock-strata-b' },
+    { kind: 'prop', x: 1040, label: '岩石横截面 c', key: 'rock-strata-c' },
+    { kind: 'prop', x: 1120, label: '石子 a', key: 'pebble-a' },
+    { kind: 'prop', x: 1150, label: '石子 b', key: 'pebble-b' },
+    { kind: 'prop', x: 1180, label: '石子 c', key: 'pebble-c' },
+    { kind: 'prop', x: 1240, label: '石堆', key: 'stone-pile' },
+  ]
+
+  return level
+}
+
 const DEV_ROOMS: DevRoomDef[] = [
   { label: '七天神像', level: devStatueRoom() },
   { label: '元素方碑', level: devMonumentRoom() },
@@ -1050,6 +1078,7 @@ const DEV_ROOMS: DevRoomDef[] = [
   { label: '综合沙盒', level: DEV_LEVEL },
   // 新展厅一律**加在最后**：前面的下标是 `?room=N` 认的，插在中间会把老书签挪位
   { label: '拱形土坡', level: devSlopeRoom() },
+  { label: '悬崖·树·石头', level: devCliffRoom() },
 ]
 
 const DEV_PORTALS: DevPortalRef[] = DEV_ROOMS.map((room, index) => ({
@@ -3194,10 +3223,11 @@ export class GameScene extends Phaser.Scene {
       .setDepth(HUD_DEPTH)
       .setVisible(false)
 
-    const gemTotal = this.level.gems.length
+    // 原石总数 = 关卡里摆着的 + **冻在琥珀里的**（用户 2026/10/17：琥珀里那颗也算一颗）
+    const gemTotal = this.gemTotalCount()
     const gemStartX = 480 - 20 - (gemTotal - 1) * 18
 
-    this.gemIcons = this.level.gems.map((_spot, index) =>
+    this.gemIcons = Array.from({ length: gemTotal }, (_unused, index) =>
       this.add
         .image(gemStartX + index * 18, 18, 'gem')
         .setScrollFactor(0)
@@ -8226,6 +8256,13 @@ export class GameScene extends Phaser.Scene {
         trail.setPosition(this.slime.x + dir * (24 + index * 9), this.slime.y + 9 + index * 2)
       }
     })
+  }
+
+  // 这一关一共几颗原石：摆在关卡里的 + 冻在琥珀里的（不写 loot 的琥珀默认就是原石）
+  private gemTotalCount() {
+    const inAmber = (this.level.ambers ?? []).filter((amber) => (amber.loot ?? 'gem') === 'gem').length
+
+    return this.level.gems.length + inAmber
   }
 
   private refreshGemHud() {

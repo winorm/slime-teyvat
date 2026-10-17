@@ -174,6 +174,11 @@ export class BootScene extends Phaser.Scene {
     this.makeAmber()
     this.makeAmberBoar()
     this.makeAmberStand()
+    this.makeCliffTrees()
+    this.makeRockStrata()
+    this.makePebbles()
+    this.makeStonePile()
+    this.makeBirches()
     this.makeSlimeShadow()
     this.makeTerracePaving()
 
@@ -5457,6 +5462,232 @@ export class BootScene extends Phaser.Scene {
 
     g.generateTexture('amber-boar', 26, 18)
     g.destroy()
+  }
+
+  // ── 悬崖上的树 3 种（2026/10/17 用户要的素材）────────────────────────
+  //   a 斜长的崖松 · b 矮壮宽冠、树杈上带鸟巢 · c 被风刮歪的一棵
+  //   三棵都画了往外扎的根，摆到崖边才站得住
+  private makeCliffTrees() {
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    const a = this.add.graphics()
+    a.fillStyle(0x3a2a1c, 1)
+    a.fillPoints([P(22, 66), P(28, 66), P(34, 30), P(29, 30)], true)
+    a.fillStyle(0x513c26, 1)
+    a.fillPoints([P(23, 66), P(25, 66), P(31, 30), P(29, 30)], true)
+    a.fillStyle(0x3a2a1c, 1)
+    a.fillTriangle(22, 66, 8, 71, 24, 61)
+    a.fillTriangle(28, 66, 42, 71, 26, 61)
+    const pine = (cx: number, cy: number, w: number, h: number) => {
+      a.fillStyle(0x2f5136, 1)
+      a.fillEllipse(cx, cy, w, h)
+      a.fillStyle(0x46754a, 1)
+      a.fillEllipse(cx - 2, cy - 2, w * 0.7, h * 0.55)
+    }
+    pine(32, 30, 46, 18)
+    pine(30, 18, 38, 15)
+    pine(28, 8, 26, 12)
+    a.generateTexture('tree-cliff-a', 62, 72)
+    a.destroy()
+
+    const b = this.add.graphics()
+    b.fillStyle(0x3a2a1c, 1)
+    b.fillRect(28, 40, 8, 30)
+    b.fillStyle(0x513c26, 1)
+    b.fillRect(29, 40, 3, 30)
+    b.fillStyle(0x3a2a1c, 1)
+    b.fillTriangle(34, 46, 54, 30, 36, 48)
+    b.fillStyle(0x2f5136, 1)
+    b.fillEllipse(32, 26, 60, 30)
+    b.fillStyle(0x46754a, 1)
+    b.fillEllipse(28, 22, 42, 19)
+    b.fillStyle(0x2a4830, 1)
+    b.fillEllipse(44, 34, 30, 14)
+    b.fillStyle(0x5b4326, 1)
+    b.fillEllipse(52, 32, 22, 11)
+    b.fillStyle(0x6f5430, 1)
+    b.fillEllipse(52, 30, 17, 7)
+    b.fillStyle(0x3a2a1c, 1)
+    for (const x of [44, 47, 50, 53, 56, 59]) {
+      b.fillRect(x, 27 + (x % 2), 5, 1)
+    }
+    b.fillStyle(0xf2e6c8, 1)
+    b.fillCircle(50, 29, 2.4)
+    b.fillCircle(55, 29, 2.4)
+    b.generateTexture('tree-cliff-b', 66, 72)
+    b.destroy()
+
+    const c = this.add.graphics()
+    c.fillStyle(0x3a2a1c, 1)
+    c.fillPoints([P(24, 68), P(30, 68), P(34, 52), P(46, 34), P(39, 32), P(28, 52)], true)
+    c.fillStyle(0x513c26, 1)
+    c.fillPoints([P(25, 68), P(27, 68), P(31, 52), P(42, 35), P(39, 34), P(26, 52)], true)
+    c.fillStyle(0x3a2a1c, 1)
+    c.fillTriangle(24, 68, 10, 72, 27, 63)
+    c.fillStyle(0x2f5136, 1)
+    c.fillEllipse(46, 28, 40, 17)
+    c.fillStyle(0x46754a, 1)
+    c.fillEllipse(50, 22, 30, 12)
+    c.fillStyle(0x2a4830, 1)
+    c.fillEllipse(36, 36, 26, 10)
+    c.generateTexture('tree-cliff-c', 66, 72)
+    c.destroy()
+  }
+
+  // ── 岩石横截面 3 种（56x34 的岩块）──────────────────────────────────
+  private makeRockStrata() {
+    const bands = [0x6b5340, 0x5c4a3a, 0x77604a, 0x4f4033]
+
+    const a = this.add.graphics()
+    a.fillStyle(bands[0], 1)
+    a.fillRect(0, 0, 56, 34)
+    for (let i = 0; i < 4; i++) {
+      a.fillStyle(bands[i % bands.length], 1)
+      a.fillRect(0, 6 + i * 7, 56, 4)
+    }
+    a.lineStyle(1, 0x2e2620, 1)
+    a.lineBetween(20, 0, 26, 16)
+    a.lineBetween(26, 16, 22, 34)
+    a.generateTexture('rock-strata-a', 56, 34)
+    a.destroy()
+
+    const b = this.add.graphics()
+    b.fillStyle(bands[1], 1)
+    b.fillRect(0, 0, 56, 34)
+    for (let row = 0; row < 4; row++) {
+      let x = row % 2 === 0 ? 0 : -8
+      while (x < 56) {
+        b.fillStyle(bands[(row + 2) % bands.length], 1)
+        const w = 16 + ((row * 7 + (x + 56)) % 10)
+        b.fillRect(x + 1, row * 9 + 1, w - 2, 7)
+        x += w
+      }
+    }
+    b.generateTexture('rock-strata-b', 56, 34)
+    b.destroy()
+
+    const c = this.add.graphics()
+    c.fillStyle(bands[2], 1)
+    c.fillRect(0, 0, 56, 34)
+    c.fillStyle(bands[3], 1)
+    c.fillRect(0, 10, 56, 6)
+    c.fillRect(0, 24, 56, 5)
+    for (const spot of [[12, 12, 9], [30, 15, 7], [44, 26, 8], [20, 28, 6]]) {
+      c.fillStyle(0x8d7f6d, 1)
+      c.fillCircle(spot[0], spot[1], spot[2] / 2)
+      c.fillStyle(0x9d8f7c, 1)
+      c.fillCircle(spot[0] - 1, spot[1] - 1, spot[2] / 3)
+    }
+    c.generateTexture('rock-strata-c', 56, 34)
+    c.destroy()
+  }
+
+  // ── 小石子 3 种（18x12 的小簇）──────────────────────────────────────
+  private makePebbles() {
+    const a = this.add.graphics()
+    a.fillStyle(0x6b6156, 1)
+    a.fillEllipse(5, 8, 8, 6)
+    a.fillEllipse(11, 9, 7, 5)
+    a.fillEllipse(9, 5, 6, 5)
+    a.fillStyle(0x8a8073, 1)
+    a.fillEllipse(4, 7, 4, 2)
+    a.fillEllipse(8, 4, 3, 2)
+    a.generateTexture('pebble-a', 18, 12)
+    a.destroy()
+
+    const b = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+    b.fillStyle(0x5f564c, 1)
+    b.fillPoints([P(1, 10), P(7, 3), P(16, 6), P(12, 11)], true)
+    b.fillStyle(0x7d7367, 1)
+    b.fillPoints([P(3, 8), P(7, 4), P(13, 6), P(10, 9)], true)
+    b.generateTexture('pebble-b', 18, 12)
+    b.destroy()
+
+    const c = this.add.graphics()
+    c.fillStyle(0x6b6156, 1)
+    c.fillEllipse(9, 7, 14, 9)
+    c.fillStyle(0x8a8073, 1)
+    c.fillEllipse(7, 5, 7, 4)
+    c.fillStyle(0x5f8a3a, 1)
+    c.fillEllipse(12, 4, 7, 3)
+    c.fillStyle(0x7fb04a, 1)
+    c.fillRect(11, 2, 1, 2)
+    c.fillRect(14, 3, 1, 2)
+    c.generateTexture('pebble-c', 18, 12)
+    c.destroy()
+  }
+
+  // ── 石堆（38x26）：七块石头垒起来的一小堆 ────────────────────────────
+  private makeStonePile() {
+    const g = this.add.graphics()
+    const stone = (x: number, y: number, w: number, h: number, dark: number, light: number) => {
+      g.fillStyle(dark, 1)
+      g.fillEllipse(x, y, w, h)
+      g.fillStyle(light, 1)
+      g.fillEllipse(x - 1, y - 1, w * 0.6, h * 0.5)
+    }
+
+    stone(10, 20, 16, 8, 0x4f463c, 0x6b6156)
+    stone(26, 21, 14, 7, 0x4f463c, 0x6b6156)
+    stone(18, 15, 14, 8, 0x574d42, 0x776d60)
+    stone(28, 13, 10, 7, 0x4f463c, 0x6b6156)
+    stone(8, 12, 10, 7, 0x574d42, 0x776d60)
+    stone(17, 7, 12, 7, 0x5f564c, 0x8a8073)
+    g.generateTexture('stone-pile', 38, 26)
+    g.destroy()
+  }
+
+  // ── 桦木 3 种（白杆 + 黑横斑 + 嫩绿树冠）────────────────────────────
+  private makeBirches() {
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+    const canopy = (g: Phaser.GameObjects.Graphics, cx: number, cy: number, w: number, h: number) => {
+      g.fillStyle(0x6f9a4a, 1)
+      g.fillEllipse(cx, cy, w, h)
+      g.fillStyle(0x8cba5e, 1)
+      g.fillEllipse(cx - w * 0.08, cy - h * 0.16, w * 0.72, h * 0.62)
+      g.fillStyle(0x5c8a3c, 1)
+      g.fillEllipse(cx + w * 0.22, cy + h * 0.2, w * 0.4, h * 0.34)
+    }
+
+    const a = this.add.graphics()
+    a.fillStyle(0xe8e4d8, 1)
+    a.fillPoints([P(22, 70), P(27, 70), P(26, 24), P(23, 24)], true)
+    a.fillStyle(0xf5f2e8, 1)
+    a.fillRect(23, 24, 2, 46)
+    a.fillStyle(0xcfcabb, 1)
+    a.fillRect(25, 24, 1, 46)
+    a.fillStyle(0x2c2622, 1)
+    for (let y = 30, i = 0; y < 66; y += 5, i++) {
+      a.fillRect(22 + (i % 2), y, 3, 1)
+    }
+    canopy(a, 24, 16, 34, 26)
+    a.generateTexture('birch-a', 48, 72)
+    a.destroy()
+
+    const b = this.add.graphics()
+    for (const trunk of [[20, 26, 30], [26, 34, 22], [32, 18, 36]]) {
+      b.fillStyle(0xe8e4d8, 1)
+      b.fillPoints([P(trunk[0] - 2, 70), P(trunk[0] + 1, 70), P(trunk[1] + 1, 70 - trunk[2]), P(trunk[1] - 1, 70 - trunk[2])], true)
+    }
+    b.fillStyle(0x2c2622, 1)
+    for (const mark of [[21, 44], [27, 52], [33, 40], [23, 34], [30, 46]]) {
+      b.fillRect(mark[0], mark[1], 3, 1)
+    }
+    canopy(b, 26, 18, 44, 30)
+    b.generateTexture('birch-b', 56, 72)
+    b.destroy()
+
+    const c = this.add.graphics()
+    c.fillStyle(0xe8e4d8, 1)
+    c.fillPoints([P(20, 70), P(25, 70), P(31, 34), P(27, 33)], true)
+    c.fillStyle(0x2c2622, 1)
+    for (const mark of [[23, 60], [25, 52], [27, 44], [29, 38]]) {
+      c.fillRect(mark[0], mark[1], 3, 1)
+    }
+    canopy(c, 32, 24, 40, 28)
+    c.generateTexture('birch-c', 56, 72)
+    c.destroy()
   }
 
   private makeCloudRetainerCrane() {

@@ -1260,7 +1260,7 @@ export const LEVELS: LevelDef[] = [
     // 琥珀（2026/10/17）：摆在两块转角平台上，**要用岩柱的岩共鸣震开**。
     // 里面冻的东西不一样：一块是原石，一块是野猪。第三个平台（山顶）留给仙人和小考验
     ambers: [
-      { x: 2120, y: 1060, loot: 'gem', gemIndex: 1 },
+      { x: 2120, y: 1060, loot: 'gem', gemIndex: 2 },
       { x: 470, y: 760, loot: 'boar' },
     ],
 
