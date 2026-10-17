@@ -1285,45 +1285,33 @@ export const LEVELS: LevelDef[] = [
       { x: 470, y: 760, loot: 'boar' },
     ],
 
-    // 把新画的素材先堆到这一关看看效果（2026/10/17）。崖树挂在崖壁上：
-    // 贴图左边那一列是"贴壁"的方向，所以挂在**右边那种崖面**上要 flip 过来。
-    //   362 那棵挂在转角平台 2 填色的左沿（x=400，岩体在右边）→ flip
-    //   2238 那棵挂在转角平台 1 填色的右沿（x=2200，岩体在左边）→ 不翻
-    //   2162 那棵挂在山顶大平台填色的左沿（x=2200）→ flip
-    // 崖粉（填色）都在 1.0~1.15 层，树给 1.16 才压得住；山脚那几件给 1.2
+    // 把新画的素材先堆到这一关看看效果（2026/10/17）。
+    // 分层约定（从下往上）：山体填色 1.0~1.12 → 坡面 1.05~1.15 → 岩石横截面 1.16
+    //   → 崖壁 1.17 → 崖沿草 / 碎石锥 1.18 → 崖树 1.19 → 后层玩家 1.2 → 前层玩家 10。
+    // 崖树必须压在崖壁上面（1.19），不然树根会被岩面盖住，看起来像浮在半空。
     decor: [
       // 悬崖树**只长在整座山的左右边缘**（用户 2026/10/17 定）：三段土地各自是一个整体，
       // 它们底下不会再冒树。放大到 2 倍。
       //   （第一段坡下面那棵删掉了 —— 用户 2026/10/17 定：三段土地底下不长树）
-      //   右边缘：山体最右边那道崖面在 x=3450，树翻过来、根贴住 3450，冠压在崖面上
-      { x: 3374, y: 700, key: 'tree-cliff-a', flip: true, scale: 2, depth: 1.16 },
-      // 崖面本身的样子（用户 2026/10/17 要的）：突出来的岩石 + 崖沿上的草（草根垂下来）。
-      // 三道崖面各摆几件：左边缘 x=400、山顶平台左沿 x=2200、右边缘 x=3450
-      // **崖面本身**：一块块参差的岩面摞起来（cliff-face-a/b/c，118x180），沿外沿一段接一段，
-      // 每块错开十几像素、交替用三种形状，边缘就是连续的乱石崖，不是方框。
-      // 左边那条崖面（x=400）翻转过来挂，右边（x=3450）不翻；中间山顶平台左沿（x=2200）翻转。
-      // 每块都**往山体里多压进 22 像素**（真的那条直边藏进岩体里），
-      // 这样外沿那段参差和中间山体是长在一起的，不会有一条硬邦邦的竖缝
-      { x: 367, y: 1370, key: 'cliff-face-a', flip: true, depth: 1.17 },
-      { x: 363, y: 1200, key: 'cliff-face-b', flip: true, depth: 1.17 },
-      { x: 369, y: 1030, key: 'cliff-face-c', flip: true, depth: 1.17 },
-      { x: 365, y: 860, key: 'cliff-face-a', flip: true, depth: 1.17 },
-      { x: 2167, y: 1370, key: 'cliff-face-c', flip: true, depth: 1.17 },
-      { x: 2163, y: 1200, key: 'cliff-face-a', flip: true, depth: 1.17 },
-      { x: 2169, y: 1030, key: 'cliff-face-b', flip: true, depth: 1.17 },
-      { x: 2165, y: 860, key: 'cliff-face-c', flip: true, depth: 1.17 },
-      { x: 2163, y: 690, key: 'cliff-face-a', flip: true, depth: 1.17 },
-      { x: 3318, y: 1370, key: 'cliff-face-b', depth: 1.17 },
-      { x: 3322, y: 1200, key: 'cliff-face-c', depth: 1.17 },
-      { x: 3316, y: 1030, key: 'cliff-face-a', depth: 1.17 },
-      { x: 3320, y: 860, key: 'cliff-face-b', depth: 1.17 },
-      { x: 3324, y: 690, key: 'cliff-face-c', depth: 1.17 },
-      { x: 3317, y: 520, key: 'cliff-face-a', depth: 1.17 },
-      // 崖沿上的草（植被，不是崖壁）
+      //   右边缘：树翻过来，根扒在右崖壁上，冠往左压在岩面上
+      { x: 3374, y: 700, key: 'tree-cliff-a', flip: true, scale: 2, depth: 1.19 },
+      // 崖壁（2026/10/17 重画）：整段一张图，不再一块块往上摞，横向接缝没有了。
+      //   cliff-wall-l：594 高，上沿 766（转角平台 2 的板底），下沿 1360（地面）
+      //   cliff-wall-r：894 高，上沿 466（右侧过渡平台的板底），下沿 1360
+      //   cliff-buttress：896 高，上沿 464；只盖山顶平台和上坡之间那条竖缝，
+      //     不碰 454~463 的草带 —— 这是一条窄岩垛，不是整面崖壁
+      // 左边崖壁翻转过来挂：直边（贴图 x=0）在右，埋进山体 2 像素；参差外沿朝左。
+      // 右边崖壁不翻：直边在左，埋进山体；参差外沿朝右、一直铺到地图边界外。
+      { x: 343, y: 1360, key: 'cliff-wall-l', flip: true, depth: 1.17 },
+      { x: 3411, y: 1360, key: 'cliff-wall-r', depth: 1.17 },
+      { x: 2176, y: 1360, key: 'cliff-buttress', flip: true, depth: 1.17 },
+      // 崖脚的碎石锥：山体和平地之间那圈过渡（底部埋进地面 4 像素）
+      { x: 348, y: 1364, key: 'cliff-talus', flip: true, depth: 1.18 },
+      { x: 3400, y: 1364, key: 'cliff-talus', depth: 1.18 },
+      // 崖沿上的草（植被，不是崖壁）：只挂在左右两道真正的崖口上。
+      // 山顶平台左沿是上坡接上来的地方，没有露出的崖面，这里不放草。
       { x: 402, y: 782, key: 'cliff-grass', scale: 1.4, depth: 1.18 },
       { x: 404, y: 1180, key: 'cliff-grass', scale: 1.2, flip: true, depth: 1.18 },
-      { x: 2202, y: 472, key: 'cliff-grass', scale: 1.5, depth: 1.18 },
-      { x: 2204, y: 1080, key: 'cliff-grass', scale: 1.3, flip: true, depth: 1.18 },
       { x: 3448, y: 482, key: 'cliff-grass', scale: 1.5, flip: true, depth: 1.18 },
       { x: 3442, y: 1240, key: 'cliff-grass', scale: 1.4, flip: true, depth: 1.18 },
       // 崖面上的岩石横截面
@@ -1348,8 +1336,6 @@ export const LEVELS: LevelDef[] = [
       { x: 2562, y: 440, key: 'tea-steam', depth: 1.24 },
       { x: 2572, y: 436, key: 'tea-steam', depth: 1.24 },
       { x: 2582, y: 441, key: 'tea-steam', depth: 1.24 },
-      // 山脚那棵换成小一号的崖松（不要樱花色）
-      { x: 980, y: 1360, key: 'tree-cliff-a', scale: 1.1, depth: 1.2 },
     ],
 
     hints: [

@@ -5964,49 +5964,165 @@ export class BootScene extends Phaser.Scene {
     const CRACK = 0x453d34
     const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
 
-    // 三块崖面：右边那条外沿各自参差得不一样
-    const slabs: Array<Array<[number, number]>> = [
-      [[96, 0], [72, 26], [92, 58], [70, 92], [94, 126], [74, 158], [88, 180]],
-      [[108, 0], [84, 34], [104, 68], [78, 104], [100, 140], [82, 180]],
-      [[90, 0], [110, 30], [86, 64], [106, 100], [84, 136], [102, 180]],
-    ]
-
-    slabs.forEach((jag, index) => {
+    // 一整面崖壁一张图（2026/10/17 重画）：
+    //   以前是 180 高的小块一张张往上摞，靠压 40 像素盖住横缝；远看还行，近看每块之间
+    //   都有一条横向接缝，而且最上面那一块只要差几像素就会蹭到平台面、把草带盖掉。
+    //   现在按整段高度一次画完，外沿从崖顶一路到底，不留横缝：
+    //     左崖壁 594 高（平台板底 766 → 地面 1360）
+    //     右崖壁 894 高（平台板底 466 → 地面 1360）
+    //     山顶接缝那条窄岩垛 896 高（464 → 1360）——只盖山体接缝，不盖草带
+    //   贴图最左边 x=0 这一条是**直的**，要埋进山体里；右边才是参差的外沿。
+    const wall = (key: string, W: number, H: number, seed: number, spread: number) => {
       const g = this.add.graphics()
-      const H = 180
-      const W = 118
+      let s = seed >>> 0
+      const rnd = () => {
+        s = (s * 1664525 + 1013904223) >>> 0
+        return s / 4294967296
+      }
 
-      // ① 整块岩体：左边竖直贴住山体，右边沿着参差的折线
-      const body: Phaser.Math.Vector2[] = [P(0, -2), ...jag.map(([x, y]) => P(x, y))]
-      body.push(P(0, H + 2))
+      // 崖顶收一个斜肩：从直边（x=0）斜着探出去，再往下走 —— 不是一刀切的平口
+      const pts: Array<[number, number]> = [[0, 0], [spread * 0.72, 4], [spread * 0.94, 9]]
+      let x = spread * 0.94
+      let y = 9
+      let dir = 1
+
+      while (y < H - 26) {
+        const run = 34 + rnd() * 46
+        y = Math.min(H - 12, y + run)
+        pts.push([x, y])
+
+        // 一半是直上直下的岩面，一半是斜着退进去的冲刷面 —— 混着来才不像楼梯
+        const step = 8 + rnd() * 14
+        const nextX = Math.max(spread - 34, Math.min(spread, x + dir * step))
+
+        if (rnd() < 0.45 && y < H - 24) {
+          y = Math.min(H - 12, y + 10 + rnd() * 18)
+          pts.push([nextX, y])
+        } else if (y < H - 12) {
+          pts.push([nextX, y])
+        }
+
+        x = nextX
+        if (rnd() < 0.55) dir = -dir
+      }
+
+      pts.push([x, H])
+
+      // ① 整面岩体
+      const body: Phaser.Math.Vector2[] = [P(0, -2), ...pts.map(([px, py]) => P(px, py)), P(0, H + 2)]
       g.fillStyle(MID, 1)
       g.fillPoints(body, true)
 
-      // ② 外沿那一圈凿出来的棱：上半段受光、下半段压暗
-      for (let i = 0; i < jag.length - 1; i++) {
-        const a = jag[i]
-        const b = jag[i + 1]
-        g.fillStyle(i < jag.length / 2 ? LIT : DARK, 1)
-        g.fillPoints([P(a[0], a[1]), P(b[0], b[1]), P(b[0] - 13, b[1]), P(a[0] - 13, a[1])], true)
+      // ② 每一段竖面/斜面：往外凸的受光，往里退的压暗；横檐底面单独压一道
+      for (let i = 0; i < pts.length - 1; i++) {
+        const [ax, ay] = pts[i]
+        const [bx, by] = pts[i + 1]
+
+        if (by === ay) {
+          g.fillStyle(DARK, 1)
+          g.fillRect(Math.min(ax, bx) - 4, ay - 1, Math.abs(bx - ax) + 4, 3)
+          continue
+        }
+
+        const inset = Math.min(12, Math.max(4, spread * 0.1))
+        const edge = Math.min(inset, ax - 1, bx - 1)
+        if (edge <= 0) continue
+
+        g.fillStyle(bx > ax ? LIT : DARK, 1)
+        g.fillPoints([P(ax, ay), P(bx, by), P(bx - edge, by), P(ax - edge, ay)], true)
       }
 
-      // ③ 块面：几片大小不等的棱面（暗一块、亮一块），把石头拆成有角的面
-      g.fillStyle(DARK, 1)
-      g.fillPoints([P(0, 40 + index * 6), P(60, 58 + index * 6), P(52, 96), P(0, 84)], true)
-      g.fillStyle(LIT, 1)
-      g.fillPoints([P(0, 12), P(56, 30), P(62, 46), P(0, 34)], true)
-      g.fillStyle(DARK, 0.7)
-      g.fillPoints([P(0, 120), P(58, 132), P(46, 176), P(0, 168)], true)
+      // ③ 冲沟：从崖顶往下越冲越宽，沟底压在岩体里
+      const gullies = W > 80 ? 3 : 2
+      for (let k = 0; k < gullies; k++) {
+        const gx = 8 + k * (W > 80 ? 18 : 10) + rnd() * 4
+        const gy = 8 + rnd() * 10
+        const gb = H - 16 - rnd() * 20
+        const topW = 3 + rnd() * 2
+        const botW = topW + 3 + rnd() * 3
 
-      // ④ 石缝
-      g.lineStyle(1, CRACK, 0.9)
-      g.lineBetween(18, 26 + index * 4, 44, 60 + index * 4)
-      g.lineBetween(30, 88, 22, 140)
-      g.lineBetween(46, 96 + index * 3, 62, 150)
+        g.fillStyle(CRACK, 0.62)
+        g.fillPoints([P(gx, gy), P(gx + topW, gy), P(gx + botW + 3, gb), P(gx + 3, gb)], true)
+        g.fillStyle(DARK, 0.45)
+        g.fillPoints([P(gx + topW, gy), P(gx + topW + 1.5, gy), P(gx + botW + 1, gb), P(gx + botW + 3, gb)], true)
+      }
 
-      g.generateTexture('cliff-face-' + 'abc'[index], W, H)
+      // ④ 层理：顺着高度横着几道细石缝，只在岩体里面，不出外沿
+      const profileAt = (py: number) => {
+        for (let i = 0; i < pts.length - 1; i++) {
+          const [ax, ay] = pts[i]
+          const [bx, by] = pts[i + 1]
+          if (py >= ay && py <= by && by > ay) {
+            return ax + ((bx - ax) * (py - ay)) / (by - ay)
+          }
+        }
+        return pts[pts.length - 1][0]
+      }
+
+      g.lineStyle(1, CRACK, 0.5)
+      for (let ly = 30; ly < H - 10; ly += 30 + rnd() * 22) {
+        const right = profileAt(ly) - 6
+        if (right > 8) {
+          g.lineBetween(4, ly, right, ly + (rnd() - 0.5) * 2)
+        }
+      }
+
+      // ⑤ 大块面：几片暗一块、亮一块，把平面的岩体拆开
+      for (let i = 0; i < 4; i++) {
+        const fy = 18 + rnd() * (H - 80)
+        const fx = 4 + rnd() * 18
+        const fw = Math.min(profileAt(fy) - fx - 8, 28 + rnd() * 26)
+        const fh = 22 + rnd() * 34
+        if (fw <= 6) continue
+        g.fillStyle(i % 2 === 0 ? DARK : LIT, 0.22)
+        g.fillPoints([P(fx, fy), P(fx + fw, fy + 3), P(fx + fw - 6, fy + fh), P(fx, fy + fh - 4)], true)
+      }
+
+      // ⑥ 外沿压一道深色边：崖面和后面的山体同色，不给边就糊在一起
+      g.lineStyle(1, CRACK, 0.75)
+      for (let i = 0; i < pts.length - 1; i++) {
+        g.lineBetween(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1])
+      }
+
+      // ⑦ 顶肩压亮、肩下压暗（光从上来）
+      g.lineStyle(2, LIT, 0.8)
+      g.lineBetween(1, 1, spread * 0.94, 9)
+      g.lineStyle(1, DARK, 0.6)
+      g.lineBetween(2, 5, spread * 0.94, 13)
+
+      g.generateTexture(key, W, H)
       g.destroy()
-    })
+    }
+
+    wall('cliff-wall-l', 118, 594, 11, 108)
+    wall('cliff-wall-r', 118, 894, 23, 108)
+    wall('cliff-buttress', 56, 896, 37, 50)
+
+    // 碎石锥（100x44）：崖脚那一扇碎石 —— 山体和平地之间真正的过渡。
+    // 每颗碎石都按三角形当时的左右边界放，不会飘到坡外面去。
+    const talus = this.add.graphics()
+    talus.fillStyle(0x5e5348, 1)
+    talus.fillPoints([P(66, 0), P(100, 44), P(0, 44)], true)
+    talus.fillStyle(0x6a5e52, 1)
+    talus.fillPoints([P(62, 4), P(92, 44), P(8, 44)], true)
+    talus.fillStyle(0x453d34, 0.35)
+    talus.fillEllipse(52, 42, 86, 8)
+    let seed = 7
+    const rnd = () => {
+      seed = (seed * 1103515245 + 12345) % 2147483648
+      return seed / 2147483648
+    }
+    for (let i = 0; i < 18; i++) {
+      const ty = 10 + rnd() * 30
+      const left = 66 - 1.5 * ty + 3
+      const right = 66 + 0.7727 * ty - 3
+      const tx = left + rnd() * Math.max(0, right - left)
+      const size = 3 + rnd() * 5
+      talus.fillStyle(i % 3 === 0 ? 0x73665a : i % 3 === 1 ? 0x5e5348 : 0x8a7c69, 1)
+      talus.fillEllipse(tx, ty, size, size * 0.7)
+    }
+    talus.generateTexture('cliff-talus', 100, 44)
+    talus.destroy()
 
     // 崖沿上的草（这丛草是长在崖沿上的植被，不是崖壁本身）
     const grass = this.add.graphics()
