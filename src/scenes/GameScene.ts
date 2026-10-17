@@ -6482,7 +6482,8 @@ export class GameScene extends Phaser.Scene {
       this.add.image(def.x, def.y, 'amber-stand').setOrigin(0.5, 1).setDepth(4)
 
       const sprite = this.add
-        .image(def.x, def.y - 10, 'amber')
+        // 贴近地面（用户 2026/10/17 定）：底边只离地 4 像素，埋在土堆里
+        .image(def.x, def.y - 4, 'amber')
         .setDepth(5)
         .setOrigin(0.5, 1)
       // 用户 2026/10/17 定：**琥珀不要做动态**，就静静凝在那儿
