@@ -7078,6 +7078,12 @@ export class GameScene extends Phaser.Scene {
       platform.refreshBody()
       platform.setDepth(3)
 
+      // 安全台做成单向平台：从下方/侧面跳过来时不会被台沿挡住，只会落在上表面
+      const platformBody = platform.body as Phaser.Physics.Arcade.StaticBody
+      platformBody.checkCollision.down = false
+      platformBody.checkCollision.left = false
+      platformBody.checkCollision.right = false
+
       this.trialCheckpoints.push({ x: cp.x, y: cp.y, index: index + 1 })
 
       const edge = this.add
@@ -7265,7 +7271,7 @@ export class GameScene extends Phaser.Scene {
     const starts = [
       { x: 240, y: 800 },
       { x: 700, y: 620 },
-      { x: 260, y: 440 },
+      { x: 460, y: 440 },
     ]
     const start = starts[this.trialSection] ?? starts[0]
 
