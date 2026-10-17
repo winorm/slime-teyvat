@@ -6100,6 +6100,7 @@ export class BootScene extends Phaser.Scene {
     wall('cliff-wall-l', 118, 594, 11, 108)
     wall('cliff-wall-r', 118, 894, 23, 108)
     wall('cliff-buttress', 56, 896, 37, 50)
+    wall('cliff-wall-350', 118, 350, 41, 108)
 
     // 碎石锥（100x44）：崖脚那一扇碎石 —— 山体和平地之间真正的过渡。
     // 每颗碎石都按三角形当时的左右边界放，不会飘到坡外面去。
@@ -6978,49 +6979,52 @@ export class BootScene extends Phaser.Scene {
     g.destroy()
   }
 
-  // 山顶湖（800x56）：上沿是远岸的碎石脊，中间是分层的水面，下沿是湿漉漉的岸石。
-  // 全部用横向色带 / 直条，不画弧线。
+  // 山顶湖（800x140）：透视椭圆的水面，外圈是石岸，越靠远岸水色越浅。
   private makeSummitLake() {
     const W = 800
-    const H = 56
+    const H = 140
     const g = this.add.graphics()
+    const cx = W / 2
+    const cy = H / 2
 
-    // 远岸：一条深色石脊，顶上几块参差的石头
+    // 透视湖面：一圈石岸包着一层椭圆水面，远岸窄、近岸宽
     g.fillStyle(0x4f453b, 1)
-    g.fillRect(0, 0, W, 7)
+    g.fillEllipse(cx, cy, 800, 140)
+    g.fillStyle(0x6a5e52, 1)
+    g.fillEllipse(cx, cy + 2, 780, 130)
+    g.fillStyle(0x73665a, 1)
+    g.fillEllipse(cx, cy + 4, 760, 120)
 
-    for (let x = 0; x < W; x += 37) {
-      const h = 3 + ((x * 13) % 8)
-      g.fillTriangle(x, 7, x + 22, 7, x + 10, 7 - h)
-    }
+    // 水由深到浅：最外圈深、靠远岸浅
+    const water = [
+      { w: 740, h: 102, color: 0x3f7f9e },
+      { w: 710, h: 94, color: 0x4f8fa8 },
+      { w: 660, h: 82, color: 0x5f9fb8 },
+      { w: 590, h: 66, color: 0x7fb9cc },
+    ]
 
-    // 水面色带：远（上）浅、近（下）深
-    const water = [0x7fb9cc, 0x6fa9bf, 0x5f98af, 0x50879e, 0x437b93]
-
-    water.forEach((color, index) => {
-      g.fillStyle(color, 1)
-      g.fillRect(0, 7 + index * 6, W, 6)
+    water.forEach((layer) => {
+      g.fillStyle(layer.color, 1)
+      g.fillEllipse(cx, cy + 4, layer.w, layer.h)
     })
 
-    // 横向波纹
-    for (let i = 0; i < 6; i++) {
-      const y = 12 + i * 5
-      const x = 30 + ((i * 97) % 170)
-      const w = 70 + ((i * 53) % 190)
+    // 横向波纹：只在椭圆水面里，越靠中间越长
+    for (let i = 0; i < 7; i++) {
+      const y = cy - 36 + i * 11
+      const t = (y - (cy - 46)) / 92
+      const half = Math.sqrt(Math.max(0, 1 - (t * 2 - 1) ** 2)) * 330
 
-      g.fillStyle(0xd7eef4, 0.22 + (i % 2) * 0.1)
-      g.fillRect(x, y, Math.min(w, W - x - 20), 1)
+      if (half < 40) {
+        continue
+      }
+
+      g.fillStyle(0xd7eef4, 0.2 + (i % 2) * 0.1)
+      g.fillRect(cx - half + 30, y, (half - 30) * 2, 1)
     }
 
-    // 近岸石缘
-    g.fillStyle(0x6a5e52, 1)
-    g.fillRect(0, 37, W, 19)
-    g.fillStyle(0x5e5348, 1)
-    g.fillRect(0, 46, W, 10)
-    g.fillStyle(0x8a7c69, 0.5)
-    g.fillRect(0, 37, W, 2)
-    g.fillStyle(0xe7f7fb, 0.28)
-    g.fillRect(0, 35, W, 2)
+    // 近岸一圈湿痕
+    g.lineStyle(2, 0xe7f7fb, 0.3)
+    g.strokeEllipse(cx, cy + 4, 720, 88)
 
     // 岸边碎石
     let seed = 19
@@ -7029,9 +7033,10 @@ export class BootScene extends Phaser.Scene {
       return seed / 4294967296
     }
 
-    for (let i = 0; i < 22; i++) {
-      const x = 8 + rnd() * (W - 16)
-      const y = 40 + rnd() * 12
+    for (let i = 0; i < 26; i++) {
+      const angle = Math.PI * (0.08 + rnd() * 0.84)
+      const x = cx - Math.cos(angle) * (350 + rnd() * 35)
+      const y = cy + 8 + Math.sin(angle) * (58 + rnd() * 8)
       const size = 3 + rnd() * 6
 
       g.fillStyle(i % 3 === 0 ? 0x8a7c69 : i % 3 === 1 ? 0x5e5348 : 0x73665a, 1)

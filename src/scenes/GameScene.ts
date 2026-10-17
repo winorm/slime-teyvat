@@ -6443,8 +6443,8 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
-  // 山顶湖 + 瀑布（第九关）：湖和湖下的背景岩台都画在坡体后面，
-  // 坡体在前面挡住下半截，只露出湖面、崖肩和中间那段瀑布。
+  // 山顶湖 + 瀑布（第九关）：湖画成透视椭圆，放在山顶背景里；
+  // 瀑布从湖心一路落到地面，遇到走线就断一小段，看起来像从路后面穿过去。
   private buildSummitLake() {
     const lake = this.level.summitLake
 
@@ -6452,49 +6452,22 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
-    const width = lake.width ?? 720
-    const baseY = lake.baseY ?? lake.y + 150
-    const left = lake.x - width / 2
-
-    // 湖下的背景岩台：一块矩形，坡体画在它前面，自然裁出崖肩
-    const shelf = this.add.graphics().setDepth(0.95)
-
-    shelf.fillStyle(0x5e5348, 1)
-    shelf.fillRect(left, lake.y, width, baseY - lake.y)
-
-    // 横向岩层
-    for (let i = 0; i < 3; i++) {
-      const bandY = lake.y + 30 + i * 46
-
-      if (bandY > baseY - 10) {
-        break
-      }
-
-      shelf.fillStyle(i % 2 === 0 ? 0x6a5e52 : 0x574c41, 0.65)
-      shelf.fillRect(left, bandY, width, i === 0 ? 10 : 7)
-    }
-
-    // 两道直裂缝
-    shelf.fillStyle(0x453d34, 0.4)
-    shelf.fillRect(left + width * 0.22, lake.y + 18, 3, baseY - lake.y - 18)
-    shelf.fillRect(left + width * 0.71, lake.y + 24, 2, baseY - lake.y - 24)
-
-    // 湖面
     this.add
       .image(lake.x, lake.y, 'summit-lake')
-      .setOrigin(0.5, 1)
-      .setDepth(0.96)
-      .setScale(width / 800, 1)
+      .setOrigin(0.5, 0.5)
+      .setDepth(0.86)
+      .setScale((lake.width ?? 800) / 800, (lake.height ?? 140) / 140)
 
-    // 瀑布：从湖的左端落下来，底端会被上坡的坡体挡住，看起来像落在山体后面
     const fall = this.level.waterfall
 
     if (fall) {
-      this.add
-        .image(fall.x, fall.y, 'waterfall')
-        .setOrigin(0.5, 0)
-        .setDepth(0.97)
-        .setScale((fall.width ?? 42) / 42, (fall.height ?? 180) / 180)
+      fall.segments.forEach((segment) => {
+        this.add
+          .image(fall.x, segment.y, 'waterfall')
+          .setOrigin(0.5, 0)
+          .setDepth(1.16)
+          .setScale((fall.width ?? 42) / 42, segment.height / 180)
+      })
     }
   }
 
