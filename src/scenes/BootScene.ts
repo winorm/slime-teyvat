@@ -7412,6 +7412,7 @@ export class BootScene extends Phaser.Scene {
   // → 湖面 → 堤岸和芦苇，一层压一层，各占各的高度不互相盖掉。
   // 注意：户外的背景是钉在屏幕上的，而地面站在屏幕最下边（大约 y>210 那一带），
   // 所以有内容的东西都要画在 y≈205 以上，芦苇的顶也是从堤岸往上伸到这一段里
+  // 璃月系背景：liyue（黄昏水乡）、harbor（港口）、mountain（白天高山）三套都在这里生成
   private makeLiyueBackground() {
     const far = this.add.graphics()
 
@@ -7478,6 +7479,96 @@ export class BootScene extends Phaser.Scene {
 
     near.generateTexture('bg-liyue-near', 480, 270)
     near.destroy()
+
+    // ── 高山（第九关用）三层：白天天空 + 远山、山腰云海 + 中景山脊、近景深色山脊 ──
+    // 纵向视差仍走 tallOutdoor：远层几乎不动、中层慢、近层爬高时退出画面。
+    // 云海放在中层，所以玩家爬到山顶时它会沉到画面下方。
+    const mountainFar = this.add.graphics()
+
+    this.paintGradient(mountainFar, 480, 270, 0x5e9fc9, 0xeaf4f6)
+
+    // 白天的日晕和高空薄云
+    mountainFar.fillStyle(0xfff3d6, 0.32)
+    mountainFar.fillEllipse(356, 92, 150, 70)
+    mountainFar.fillStyle(0xfffbf0, 0.3)
+    mountainFar.fillEllipse(356, 92, 86, 42)
+    mountainFar.fillStyle(0xffffff, 0.2)
+    mountainFar.fillEllipse(110, 38, 130, 18)
+    mountainFar.fillEllipse(300, 24, 100, 14)
+    mountainFar.fillEllipse(60, 64, 84, 12)
+
+    // 远山两层：越高越淡、越偏蓝
+    this.drawRidge(mountainFar, 480, 270, 0x9bb8c9, [1, 3], 28, 170, 0.9)
+    this.drawRidge(mountainFar, 480, 270, 0x7c9fb4, [2, 5], 20, 200, 0.95)
+
+    // 高空的几只鸟
+    mountainFar.lineStyle(1, 0x4b6475, 0.55)
+
+    for (const [bx, by] of [
+      [64, 86],
+      [84, 78],
+      [330, 62],
+      [344, 68],
+    ]) {
+      mountainFar.lineBetween(bx - 4, by, bx, by - 3)
+      mountainFar.lineBetween(bx, by - 3, bx + 4, by)
+    }
+
+    mountainFar.generateTexture('bg-mountain-far', 480, 270)
+    mountainFar.destroy()
+
+    const mountainMid = this.add.graphics()
+
+    // 山腰云海：先铺一层软云，再用山脊压住下半截
+    for (let i = 0; i < 9; i++) {
+      const x = -10 + i * 58
+      const y = 166 + (i % 3) * 7
+
+      mountainMid.fillStyle(0xf7fcfe, 0.2)
+      mountainMid.fillEllipse(x, y, 130, 26)
+      mountainMid.fillStyle(0xdceef6, 0.22)
+      mountainMid.fillEllipse(x + 18, y + 7, 110, 20)
+    }
+
+    // 中景山脊：三层，颜色逐层压深
+    this.drawRidge(mountainMid, 480, 270, 0x5e8087, [1, 4], 24, 196)
+    this.drawRidge(mountainMid, 480, 270, 0x466b72, [2, 5], 18, 220)
+    this.drawRidge(mountainMid, 480, 270, 0x35575d, [3, 7], 12, 242)
+
+    // 山脊上几棵松树剪影，给远景一个尺度
+    const pine = (x: number, baseY: number, height: number) => {
+      mountainMid.fillStyle(0x2f4a48, 1)
+      mountainMid.fillRect(x, baseY - height, 2, height)
+      mountainMid.fillTriangle(x - 8, baseY - height + 6, x + 10, baseY - height + 6, x + 1, baseY - height - 6)
+      mountainMid.fillTriangle(x - 6, baseY - height + 14, x + 8, baseY - height + 14, x + 1, baseY - height + 2)
+    }
+
+    pine(58, 206, 26)
+    pine(168, 226, 22)
+    pine(302, 212, 30)
+    pine(414, 236, 20)
+
+    mountainMid.generateTexture('bg-mountain-mid', 480, 270)
+    mountainMid.destroy()
+
+    const mountainNear = this.add.graphics()
+
+    // 近景：一条更深的谷底山脊，爬高后最先退出画面
+    this.drawRidge(mountainNear, 480, 270, 0x2d4844, [2, 6], 16, 232)
+    this.drawRidge(mountainNear, 480, 270, 0x213936, [3, 8], 9, 252)
+
+    // 脊线上的短草和碎石
+    for (let i = 0; i < 22; i++) {
+      const x = 6 + i * 22 + ((i * 7) % 5)
+      const y = 232 + ((i * 11) % 14)
+
+      mountainNear.fillStyle(0x1b302e, 1)
+      mountainNear.fillRect(x, y - 6, 1, 6)
+      mountainNear.fillRect(x + 3, y - 4, 1, 4)
+    }
+
+    mountainNear.generateTexture('bg-mountain-near', 480, 270)
+    mountainNear.destroy()
 
     // ── 港口（第八关用）三层：**从镜头往外是「护栏 → 岸边 → 房子 → 高山 → 天空」**（用户定的）──
     // 远（-30）：**白天**的天空 + 白云 + 高山（两层剪影，越高越淡）

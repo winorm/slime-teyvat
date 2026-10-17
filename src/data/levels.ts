@@ -229,7 +229,7 @@ export type DomeDef = {
   thickness: number  // 穹顶壳厚
 }
 
-export type BgTheme = 'beach' | 'field' | 'church' | 'sky' | 'tower' | 'liyue' | 'harbor'
+export type BgTheme = 'beach' | 'field' | 'church' | 'sky' | 'tower' | 'liyue' | 'harbor' | 'mountain'
 
 export type ThemeColor = {
   ground: number
@@ -248,6 +248,8 @@ export const THEME_COLORS: Record<BgTheme, ThemeColor> = {
   // 璃月·荻花洲：岩土色的地面，黄昏里偏暖
   liyue: { ground: 0x8a6a4a, oneWay: 0xb09068, crumble: 0x9a5a44, hazard: 0x2f6f8f },
   harbor: { ground: 0x8a6a4a, oneWay: 0xb09068, crumble: 0x9a5a44, hazard: 0x2f6f8f },
+  // 高山：白天的岩土色，和第九关的山体填色同一套
+  mountain: { ground: 0x8a6a4a, oneWay: 0xb09068, crumble: 0x9a5a44, hazard: 0x2f6f8f },
 }
 
 export type LevelDef = {
@@ -1202,7 +1204,7 @@ export const LEVELS: LevelDef[] = [
     startElement: 'rock',
     unlocks: ['wind'],
     spawn: { x: 80, y: 1347 },
-    bg: 'liyue',
+    bg: 'mountain',
     cameraBias: 56,
     goal: { x: 2740, y: 446, kind: 'chest', prompt: '打开' },
 

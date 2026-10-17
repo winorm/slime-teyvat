@@ -1781,8 +1781,11 @@ export class GameScene extends Phaser.Scene {
     // 用整幅 Image（不平铺），所以不会出现"远山下面又是天空"的绕回
     if (tallOutdoor) {
       this.groundScrollY = this.level.height - 270
+      // 高山是白天，露出来的底色也用天空蓝；其他高关卡仍用黄昏底色
+      const tallBackdrop = theme === 'mountain' ? 0xa9d2e3 : 0xf3b072
+
       this.add
-        .rectangle(0, 0, 480, 270, 0xf3b072)
+        .rectangle(0, 0, 480, 270, tallBackdrop)
         .setOrigin(0, 0)
         .setScrollFactor(0)
         .setDepth(-40)
