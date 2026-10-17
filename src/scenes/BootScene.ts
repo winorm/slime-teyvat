@@ -5815,10 +5815,14 @@ export class BootScene extends Phaser.Scene {
     for (const bark of [[86, 214, 3, 18], [72, 186, 2, 16], [64, 158, 2, 18], [82, 128, 2, 16], [106, 100, 2, 14], [134, 72, 1, 16]]) {
       g.fillRect(bark[0], bark[1], bark[2], bark[3])
     }
-    // 底部的粗大板根
+    // 底部的板根：从主干底边的两个角贴着地面往两边叉出去
+    //（原来那两道是按旧脊线画的，脊线一挪就成了浮在树边的两块三角，2026/10/17 修）
     g.fillStyle(0x33241a, 1)
-    g.fillTriangle(72, 238, 34, 239, 88, 216)
-    g.fillTriangle(124, 238, 164, 239, 108, 216)
+    g.fillTriangle(98, 268, 58, 269, 104, 236)
+    g.fillTriangle(158, 268, 198, 269, 152, 236)
+    g.fillStyle(0x412f1f, 1)
+    g.fillTriangle(102, 268, 74, 268, 106, 242)
+    g.fillTriangle(154, 268, 182, 268, 150, 242)
 
     // 四根**粗壮**的枝：根端最粗、往梢上收，末端都伸进冠里（会被叶团盖住）
     const limb = (x0: number, y0: number, x1: number, y1: number, w0: number, w1: number) => {
