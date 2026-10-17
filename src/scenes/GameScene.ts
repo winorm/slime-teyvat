@@ -6591,7 +6591,8 @@ export class GameScene extends Phaser.Scene {
       this.resonanceTimer -= dt
 
       if (this.resonanceTimer <= 0) {
-        this.resonanceTimer = 0.55
+        // 频率（2026/10/17 用户砍半）：原来 0.55 秒一圈，现在 1.1 秒一圈
+        this.resonanceTimer = 1.1
         this.resonanceRings.push({ x: pillar.x, y: body.bottom, r: 0 })
       }
     }
