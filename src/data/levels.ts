@@ -1213,8 +1213,15 @@ export const LEVELS: LevelDef[] = [
       //    二是这一条就是"山的脚"，哪一跑掉下来都落在它上面，不会掉出世界外面去
       { x: 1725, y: 1430, width: 3450, height: 140, tint: 0x5c4835, depth: 1.0 },
       // ④ 每块平台下面也一路填到地面，各分三层当岩石的横截面（只画不挡人，深度都在 1.1 上下）
-      ...platformFill(2050, 300, 1060, 1360, 1.12),
-      ...platformFill(550, 300, 760, 1360, 1.14),
+      // 平台下面的填色压在**所有坡**后面（坡在 1.05~1.15）：原来给到 1.16，
+      // 最底下那一层就盖在下跑的路面上了（用户 2026/10/17 发现的）
+      ...platformFill(2050, 300, 1060, 1360, 1.0),
+      ...platformFill(550, 300, 760, 1360, 1.02),
+      // 转角平台下面是悬崖：在左沿口塞几块大小不一的石头，把那条直边打碎
+      { x: 372, y: 1240, width: 56, height: 90, tint: 0x544234, depth: 1.03, solid: false },
+      { x: 358, y: 1120, width: 40, height: 70, tint: 0x5c4835, depth: 1.04, solid: false },
+      { x: 386, y: 980, width: 30, height: 52, tint: 0x4e3e30, depth: 1.05, solid: false },
+      { x: 398, y: 860, width: 22, height: 44, tint: 0x544234, depth: 1.03, solid: false },
       ...platformFill(2550, 700, 460, 1360, 1.1),
       ...platformFill(3175, 550, 460, 1360, 1.1),
     ],
@@ -1274,16 +1281,23 @@ export const LEVELS: LevelDef[] = [
     //   2162 那棵挂在山顶大平台填色的左沿（x=2200）→ flip
     // 崖粉（填色）都在 1.0~1.15 层，树给 1.16 才压得住；山脚那几件给 1.2
     decor: [
-      { x: 362, y: 1180, key: 'tree-cliff-b', flip: true, depth: 1.16 },
-      { x: 2238, y: 1240, key: 'tree-cliff-a', depth: 1.16 },
-      { x: 2162, y: 900, key: 'tree-cliff-c', flip: true, depth: 1.16 },
-      { x: 1980, y: 1300, key: 'rock-strata-a', depth: 1.16 },
-      { x: 2306, y: 1010, key: 'rock-strata-c', depth: 1.16 },
-      { x: 300, y: 1360, key: 'pebble-a', depth: 1.2 },
-      { x: 520, y: 1360, key: 'stone-pile', depth: 1.2 },
-      { x: 640, y: 1360, key: 'pebble-c', depth: 1.2 },
-      { x: 980, y: 1360, key: 'birch-a', depth: 1.2 },
-      { x: 2650, y: 460, key: 'birch-c', depth: 1.2 },
+      // 崖壁上的三棵（放大到 1.6，挂在填色的两侧崖面上；flip 决定朝哪边贴）
+      { x: 339, y: 1180, key: 'tree-cliff-b', flip: true, scale: 1.6, depth: 1.16 },
+      { x: 1839, y: 1150, key: 'tree-cliff-a', flip: true, scale: 1.4, depth: 1.16 },
+      { x: 2261, y: 1250, key: 'tree-cliff-a', scale: 1.6, depth: 1.16 },
+      { x: 2139, y: 900, key: 'tree-cliff-c', flip: true, scale: 1.6, depth: 1.16 },
+      // 悬崖侧边的：贴在崖沿外面、半悬空
+      { x: 1220, y: 1330, key: 'tree-cliff-c', scale: 1.3, depth: 1.16 },
+      // 崖面上的岩石横截面
+      { x: 1980, y: 1300, key: 'rock-strata-a', scale: 1.4, depth: 1.16 },
+      { x: 2310, y: 1010, key: 'rock-strata-c', scale: 1.4, depth: 1.16 },
+      // 山脚：石子、石堆（都放大了一档）
+      { x: 300, y: 1360, key: 'pebble-a', scale: 1.8, depth: 1.2 },
+      { x: 520, y: 1360, key: 'stone-pile', scale: 1.6, depth: 1.2 },
+      { x: 660, y: 1360, key: 'pebble-c', scale: 1.8, depth: 1.2 },
+      // 仙桃树：山脚一棵、山顶一棵（替掉原来的桦木）
+      { x: 980, y: 1360, key: 'peach-a', scale: 1.3, depth: 1.2 },
+      { x: 2650, y: 460, key: 'peach-c', scale: 1.2, depth: 1.2 },
     ],
 
     hints: [

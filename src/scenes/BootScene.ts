@@ -179,6 +179,7 @@ export class BootScene extends Phaser.Scene {
     this.makePebbles()
     this.makeStonePile()
     this.makeBirches()
+    this.makePeachTrees()
     this.makeSlimeShadow()
     this.makeTerracePaving()
 
@@ -5703,6 +5704,56 @@ export class BootScene extends Phaser.Scene {
     }
     canopy(c, 32, 24, 40, 28)
     c.generateTexture('birch-c', 56, 72)
+    c.destroy()
+  }
+
+  // ── 仙桃树 2 种（2026/10/17 用户要的"更符合仙人气质的树"）：蟠曲的老干 + 粉花 ──
+  //   仙人居所常见的那种：树干扭着长、树冠不是一整团绿，而是一簇簇粉白的花
+  private makePeachTrees() {
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+    const blossom = (g: Phaser.GameObjects.Graphics, cx: number, cy: number, w: number, h: number) => {
+      g.fillStyle(0xd97fa3, 1)
+      g.fillEllipse(cx, cy, w, h)
+      g.fillStyle(0xf2a7c0, 1)
+      g.fillEllipse(cx - w * 0.1, cy - h * 0.16, w * 0.78, h * 0.68)
+      g.fillStyle(0xfbd3e0, 1)
+      g.fillEllipse(cx - w * 0.2, cy - h * 0.28, w * 0.4, h * 0.34)
+    }
+
+    // a：矮而盘的老干，四簇花
+    const a = this.add.graphics()
+    a.fillStyle(0x402c1c, 1)
+    a.fillPoints([P(26, 70), P(34, 70), P(36, 52), P(44, 40), P(38, 36), P(28, 50)], true)
+    a.fillStyle(0x533a24, 1)
+    a.fillPoints([P(28, 70), P(31, 70), P(33, 52), P(41, 39), P(38, 38), P(30, 50)], true)
+    // 两根斜枝
+    a.fillStyle(0x402c1c, 1)
+    a.fillPoints([P(30, 46), P(33, 48), P(18, 30), P(16, 32)], true)
+    a.fillPoints([P(36, 40), P(38, 43), P(52, 26), P(50, 24)], true)
+    // 根
+    a.fillTriangle(26, 70, 14, 73, 30, 65)
+    a.fillTriangle(34, 70, 46, 73, 32, 65)
+    blossom(a, 16, 26, 26, 16)
+    blossom(a, 52, 22, 24, 15)
+    blossom(a, 34, 14, 30, 17)
+    blossom(a, 42, 32, 20, 12)
+    a.generateTexture('peach-a', 68, 76)
+    a.destroy()
+
+    // c：高一点、往一边斜的
+    const c = this.add.graphics()
+    c.fillStyle(0x402c1c, 1)
+    c.fillPoints([P(22, 70), P(29, 70), P(34, 44), P(44, 20), P(38, 17), P(28, 42)], true)
+    c.fillStyle(0x533a24, 1)
+    c.fillPoints([P(23, 70), P(26, 70), P(31, 44), P(41, 20), P(38, 19), P(25, 43)], true)
+    c.fillStyle(0x402c1c, 1)
+    c.fillPoints([P(31, 40), P(34, 42), P(24, 26), P(22, 28)], true)
+    c.fillTriangle(22, 70, 10, 72, 26, 64)
+    blossom(c, 40, 16, 30, 18)
+    blossom(c, 22, 24, 22, 14)
+    blossom(c, 50, 28, 22, 13)
+    blossom(c, 34, 34, 18, 11)
+    c.generateTexture('peach-c', 68, 76)
     c.destroy()
   }
 
