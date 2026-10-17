@@ -6721,7 +6721,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ── 琥珀 ──────────────────────────────────────────────────────────
-  // 摆在转角平台上，**只有岩柱的岩共鸣震得开**。里头的原石 / 野猪 / 人，
+  // 摆在转角平台上，**岩共鸣或跳砸都能打开**。里头的原石 / 野猪 / 人，
   // 敲开之前谁都不知道是什么 —— 这是用户 2026/10/17 设计的互动造物。
   private buildAmbers() {
     this.ambers = []
@@ -6939,6 +6939,61 @@ export class GameScene extends Phaser.Scene {
         }
       })
     })
+  }
+
+  // 跳到琥珀上 / 岩化后跳砸：不靠岩共鸣也能把琥珀踩碎。
+  // 只认下落中的脚底，防止站在旁边也被判成踩到。
+  private updateAmberStomp() {
+    const body = this.slime.body as Phaser.Physics.Arcade.Body
+
+    if (body.velocity.y <= 20) {
+      return
+    }
+
+    const feet = body.bottom
+
+    for (const amber of this.ambers) {
+      if (amber.broken) {
+        continue
+      }
+
+      // 琥珀贴图 64x52，底边在 def.y - 4，所以顶边是 def.y - 56
+      const top = amber.def.y - 56
+
+      if (feet < top - 6 || feet > top + 26) {
+        continue
+      }
+
+      // 岩化跳砸的范围大一点；普通跳要落在琥珀正上方
+      const reach = this.armored ? 56 : 40
+
+      if (Math.abs(this.slime.x - amber.def.x) > reach) {
+        continue
+      }
+
+      this.cameras.main.shake(this.armored ? 160 : 100, this.armored ? 0.006 : 0.004)
+      this.slime.setVelocityY(this.armored ? -190 : -135)
+
+      if (this.armored) {
+        const ring = this.add
+          .image(amber.def.x, amber.def.y - 8, 'shock-ring')
+          .setDepth(8)
+          .setScale(0.3)
+          .setAlpha(0.8)
+
+        this.tweens.add({
+          targets: ring,
+          scaleX: 2.2,
+          scaleY: 1.1,
+          alpha: 0,
+          duration: 340,
+          onComplete: () => ring.destroy(),
+        })
+      }
+
+      this.breakAmber(amber)
+      break
+    }
   }
 
   // 每帧的贴地：人在弧的 x 范围内、脚底贴着弧面，就把脚底按到曲线上。
@@ -10807,6 +10862,8 @@ export class GameScene extends Phaser.Scene {
     this.updateSlopes(body)
     // 岩共鸣：岩柱还在的时候，脚下一直往外散金色光圈，扫到琥珀 / 岩方碑就算激活
     this.updateResonance(dt)
+    // 跳砸琥珀：普通跳 / 岩化跳砸都能震碎，不依赖岩柱
+    this.updateAmberStomp()
     // 自动上台阶的那几帧人在空中，但动画和音效要按「还在走路」算，
     // 不然每上一级都会当成一次落地：压缩一下、放一声落地音，比抖还难看
     const onGround = body.blocked.down || this.stepRise > 0 || this.slopeGrip
