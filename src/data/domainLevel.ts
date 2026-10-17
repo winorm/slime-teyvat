@@ -6,7 +6,7 @@ export const DOMAIN_LEVEL: LevelDef = {
   name: '秘境 · 仙家试炼',
   intro:
     '仙人袖袍一挥，脚下的山路忽然变成一片云雾。\n这里看不清是天在山间，还是山浮在天上。\n三重试炼，从脚下开始。',
-  width: 1600,
+  width: 2280,
   height: 900,
   startElement: 'rock',
   unlocks: [],
@@ -18,7 +18,7 @@ export const DOMAIN_LEVEL: LevelDef = {
   goalDisabled: true,
   platforms: [
     // 秘境底层：隐形碰撞箱，画面由下面的云团铺出来
-    { x: 800, y: 820, width: 1600, height: 40, tint: 0x6a5e52, hidden: true },
+    { x: 1140, y: 820, width: 2280, height: 40, tint: 0x6a5e52, hidden: true },
   ],
   // 第一重试炼：四块浮石一段，踩上约 0.9 秒后消失；掉下安全台就扣 1 心回段首
   trialOne: {
@@ -43,6 +43,14 @@ export const DOMAIN_LEVEL: LevelDef = {
     ],
     artifact: { x: 640, y: 240 },
   },
+  // 第二重试炼：右半边另起一块云上擂台。岩脊从落脚处窜出，
+  // 先亮 0.8 秒预警圈，再破土；五轮依次 3→7 道。
+  trialTwo: {
+    arena: { left: 1660, right: 2200, groundY: 800 },
+    rounds: [3, 4, 5, 6, 7],
+    roundTime: 8,
+    warnTime: 0.8,
+  },
   // 云台：两排交错的 cloud-puff，顶面刚好托住隐形平台的 y=800
   decor: [
     { x: -40, y: 850, key: 'cloud-puff', scale: 1.45, depth: 0.74 },
@@ -65,6 +73,13 @@ export const DOMAIN_LEVEL: LevelDef = {
     { x: 1190, y: 842, key: 'cloud-puff', scale: 1.1, depth: 0.84 },
     { x: 1380, y: 844, key: 'cloud-puff', scale: 0.95, depth: 0.84 },
     { x: 1550, y: 842, key: 'cloud-puff', scale: 1.05, depth: 0.84 },
+    { x: 1700, y: 850, key: 'cloud-puff', scale: 1.4, depth: 0.74 },
+    { x: 1880, y: 851, key: 'cloud-puff', scale: 1.2, depth: 0.74 },
+    { x: 2060, y: 849, key: 'cloud-puff', scale: 1.45, depth: 0.74 },
+    { x: 2240, y: 850, key: 'cloud-puff', scale: 1.25, depth: 0.74 },
+    { x: 1780, y: 843, key: 'cloud-puff', scale: 1.0, depth: 0.84 },
+    { x: 1970, y: 842, key: 'cloud-puff', scale: 1.1, depth: 0.84 },
+    { x: 2160, y: 844, key: 'cloud-puff', scale: 0.95, depth: 0.84 },
   ],
   orbs: [],
   gems: [],
@@ -74,5 +89,6 @@ export const DOMAIN_LEVEL: LevelDef = {
   hints: [
     { x: 800, y: 735, text: '与仙人对话，开始第一重试炼' },
     { x: 350, y: 735, text: '跳上浮石，取得仙家符箓' },
+    { x: 1930, y: 735, text: '第二重：撑过五轮岩脊' },
   ],
 }

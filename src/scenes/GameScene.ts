@@ -1112,6 +1112,9 @@ const DEV_SPAWN_X = (() => {
   return Number.isFinite(x) ? x : null
 })()
 
+// 秘境调试：?domain=1&trial=2 直接跳过第一重，落到第二重的岩脊擂台上
+const DOMAIN_START_TRIAL = new URLSearchParams(location.search).get('trial') === '2' ? 2 : 0
+
 const DEV_HUB: DevLevelDef = {
   ...devRoomShell(
     '测试关卡 · 大厅',
@@ -1370,6 +1373,25 @@ export class GameScene extends Phaser.Scene {
   private trialOneDone = false
   private trialOneStarted = false
   private trialReturnAt = 0
+  // 第二重试炼：云台擂台上的岩脊。spawn 记录预警圈与破土尖刺的生命周期
+  private trialTwoStarted = false
+  private trialTwoDone = false
+  private trialTwoRound = 0
+  private trialTwoLeft = 0
+  private trialTwoNextSpawn = 0
+  private trialTwoRoundStart = 0
+  private trialTwoSpawnGap = 0
+  private trialTwoUsedX: number[] = []
+  private trialTwoHud: Phaser.GameObjects.Text | null = null
+  private trialTwoSpikes: {
+    x: number
+    groundY: number
+    marker: Phaser.GameObjects.Ellipse
+    sprite: Phaser.GameObjects.Image
+    timer: number
+    phase: 'warn' | 'up' | 'gone'
+    resolved: boolean
+  }[] = []
   // 测试关卡现在待在哪一间：-1 = 大厅，0 起 = 大厅里那排传送门的下标。
   // 初值来自地址上的 ?room=N（见 DEV_START_ROOM），用来直接打开某一间
   private devRoom = DEV_START_ROOM
@@ -1641,6 +1663,16 @@ export class GameScene extends Phaser.Scene {
     this.trialOneDone = false
     this.trialOneStarted = false
     this.trialReturnAt = 0
+    this.trialTwoStarted = false
+    this.trialTwoDone = false
+    this.trialTwoRound = 0
+    this.trialTwoLeft = 0
+    this.trialTwoNextSpawn = 0
+    this.trialTwoRoundStart = 0
+    this.trialTwoSpawnGap = 0
+    this.trialTwoUsedX = []
+    this.trialTwoHud = null
+    this.trialTwoSpikes = []
     this.devLevel = !this.domainMode && DEV_LEVEL_MODE
     // 测试关卡是「大厅 + 展厅」：devRoom < 0 在大厅，其余去对应那间展厅。
     // 换房间走 scene.restart()，所以 devRoom 是在上一帧就定好的
@@ -3439,7 +3471,7 @@ export class GameScene extends Phaser.Scene {
         this.devIntroSeen.push(this.devRoom)
         this.showIntro(this.level.intro)
       }
-    } else {
+    } else if (!(this.domainMode && DOMAIN_START_TRIAL === 2)) {
       this.showIntro(this.level.intro)
     }
 
@@ -3494,7 +3526,11 @@ export class GameScene extends Phaser.Scene {
     this.events.once('shutdown', () => {
       stopAllLoops()
     })
-    
+
+    if (this.domainMode && DOMAIN_START_TRIAL === 2 && this.level.trialTwo) {
+      this.trialOneDone = true
+      this.time.delayedCall(120, () => this.startTrialTwo())
+    }
   }
 
   // 关卡提示统一长这样：一块深色底 + 一行浅字，和交互提示、独白是同一套配色
@@ -4065,6 +4101,33 @@ export class GameScene extends Phaser.Scene {
 
   private talkToCrane() {
     if (this.domainMode) {
+      if (this.trialTwoDone) {
+        this.showDialogue('留云借风真君', [
+          '第二重也过了，脚底下总算有点仙家样子。',
+          '第三重，考的是心智。',
+          '容我把三口机关锅摆好，再来唤你。',
+        ])
+        return
+      }
+
+      if (this.trialOneDone) {
+        if (this.trialTwoStarted) {
+          this.showDialogue('留云借风真君', ['第二重试炼已经开始了，撑过五轮再说。'])
+          return
+        }
+
+        this.showDialogue(
+          '留云借风真君',
+          [
+            '第二重，考的是身法。',
+            '岩脊会从你脚边破土而出，先看清地上的预警圈。',
+            '撑过五轮。岩柱和岩壳都能替你挡一次，省着用。',
+          ],
+          () => this.startTrialTwo()
+        )
+        return
+      }
+
       if (this.trialOneStarted) {
         this.showDialogue('留云借风真君', ['第一重试炼已经开始了，去吧。'])
         return
@@ -4108,6 +4171,302 @@ export class GameScene extends Phaser.Scene {
     this.trialArmed = false
     this.cameras.main.flash(220, 180, 220, 255)
     this.showMessage('第一重试炼开始：取得仙家符箓')
+  }
+
+  // 第二重试炼：云上擂台，五轮随机岩脊。每道岩脊先亮预警圈，
+  // 0.8 秒后破土；岩柱挡一次就碎，岩化挡一次就解除。
+  private startTrialTwo() {
+    const def = this.level.trialTwo
+
+    if (!this.domainMode || !def || this.trialTwoStarted) {
+      return
+    }
+
+    this.trialTwoStarted = true
+    this.trialTwoDone = false
+    this.trialTwoRound = 0
+    this.trialTwoSpikes = []
+    this.buildTrialTwoArena(def.arena)
+
+    this.trialTwoHud = this.add
+      .text(240, 46, '', {
+        fontFamily: 'sans-serif',
+        fontSize: '9px',
+        color: '#ffd54f',
+      })
+      .setOrigin(0.5, 0)
+      .setScrollFactor(0)
+      .setDepth(HUD_DEPTH)
+
+    const body = this.slime.body as Phaser.Physics.Arcade.Body
+    body.reset(def.arena.left + 54, def.arena.groundY - body.height / 2)
+    this.slime.setVelocity(0, 0)
+    this.cameras.main.flash(220, 180, 220, 255)
+    this.showMessage('第二重试炼开始：撑过五轮岩脊')
+    this.beginTrialTwoRound(1)
+  }
+
+  private buildTrialTwoArena(arena: { left: number; right: number; groundY: number }) {
+    const center = (arena.left + arena.right) / 2
+
+    // 地面的淡金封印圈 + 两侧结界光边，让擂台范围一眼可辨
+    const ring = this.add
+      .ellipse(center, arena.groundY + 1, arena.right - arena.left - 12, 24, 0xffd54f, 0.05)
+      .setStrokeStyle(1, 0xffd54f, 0.35)
+      .setDepth(2.6)
+
+    this.tweens.add({
+      targets: ring,
+      alpha: { from: 0.55, to: 1 },
+      duration: 1100,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    ;[arena.left, arena.right].forEach((x) => {
+      const gate = this.add
+        .rectangle(x, arena.groundY - 60, 2, 120, 0xffd54f, 0.22)
+        .setDepth(4.4)
+
+      this.tweens.add({
+        targets: gate,
+        alpha: 0.45,
+        duration: 900,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      })
+
+      this.add
+        .image(x + (x < center ? -14 : 14), arena.groundY, 'spire')
+        .setOrigin(0.5, 1)
+        .setDepth(3)
+    })
+  }
+
+  private beginTrialTwoRound(round: number) {
+    const def = this.level.trialTwo
+
+    if (!def) {
+      return
+    }
+
+    const count = def.rounds[Math.min(round - 1, def.rounds.length - 1)] ?? 3
+    const firstDelay = round === 1 ? 1000 : 600
+    const lastSpawnAt = def.roundTime * 1000 - 800
+
+    this.trialTwoRound = round
+    this.trialTwoLeft = count
+    this.trialTwoUsedX = []
+    this.trialTwoRoundStart = this.time.now
+    this.trialTwoNextSpawn = this.trialTwoRoundStart + firstDelay
+    this.trialTwoSpawnGap =
+      count > 1 ? (lastSpawnAt - firstDelay) / (count - 1) : 0
+    this.trialTwoHud?.setText(`第二重  ${round}/${def.rounds.length} 轮`)
+    this.showMessage(`第 ${round} 轮：岩脊 ${count} 道`)
+  }
+
+  private spawnTrialTwoSpike() {
+    const def = this.level.trialTwo
+
+    if (!def) {
+      return
+    }
+
+    const arena = def.arena
+    const playerX = this.slime.x
+    let x = playerX
+
+    // 七成落在玩家近旁逼着挪步，三成撒向擂台其他位置
+    for (let attempt = 0; attempt < 8; attempt++) {
+      if (Math.random() < 0.7) {
+        const dir = Math.random() < 0.5 ? -1 : 1
+        // 最近的一道就落在脚边：站着不动一定会挨打，必须看预警圈挪步
+        x = playerX + dir * (Math.random() * 112)
+      } else {
+        x = Phaser.Math.Between(arena.left + 34, arena.right - 34)
+      }
+
+      x = Phaser.Math.Clamp(x, arena.left + 34, arena.right - 34)
+
+      if (this.trialTwoUsedX.every((used) => Math.abs(used - x) > 34)) {
+        break
+      }
+    }
+
+    this.trialTwoUsedX.push(x)
+
+    const marker = this.add
+      .ellipse(x, arena.groundY - 1, 42, 13, 0xffb347, 0.2)
+      .setStrokeStyle(2, 0xffd54f, 0.9)
+      .setDepth(4.2)
+      .setScale(0.5)
+
+    this.tweens.add({
+      targets: marker,
+      scaleX: 1,
+      scaleY: 1,
+      alpha: 0.55,
+      duration: def.warnTime * 1000,
+      ease: 'Sine.easeOut',
+    })
+
+    const sprite = this.add
+      .image(x, arena.groundY + 4, 'trial-rock-spike')
+      .setOrigin(0.5, 1)
+      .setDepth(5.2)
+      .setVisible(false)
+      .setScale(1, 0.18)
+
+    this.trialTwoSpikes.push({
+      x,
+      groundY: arena.groundY,
+      marker,
+      sprite,
+      timer: def.warnTime,
+      phase: 'warn',
+      resolved: false,
+    })
+  }
+
+  private resolveTrialTwoSpike(spike: {
+    x: number
+    groundY: number
+  }) {
+    const pillar = this.rockPillar
+
+    // 岩柱挡一道就碎：连柱脚土圈一起收掉，免得看着还有根柱子立着
+    if (pillar && pillar.active && Math.abs(pillar.x - spike.x) < 22) {
+      this.pillarFoot?.destroy()
+      this.pillarFoot = null
+      pillar.destroy()
+      this.rockPillar = null
+      playSfx(this, 'sfx-land', 0.4)
+      this.cameras.main.shake(180, 0.006)
+      this.showMessage('岩柱替你挡下了一道岩脊')
+      return
+    }
+
+    const body = this.slime.body as Phaser.Physics.Arcade.Body
+
+    // 尖刺只有上半截伤人：跳起来、站在柱顶都能躲
+    if (Math.abs(this.slime.x - spike.x) >= 18 || body.bottom <= spike.groundY - 38) {
+      return
+    }
+
+    if (this.armored) {
+      this.setArmored(false)
+      this.invulnTimer = 1.2
+      this.showMessage('岩壳替你挡下了一道岩脊')
+      return
+    }
+
+    if (this.invulnTimer <= 0) {
+      this.damageDomain(1)
+    }
+  }
+
+  private updateTrialTwo(dt: number) {
+    const def = this.level.trialTwo
+
+    if (!this.domainMode || !def || !this.trialTwoStarted || this.trialTwoDone) {
+      return
+    }
+
+    const arena = def.arena
+
+    // 擂台结界：把人留在圈里，免得跑到第一重的浮石区躲过整轮
+    this.slime.x = Phaser.Math.Clamp(this.slime.x, arena.left + 16, arena.right - 16)
+
+    if (this.trialTwoLeft > 0 && this.time.now >= this.trialTwoNextSpawn) {
+      this.spawnTrialTwoSpike()
+      this.trialTwoLeft -= 1
+      this.trialTwoNextSpawn += this.trialTwoSpawnGap
+    }
+
+    this.trialTwoSpikes.forEach((spike) => {
+      spike.timer -= dt
+
+      if (spike.phase === 'warn' && spike.timer <= 0) {
+        spike.phase = 'up'
+        spike.timer = 0.46
+        spike.marker.destroy()
+        spike.sprite.setVisible(true)
+        this.tweens.add({
+          targets: spike.sprite,
+          scaleY: 1,
+          duration: 90,
+          ease: 'Quad.easeOut',
+        })
+        playSfx(this, 'sfx-land', 0.18)
+        this.cameras.main.shake(70, 0.0025)
+        return
+      }
+
+      if (spike.phase !== 'up') {
+        return
+      }
+
+      if (!spike.resolved && spike.timer <= 0.34) {
+        spike.resolved = true
+        this.resolveTrialTwoSpike(spike)
+      }
+
+      if (spike.timer <= 0) {
+        spike.phase = 'gone'
+        this.tweens.add({
+          targets: spike.sprite,
+          alpha: 0,
+          scaleY: 0.35,
+          duration: 160,
+          onComplete: () => spike.sprite.destroy(),
+        })
+      }
+    })
+
+    this.trialTwoSpikes = this.trialTwoSpikes.filter((spike) => spike.phase !== 'gone')
+
+    if (
+      this.trialTwoLeft === 0 &&
+      this.time.now >= this.trialTwoRoundStart + def.roundTime * 1000
+    ) {
+      if (this.trialTwoRound >= def.rounds.length) {
+        this.finishTrialTwo()
+      } else {
+        this.beginTrialTwoRound(this.trialTwoRound + 1)
+      }
+    }
+  }
+
+  private finishTrialTwo() {
+    if (this.trialTwoDone) {
+      return
+    }
+
+    this.trialTwoDone = true
+    this.trialTwoSpikes.forEach((spike) => {
+      spike.marker.destroy()
+      spike.sprite.destroy()
+    })
+    this.trialTwoSpikes = []
+    playSfx(this, 'sfx-gem', 0.6)
+    this.cameras.main.flash(220, 255, 230, 150)
+    this.showMessage('第二重试炼通过：仙人对你的身法点了点头')
+
+    this.time.delayedCall(900, () => {
+      if (!this.domainMode || this.domainLeaving) {
+        return
+      }
+
+      const body = this.slime.body as Phaser.Physics.Arcade.Body
+      body.reset(740, 800 - body.height / 2)
+      this.slime.setVelocity(0, 0)
+      this.trialTwoHud?.destroy()
+      this.trialTwoHud = null
+      this.cameras.main.flash(240, 255, 230, 150)
+      this.showMessage('回到仙人身边')
+    })
   }
 
   private refreshHud() {
@@ -6355,11 +6714,13 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(PILLAR_TIME * 1000, () => {
       if (this.rockPillar === pillar) {
         this.rockPillar = null
+        // 只收这一根柱子自己的柱脚；柱子若已被岩脊撞碎、玩家又立了新的，
+        // 这根旧柱子的计时器不能把新柱子的柱脚一起抹掉
+        this.pillarFoot?.destroy()
+        this.pillarFoot = null
       }
 
       pillar.destroy()
-      this.pillarFoot?.destroy()
-      this.pillarFoot = null
     })
   }
 
@@ -11511,6 +11872,7 @@ export class GameScene extends Phaser.Scene {
     if (this.domainMode) {
       this.updateTrialStones()
       this.updateTrialOne(dt)
+      this.updateTrialTwo(dt)
       this.updateTrialReturn()
     }
     // 自动上台阶的那几帧人在空中，但动画和音效要按「还在走路」算，

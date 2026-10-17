@@ -193,6 +193,7 @@ export class BootScene extends Phaser.Scene {
     this.makeSpeedCharm()
     this.makeTrialTalisman()
     this.makeTrialStone()
+    this.makeTrialRockSpike()
     this.makeAmberStand()
     this.makeCliffTrees()
     this.makeRockStrata()
@@ -5735,6 +5736,72 @@ export class BootScene extends Phaser.Scene {
     g.lineBetween(34, 10, 30, 20)
 
     g.generateTexture('trial-stone', 48, 34)
+    g.destroy()
+  }
+
+  // 第二重试炼的岩脊（26x48）：从云台里破土而出的尖石。
+  // 底宽上尖，左侧受光、右侧背光，根部压着一圈金色碎石，和秘境的仙家金边呼应。
+  private makeTrialRockSpike() {
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    // 根部光晕与落点阴影
+    g.fillStyle(0xffd54f, 0.14)
+    g.fillEllipse(13, 44, 30, 10)
+    g.fillStyle(0x2a2118, 0.35)
+    g.fillEllipse(13, 45, 22, 6)
+
+    // 主体：不规则的三角尖石，左右棱面分开上色
+    const outline: Array<[number, number]> = [
+      [13, 0],
+      [18, 9],
+      [16, 16],
+      [23, 27],
+      [21, 36],
+      [25, 45],
+      [3, 45],
+      [6, 36],
+      [4, 27],
+      [10, 17],
+      [8, 9],
+    ]
+
+    g.fillStyle(0x5d4c37, 1)
+    g.fillPoints(outline.map(([x, y]) => P(x, y)), true)
+
+    // 左侧亮面
+    g.fillStyle(0xb59a6d, 1)
+    g.fillPoints([P(13, 2), P(9, 12), P(11, 19), P(6, 29), P(8, 37), P(5, 43), P(3, 44), P(3, 36), P(6, 27), P(10, 17), P(8, 9)], true)
+    // 左侧高光棱
+    g.fillStyle(0xd8c293, 0.9)
+    g.fillPoints([P(12, 4), P(10, 12), P(12, 19), P(9, 27), P(11, 36), P(9, 42), P(6, 43), P(8, 36), P(6, 28), P(9, 18)], true)
+    // 右侧暗面
+    g.fillStyle(0x7a6446, 1)
+    g.fillPoints([P(13, 2), P(18, 10), P(16, 17), P(23, 28), P(21, 37), P(24, 44), P(14, 44), P(13, 30), P(17, 17)], true)
+    // 右侧更深的背光棱
+    g.fillStyle(0x4a3b2a, 0.95)
+    g.fillPoints([P(16, 18), P(23, 28), P(20, 37), P(23, 44), P(16, 44), P(15, 31)], true)
+
+    // 石缝和金色矿点
+    g.lineStyle(1, 0x3b2e20, 0.7)
+    g.lineBetween(12, 8, 10, 18)
+    g.lineBetween(11, 24, 16, 31)
+    g.lineBetween(15, 37, 11, 42)
+    g.fillStyle(0xffd54f, 0.85)
+    g.fillRect(8, 34, 2, 2)
+    g.fillRect(16, 22, 1, 2)
+    g.fillStyle(0xffe9a8, 0.9)
+    g.fillRect(12, 14, 1, 2)
+
+    // 底部碎屑
+    g.fillStyle(0xa98d60, 1)
+    g.fillRect(1, 43, 3, 3)
+    g.fillRect(22, 42, 3, 2)
+    g.fillStyle(0x8a7048, 1)
+    g.fillRect(6, 45, 2, 2)
+    g.fillRect(19, 45, 2, 2)
+
+    g.generateTexture('trial-rock-spike', 26, 48)
     g.destroy()
   }
 

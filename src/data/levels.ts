@@ -280,6 +280,13 @@ export type LevelDef = {
     checkpoints: { x: number; y: number }[]
     artifact: { x: number; y: number }
   }
+  // 秘境第二重试炼：站在云台上撑过五轮岩脊，每题落点随机、落地前有预警
+  trialTwo?: {
+    arena: { left: number; right: number; groundY: number }
+    rounds: number[]
+    roundTime: number
+    warnTime: number
+  }
   platforms: PlatformDef[]
   // 纯碰撞边缘（不画）：山顶/转角平台的防掉落挡板。
   // 画面由 decor 里的山峰、树、大石块负责，这里只放一个看不见的实体。
