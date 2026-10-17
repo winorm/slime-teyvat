@@ -5480,7 +5480,8 @@ export class BootScene extends Phaser.Scene {
     const a = this.add.graphics()
     // ① 根：四股往左铺开、扒在岩面上
     a.fillStyle(0x4a3524, 1)
-    for (const root of [[0, 24, 12, 30], [0, 36, 14, 40], [0, 48, 13, 48], [2, 57, 14, 54]]) {
+    // 根：**从树干底部那个点往外叉**（内端压在树干上，2026/10/17 用户要求根和树干连上）
+    for (const root of [[11, 42, 0, 24], [11, 44, 0, 36], [11, 46, 0, 48], [11, 50, 2, 57]]) {
       a.fillPoints(
         [P(root[0], root[1]), P(root[2], root[3] - 3), P(root[2] + 5, root[3] + 1), P(root[0], root[1] + 4)],
         true
@@ -5507,7 +5508,7 @@ export class BootScene extends Phaser.Scene {
     const b = this.add.graphics()
     // 根：三股短的
     b.fillStyle(0x4a3524, 1)
-    for (const root of [[0, 34, 12, 38], [0, 44, 14, 46], [1, 53, 12, 52]]) {
+    for (const root of [[12, 48, 0, 34], [12, 50, 0, 44], [12, 53, 1, 52]]) {
       b.fillPoints(
         [P(root[0], root[1]), P(root[2], root[3] - 3), P(root[2] + 5, root[3] + 1), P(root[0], root[1] + 4)],
         true
@@ -5545,7 +5546,7 @@ export class BootScene extends Phaser.Scene {
     const c = this.add.graphics()
     // 旗形：风常年往右刮 —— 树干几乎是平的，枝全甩到右边，左边那侧一根枝都没有
     c.fillStyle(0x4a3524, 1)
-    for (const root of [[0, 30, 10, 34], [0, 42, 12, 44], [1, 52, 10, 50]]) {
+    for (const root of [[10, 42, 0, 30], [10, 44, 0, 42], [10, 48, 1, 52]]) {
       c.fillPoints(
         [P(root[0], root[1]), P(root[2], root[3] - 3), P(root[2] + 5, root[3] + 1), P(root[0], root[1] + 4)],
         true

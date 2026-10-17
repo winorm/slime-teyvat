@@ -1288,13 +1288,12 @@ export const LEVELS: LevelDef[] = [
     //   2162 那棵挂在山顶大平台填色的左沿（x=2200）→ flip
     // 崖粉（填色）都在 1.0~1.15 层，树给 1.16 才压得住；山脚那几件给 1.2
     decor: [
-      // 崖壁上的三棵（放大到 1.6，挂在填色的两侧崖面上；flip 决定朝哪边贴）
-      { x: 339, y: 1180, key: 'tree-cliff-b', flip: true, scale: 1.6, depth: 1.16 },
-      { x: 1839, y: 1150, key: 'tree-cliff-a', flip: true, scale: 1.4, depth: 1.16 },
-      { x: 2261, y: 1250, key: 'tree-cliff-a', scale: 1.6, depth: 1.16 },
-      { x: 2139, y: 900, key: 'tree-cliff-c', flip: true, scale: 1.6, depth: 1.16 },
-      // 悬崖侧边的：贴在崖沿外面、半悬空
-      { x: 1220, y: 1330, key: 'tree-cliff-c', scale: 1.3, depth: 1.16 },
+      // 悬崖树**只长在整座山的左右边缘**（用户 2026/10/17 定）：三段土地各自是一个整体，
+      // 它们底下不会再冒树。放大到 2 倍。
+      //   左边缘：转角平台 2 那块填色的左沿在 x=400，树翻过来、根贴住 400，冠甩到崖外
+      { x: 324, y: 1180, key: 'tree-cliff-b', flip: true, scale: 2, depth: 1.16 },
+      //   右边缘：山体最右边那道崖面在 x=3450，树翻过来、根贴住 3450，冠压在崖面上
+      { x: 3374, y: 700, key: 'tree-cliff-a', flip: true, scale: 2, depth: 1.16 },
       // 崖面上的岩石横截面
       { x: 1980, y: 1300, key: 'rock-strata-a', scale: 1.4, depth: 1.16 },
       { x: 2310, y: 1010, key: 'rock-strata-c', scale: 1.4, depth: 1.16 },
