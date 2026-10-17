@@ -150,6 +150,15 @@ export type PickupDef = {
   prompt: string
 }
 
+// 疾风符：拾取后一段时间内移动加速（第九关爬山用）
+export type SpeedItemDef = {
+  x: number
+  y: number
+  key?: string      // 不写就用 'speed-charm'
+  duration?: number // 秒，默认 10
+  multiplier?: number // 速度倍率，默认 1.6
+}
+
 // 楼梯上的断口：哪一跑、断了哪几级、修好之后长回来
 export type RepairDef = {
   stair: number      // 在 level.stairs 里的下标（0 起）
@@ -303,6 +312,7 @@ export type LevelDef = {
   cameraBias?: number
   depthGates?: DepthGateDef[]
   pickups?: PickupDef[]
+  speedItems?: SpeedItemDef[]
   repairs?: RepairDef[]
   orbs: OrbDef[]
   gems: { x: number; y: number; layer?: 'front' | 'back' }[]
@@ -1314,6 +1324,8 @@ export const LEVELS: LevelDef[] = [
         text: '琥珀里冻着一个戴草帽、披蓑衣的史莱姆……',
       },
     ],
+    // 山脚第一爬前放一枚疾风符：拾取后 10 秒移动速度 ×1.6
+    speedItems: [{ x: 700, y: 1360, duration: 10, multiplier: 1.6 }],
 
     // 把新画的素材先堆到这一关看看效果（2026/10/17）。
     // 分层约定（从下往上）：山体填色 1.0~1.12 → 坡面 1.05~1.15 → 岩石横截面 1.16

@@ -7,6 +7,7 @@ import {
   type DomeDef,
   type PlatformDef,
   type PickupDef,
+  type SpeedItemDef,
   type RepairDef,
   type MonsterDef,
   type StairDef,
@@ -1565,6 +1566,10 @@ export class GameScene extends Phaser.Scene {
   private launchers: LauncherRef[] = []
   private noteList: NoteRef[] = []
   private pickupList: (PickupDef & { parts: Phaser.GameObjects.Image[]; taken: boolean })[] = []
+  private speedItems: { sprite: Phaser.GameObjects.Image; def: SpeedItemDef; taken: boolean }[] = []
+  private speedBoostTimer = 0
+  private speedBoostMultiplier = 1
+  private speedBoostText: Phaser.GameObjects.Text | null = null
   private repairList: { mark: Phaser.GameObjects.Image; def: RepairDef; done: boolean }[] = []
   private stairGfx: Phaser.GameObjects.Graphics[] = []
   private repaired: string[] = []
@@ -2731,6 +2736,7 @@ export class GameScene extends Phaser.Scene {
       )
     )
     this.buildAmbers()
+    this.buildSpeedItems()
     this.buildRevealRails()
     this.buildStairPadBodies()
 
@@ -6900,6 +6906,88 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
+  // 疾风符：山路上的一次性加速道具，拾取后 10 秒移动速度 ×1.6
+  private buildSpeedItems() {
+    this.speedItems = []
+    this.speedBoostTimer = 0
+    this.speedBoostMultiplier = 1
+    this.speedBoostText?.destroy()
+    this.speedBoostText = null
+
+    const defs = this.level.speedItems ?? []
+
+    if (defs.length === 0) {
+      return
+    }
+
+    this.speedBoostText = this.add
+      .text(10, 72, '', {
+        fontFamily: 'sans-serif',
+        fontSize: '10px',
+        color: '#8fe0c2',
+      })
+      .setScrollFactor(0)
+      .setDepth(HUD_DEPTH)
+      .setVisible(false)
+
+    defs.forEach((def) => {
+      const sprite = this.add
+        .image(def.x, def.y - 10, def.key ?? 'speed-charm')
+        .setOrigin(0.5, 1)
+        .setDepth(6)
+
+      const baseY = sprite.y
+
+      this.tweens.add({
+        targets: sprite,
+        y: baseY - 4,
+        duration: 700,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      })
+
+      this.speedItems.push({ sprite, def, taken: false })
+    })
+  }
+
+  private updateSpeedItems(dt: number) {
+    if (this.speedBoostTimer > 0) {
+      this.speedBoostTimer = Math.max(0, this.speedBoostTimer - dt)
+      this.speedBoostText?.setText(`疾风加速 ${Math.ceil(this.speedBoostTimer)}s`).setVisible(true)
+    } else {
+      this.speedBoostText?.setVisible(false)
+    }
+
+    for (const item of this.speedItems) {
+      if (item.taken) {
+        continue
+      }
+
+      const distance = Phaser.Math.Distance.Between(
+        this.slime.x,
+        this.slime.y,
+        item.sprite.x,
+        item.sprite.y
+      )
+
+      if (distance > 30) {
+        continue
+      }
+
+      item.taken = true
+      item.sprite.destroy()
+      this.speedBoostTimer = item.def.duration ?? 10
+      this.speedBoostMultiplier = item.def.multiplier ?? 1.6
+      playSfx(this, 'sfx-gem', 0.5)
+      this.showMessage(`拾取疾风符：移动速度提升 ${this.speedBoostTimer} 秒`)
+      this.speedBoostText
+        ?.setText(`疾风加速 ${Math.ceil(this.speedBoostTimer)}s`)
+        .setVisible(true)
+      break
+    }
+  }
+
   // 敲开琥珀：碎几片琥珀、把里面的东西放出来
   private breakAmber(amber: { sprite: Phaser.GameObjects.Image; def: AmberDef; broken: boolean }) {
     if (amber.broken) {
@@ -10659,8 +10747,12 @@ export class GameScene extends Phaser.Scene {
     }
 
     const body = this.slime.body as Phaser.Physics.Arcade.Body
-    const speed = ELEMENTS[this.element].speed
     const dt = delta / 1000
+
+    this.updateSpeedItems(dt)
+
+    const speed =
+      ELEMENTS[this.element].speed * (this.speedBoostTimer > 0 ? this.speedBoostMultiplier : 1)
 
     // 第七关「绕树而上」：踩到判定区就在树前/树后之间切换
     this.updateDepthGates(body)

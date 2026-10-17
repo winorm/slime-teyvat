@@ -174,6 +174,7 @@ export class BootScene extends Phaser.Scene {
     this.makeAmber()
     this.makeAmberBoar()
     this.makeAmberNpc()
+    this.makeSpeedCharm()
     this.makeAmberStand()
     this.makeCliffTrees()
     this.makeRockStrata()
@@ -5564,6 +5565,49 @@ export class BootScene extends Phaser.Scene {
     g.fillCircle(32, 22, 1.4)
 
     g.generateTexture('npc-straw-slime', 44, 42)
+    g.destroy()
+  }
+
+  // 疾风符（22x28）：一片青绿色风羽 + 金色符带，拾取后加速 10 秒
+  private makeSpeedCharm() {
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    // 背后一点风晕
+    g.fillStyle(0x8fe0c2, 0.18)
+    g.fillEllipse(11, 14, 22, 26)
+
+    // 羽轴
+    g.fillStyle(0x2f6f6a, 1)
+    g.fillPoints([P(6, 26), P(9, 25), P(17, 5), P(15, 3)], true)
+    g.fillStyle(0xf0fff7, 0.9)
+    g.fillPoints([P(8, 25), P(9.5, 25), P(16, 5), P(15, 4)], true)
+
+    // 左侧羽片
+    g.fillStyle(0x4b9f8a, 1)
+    g.fillPoints([P(8, 23), P(2, 17), P(4, 12), P(9, 14)], true)
+    g.fillPoints([P(10, 18), P(4, 10), P(7, 6), P(11, 10)], true)
+    g.fillPoints([P(12, 13), P(8, 5), P(11, 2), P(14, 7)], true)
+
+    // 右侧羽片（压亮）
+    g.fillStyle(0x74d0b0, 1)
+    g.fillPoints([P(11, 24), P(18, 19), P(18, 14), P(12, 15)], true)
+    g.fillPoints([P(13, 19), P(20, 12), P(19, 8), P(14, 11)], true)
+    g.fillPoints([P(14, 14), P(18, 7), P(16, 3), P(13, 8)], true)
+
+    // 金色符带
+    g.fillStyle(0xd9a441, 1)
+    g.fillPoints([P(5, 26), P(12, 22), P(13, 24), P(7, 27)], true)
+    g.fillStyle(0xffe9a8, 1)
+    g.fillRect(7, 24, 5, 1)
+
+    // 羽尖高光
+    g.fillStyle(0xffffff, 0.9)
+    g.fillRect(15, 3, 2, 2)
+    g.fillStyle(0xeafff6, 0.7)
+    g.fillRect(4, 12, 1, 3)
+
+    g.generateTexture('speed-charm', 22, 28)
     g.destroy()
   }
 
