@@ -4102,7 +4102,7 @@ export class GameScene extends Phaser.Scene {
     this.buildTrialOne()
 
     const body = this.slime.body as Phaser.Physics.Arcade.Body
-    body.reset(320, 800 - body.height / 2)
+    body.reset(240, 800 - body.height / 2)
     this.slime.setVelocity(0, 0)
     this.trialSection = 0
     this.trialArmed = false
@@ -7268,9 +7268,9 @@ export class GameScene extends Phaser.Scene {
     }
 
     const starts = [
-      { x: 320, y: 800 },
-      { x: 600, y: 620 },
-      { x: 360, y: 440 },
+      { x: 240, y: 800 },
+      { x: 700, y: 620 },
+      { x: 260, y: 440 },
     ]
     const start = starts[this.trialSection] ?? starts[0]
 

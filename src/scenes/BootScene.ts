@@ -106,8 +106,24 @@ export class BootScene extends Phaser.Scene {
   create() {
     this.makeTextures()
     this.scene.launch('achievement')
+    // 开发用：?domain=1 直接进仙家试炼秘境（只有 DEV_MODE 开着时有效）
+    const search = new URLSearchParams(location.search)
+
+    if (DEV_MODE && search.get('domain') === '1') {
+      const domainReturnLevel = LEVELS.length - 1
+
+      progress.levelIndex = domainReturnLevel
+      progress.maxLevel = Math.max(progress.maxLevel, domainReturnLevel)
+      progress.unlocked = [...ELEMENT_ORDER]
+      this.scene.start('game', {
+        domain: true,
+        returnPoint: { x: 1960, y: 446, element: 'rock' },
+      })
+      return
+    }
+
     // 开发用：地址上带 ?level=8 就直接进第八关（和 ?dev=1 一样，只有 DEV_MODE 开着时才有）
-    const levelParam = new URLSearchParams(location.search).get('level')
+    const levelParam = search.get('level')
     const levelIndex = levelParam === null ? Number.NaN : Number.parseInt(levelParam, 10) - 1
 
     if (DEV_MODE && Number.isInteger(levelIndex) && levelIndex >= 0 && levelIndex < LEVELS.length) {
