@@ -1507,12 +1507,16 @@ export const LEVELS: LevelDef[] = [
       // 台体：整面砖墙从 880 落到地面 1160（只画不挡人，人从楼梯上来）
       { x: 6100, y: 1020, width: 1000, height: 280, brick: true, solid: false },
 
-      // ── 花摊那一段的跑酷 ───────────────────────────────────────────
-      // 两只木箱当台阶（30 / 60 高），再一跳上花摊的顶棚（1074）
-      { x: 1688, y: 1145, width: 34, height: 30, plank: true, overlay: true, rail: false, railBar: false },
-      { x: 1726, y: 1130, width: 34, height: 60, plank: true, overlay: true, rail: false, railBar: false },
-      // 花摊顶棚：碰撞箱隐形，画面就是花摊本身（harbor-stall-street 的棚顶）
-      { x: 1800, y: 1077, width: 108, height: 6, oneWay: true, hidden: true },
+      // ── 屋檐跑酷 ───────────────────────────────────────────────────
+      // 两栋三层楼的屋檐都在 1104（land-b 打包里 dy -56 那两条隐形檐口）：
+      // 左楼 930~1310、右楼 1430~1810，中间那条 120 宽的巷子用一块木板桥接上。
+      // 巷子里两只木箱当起步台阶（30 / 60），踩上去就能上左楼的屋檐
+      { x: 1256, y: 1145, width: 34, height: 30, plank: true, overlay: true, rail: false, railBar: false },
+      { x: 1294, y: 1130, width: 34, height: 60, plank: true, overlay: true, rail: false, railBar: false },
+      // 木板桥的碰撞箱：隐形单向平台，顶面 1104。**两头伸进瓦檐 14 像素**，
+      // 免得刚好卡在两块单向平台的接缝上漏下去
+      // overlay：别让它被 harborGroundAt 当成"落脚线"，否则整段打包建筑会被抬高 56
+      { x: 1370, y: 1107, width: 148, height: 6, oneWay: true, hidden: true, overlay: true },
     ],
 
     // 玉京台的楼梯：从左往右上，一跑直接上台面（25 步，每级 20×11.7）
@@ -1546,8 +1550,8 @@ export const LEVELS: LevelDef[] = [
 
     // 送仙典仪的三样供品：两样摆在外面（纯拾取），夜泊石封在码头的矿壳里
     materials: [
-      // 霓裳花摆在花摊顶上：踩两下木箱再跳上棚顶才够得着
-      { x: 1800, y: 1074, key: 'item-silkflower', label: '霓裳花' },
+      // 霓裳花摆在右边那栋楼的屋檐上：踩木箱上左楼屋檐，过木板桥到右楼屋檐才够得着
+      { x: 1770, y: 1104, key: 'item-silkflower', label: '霓裳花' },
       { x: 2580, y: 1160, key: 'item-incense', label: '永生香' },
     ],
 
@@ -1581,8 +1585,8 @@ export const LEVELS: LevelDef[] = [
       { x: 2070, y: 1160, key: 'wang-sheng-tang', depth: -5 },
       // 玉京台上的大殿：远一档、小一点，底边压在台面 880 上
       { x: 6100, y: 884, key: 'terrace-hall', scale: 0.62, depth: -6 },
-      // 街边的花摊（霓裳花就摆在它顶棚上）
-      { x: 1800, y: 1160, key: 'harbor-stall-street', depth: -4.6 },
+      // 两栋楼屋檐之间那条木板桥：画面在 y=1120（板面 1104），碰撞箱在上面
+      { x: 1370, y: 1120, key: 'eave-bridge', depth: -4.9 },
     ],
 
     // 送仙典仪的祭坛（玉京台台面中心）。x 是玩家走的走线，祭坛/人群/凝光都排在这条线往后
@@ -1591,7 +1595,7 @@ export const LEVELS: LevelDef[] = [
     hints: [
       { x: 100, y: 1085, text: '向右走，去往生堂找客卿' },
       { x: 760, y: 1085, text: '夜泊石封在码头的矿壳里' },
-      { x: 1640, y: 1085, text: '霓裳花在花摊顶上 · 踩着木箱上去' },
+      { x: 1210, y: 1085, text: '踩木箱上屋檐 · 沿屋檐过桥' },
       { x: 2580, y: 1085, text: '永生香在香铺门口' },
       { x: 2360, y: 1085, text: '香铺前有千岩军 · 岩化静止可避开视线' },
       { x: 2070, y: 1085, text: '往生堂' },

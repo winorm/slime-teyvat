@@ -183,6 +183,7 @@ export class BootScene extends Phaser.Scene {
     this.makeHarborProps()
     this.makeLandBuildings()
     this.makeWangShengTang()
+    this.makeEaveBridge()
     this.makeRitualNpcs()
     this.makeTerraceHouses()
     this.makeTerracePlaza()
@@ -4592,6 +4593,48 @@ export class BootScene extends Phaser.Scene {
     lantern(shop, 34, 92)
     shop.generateTexture('land-shop', 220, 150)
     shop.destroy()
+  }
+
+  // ── 两座屋檐之间搭的木板桥（150x16）──────────────────────────────
+  //   第十关屋顶跑酷用：板面画在贴图最上面 0~7，下面两个斜撑接到两边的瓦檐上。
+  //   **两头各往瓦檐里多搭 14 像素**：两块单向平台的接缝不能刚好对齐 ——
+  //   人走过接缝那一帧只要脚底比檐口低一点点，单向判定就接不住、会直接漏下去。
+  //   碰撞箱同样伸进两边檐口（见 levels.ts 的 eave-bridge）
+  private makeEaveBridge() {
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+    const WOOD = 0x8a6034
+    const WOOD_LIGHT = 0xa8794a
+    const WOOD_DARK = 0x5f4224
+
+    // 两块木板拼成的桥面
+    g.fillStyle(WOOD_DARK, 1)
+    g.fillRect(0, 0, 150, 7)
+    g.fillStyle(WOOD, 1)
+    g.fillRect(0, 1, 150, 5)
+    g.fillStyle(WOOD_LIGHT, 1)
+    g.fillRect(0, 1, 150, 1)
+    // 板缝
+    g.lineStyle(1, WOOD_DARK, 0.8)
+    for (let x = 20; x < 150; x += 20) {
+      g.lineBetween(x, 1, x, 6)
+    }
+
+    // 两头的斜撑：从瓦檐斜着顶到桥面底下
+    g.fillStyle(WOOD_DARK, 1)
+    g.fillPoints([P(24, 6), P(40, 6), P(40, 16)], true)
+    g.fillPoints([P(110, 6), P(126, 6), P(110, 16)], true)
+    g.fillStyle(WOOD, 1)
+    g.fillPoints([P(27, 7), P(38, 7), P(38, 14)], true)
+    g.fillPoints([P(112, 7), P(123, 7), P(112, 14)], true)
+
+    // 两端的铁箍（和屋檐搭接的地方）
+    g.fillStyle(0x3a3226, 1)
+    g.fillRect(0, 0, 4, 7)
+    g.fillRect(146, 0, 4, 7)
+
+    g.generateTexture('eave-bridge', 150, 16)
+    g.destroy()
   }
 
   // 往生堂（420x300）：地图中央的独立建筑，深色木构、白墙、黑门和纸灯笼。
