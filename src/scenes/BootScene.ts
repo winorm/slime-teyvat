@@ -194,6 +194,7 @@ export class BootScene extends Phaser.Scene {
     this.makeTrialTalisman()
     this.makeTrialStone()
     this.makeTrialRockSpike()
+    this.makeTrialSideSpike()
     this.makeAmberStand()
     this.makeCliffTrees()
     this.makeRockStrata()
@@ -5802,6 +5803,62 @@ export class BootScene extends Phaser.Scene {
     g.fillRect(19, 45, 2, 2)
 
     g.generateTexture('trial-rock-spike', 26, 48)
+    g.destroy()
+  }
+
+  // 第二重试炼的横向岩刺（36x14）：一根朝右的尖石，底端带碎屑、尾端带速度线。
+  // 低空横扫用，左飞时直接 flipX。
+  private makeTrialSideSpike() {
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    // 尾端速度线
+    g.fillStyle(0xffd54f, 0.16)
+    g.fillRect(0, 4, 7, 1)
+    g.fillRect(1, 9, 5, 1)
+    g.fillStyle(0xd8c293, 0.22)
+    g.fillRect(2, 6, 4, 1)
+
+    // 主体：底端粗、右端收成尖
+    const body: Array<[number, number]> = [
+      [4, 4],
+      [10, 2],
+      [18, 3],
+      [25, 1],
+      [35, 7],
+      [24, 12],
+      [17, 11],
+      [10, 13],
+      [5, 11],
+    ]
+
+    g.fillStyle(0x5d4c37, 1)
+    g.fillPoints(body.map(([x, y]) => P(x, y)), true)
+
+    // 上半受光面
+    g.fillStyle(0xb59a6d, 1)
+    g.fillPoints([P(5, 4), P(11, 2), P(19, 3), P(26, 2), P(34, 7), P(24, 7), P(16, 8), P(9, 7)], true)
+    g.fillStyle(0xd8c293, 0.85)
+    g.fillPoints([P(6, 4), P(12, 3), P(20, 4), P(27, 3), P(33, 7), P(25, 6), P(16, 7)], true)
+
+    // 下半背光面
+    g.fillStyle(0x4a3b2a, 1)
+    g.fillPoints([P(9, 7), P(24, 7), P(34, 7), P(24, 12), P(17, 11), P(10, 13)], true)
+
+    // 石缝与金点
+    g.lineStyle(1, 0x3b2e20, 0.65)
+    g.lineBetween(12, 4, 16, 9)
+    g.lineBetween(21, 5, 25, 9)
+    g.fillStyle(0xffd54f, 0.9)
+    g.fillRect(14, 5, 1, 2)
+    g.fillRect(23, 8, 2, 1)
+
+    // 底端碎屑
+    g.fillStyle(0x8a7048, 1)
+    g.fillRect(1, 12, 3, 2)
+    g.fillRect(6, 13, 2, 1)
+
+    g.generateTexture('trial-side-spike', 36, 14)
     g.destroy()
   }
 

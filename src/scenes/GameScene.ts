@@ -1392,6 +1392,25 @@ export class GameScene extends Phaser.Scene {
     phase: 'warn' | 'up' | 'gone'
     resolved: boolean
   }[] = []
+  // 第二重试炼的低空横向岩刺：先在离地 42 像素处亮一条横扫预警线，再从一侧扫到另一侧
+  private trialTwoSideSpikes: {
+    x: number
+    y: number
+    dir: number
+    speed: number
+    sprite: Phaser.GameObjects.Image
+    dead: boolean
+  }[] = []
+  private trialTwoSidePlan: {
+    at: number
+    dir: number
+    warned: boolean
+    fired: boolean
+    band: Phaser.GameObjects.Rectangle | null
+    haze: Phaser.GameObjects.Rectangle | null
+    arrow: Phaser.GameObjects.Triangle | null
+  }[] = []
+  private trialTwoSideHintShown = false
   // 测试关卡现在待在哪一间：-1 = 大厅，0 起 = 大厅里那排传送门的下标。
   // 初值来自地址上的 ?room=N（见 DEV_START_ROOM），用来直接打开某一间
   private devRoom = DEV_START_ROOM
@@ -1673,6 +1692,9 @@ export class GameScene extends Phaser.Scene {
     this.trialTwoUsedX = []
     this.trialTwoHud = null
     this.trialTwoSpikes = []
+    this.trialTwoSideSpikes = []
+    this.trialTwoSidePlan = []
+    this.trialTwoSideHintShown = false
     this.devLevel = !this.domainMode && DEV_LEVEL_MODE
     // 测试关卡是「大厅 + 展厅」：devRoom < 0 在大厅，其余去对应那间展厅。
     // 换房间走 scene.restart()，所以 devRoom 是在上一帧就定好的
@@ -4121,6 +4143,7 @@ export class GameScene extends Phaser.Scene {
           [
             '第二重，考的是身法。',
             '岩脊会从你脚边破土而出，先看清地上的预警圈。',
+            '低空还会有横扫的岩刺——该落地的时候就别跳。',
             '撑过五轮。岩柱和岩壳都能替你挡一次，省着用。',
           ],
           () => this.startTrialTwo()
@@ -4264,7 +4287,35 @@ export class GameScene extends Phaser.Scene {
     this.trialTwoSpawnGap =
       count > 1 ? (lastSpawnAt - firstDelay) / (count - 1) : 0
     this.trialTwoHud?.setText(`第二重  ${round}/${def.rounds.length} 轮`)
-    this.showMessage(`第 ${round} 轮：岩脊 ${count} 道`)
+
+    // 低空岩刺：这一轮排几条、从哪边来。左右交替，轮次之间也换一边起手
+    this.clearTrialTwoSideSpikes()
+    const side = def.sideSpikes
+    const sideCount = side
+      ? (side.counts[Math.min(round - 1, side.counts.length - 1)] ?? 0)
+      : 0
+
+    if (side && sideCount > 0) {
+      const sideGap = sideCount > 1 ? (side.lastAt - side.firstAt) / (sideCount - 1) : 0
+
+      for (let index = 0; index < sideCount; index++) {
+        this.trialTwoSidePlan.push({
+          at: this.trialTwoRoundStart + side.firstAt + sideGap * index,
+          dir: (round + index) % 2 === 0 ? 1 : -1,
+          warned: false,
+          fired: false,
+          band: null,
+          haze: null,
+          arrow: null,
+        })
+      }
+    }
+
+    this.showMessage(
+      sideCount > 0
+        ? `第 ${round} 轮：岩脊 ${count} 道 · 横向岩刺 ${sideCount} 条`
+        : `第 ${round} 轮：岩脊 ${count} 道`
+    )
   }
 
   private spawnTrialTwoSpike() {
@@ -4367,6 +4418,261 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  // 低空岩刺预警：在离地 side.height 处横一条金线，入口那端闪一个指向里的箭头。
+  // 这条线就是"不要跳"的高度，横向岩刺会从这里扫过去。
+  private showTrialTwoSideWarning(plan: {
+    dir: number
+    band: Phaser.GameObjects.Rectangle | null
+    haze: Phaser.GameObjects.Rectangle | null
+    arrow: Phaser.GameObjects.Triangle | null
+  }) {
+    const def = this.level.trialTwo
+    const side = def?.sideSpikes
+
+    if (!def || !side) {
+      return
+    }
+
+    const arena = def.arena
+    const y = arena.groundY - side.height
+    const center = (arena.left + arena.right) / 2
+    const width = arena.right - arena.left - 8
+
+    const haze = this.add
+      .rectangle(center, y, width, 16, 0xff8a3c, 0.07)
+      .setDepth(4.16)
+    const band = this.add
+      .rectangle(center, y, width, 2, 0xffc14d, 0.85)
+      .setDepth(4.2)
+    const arrowX = plan.dir > 0 ? arena.left + 10 : arena.right - 10
+    const arrow = this.add
+      .triangle(
+        arrowX,
+        y,
+        0,
+        -6,
+        plan.dir > 0 ? 10 : -10,
+        0,
+        0,
+        6,
+        0xffd54f,
+        0.95
+      )
+      .setDepth(4.24)
+
+    this.tweens.add({
+      targets: band,
+      alpha: { from: 0.25, to: 0.95 },
+      duration: 160,
+      yoyo: true,
+      repeat: 3,
+    })
+    this.tweens.add({
+      targets: haze,
+      alpha: { from: 0.04, to: 0.13 },
+      duration: 160,
+      yoyo: true,
+      repeat: 3,
+    })
+    this.tweens.add({
+      targets: arrow,
+      alpha: { from: 0.35, to: 1 },
+      duration: 200,
+      yoyo: true,
+      repeat: 3,
+    })
+
+    plan.band = band
+    plan.haze = haze
+    plan.arrow = arrow
+
+    if (!this.trialTwoSideHintShown) {
+      this.trialTwoSideHintShown = true
+      this.showMessage('横向岩刺贴着头顶扫来：先落地')
+    }
+  }
+
+  private clearTrialTwoSideWarning(plan: {
+    band: Phaser.GameObjects.Rectangle | null
+    haze: Phaser.GameObjects.Rectangle | null
+    arrow: Phaser.GameObjects.Triangle | null
+  }) {
+    if (plan.band) {
+      this.tweens.killTweensOf(plan.band)
+      plan.band.destroy()
+      plan.band = null
+    }
+
+    if (plan.haze) {
+      this.tweens.killTweensOf(plan.haze)
+      plan.haze.destroy()
+      plan.haze = null
+    }
+
+    if (plan.arrow) {
+      this.tweens.killTweensOf(plan.arrow)
+      plan.arrow.destroy()
+      plan.arrow = null
+    }
+  }
+
+  private fireTrialTwoSideSpike(plan: { dir: number }) {
+    const def = this.level.trialTwo
+    const side = def?.sideSpikes
+
+    if (!def || !side) {
+      return
+    }
+
+    const arena = def.arena
+    const y = arena.groundY - side.height
+    const startX = plan.dir > 0 ? arena.left - 24 : arena.right + 24
+    const sprite = this.add
+      .image(startX, y, 'trial-side-spike')
+      .setFlipX(plan.dir < 0)
+      .setDepth(9.4)
+
+    this.trialTwoSideSpikes.push({
+      x: startX,
+      y,
+      dir: plan.dir,
+      speed: side.speed,
+      sprite,
+      dead: false,
+    })
+
+    playSfx(this, 'sfx-land', 0.24)
+    this.cameras.main.shake(60, 0.002)
+  }
+
+  private breakTrialTwoSideSpike(sideSpike: {
+    sprite: Phaser.GameObjects.Image
+    dead: boolean
+  }) {
+    if (sideSpike.dead) {
+      return
+    }
+
+    sideSpike.dead = true
+    this.tweens.add({
+      targets: sideSpike.sprite,
+      alpha: 0,
+      scaleX: 1.5,
+      scaleY: 1.5,
+      duration: 120,
+      onComplete: () => sideSpike.sprite.destroy(),
+    })
+  }
+
+  private resolveTrialTwoSideSpike(sideSpike: {
+    x: number
+    y: number
+    sprite: Phaser.GameObjects.Image
+    dead: boolean
+  }) {
+    const pillar = this.rockPillar
+    const top = sideSpike.y - 7
+    const bottom = sideSpike.y + 7
+
+    // 岩柱竖在地上，正好拦住低空横扫；挡完和岩脊一样整根碎掉
+    if (pillar && pillar.active) {
+      const pillarTop = pillar.y - pillar.displayHeight / 2
+      const pillarBottom = pillar.y + pillar.displayHeight / 2
+
+      if (
+        Math.abs(pillar.x - sideSpike.x) < 22 &&
+        pillarBottom > top &&
+        pillarTop < bottom
+      ) {
+        this.pillarFoot?.destroy()
+        this.pillarFoot = null
+        pillar.destroy()
+        this.rockPillar = null
+        this.breakTrialTwoSideSpike(sideSpike)
+        playSfx(this, 'sfx-land', 0.4)
+        this.cameras.main.shake(180, 0.006)
+        this.showMessage('岩柱替你挡下了一道岩刺')
+        return
+      }
+    }
+
+    const body = this.slime.body as Phaser.Physics.Arcade.Body
+
+    if (
+      body.right <= sideSpike.x - 16 ||
+      body.left >= sideSpike.x + 16 ||
+      body.bottom <= top ||
+      body.top >= bottom
+    ) {
+      return
+    }
+
+    this.breakTrialTwoSideSpike(sideSpike)
+    this.cameras.main.shake(150, 0.005)
+
+    if (this.armored) {
+      this.setArmored(false)
+      this.invulnTimer = 1.2
+      this.showMessage('岩壳替你挡下了一道岩刺')
+      return
+    }
+
+    if (this.invulnTimer <= 0) {
+      this.damageDomain(1)
+    }
+  }
+
+  private updateTrialTwoSideSpikes(dt: number) {
+    const def = this.level.trialTwo
+    const side = def?.sideSpikes
+
+    if (!def || !side) {
+      return
+    }
+
+    const arena = def.arena
+    const now = this.time.now
+
+    this.trialTwoSidePlan.forEach((plan) => {
+      if (!plan.warned && now >= plan.at - def.warnTime * 1000) {
+        plan.warned = true
+        this.showTrialTwoSideWarning(plan)
+      }
+
+      if (!plan.fired && now >= plan.at) {
+        plan.fired = true
+        this.clearTrialTwoSideWarning(plan)
+        this.fireTrialTwoSideSpike(plan)
+      }
+    })
+
+    this.trialTwoSideSpikes.forEach((sideSpike) => {
+      if (sideSpike.dead) {
+        return
+      }
+
+      sideSpike.x += sideSpike.dir * sideSpike.speed * dt
+      sideSpike.sprite.x = sideSpike.x
+
+      if (sideSpike.x < arena.left - 60 || sideSpike.x > arena.right + 60) {
+        sideSpike.dead = true
+        sideSpike.sprite.destroy()
+        return
+      }
+
+      this.resolveTrialTwoSideSpike(sideSpike)
+    })
+
+    this.trialTwoSideSpikes = this.trialTwoSideSpikes.filter((sideSpike) => !sideSpike.dead)
+  }
+
+  private clearTrialTwoSideSpikes() {
+    this.trialTwoSidePlan.forEach((plan) => this.clearTrialTwoSideWarning(plan))
+    this.trialTwoSidePlan = []
+    this.trialTwoSideSpikes.forEach((sideSpike) => sideSpike.sprite.destroy())
+    this.trialTwoSideSpikes = []
+  }
+
   private updateTrialTwo(dt: number) {
     const def = this.level.trialTwo
 
@@ -4378,6 +4684,8 @@ export class GameScene extends Phaser.Scene {
 
     // 擂台结界：把人留在圈里，免得跑到第一重的浮石区躲过整轮
     this.slime.x = Phaser.Math.Clamp(this.slime.x, arena.left + 16, arena.right - 16)
+
+    this.updateTrialTwoSideSpikes(dt)
 
     if (this.trialTwoLeft > 0 && this.time.now >= this.trialTwoNextSpawn) {
       this.spawnTrialTwoSpike()
@@ -4450,6 +4758,7 @@ export class GameScene extends Phaser.Scene {
       spike.sprite.destroy()
     })
     this.trialTwoSpikes = []
+    this.clearTrialTwoSideSpikes()
     playSfx(this, 'sfx-gem', 0.6)
     this.cameras.main.flash(220, 255, 230, 150)
     this.showMessage('第二重试炼通过：仙人对你的身法点了点头')

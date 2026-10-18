@@ -50,6 +50,15 @@ export const DOMAIN_LEVEL: LevelDef = {
     rounds: [3, 4, 5, 6, 7],
     roundTime: 8,
     warnTime: 0.8,
+    // 低空横扫的岩刺：第一轮一条，第三轮起两条；离地 42 像素，
+    // 站着能从头顶擦过去，一跳就会撞上。速度 520 px/s，横穿 540 宽的擂台约 1 秒。
+    sideSpikes: {
+      counts: [1, 1, 2, 2, 2],
+      firstAt: 2600,
+      lastAt: 6400,
+      speed: 520,
+      height: 42,
+    },
   },
   // 云台：两排交错的 cloud-puff，顶面刚好托住隐形平台的 y=800
   decor: [

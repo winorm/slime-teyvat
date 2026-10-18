@@ -286,6 +286,15 @@ export type LevelDef = {
     rounds: number[]
     roundTime: number
     warnTime: number
+    // 低空横扫的岩刺：counts 是每轮几条，firstAt / lastAt 是这一轮内的毫秒数，
+    // height 是离地高度（站在地上打不到，跳起来才会撞上）
+    sideSpikes?: {
+      counts: number[]
+      firstAt: number
+      lastAt: number
+      speed: number
+      height: number
+    }
   }
   platforms: PlatformDef[]
   // 纯碰撞边缘（不画）：山顶/转角平台的防掉落挡板。
