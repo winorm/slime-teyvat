@@ -521,6 +521,69 @@ const HARBOR_BLOCKS: Record<
   ],
 }
 
+// 第十关的陆地“层楼”打包：一段 920 宽，没有水面和码头护栏。
+// 建筑画面用 land-house-two / land-house-three / land-shop，
+// platforms 里的 dy 是相对地面顶面的高度（负数向上），这些楼层可以真的站上去。
+type LandPlatform = {
+  dx: number
+  dy: number
+  width: number
+  height?: number
+  oneWay?: boolean
+}
+
+type LandPack = {
+  width: number
+  decor: HarborPiece[]
+  front: HarborPiece[]
+  platforms: LandPlatform[]
+}
+
+const LAND_BLOCKS: Record<'land-a' | 'land-b', LandPack> = {
+  // 两层茶楼 + 一间小铺，中间留一条窄巷
+  'land-a': {
+    width: 920,
+    decor: [
+      { dx: 190, key: 'land-house-two' },
+      { dx: 650, key: 'land-shop' },
+      { dx: 430, key: 'harbor-lanterns', dy: -92, depth: -4 },
+      { dx: 430, key: 'harbor-slime-a', depth: -4, randomScale: 0.1 },
+      { dx: 830, key: 'harbor-slime-b', depth: -4, randomScale: 0.1 },
+    ],
+    front: [],
+    platforms: [
+      { dx: 190, dy: -60, width: 240, oneWay: true },
+      { dx: 190, dy: -120, width: 300, oneWay: true },
+      { dx: 190, dy: -190, width: 250, oneWay: true },
+      { dx: 190, dy: -250, width: 210, oneWay: true },
+      { dx: 650, dy: -76, width: 180, oneWay: true },
+    ],
+  },
+  // 三层客栈 + 两层茶楼，檐口和挑台连成一条可以往上爬的路线
+  'land-b': {
+    width: 920,
+    decor: [
+      { dx: 200, key: 'land-house-three' },
+      { dx: 700, key: 'land-house-two' },
+      { dx: 455, key: 'harbor-lanterns', dy: -104, depth: -4 },
+      { dx: 450, key: 'harbor-slime-b', depth: -4, randomScale: 0.1 },
+      { dx: 860, key: 'harbor-slime-c', depth: -4, randomScale: 0.1 },
+    ],
+    front: [],
+    platforms: [
+      { dx: 200, dy: -60, width: 240, oneWay: true },
+      { dx: 200, dy: -140, width: 300, oneWay: true },
+      { dx: 200, dy: -230, width: 280, oneWay: true },
+      { dx: 200, dy: -310, width: 240, oneWay: true },
+      { dx: 200, dy: -370, width: 200, oneWay: true },
+      { dx: 700, dy: -60, width: 230, oneWay: true },
+      { dx: 700, dy: -120, width: 260, oneWay: true },
+      { dx: 700, dy: -190, width: 230, oneWay: true },
+      { dx: 700, dy: -250, width: 180, oneWay: true },
+    ],
+  },
+}
+
 // ─────────────────────────────────────────────────────────────
 // 测试关卡（只有 DEV_MODE + ?dev=1 进得来）：大厅 + 分类展示间
 //
@@ -2078,6 +2141,10 @@ export class GameScene extends Phaser.Scene {
             .setDepth(12)
         }
       })
+    }
+
+    if (this.level.landBlocks) {
+      this.buildLandBlocks()
     }
 
     // 画在玩家前面的摆件（港口的牌楼前层、停在近景水里的船之类）：
@@ -6567,6 +6634,69 @@ export class GameScene extends Phaser.Scene {
     })
 
     return Number.isFinite(best) ? best : this.level.height - 40
+  }
+
+  // 第十关的陆地“层楼”打包：画房子，并把每层挑台/屋檐做成真正能站的单向平台。
+  // 这些平台只进运行时 platforms 组，不写进 level.platforms，所以不会抬高背景落脚线。
+  private buildLandBlocks() {
+    (this.level.landBlocks ?? []).forEach((block) => {
+      const pack = LAND_BLOCKS[block.kind]
+
+      if (!pack) {
+        return
+      }
+
+      const blockGround = this.harborGroundAt(block.at + pack.width / 2)
+
+      const place = (piece: HarborPiece, depth: number) => {
+        const ground = this.harborGroundAt(block.at + piece.dx)
+        const jitter = piece.randomScale
+          ? 1 + (Math.random() * 2 - 1) * piece.randomScale
+          : 1
+
+        this.add
+          .image(
+            block.at + piece.dx,
+            ground + (piece.dy ?? 0) + harborBottomPad(this, piece.key),
+            piece.key
+          )
+          .setOrigin(0.5, 1)
+          .setScale((piece.scale ?? 1) * jitter)
+          .setTint(piece.tint ?? 0xffffff)
+          .setAlpha(piece.alpha ?? 1)
+          .setDepth(piece.depth ?? depth)
+      }
+
+      pack.decor.forEach((piece) => place(piece, -5))
+      pack.front.forEach((piece) => place(piece, 13))
+
+      pack.platforms.forEach((def) => {
+        const height = def.height ?? 6
+        const platform = this.platforms.create(
+          block.at + def.dx,
+          blockGround + def.dy + height / 2,
+          'pixel'
+        ) as Phaser.Physics.Arcade.Sprite
+
+        platform.setDisplaySize(def.width, height)
+        platform.setTint(0x8a6a44)
+        platform.refreshBody()
+        platform.setDepth(3)
+
+        if (def.oneWay ?? true) {
+          const body = platform.body as Phaser.Physics.Arcade.StaticBody
+          body.checkCollision.down = false
+          body.checkCollision.left = false
+          body.checkCollision.right = false
+        }
+
+        this.add
+          .image(block.at + def.dx, blockGround + def.dy, 'pixel')
+          .setDisplaySize(def.width, 2)
+          .setTint(0xb09068)
+          .setDepth(3.05)
+      })
+    })
   }
 
   // ── 玉京台左半边：请仙典仪的广场 ──────────────────────────────

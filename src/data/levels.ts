@@ -250,7 +250,16 @@ export type DomeDef = {
   thickness: number  // 穹顶壳厚
 }
 
-export type BgTheme = 'beach' | 'field' | 'church' | 'sky' | 'tower' | 'liyue' | 'harbor' | 'mountain'
+export type BgTheme =
+  | 'beach'
+  | 'field'
+  | 'church'
+  | 'sky'
+  | 'tower'
+  | 'liyue'
+  | 'harbor'
+  | 'harbor-land'
+  | 'mountain'
 
 export type ThemeColor = {
   ground: number
@@ -269,6 +278,8 @@ export const THEME_COLORS: Record<BgTheme, ThemeColor> = {
   // 璃月·荻花洲：岩土色的地面，黄昏里偏暖
   liyue: { ground: 0x8a6a4a, oneWay: 0xb09068, crumble: 0x9a5a44, hazard: 0x2f6f8f },
   harbor: { ground: 0x8a6a4a, oneWay: 0xb09068, crumble: 0x9a5a44, hazard: 0x2f6f8f },
+  // 璃月港陆地：只有街巷和层楼，没有水面
+  'harbor-land': { ground: 0x8a6a4a, oneWay: 0xb09068, crumble: 0x9a5a44, hazard: 0x2f6f8f },
   // 高山：白天的岩土色，和第九关的山体填色同一套
   mountain: { ground: 0x8a6a4a, oneWay: 0xb09068, crumble: 0x9a5a44, hazard: 0x2f6f8f },
 }
@@ -400,6 +411,8 @@ export type LevelDef = {
   foreground?: ForegroundDef[]
   // 港口背景打包：一段 460 宽，kind 选港口 / 街道 / 郊区，variant 选第几版（不写＝第一版）
   harborBlocks?: { at: number; kind: 'dock' | 'street' | 'suburb' | 'terrace'; variant?: 1 | 2 | 3 }[]
+  // 陆地层楼打包：一段 920 宽，房子两层/三层，带可站立的楼层平台
+  landBlocks?: { at: number; kind: 'land-a' | 'land-b' }[]
   chaseAt?: number          // 走过这条线：演出一下、立刻生成追击小队
   chaseOnLand?: boolean     // 追击还要等脚落地才算（第八关：出了玉京台、落地之后才追）
   squadCount?: number       // 小队人数，默认 3
@@ -1463,17 +1476,17 @@ export const LEVELS: LevelDef[] = [
     intro:
       '回到璃月港，帝君遇刺后的戒严还没有解除。\n先去往生堂找那位客卿，问清送仙典仪的事。\n路上顺便把典仪要用的三样东西找齐吧。',
 
-    width: 3400,
+    width: 3680,
     height: 1200,
     startElement: 'rock',
     unlocks: ['wind'],
     spawn: { x: 60, y: 1147 },
-    bg: 'harbor',
-    goal: { x: 3300, y: 1146, kind: 'chest', prompt: '进入往生堂' },
+    bg: 'harbor-land',
+    goal: { x: 3220, y: 1146, kind: 'chest', prompt: '进入往生堂' },
 
     platforms: [
       // 一条平直的港口街道（顶面 1160）
-      { x: 1700, y: 1180, width: 3400, height: 40, brick: true },
+      { x: 1840, y: 1180, width: 3680, height: 40, brick: true },
     ],
 
     orbs: [],
@@ -1493,15 +1506,12 @@ export const LEVELS: LevelDef[] = [
       { x: 2580, y: 1160, key: 'item-incense', label: '永生香' },
     ],
 
-    // 先复用第八关的港口 / 街道打包；往生堂的专用建筑留到下一步
-    harborBlocks: [
-      { at: 0, kind: 'dock' },
-      { at: 460, kind: 'street', variant: 2 },
-      { at: 920, kind: 'street' },
-      { at: 1380, kind: 'street', variant: 3 },
-      { at: 1840, kind: 'dock', variant: 3 },
-      { at: 2300, kind: 'street', variant: 2 },
-      { at: 2760, kind: 'street' },
+    // 陆地多层楼打包：两段 920 宽，交替铺满整条街
+    landBlocks: [
+      { at: 0, kind: 'land-a' },
+      { at: 920, kind: 'land-b' },
+      { at: 1840, kind: 'land-a' },
+      { at: 2760, kind: 'land-b' },
     ],
 
     hints: [

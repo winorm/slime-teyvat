@@ -181,6 +181,7 @@ export class BootScene extends Phaser.Scene {
     this.makeMonsterBrute()
     this.makeGuardMillelith()
     this.makeHarborProps()
+    this.makeLandBuildings()
     this.makeTerraceHouses()
     this.makeTerracePlaza()
     this.makeTerraceGate()
@@ -4358,6 +4359,214 @@ export class BootScene extends Phaser.Scene {
 
   // 岩刺造物：背后一层贴在建筑上的岩壳，前面收成锥口，口上一点金。
   // 贴图画的是「朝下」，贴天花板直接用，贴左墙 / 右墙靠旋转
+  // 第十关的陆地“层楼”打包：两层茶楼、三层客栈和一间单层小铺。
+  // 建筑本身只负责画面；可站立的楼层在 LAND_BLOCKS 的 platforms 里单独给。
+  private makeLandBuildings() {
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+    const ROOF = 0x314447
+    const ROOF_LIGHT = 0x446066
+    const TILE = 0x223033
+    const WALL = 0xefe0c4
+    const WALL_SHADE = 0xd8c4a2
+    const TIMBER = 0x6b3f2a
+    const TIMBER_DARK = 0x3f261b
+    const GOLD = 0xd9a441
+    const RED = 0xb03a2e
+
+    const roof = (
+      g: Phaser.GameObjects.Graphics,
+      x: number,
+      y: number,
+      w: number,
+      h: number
+    ) => {
+      g.fillStyle(TIMBER_DARK, 1)
+      g.fillPoints([P(x, y + h), P(x + 10, y), P(x + w - 10, y), P(x + w, y + h)], true)
+      g.fillStyle(ROOF, 1)
+      g.fillPoints([P(x + 2, y + h - 3), P(x + 12, y + 2), P(x + w - 12, y + 2), P(x + w - 2, y + h - 3)], true)
+      g.fillStyle(ROOF_LIGHT, 1)
+      g.fillPoints([P(x + 12, y + 3), P(x + w - 12, y + 3), P(x + w - 18, y + 8), P(x + 18, y + 8)], true)
+      // 上翘的檐角
+      g.fillStyle(TIMBER_DARK, 1)
+      g.fillTriangle(x + 2, y + h - 2, x - 10, y + h - 10, x + 18, y + h - 10)
+      g.fillTriangle(x + w - 2, y + h - 2, x + w + 10, y + h - 10, x + w - 18, y + h - 10)
+      // 瓦缝
+      g.lineStyle(1, TILE, 0.55)
+      for (let tx = x + 18; tx < x + w - 18; tx += 16) {
+        g.lineBetween(tx, y + 4, tx - 5, y + h - 4)
+      }
+      g.lineStyle(1, TILE, 0.7)
+      g.lineBetween(x + 8, y + h - 4, x + w - 8, y + h - 4)
+    }
+
+    const windowBox = (
+      g: Phaser.GameObjects.Graphics,
+      x: number,
+      y: number,
+      w: number,
+      h: number
+    ) => {
+      g.fillStyle(TIMBER_DARK, 1)
+      g.fillRect(x, y, w, h)
+      g.fillStyle(0xffd54f, 0.5)
+      g.fillRect(x + 2, y + 2, w - 4, h - 4)
+      g.lineStyle(1, TIMBER, 0.9)
+      g.lineBetween(x + w / 2, y + 2, x + w / 2, y + h - 2)
+      g.lineBetween(x + 2, y + h / 2, x + w - 2, y + h / 2)
+      for (let lx = x + 5; lx < x + w - 2; lx += 7) {
+        g.lineBetween(lx, y + 2, lx, y + h - 2)
+      }
+    }
+
+    const lantern = (g: Phaser.GameObjects.Graphics, x: number, y: number) => {
+      g.fillStyle(TIMBER_DARK, 1)
+      g.fillRect(x, y - 8, 1, 8)
+      g.fillStyle(GOLD, 1)
+      g.fillRect(x - 4, y - 9, 9, 2)
+      g.fillStyle(RED, 1)
+      g.fillEllipse(x, y, 8, 10)
+      g.fillStyle(0xe05a3a, 1)
+      g.fillEllipse(x - 1, y - 1, 5, 7)
+      g.fillStyle(GOLD, 1)
+      g.fillRect(x - 4, y + 3, 9, 1)
+      g.fillRect(x - 1, y + 5, 3, 3)
+    }
+
+    const sign = (g: Phaser.GameObjects.Graphics, x: number, y: number, h: number) => {
+      g.fillStyle(TIMBER_DARK, 1)
+      g.fillRect(x - 2, y - 2, 16, h + 4)
+      g.fillStyle(RED, 1)
+      g.fillRect(x, y, 12, h)
+      g.fillStyle(GOLD, 1)
+      g.fillRect(x + 2, y + 3, 8, 1)
+      g.fillRect(x + 2, y + h / 2, 8, 1)
+      g.fillRect(x + 2, y + h - 4, 8, 1)
+    }
+
+    // ── 两层茶楼（380x300）──
+    const two = this.add.graphics()
+    two.fillStyle(0x5e5348, 1)
+    two.fillRect(20, 284, 340, 16)
+    two.fillStyle(WALL, 1)
+    two.fillRect(30, 240, 320, 50)
+    two.fillStyle(0x241a12, 1)
+    two.fillRect(60, 250, 260, 40)
+    two.fillStyle(0x9a6a2a, 0.3)
+    two.fillRect(70, 256, 240, 26)
+    two.fillStyle(TIMBER, 1)
+    two.fillRect(50, 278, 280, 8)
+    ;[40, 110, 240, 340].forEach((x) => two.fillRect(x, 240, 8, 50))
+    roof(two, 10, 222, 360, 22)
+
+    two.fillStyle(WALL, 1)
+    two.fillRect(40, 180, 300, 44)
+    two.fillStyle(WALL_SHADE, 1)
+    two.fillRect(40, 216, 300, 8)
+    windowBox(two, 70, 190, 44, 24)
+    windowBox(two, 170, 190, 44, 24)
+    windowBox(two, 270, 190, 44, 24)
+
+    // 二楼阳台：地板在 175~183，护栏 150~175
+    two.fillStyle(TIMBER, 1)
+    two.fillRect(28, 174, 324, 9)
+    two.fillStyle(0x8a6a44, 1)
+    two.fillRect(30, 176, 320, 3)
+    two.fillStyle(TIMBER_DARK, 1)
+    for (let x = 38; x <= 342; x += 22) {
+      two.fillRect(x, 150, 4, 26)
+    }
+    two.fillRect(34, 153, 314, 3)
+    two.fillRect(34, 163, 314, 3)
+
+    roof(two, 16, 104, 348, 30)
+    roof(two, 36, 38, 308, 70)
+    sign(two, 322, 196, 44)
+    lantern(two, 48, 178)
+    lantern(two, 336, 178)
+    two.generateTexture('land-house-two', 380, 300)
+    two.destroy()
+
+    // ── 三层客栈（400x420）──
+    const three = this.add.graphics()
+    three.fillStyle(0x5e5348, 1)
+    three.fillRect(20, 404, 360, 16)
+    three.fillStyle(WALL, 1)
+    three.fillRect(30, 360, 340, 50)
+    three.fillStyle(0x241a12, 1)
+    three.fillRect(60, 370, 280, 40)
+    three.fillStyle(0x9a6a2a, 0.28)
+    three.fillRect(70, 376, 260, 24)
+    three.fillStyle(TIMBER, 1)
+    three.fillRect(50, 398, 300, 8)
+    ;[40, 120, 280, 350].forEach((x) => three.fillRect(x, 360, 8, 50))
+    roof(three, 10, 342, 380, 22)
+
+    three.fillStyle(WALL, 1)
+    three.fillRect(40, 280, 320, 62)
+    three.fillStyle(WALL_SHADE, 1)
+    three.fillRect(40, 332, 320, 8)
+    windowBox(three, 70, 292, 48, 26)
+    windowBox(three, 176, 292, 48, 26)
+    windowBox(three, 282, 292, 48, 26)
+    three.fillStyle(TIMBER, 1)
+    three.fillRect(28, 272, 344, 9)
+    three.fillStyle(0x8a6a44, 1)
+    three.fillRect(30, 274, 340, 3)
+    three.fillStyle(TIMBER_DARK, 1)
+    for (let x = 38; x <= 362; x += 22) {
+      three.fillRect(x, 250, 4, 24)
+    }
+    three.fillRect(34, 253, 334, 3)
+    three.fillRect(34, 263, 334, 3)
+
+    three.fillStyle(WALL, 1)
+    three.fillRect(50, 190, 300, 60)
+    three.fillStyle(WALL_SHADE, 1)
+    three.fillRect(50, 242, 300, 8)
+    windowBox(three, 82, 202, 42, 26)
+    windowBox(three, 180, 202, 42, 26)
+    windowBox(three, 278, 202, 42, 26)
+    three.fillStyle(TIMBER, 1)
+    three.fillRect(38, 182, 324, 9)
+    three.fillStyle(0x8a6a44, 1)
+    three.fillRect(40, 184, 320, 3)
+    three.fillStyle(TIMBER_DARK, 1)
+    for (let x = 48; x <= 352; x += 22) {
+      three.fillRect(x, 160, 4, 24)
+    }
+    three.fillRect(44, 163, 314, 3)
+    three.fillRect(44, 173, 314, 3)
+
+    roof(three, 16, 104, 368, 30)
+    roof(three, 40, 36, 320, 70)
+    sign(three, 340, 290, 54)
+    lantern(three, 50, 276)
+    lantern(three, 354, 276)
+    lantern(three, 50, 186)
+    lantern(three, 354, 186)
+    three.generateTexture('land-house-three', 400, 420)
+    three.destroy()
+
+    // ── 单层小铺（220x150）──
+    const shop = this.add.graphics()
+    shop.fillStyle(0x5e5348, 1)
+    shop.fillRect(10, 140, 200, 10)
+    shop.fillStyle(WALL, 1)
+    shop.fillRect(20, 90, 180, 50)
+    shop.fillStyle(0x241a12, 1)
+    shop.fillRect(40, 100, 140, 40)
+    shop.fillStyle(0xd9a441, 0.28)
+    shop.fillRect(48, 106, 124, 24)
+    shop.fillStyle(TIMBER, 1)
+    shop.fillRect(30, 128, 160, 6)
+    ;[24, 190].forEach((x) => shop.fillRect(x, 90, 6, 50))
+    roof(shop, 6, 74, 208, 18)
+    sign(shop, 180, 104, 30)
+    lantern(shop, 34, 92)
+    shop.generateTexture('land-shop', 220, 150)
+    shop.destroy()
+  }
+
   private makeSpikeLauncher() {
     const gfx = this.add.graphics()
 
@@ -8273,6 +8482,7 @@ export class BootScene extends Phaser.Scene {
     this.makeSkyBackground()
     this.makeTowerBackground()
     this.makeLiyueBackground()
+    this.makeHarborLandBackground()
     this.makeMountainFoothill()
   }
 
@@ -8858,6 +9068,158 @@ export class BootScene extends Phaser.Scene {
 
   // 望舒客栈：一根很高的岩柱，顶上压着一栋木楼，檐下挂着灯笼。
   // 画在背景层里当路标，不参与碰撞
+  // 第十关：璃月港陆地背景。没有水面，只有黄昏天空、远山、层层屋顶和近景屋檐。
+  private makeHarborLandBackground() {
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    // ── 远景：黄昏天空 + 远山 + 城市屋脊 ──
+    const far = this.add.graphics()
+    this.paintGradient(far, 480, 270, 0x2f4a6a, 0xe8b07a)
+
+    far.fillStyle(0xffe0b0, 0.26)
+    far.fillEllipse(356, 108, 160, 74)
+    far.fillStyle(0xfff2d8, 0.3)
+    far.fillEllipse(356, 108, 86, 36)
+    far.fillStyle(0xffffff, 0.16)
+    far.fillEllipse(110, 54, 150, 18)
+    far.fillEllipse(300, 36, 110, 13)
+
+    this.drawRidge(far, 480, 270, 0x5a7188, [1, 3], 18, 172, 0.82)
+    this.drawRidge(far, 480, 270, 0x41576c, [2, 5], 12, 198)
+
+    const farRoof = (x: number, w: number, base: number, color: number) => {
+      far.fillStyle(color, 1)
+      far.fillPoints(
+        [P(x, base), P(x + 7, base - 22), P(x + w - 7, base - 22), P(x + w, base)],
+        true
+      )
+      far.fillTriangle(x, base, x - 7, base - 7, x + 10, base - 4)
+      far.fillTriangle(x + w, base, x + w + 7, base - 7, x + w - 10, base - 4)
+    }
+
+    ;[
+      [10, 74, 214],
+      [80, 66, 222],
+      [142, 88, 208],
+      [228, 70, 220],
+      [300, 84, 210],
+      [382, 62, 224],
+      [440, 50, 216],
+    ].forEach(([x, w, base], index) => {
+      farRoof(x, w, base, index % 2 === 0 ? 0x33484f : 0x3b5156)
+    })
+
+    // 远处两座塔
+    far.fillStyle(0x2d4148, 1)
+    far.fillRect(196, 150, 20, 70)
+    far.fillTriangle(206, 128, 190, 152, 222, 152)
+    far.fillRect(330, 160, 16, 58)
+    far.fillTriangle(338, 142, 326, 162, 350, 162)
+
+    far.generateTexture('bg-harbor-land-far', 480, 270)
+    far.destroy()
+
+    // ── 中景：层层叠叠的璃月屋顶、客栈和灯笼 ──
+    const mid = this.add.graphics()
+    const roof = (x: number, w: number, base: number, h: number, color: number, light: number) => {
+      mid.fillStyle(color, 1)
+      mid.fillPoints(
+        [P(x, base), P(x + 10, base - h), P(x + w - 10, base - h), P(x + w, base)],
+        true
+      )
+      mid.fillTriangle(x, base, x - 9, base - 8, x + 12, base - 4)
+      mid.fillTriangle(x + w, base, x + w + 9, base - 8, x + w - 12, base - 4)
+      mid.fillStyle(light, 0.8)
+      mid.fillRect(Math.round(x + 12), base - h + 2, Math.max(1, w - 24), 2)
+      mid.lineStyle(1, 0x223033, 0.55)
+      for (let tx = x + 18; tx < x + w - 14; tx += 15) {
+        mid.lineBetween(tx, base - h + 4, tx - 4, base - 3)
+      }
+    }
+
+    // 底部一层屋顶
+    roof(-30, 210, 250, 34, 0x314447, 0x446066)
+    roof(155, 190, 242, 30, 0x2a3d42, 0x3b5156)
+    roof(320, 190, 252, 34, 0x314447, 0x446066)
+
+    // 后排楼体
+    mid.fillStyle(0xb8a88a, 1)
+    mid.fillRect(24, 202, 112, 48)
+    mid.fillRect(190, 192, 110, 50)
+    mid.fillRect(346, 206, 100, 46)
+    mid.fillStyle(0x8a7350, 1)
+    mid.fillRect(24, 202, 112, 4)
+    mid.fillRect(190, 192, 110, 4)
+    mid.fillRect(346, 206, 100, 4)
+
+    // 暖窗和灯笼
+    for (let i = 0; i < 12; i++) {
+      const x = 18 + i * 38 + (i % 3) * 6
+      const y = 214 + (i % 2) * 12
+
+      mid.fillStyle(0xffd54f, 0.55)
+      mid.fillRect(x, y, 5, 6)
+    }
+
+    for (let i = 0; i < 9; i++) {
+      const x = 22 + i * 52
+      const y = 206 + (i % 2) * 16
+
+      mid.fillStyle(0xb03a2e, 1)
+      mid.fillEllipse(x, y, 5, 7)
+      mid.fillStyle(0xffb070, 0.7)
+      mid.fillEllipse(x, y - 1, 3, 4)
+    }
+
+    // 左边一座高塔
+    mid.fillStyle(0x2a3d42, 1)
+    mid.fillRect(74, 138, 34, 112)
+    for (let tier = 0; tier < 3; tier++) {
+      roof(62 - tier * 3, 56 + tier * 6, 168 - tier * 28, 18, 0x314447, 0x446066)
+    }
+    mid.fillStyle(0xb8a88a, 1)
+    mid.fillRect(80, 150, 22, 96)
+    mid.fillStyle(0xffd54f, 0.55)
+    mid.fillRect(87, 166, 6, 8)
+    mid.fillRect(87, 190, 6, 8)
+
+    mid.generateTexture('bg-harbor-land-mid', 480, 270)
+    mid.destroy()
+
+    // ── 近景：镜头最前面的屋檐剪影和灯笼 ──
+    const near = this.add.graphics()
+    const eave = (x: number, w: number, base: number, color: number) => {
+      near.fillStyle(color, 1)
+      near.fillPoints(
+        [P(x, base), P(x + 14, base - 24), P(x + w - 14, base - 24), P(x + w, base)],
+        true
+      )
+      near.fillTriangle(x, base, x - 12, base - 8, x + 16, base - 2)
+      near.fillTriangle(x + w, base, x + w + 12, base - 8, x + w - 16, base - 2)
+      near.fillStyle(0x162326, 0.8)
+      near.fillRect(x + 8, base, w - 16, 24)
+    }
+
+    eave(-40, 210, 246, 0x1b2b2f)
+    eave(150, 200, 254, 0x22353a)
+    eave(330, 200, 248, 0x1b2b2f)
+
+    for (let i = 0; i < 5; i++) {
+      const x = 30 + i * 100
+      const y = 240 - (i % 2) * 10
+
+      near.fillStyle(0xb03a2e, 1)
+      near.fillEllipse(x, y, 6, 8)
+      near.fillStyle(0xffb070, 0.75)
+      near.fillEllipse(x, y - 1, 3, 4)
+      near.fillStyle(0x2a2118, 1)
+      near.fillRect(x, y - 8, 1, 5)
+    }
+
+    near.generateTexture('bg-harbor-land-near', 480, 270)
+    near.destroy()
+  }
+
   // 第九关山脚左侧的背景小山（1200x200）：从左边地面起坡，落到 x=800 的山脚，
   // 再沿着 R1 背后微微抬起，最后藏进大山里。它替换掉原来的方形山肩填色，
   // 让出生点后面那道“岩墙”真正连到右边的大山。
