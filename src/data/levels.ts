@@ -1482,7 +1482,7 @@ export const LEVELS: LevelDef[] = [
     intro:
       '回到璃月港，帝君遇刺后的戒严还没有解除。\n先去往生堂找那位客卿，问清送仙典仪的事。\n路上顺便把典仪要用的三样东西找齐吧。',
 
-    width: 5700,
+    width: 6900,
     height: 1200,
     startElement: 'rock',
     unlocks: ['wind'],
@@ -1490,27 +1490,28 @@ export const LEVELS: LevelDef[] = [
     bg: 'harbor-land',
     bgFixedY: true,
     // 宝箱在玉京台台面上（祭坛左边一点），送仙典仪演完才出现
-    goal: { x: 5000, y: 866, kind: 'chest', prompt: '打开' },
+    goal: { x: 5860, y: 866, kind: 'chest', prompt: '打开' },
 
     platforms: [
       // 一条平直的港口街道（顶面 1160）
       { x: 2070, y: 1180, width: 4140, height: 40, brick: true },
-      // 往生堂往右到玉京台脚下的地面（4140~5700）
-      { x: 4920, y: 1180, width: 1560, height: 40, brick: true },
+      // 往生堂往右一直铺到关卡尽头（4140~6900），玉京台单独占最右那一段
+      { x: 5520, y: 1180, width: 2760, height: 40, brick: true },
 
-      // 玉京台：台面顶面 880（比地面高 280），4800~5700 走的是台面
-      { x: 5240, y: 900, width: 920, height: 40, brick: true, rail: false, railBar: false },
+      // 玉京台：台面顶面 880（比地面高 280），5600~6600 走的是台面。
+      // 前面 5060 之后不再摆楼 —— 玉京台是**接着上一段街往后新加的一节**，不压原来的建筑
+      { x: 6100, y: 900, width: 1000, height: 40, brick: true, rail: false, railBar: false },
       // 台体：整面砖墙从 880 落到地面 1160（只画不挡人，人从楼梯上来）
-      { x: 5240, y: 1020, width: 920, height: 280, brick: true, solid: false },
+      { x: 6100, y: 1020, width: 1000, height: 280, brick: true, solid: false },
     ],
 
     // 玉京台的楼梯：从左往右上，一跑直接上台面（25 步，每级 20×11.7）
     stairs: [
-      { from: { x: 4300, y: 1160 }, to: { x: 4780, y: 880 }, style: 'brick', layer: 'front', rail: 'none' },
+      { from: { x: 5120, y: 1160 }, to: { x: 5600, y: 880 }, style: 'brick', layer: 'front', rail: 'none' },
     ],
 
     // 台面沿口的石栏杆（玩家图层上，走到后面擦透视洞）。楼梯口那一头留空
-    revealRails: [{ from: { x: 4840, y: 880 }, to: { x: 5700, y: 880 }, height: 13 }],
+    revealRails: [{ from: { x: 5660, y: 880 }, to: { x: 6600, y: 880 }, height: 13 }],
 
     // 站在台面上镜头往上偏一点
     cameraLift: { y: 1010, band: 44, offset: 52 },
@@ -1539,7 +1540,8 @@ export const LEVELS: LevelDef[] = [
       // 1840~2300 中间留空，画往生堂
       { at: 2300, kind: 'land-a' },
       { at: 3220, kind: 'land-b' },
-      // 玉京台下方的街景（台体把下半截挡住，只露屋顶）
+      // 往生堂右边的最后一段街（4140~5060），到这儿为止不再铺楼：
+      // 5060 之后是玉京台脚下新加的一段空地，玉京台不覆盖任何原有建筑
       { at: 4140, kind: 'land-b' },
     ],
 
@@ -1547,11 +1549,11 @@ export const LEVELS: LevelDef[] = [
       // 地图中央的往生堂：独立建筑，左右各留 20 像素空当
       { x: 2070, y: 1160, key: 'wang-sheng-tang', depth: -5 },
       // 玉京台上的大殿：远一档、小一点，底边压在台面 880 上
-      { x: 5240, y: 884, key: 'terrace-hall', scale: 0.62, depth: -6 },
+      { x: 6100, y: 884, key: 'terrace-hall', scale: 0.62, depth: -6 },
     ],
 
     // 送仙典仪的祭坛（玉京台台面中心）。x 是玩家走的走线，祭坛/人群/凝光都排在这条线往后
-    rite: { x: 5240, y: 880 },
+    rite: { x: 6100, y: 880 },
 
     hints: [
       { x: 100, y: 1085, text: '向右走，去往生堂找客卿' },
@@ -1559,7 +1561,7 @@ export const LEVELS: LevelDef[] = [
       { x: 1780, y: 1085, text: '霓裳花在街边的花摊' },
       { x: 2580, y: 1085, text: '永生香在香铺门口' },
       { x: 2070, y: 1085, text: '往生堂' },
-      { x: 4500, y: 1085, text: '玉京台 · 送仙典仪' },
+      { x: 4880, y: 1085, text: '玉京台 · 送仙典仪' },
     ],
   },
 
