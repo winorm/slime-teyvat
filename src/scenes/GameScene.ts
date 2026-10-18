@@ -9051,20 +9051,19 @@ export class GameScene extends Phaser.Scene {
           ease: 'Sine.easeInOut',
         })
         this.showMessage(`矿壳碎了，里面是${item.label}`)
+
+        // 这一块矿壳里还冻着原石：和夜泊石一起掉出来
+        if (amber.def.gemIndex !== undefined) {
+          this.spawnAmberGem(x + 22, y, amber.def.gemIndex, '矿壳')
+        }
       }
       return
     }
 
     if (loot === 'gem') {
-      // 一颗"额外的"原石：index 用一个空位，捡了会亮 HUD、也算进这一关的收集
-      const gem = this.gems.create(x, y + 2, 'gem') as Phaser.Physics.Arcade.Sprite
-      gem.setTint(0x6ec6ff)
-      // **原石总数就三颗**（用户 2026/10/17 定的）：琥珀里这颗算的是关卡里预留的那一颗，
-      // 不是额外多给的。gemIndex 由关卡数据指定（对着 gems 数组里少掉的那一个下标）
-      gem.setData('index', amber.def.gemIndex ?? 0)
-      gem.setData('layer', null)
-      gem.setDepth(5)
-      this.showMessage('琥珀里冻着一颗原石！')
+      const what = (amber.def.key ?? 'amber') === 'amber' ? '琥珀' : '矿壳'
+
+      this.spawnAmberGem(x, y, amber.def.gemIndex ?? 0, what)
       return
     }
 
@@ -11034,6 +11033,17 @@ export class GameScene extends Phaser.Scene {
   private cancelHoldPickup() {
     this.holdPickup?.gfx.destroy()
     this.holdPickup = null
+  }
+
+  // 琥珀 / 矿壳里冻的原石：index 用的是关卡里预留的那一个下标（不是额外多给的）
+  private spawnAmberGem(x: number, y: number, index: number, what = '琥珀') {
+    const gem = this.gems.create(x, y + 2, 'gem') as Phaser.Physics.Arcade.Sprite
+
+    gem.setTint(0x6ec6ff)
+    gem.setData('index', index)
+    gem.setData('layer', null)
+    gem.setDepth(5)
+    this.showMessage(`${what}里冻着一颗原石！`)
   }
 
   private updateHoldPickup(dt: number) {

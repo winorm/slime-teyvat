@@ -511,7 +511,11 @@ const platformFill = (x: number, width: number, top: number, bottom: number, bas
 // 这一关一共几颗原石：摆在关卡里的 + 冻在琥珀里的（不写 loot 的琥珀默认就是原石）。
 // 关卡内 HUD、通关界面、存档里的原石总数都走这一个口径，避免第九关少算琥珀里那颗。
 export function levelGemTotal(level: LevelDef): number {
-  const inAmber = (level.ambers ?? []).filter((amber) => (amber.loot ?? 'gem') === 'gem').length
+  // 冻着原石的琥珀：loot 不写（默认 gem）的、或者另外挂了 gemIndex 的（第十关那只矿壳
+  // 既掉夜泊石、又掉一颗原石）
+  const inAmber = (level.ambers ?? []).filter(
+    (amber) => (amber.loot ?? 'gem') === 'gem' || amber.gemIndex !== undefined
+  ).length
 
   return level.gems.length + inAmber
 }
@@ -1590,14 +1594,7 @@ export const LEVELS: LevelDef[] = [
         stand: 'ore-stand',
         loot: 'material',
         item: { key: 'item-noctilocus', label: '夜泊石' },
-      },
-      // 旁边那只矿壳里封着第三颗原石
-      {
-        x: 960,
-        y: 1160,
-        key: 'ore-shell',
-        stand: 'ore-stand',
-        loot: 'gem',
+        // 同一块矿壳里还冻着一颗原石：砸开以后两样一起掉出来
         gemIndex: 2,
       },
     ],
