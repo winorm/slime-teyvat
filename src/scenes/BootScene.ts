@@ -8526,7 +8526,159 @@ export class BootScene extends Phaser.Scene {
     ascend.generateTexture('dragon-ascend', 160, 230)
     ascend.destroy()
 
-    // ⑦ 砸在祭坛上那一圈冲击波（96x96）：一圈金白的光环，越往外越淡
+    // ⑦ 正面朝外的神体（150x230）：头在顶上**正对镜头**（闭着眼、低垂着），
+    //    身子是一条竖直的蛇形、尾巴在最下面。侧面的那条留着没删，
+    //    以后别的演出要用还能拿
+    const front = this.add.graphics()
+    const spine: Array<[number, number, number]> = [
+      [74, 76, 13],
+      [69, 102, 12.4],
+      [77, 128, 11.2],
+      [83, 154, 9.6],
+      [76, 178, 7.4],
+      [70, 198, 5.2],
+    ]
+
+    // 身子：先整条描深色轮廓，再压本体 / 肚皮 / 受光
+    spine.forEach(([sx, sy, r]) => {
+      front.fillStyle(INK, 1)
+      front.fillCircle(sx, sy, r + 2)
+    })
+    spine.forEach(([sx, sy, r]) => {
+      front.fillStyle(BODY, 1)
+      front.fillCircle(sx, sy, r)
+      front.fillStyle(BELLY, 1)
+      front.fillCircle(sx, sy + r * 0.18, r * 0.6)
+      front.fillStyle(BODY_LIGHT, 0.75)
+      front.fillCircle(sx - r * 0.42, sy - r * 0.36, r * 0.34)
+    })
+
+    // 前爪：身子两侧各一只，爪尖朝外
+    ;([
+      [54, 122, -1],
+      [92, 122, 1],
+    ] as Array<[number, number, number]>).forEach(([px, py, dir]) => {
+      front.lineStyle(9, INK, 1)
+      front.lineBetween(px, py - 14, px + dir * 10, py + 2)
+      front.lineStyle(6, BODY, 1)
+      front.lineBetween(px, py - 14, px + dir * 10, py + 2)
+
+      for (let k = -1; k <= 1; k++) {
+        front.lineStyle(2.6, MANE_LIGHT, 1)
+        front.lineBetween(
+          px + dir * 10,
+          py + 2,
+          px + dir * 16,
+          py + 6 + k * 3.6
+        )
+      }
+    })
+
+    // 尾巴：最下面三片金羽
+    ;[-1, 0, 1].forEach((k, index) => {
+      front.fillStyle(index === 1 ? MANE_LIGHT : MANE, 1)
+      front.fillTriangle(70, 196, 70 + k * 22 - 9, 226, 70 + k * 22 + 9, 214)
+    })
+
+    // 鬃毛：脸周围一圈尖刺（先画，压在脸下面）
+    for (let i = 0; i < 14; i++) {
+      const a = (i / 14) * Math.PI * 2
+      const innerX = 74 + Math.cos(a) * 24
+      const innerY = 50 + Math.sin(a) * 22
+      const tipX = 74 + Math.cos(a) * 40
+      const tipY = 50 + Math.sin(a) * 36
+
+      front.fillStyle(i % 2 === 0 ? MANE : MANE_LIGHT, 1)
+      front.fillTriangle(
+        innerX + Math.cos(a + 1.5) * 7,
+        innerY + Math.sin(a + 1.5) * 7,
+        innerX + Math.cos(a - 1.5) * 7,
+        innerY + Math.sin(a - 1.5) * 7,
+        tipX,
+        tipY
+      )
+    }
+
+    // 脸：正面
+    front.fillStyle(INK, 1)
+    front.fillEllipse(74, 50, 54, 48)
+    front.fillStyle(BODY, 1)
+    front.fillEllipse(74, 50, 49, 43)
+    front.fillStyle(BODY_LIGHT, 1)
+    front.fillEllipse(74, 43, 42, 30)
+
+    // 吻部 + 鼻孔 + 嘴
+    front.fillStyle(INK, 1)
+    front.fillEllipse(74, 64, 32, 21)
+    front.fillStyle(BELLY, 1)
+    front.fillEllipse(74, 63, 28, 17)
+    front.fillStyle(INK, 1)
+    front.fillCircle(67, 59, 1.9)
+    front.fillCircle(81, 59, 1.9)
+    front.fillRect(70, 68, 8, 1.6)
+
+    // 闭着的眼：两道下垂的弧
+    const closedEye = (ex: number) => {
+      front.lineStyle(2.8, INK, 1)
+      front.beginPath()
+      front.moveTo(ex - 7, 46)
+      front.lineTo(ex - 3, 50)
+      front.lineTo(ex + 3, 50)
+      front.lineTo(ex + 7, 46)
+      front.strokePath()
+    }
+
+    closedEye(61)
+    closedEye(87)
+
+    // 眉：两道短短的压线，显得低垂
+    front.lineStyle(2.4, INK, 0.85)
+    front.lineBetween(53, 40, 67, 42)
+    front.lineBetween(81, 42, 95, 40)
+
+    // 角：分叉的鹿角，朝上外张
+    const horn = (fromX: number, dir: number) => {
+      const path: Array<[number, number]> = [
+        [fromX, 32],
+        [fromX + dir * 9, 18],
+        [fromX + dir * 6, 4],
+      ]
+
+      front.lineStyle(6, INK, 1)
+      front.beginPath()
+      front.moveTo(path[0][0], path[0][1])
+      front.lineTo(path[1][0], path[1][1])
+      front.lineTo(path[2][0], path[2][1])
+      front.strokePath()
+      front.lineStyle(3.4, MANE_LIGHT, 1)
+      front.beginPath()
+      front.moveTo(path[0][0], path[0][1])
+      front.lineTo(path[1][0], path[1][1])
+      front.lineTo(path[2][0], path[2][1])
+      front.strokePath()
+
+      // 分叉
+      front.lineStyle(2.6, MANE_LIGHT, 1)
+      front.lineBetween(fromX + dir * 9, 18, fromX + dir * 17, 12)
+    }
+
+    horn(60, -1)
+    horn(88, 1)
+
+    // 龙须：从吻部两侧垂下去
+    ;[-1, 1].forEach((dir) => {
+      front.lineStyle(2, WHISKER, 0.9)
+      front.beginPath()
+      front.moveTo(74 + dir * 13, 66)
+      front.lineTo(74 + dir * 24, 78)
+      front.lineTo(74 + dir * 21, 94)
+      front.strokePath()
+    })
+
+    front.generateTexture('dragon-ascend-front', 150, 230)
+    front.destroy()
+
+    // ⑧ 砸在祭坛上那一圈冲击波（96x96）：一圈金白的光环，越往外越淡
     const ring = this.add.graphics()
 
     for (let i = 12; i > 0; i--) {
