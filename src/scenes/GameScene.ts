@@ -1366,6 +1366,9 @@ export class GameScene extends Phaser.Scene {
     reappearAt?: number
   }[] = []
   private trialCheckpoints: { x: number; y: number; index: number }[] = []
+  // 第一重结束时要连根拔掉的东西：三块安全台（在 platforms 组里）+ 台沿/云团/符箓光晕
+  private trialOnePlatforms: Phaser.Physics.Arcade.Sprite[] = []
+  private trialOneDecor: Phaser.GameObjects.GameObject[] = []
   private trialSection = 0
   private trialArmed = false
   private trialResetLock = 0
@@ -1675,6 +1678,8 @@ export class GameScene extends Phaser.Scene {
     this.craneNpc = null
     this.trialStones = []
     this.trialCheckpoints = []
+    this.trialOnePlatforms = []
+    this.trialOneDecor = []
     this.trialSection = 0
     this.trialArmed = false
     this.trialResetLock = 0
@@ -4076,6 +4081,7 @@ export class GameScene extends Phaser.Scene {
 
     this.domainHearts = Math.max(0, this.domainHearts - amount)
     this.refreshDomainHearts()
+    this.playDomainDamageFx(amount)
     this.cameras.main.shake(120, 0.005)
 
     if (this.domainHearts <= 0) {
@@ -4085,6 +4091,79 @@ export class GameScene extends Phaser.Scene {
 
     this.invulnTimer = 1.2
     this.showMessage(`仙家试炼：还剩 ${this.domainHearts} 颗心`)
+  }
+
+  // 掉血表现：心数跳一下、史莱姆红闪、红色冲击环、飘一个 -1。
+  // 全部是纯视觉，不暂停物理、不清速度、不锁输入，移动和跳跃照常。
+  private playDomainDamageFx(amount: number) {
+    if (this.domainHeartText) {
+      this.tweens.killTweensOf(this.domainHeartText)
+      this.domainHeartText.setScale(1)
+      this.tweens.add({
+        targets: this.domainHeartText,
+        scaleX: 1.28,
+        scaleY: 1.28,
+        duration: 90,
+        yoyo: true,
+        ease: 'Quad.easeOut',
+      })
+    }
+
+    const art = this.slimeArt
+    const tint = art.tintTopLeft
+    const tintMode = art.tintMode
+
+    art.setTint(0xff6b6b).setTintMode(Phaser.TintModes.FILL)
+    this.time.delayedCall(110, () => {
+      if (!art.active) {
+        return
+      }
+
+      if (tint === 0xffffff) {
+        art.clearTint().setTintMode(tintMode)
+      } else {
+        art.setTint(tint).setTintMode(tintMode)
+      }
+    })
+
+    const ring = this.add
+      .image(this.slime.x, this.slime.y + 2, 'blessing')
+      .setTint(0xff5a5a)
+      .setDepth(11.6)
+      .setScale(0.55)
+      .setAlpha(0.85)
+
+    this.tweens.add({
+      targets: ring,
+      scaleX: 2.2,
+      scaleY: 2.2,
+      alpha: 0,
+      duration: 300,
+      ease: 'Quad.easeOut',
+      onComplete: () => ring.destroy(),
+    })
+
+    const lost = this.add
+      .text(this.slime.x, this.slime.y - 26, `-${amount}`, {
+        fontFamily: 'sans-serif',
+        fontSize: '12px',
+        color: '#ff6b6b',
+        stroke: '#3a0d0d',
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5)
+      .setDepth(12.5)
+
+    this.tweens.add({
+      targets: lost,
+      y: lost.y - 22,
+      alpha: 0,
+      duration: 620,
+      ease: 'Quad.easeOut',
+      onComplete: () => lost.destroy(),
+    })
+
+    this.cameras.main.flash(90, 120, 20, 20, false)
   }
 
   private failDomain() {
@@ -4774,7 +4853,6 @@ export class GameScene extends Phaser.Scene {
       this.trialTwoHud?.destroy()
       this.trialTwoHud = null
       this.cameras.main.flash(240, 255, 230, 150)
-      this.showMessage('回到仙人身边')
     })
   }
 
@@ -7742,6 +7820,8 @@ export class GameScene extends Phaser.Scene {
     this.trialStoneGroup = this.physics.add.staticGroup()
     this.trialCheckpoints = []
     this.trialStones = []
+    this.trialOnePlatforms = []
+    this.trialOneDecor = []
 
     def.checkpoints.forEach((cp, index) => {
       const platform = this.platforms.create(cp.x, cp.y + 3, 'pixel') as Phaser.Physics.Arcade.Sprite
@@ -7758,6 +7838,7 @@ export class GameScene extends Phaser.Scene {
       platformBody.checkCollision.right = false
 
       this.trialCheckpoints.push({ x: cp.x, y: cp.y, index: index + 1 })
+      this.trialOnePlatforms.push(platform)
 
       const edge = this.add
         .image(cp.x, cp.y, 'pixel')
@@ -7775,18 +7856,20 @@ export class GameScene extends Phaser.Scene {
         ease: 'Sine.easeInOut',
       })
 
-      this.add
+      const underlay = this.add
         .image(cp.x, cp.y + 4, 'pixel')
         .setDisplaySize(120, 8)
         .setTint(0xffd54f)
         .setAlpha(0.12)
         .setDepth(2.95)
 
-      this.add
+      const cloud = this.add
         .image(cp.x, cp.y + 8, 'cloud-puff')
         .setScale(0.55)
         .setAlpha(0.55)
         .setDepth(2.9)
+
+      this.trialOneDecor.push(edge, underlay, cloud)
     })
 
     def.stones.forEach((st) => {
@@ -7874,6 +7957,8 @@ export class GameScene extends Phaser.Scene {
       yoyo: true,
       repeat: -1,
     })
+
+    this.trialOneDecor.push(glow)
   }
 
   private triggerTrialStone(record: {
@@ -7934,6 +8019,35 @@ export class GameScene extends Phaser.Scene {
         ;(record.sprite.body as Phaser.Physics.Arcade.StaticBody).enable = true
       }
     })
+  }
+
+  // 第一重结束：浮石、安全台、台沿、云团、符箓光晕全部销毁。
+  // 放在传送回仙人之前调用，玩家不会因为脚下的平台先消失而掉下去。
+  private clearTrialOne() {
+    this.trialOnePlatforms.forEach((platform) => platform.destroy())
+    this.trialOnePlatforms = []
+
+    this.trialOneDecor.forEach((item) => {
+      this.tweens.killTweensOf(item)
+      item.destroy()
+    })
+    this.trialOneDecor = []
+
+    this.trialStones.forEach((record) => {
+      this.tweens.killTweensOf(record.visual)
+      this.tweens.killTweensOf(record.glow)
+      record.sprite.destroy()
+      record.visual.destroy()
+      record.glow.destroy()
+    })
+    this.trialStones = []
+    this.trialCheckpoints = []
+
+    if (this.trialArtifact) {
+      this.tweens.killTweensOf(this.trialArtifact)
+      this.trialArtifact.destroy()
+      this.trialArtifact = null
+    }
   }
 
   private failTrialSection() {
@@ -8042,12 +8156,13 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
+    this.clearTrialOne()
+
     const body = this.slime.body as Phaser.Physics.Arcade.Body
     body.reset(740, 800 - body.height / 2)
     this.slime.setVelocity(0, 0)
     this.trialArmed = false
     this.cameras.main.flash(240, 255, 230, 150)
-    this.showMessage('回到仙人身边')
   }
 
   // 敲开琥珀：碎几片琥珀、把里面的东西放出来

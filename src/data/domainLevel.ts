@@ -95,9 +95,6 @@ export const DOMAIN_LEVEL: LevelDef = {
   blessings: [],
   hazards: [],
   monuments: [],
-  hints: [
-    { x: 800, y: 735, text: '与仙人对话，开始第一重试炼' },
-    { x: 350, y: 735, text: '跳上浮石，取得仙家符箓' },
-    { x: 1930, y: 735, text: '第二重：撑过五轮岩脊' },
-  ],
+  // 秘境背景上不摆任何标语牌；引导全部交给仙人的对话和 HUD
+  hints: [],
 }
