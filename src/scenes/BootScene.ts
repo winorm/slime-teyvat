@@ -185,6 +185,7 @@ export class BootScene extends Phaser.Scene {
     this.makeWangShengTang()
     this.makeEaveBridge()
     this.makeWallLedge()
+    this.makeCanalGap()
     this.makeRitualNpcs()
     this.makeTerraceHouses()
     this.makeTerracePlaza()
@@ -4669,6 +4670,40 @@ export class BootScene extends Phaser.Scene {
     g.fillCircle(58, 3, 1)
 
     g.generateTexture('wall-ledge', 64, 14)
+    g.destroy()
+  }
+
+  // ── 街面塌出来的排水渠（120x60）─────────────────────────────────
+  //   第十关街心那一段：上沿是两边的石沿，下面一整片暗水。画在街面以下
+  //   （世界 y 1160~1220），人掉进去就沉下去、判摔落
+  private makeCanalGap() {
+    const g = this.add.graphics()
+
+    // 渠水
+    g.fillStyle(0x16242e, 1)
+    g.fillRect(0, 6, 120, 54)
+    g.fillStyle(0x233f4c, 1)
+    g.fillRect(3, 10, 114, 46)
+    // 水面反光
+    g.fillStyle(0x3c6474, 0.7)
+    g.fillRect(10, 14, 40, 2)
+    g.fillRect(64, 22, 46, 2)
+    g.fillRect(22, 32, 54, 2)
+    g.fillStyle(0x547e8e, 0.5)
+    g.fillRect(40, 44, 36, 1)
+    // 两侧渠壁
+    g.fillStyle(0x1a1a22, 0.85)
+    g.fillRect(0, 6, 3, 54)
+    g.fillRect(117, 6, 3, 54)
+    // 上沿石口
+    g.fillStyle(0x6a5e52, 1)
+    g.fillRect(0, 0, 120, 7)
+    g.fillStyle(0x8a7c69, 1)
+    g.fillRect(0, 0, 120, 2)
+    g.fillStyle(0x4f453b, 1)
+    g.fillRect(0, 6, 120, 1)
+
+    g.generateTexture('canal-gap', 120, 60)
     g.destroy()
   }
 

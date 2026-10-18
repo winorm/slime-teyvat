@@ -1740,7 +1740,15 @@ export class GameScene extends Phaser.Scene {
     taken: boolean
     // 封在矿壳里的那一件：还没砸开时先占着名额（"还差几样"要算上它），但看不见也拾取不到
     hidden?: boolean
+    // 要按住 F 读条才拿得到（秒）
+    hold?: number
   }[] = []
+  private holdPickup: {
+    item: { sprite: Phaser.GameObjects.Image; label: string; taken: boolean; hidden?: boolean; hold?: number }
+    elapsed: number
+    total: number
+    gfx: Phaser.GameObjects.Graphics
+  } | null = null
   private speedItems: { sprite: Phaser.GameObjects.Image; def: SpeedItemDef; taken: boolean }[] = []
   private speedBoostTimer = 0
   private speedBoostMultiplier = 1
@@ -1835,6 +1843,7 @@ export class GameScene extends Phaser.Scene {
     this.trialThreeStartMarker = null
     this.ritualCenser = null
     this.ritualLit = false
+    this.holdPickup = null
     this.hutaoNpc = null
     this.zhongliNpc = null
     this.zhongliRite = null
@@ -3345,7 +3354,7 @@ export class GameScene extends Phaser.Scene {
         ease: 'Sine.easeInOut',
       })
 
-      this.materialList.push({ sprite, label: def.label, taken: false })
+      this.materialList.push({ sprite, label: def.label, taken: false, hold: def.hold })
     })
 
     // 矿壳里封着的供品：先占一个名额（看不见、拾取不到），砸开矿壳才显形
@@ -7488,6 +7497,8 @@ export class GameScene extends Phaser.Scene {
     // 岩化 + 站着不动 = 一颗石头：他不认，也就不算看见（但已经在追的时候这招没用）
     const body = this.slime.body as Phaser.Physics.Arcade.Body
     const disguised = this.armored && Math.abs(body.velocity.x) < 10
+    // 第十关的戒严更紧：察觉条 1.5 秒就满（别的关还是 2.5 秒）
+    const awarenessUp = this.level.rite ? 1 / 1.5 : GUARD_AWARENESS_UP
 
     this.guardList.forEach((guard) => {
       // 岩化静止能骗过巡逻 / 疑惑中的他，但骗不过正在追你的他
@@ -7497,7 +7508,7 @@ export class GameScene extends Phaser.Scene {
       const right = guard.def.x + guard.def.range
 
       if (sees) {
-        guard.awareness = Math.min(1, guard.awareness + GUARD_AWARENESS_UP * dt)
+        guard.awareness = Math.min(1, guard.awareness + awarenessUp * dt)
         guard.loseTimer = 0
       } else {
         guard.awareness = Math.max(0, guard.awareness - GUARD_AWARENESS_DOWN * dt)
@@ -9001,6 +9012,13 @@ export class GameScene extends Phaser.Scene {
 
     playSfx(this, 'sfx-interact', 0.4, 0.8)
     amber.sprite.destroy()
+
+    // 砸矿壳的动静：附近的千岩军会立刻惊动（码头那只就是为这个摆的）
+    this.guardList.forEach((guard) => {
+      if (Math.abs(guard.sprite.x - x) < 170) {
+        guard.awareness = 1
+      }
+    })
 
     const loot = amber.def.loot ?? 'gem'
 
@@ -11002,6 +11020,71 @@ export class GameScene extends Phaser.Scene {
   }
 
   // 第十关：拾取送仙典仪的供品
+  // 按住 F 读条取供品（永生香）：站定、不松手，一格一格读满才收进兜里
+  private beginHoldPickup(item: (typeof this.materialList)[number]) {
+    if (this.holdPickup || item.taken) {
+      return
+    }
+
+    const gfx = this.add.graphics().setDepth(30)
+
+    this.holdPickup = { item, elapsed: 0, total: item.hold ?? 0, gfx }
+  }
+
+  private cancelHoldPickup() {
+    this.holdPickup?.gfx.destroy()
+    this.holdPickup = null
+  }
+
+  private updateHoldPickup(dt: number) {
+    const hold = this.holdPickup
+
+    if (!hold) {
+      return
+    }
+
+    const body = this.slime.body as Phaser.Physics.Arcade.Body
+    const still = Math.abs(body.velocity.x) < 8
+    const near =
+      Phaser.Math.Distance.Between(
+        this.slime.x,
+        this.slime.y,
+        hold.item.sprite.x,
+        hold.item.sprite.y
+      ) < 56
+    // 手机端没有"按住 F"：点一下提示就开始读，站定即可
+    const pressing = this.touchMode || this.interactKey.isDown
+
+    if (
+      hold.item.taken ||
+      !still ||
+      !near ||
+      !pressing ||
+      this.inputLocked ||
+      this.dialogueShowing
+    ) {
+      this.cancelHoldPickup()
+      return
+    }
+
+    hold.elapsed += dt
+    const p = Math.min(1, hold.elapsed / Math.max(0.01, hold.total))
+    const x = Math.round(this.slime.x - 17)
+    const y = Math.round(this.slime.y - 36)
+
+    hold.gfx.clear()
+    hold.gfx.fillStyle(0x0b0b12, 0.85).fillRect(x - 1, y - 1, 36, 7)
+    hold.gfx.fillStyle(0xffd54f, 1).fillRect(x, y, 34 * p, 5)
+    hold.gfx.lineStyle(1, 0xffd54f, 0.8).strokeRect(x - 1, y - 1, 36, 7)
+
+    if (hold.elapsed >= hold.total) {
+      const item = hold.item
+
+      this.cancelHoldPickup()
+      this.takeMaterial(item)
+    }
+  }
+
   private takeMaterial(item: (typeof this.materialList)[number]) {
     if (item.taken) {
       return
@@ -13517,6 +13600,8 @@ export class GameScene extends Phaser.Scene {
     this.updateAmberStomp()
     // 第一次靠近未碎的琥珀：提示一次破坏条件
     this.updateAmberHint()
+    // 按住 F 读条取供品（永生香）：一松手 / 一动就断
+    this.updateHoldPickup(dt)
     // 秘境第一重试炼：分段安全台、浮石消失、掉段扣心
     if (this.domainMode) {
       this.updateTrialStones()
@@ -13787,8 +13872,13 @@ export class GameScene extends Phaser.Scene {
             item.sprite.y
           ) < 46
         ) {
-          prompt = this.interactPrefix() + '拾取' + item.label
-          action = () => this.takeMaterial(item)
+          if (item.hold) {
+            prompt = this.touchMode ? `按住取${item.label}` : `${this.interactPrefix()}按住取${item.label}`
+            action = () => this.beginHoldPickup(item)
+          } else {
+            prompt = this.interactPrefix() + '拾取' + item.label
+            action = () => this.takeMaterial(item)
+          }
           break
         }
       }

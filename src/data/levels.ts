@@ -160,6 +160,9 @@ export type MaterialDef = {
   y: number
   key: string
   label: string
+  // 要按住 F 读条才拿得到（秒）：站定、不移动、不松手，完成才收进兜里。
+  // 不写就是按一下就拿
+  hold?: number
 }
 
 // 疾风符：拾取后一段时间内移动加速（第九关爬山用）
@@ -1497,10 +1500,10 @@ export const LEVELS: LevelDef[] = [
     goal: { x: 4940, y: 866, kind: 'chest', prompt: '打开' },
 
     platforms: [
-      // 一条平直的港口街道（顶面 1160）
-      { x: 2070, y: 1180, width: 4140, height: 40, brick: true },
-      // 往生堂往右一直铺到关卡尽头（4140~5680），玉京台单独占最右那一段
-      { x: 4910, y: 1180, width: 1540, height: 40, brick: true },
+      // 港口街道（顶面 1160），在 3610~3730 断成一条排水渠 ——
+      // 街面过不去，只能踩木箱上屋檐、从两栋楼之间的木板桥上过去
+      { x: 1805, y: 1180, width: 3610, height: 40, brick: true },
+      { x: 4705, y: 1180, width: 1950, height: 40, brick: true },
 
       // 玉京台：台面顶面 880（比地面高 280），4680~5680 走的是台面。
       // 左边最后一栋楼到 4140 为止 —— 玉京台是**接着上一段街往后新加的一节**，不压原来的建筑
@@ -1524,6 +1527,17 @@ export const LEVELS: LevelDef[] = [
       // → 874（屋顶，霓裳花摆在上面）
       { x: 1520, y: 1061, width: 62, height: 6, oneWay: true, hidden: true, overlay: true },
       { x: 1580, y: 967, width: 62, height: 6, oneWay: true, hidden: true, overlay: true },
+
+      // ── 被追着跑的那一段：街面上两摞货箱要跳过去 ─────────────────────
+      { x: 2860, y: 1138, width: 36, height: 44, plank: true, overlay: true, rail: false, railBar: false },
+      { x: 3120, y: 1138, width: 36, height: 44, plank: true, overlay: true, rail: false, railBar: false },
+
+      // ── 排水渠：街上过不去，踩两只木箱上屋檐、从木板桥跨过去 ───────────
+      // 木箱在 3460 / 3498（顶面 1130 / 1100），屋檐 1104，桥面 1104
+      { x: 3460, y: 1145, width: 34, height: 30, plank: true, overlay: true, rail: false, railBar: false },
+      { x: 3498, y: 1130, width: 34, height: 60, plank: true, overlay: true, rail: false, railBar: false },
+      // 跨渠的木板桥：两头各伸进瓦檐 14 像素，避免单向平台接缝漏下去
+      { x: 3670, y: 1107, width: 148, height: 6, oneWay: true, hidden: true, overlay: true },
     ],
 
     // 玉京台的楼梯：从左往右上，一跑直接上台面（25 步，每级 20×11.7）
@@ -1538,10 +1552,11 @@ export const LEVELS: LevelDef[] = [
     cameraLift: { y: 1010, band: 44, offset: 52 },
 
     orbs: [],
+    // 三颗原石各跟着一段挑战走：屋顶尽头一颗、香铺柜台后一颗、
+    // 第三颗封在码头另一只矿壳里（见下面的 ambers）
     gems: [
-      { x: 420, y: 1147 },
-      { x: 1750, y: 1147 },
-      { x: 3000, y: 1147 },
+      { x: 1620, y: 874 },
+      { x: 2640, y: 1160 },
     ],
     blessings: [],
     hazards: [],
@@ -1551,6 +1566,8 @@ export const LEVELS: LevelDef[] = [
     // 趁他们背身溜进去，或者岩化后站着不动（他不认石头）。
     // 视野 / 疑惑 / 追击和第八关是同一套
     guards: [
+      // 码头这只在矿壳旁边来回走：砸矿壳的声音会把他引过来（见 GameScene.breakAmber）
+      { x: 930, y: 1160, range: 60, speed: 20, facing: -1, vision: 130 },
       { x: 2520, y: 1160, range: 80, speed: 22, facing: -1, vision: 150 },
       { x: 2705, y: 1160, range: 55, speed: 26, facing: 1, vision: 150 },
     ],
@@ -1559,7 +1576,8 @@ export const LEVELS: LevelDef[] = [
     materials: [
       // 霓裳花摆在右边那栋楼的屋顶上：踩木箱 → 过桥 → 再借两级木托架爬到屋顶
       { x: 1500, y: 874, key: 'item-silkflower', label: '霓裳花' },
-      { x: 2580, y: 1160, key: 'item-incense', label: '永生香' },
+      // 永生香要按住 F 读条 1.5 秒：一动就断，只能等守卫背身或者岩化硬扛
+      { x: 2580, y: 1160, key: 'item-incense', label: '永生香', hold: 1.5 },
     ],
 
     // 夜泊石：封在码头那只矿壳里。岩柱的岩共鸣 / 跳上去踩碎（岩化跳砸范围更大）都能砸开，
@@ -1572,6 +1590,15 @@ export const LEVELS: LevelDef[] = [
         stand: 'ore-stand',
         loot: 'material',
         item: { key: 'item-noctilocus', label: '夜泊石' },
+      },
+      // 旁边那只矿壳里封着第三颗原石
+      {
+        x: 960,
+        y: 1160,
+        key: 'ore-shell',
+        stand: 'ore-stand',
+        loot: 'gem',
+        gemIndex: 2,
       },
     ],
 
@@ -1595,6 +1622,10 @@ export const LEVELS: LevelDef[] = [
       // 墙上的两级木托架（板面 1058 / 964）
       { x: 1520, y: 1072, key: 'wall-ledge', depth: -4.6 },
       { x: 1580, y: 978, key: 'wall-ledge', depth: -4.6 },
+      // 排水渠：水面画在街面以下，人掉下去就沉了
+      { x: 3670, y: 1220, key: 'canal-gap', depth: -4.2 },
+      // 跨渠的木板桥（画面在 1120，板面 1104）
+      { x: 3670, y: 1120, key: 'eave-bridge', depth: -4.9 },
     ],
 
     // 送仙典仪的祭坛（玉京台台面中心）。x 是玩家走的走线，祭坛/人群/凝光都排在这条线往后
@@ -1616,6 +1647,7 @@ export const LEVELS: LevelDef[] = [
       { x: 2580, y: 1085, text: '永生香在香铺门口' },
       { x: 2360, y: 1085, text: '香铺前有千岩军 · 岩化静止可避开视线' },
       { x: 2070, y: 1085, text: '往生堂' },
+      { x: 3380, y: 1085, text: '街面塌了一截 · 踩木箱走屋檐' },
       { x: 3960, y: 1085, text: '玉京台 · 送仙典仪' },
     ],
   },
