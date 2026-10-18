@@ -4974,7 +4974,8 @@ export class GameScene extends Phaser.Scene {
 
       const pot = this.add.container(x, def.area.groundY).setDepth(6)
       const body = this.add.image(0, 0, 'trial-pot').setOrigin(0.5, 1)
-      const lid = this.add.image(0, -27, 'trial-pot-lid').setOrigin(0.5, 1)
+      // 锅盖铰在左沿：旋转中心就是盖子的左下角，开盖时不会整块浮起来
+      const lid = this.add.image(-18, -24, 'trial-pot-lid').setOrigin(0, 1)
 
       pot.add([body, lid])
 
@@ -5006,7 +5007,7 @@ export class GameScene extends Phaser.Scene {
     this.trialThreePots.forEach((pot) => {
       pot.slot = pot.id
       this.tweens.killTweensOf(pot.pot)
-      pot.lid.setPosition(0, -27).setAngle(0)
+      pot.lid.setPosition(-18, -24).setAngle(0)
       this.tweens.add({
         targets: pot.pot,
         x: def.slots[pot.id],
@@ -5115,15 +5116,14 @@ export class GameScene extends Phaser.Scene {
     const outY = groundY - 54
 
     this.tweens.killTweensOf(pot.lid)
-    pot.lid.setPosition(0, -27).setAngle(0)
+    pot.lid.setPosition(-18, -24).setAngle(0)
 
     this.tweens.add({
       targets: pot.lid,
-      x: 7,
-      y: -37,
-      angle: -24,
-      duration: 180,
-      ease: 'Quad.easeOut',
+      y: -28,
+      angle: -100,
+      duration: 220,
+      ease: 'Back.easeOut',
       onComplete: () => {
         apple
           .setPosition(pot.pot.x, insideY)
@@ -5156,8 +5156,7 @@ export class GameScene extends Phaser.Scene {
                   apple.setVisible(false).setAlpha(1)
                   this.tweens.add({
                     targets: pot.lid,
-                    x: 0,
-                    y: -27,
+                    y: -24,
                     angle: 0,
                     duration: 180,
                     ease: 'Quad.easeIn',
