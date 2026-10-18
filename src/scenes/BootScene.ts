@@ -200,6 +200,7 @@ export class BootScene extends Phaser.Scene {
     this.makeTrialApple()
     this.makeAmberStand()
     this.makeCliffTrees()
+    this.makePlatformPine()
     this.makeRockStrata()
     this.makePebbles()
     this.makeStonePile()
@@ -6059,6 +6060,88 @@ export class BootScene extends Phaser.Scene {
     c.fillEllipse(46, 35, 24, 8)
     c.generateTexture('tree-cliff-c', 78, 60)
     c.destroy()
+  }
+
+  // C1 平台右端的直立松树（72x124）：主干 + 五层针叶，根部带碎石。
+  // 用来替代原来横贴崖面的 tree-cliff-a，让挡住去路的是一棵完整的松树。
+  private makePlatformPine() {
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    // 落地影和脚边碎石
+    g.fillStyle(0x2a2118, 0.35)
+    g.fillEllipse(36, 121, 46, 6)
+    g.fillStyle(0x6b6156, 1)
+    g.fillEllipse(17, 120, 12, 5)
+    g.fillEllipse(57, 120, 10, 4)
+
+    // 根部
+    g.fillStyle(0x3a2a1c, 1)
+    g.fillTriangle(30, 120, 10, 121, 33, 107)
+    g.fillTriangle(42, 120, 62, 121, 39, 107)
+
+    // 主干，略向右弯
+    g.fillStyle(0x33241a, 1)
+    g.fillPoints(
+      [P(30, 120), P(37, 120), P(40, 72), P(42, 42), P(39, 24), P(35, 38), P(32, 72), P(29, 108)],
+      true
+    )
+    g.fillStyle(0x4a3524, 1)
+    g.fillPoints(
+      [P(32, 118), P(37, 118), P(38, 72), P(40, 42), P(38, 30), P(35, 42), P(34, 72)],
+      true
+    )
+    g.fillStyle(0x543e29, 0.8)
+    g.fillRect(35, 56, 2, 48)
+    g.fillStyle(0x2a1d13, 0.6)
+    g.fillRect(33, 84, 1, 26)
+
+    // 一层针叶：深色轮廓 + 主体 + 左上受光 + 底边下垂的针叶
+    const tier = (cx: number, baseY: number, width: number, height: number) => {
+      g.fillStyle(0x1f3527, 1)
+      g.fillTriangle(cx - width / 2 - 3, baseY + 3, cx + width / 2 + 3, baseY + 3, cx, baseY - height)
+      g.fillStyle(0x2f5136, 1)
+      g.fillTriangle(cx - width / 2, baseY, cx + width / 2, baseY, cx, baseY - height + 2)
+      g.fillStyle(0x46754a, 1)
+      g.fillTriangle(
+        cx - width * 0.32,
+        baseY - 3,
+        cx + width * 0.08,
+        baseY - 3,
+        cx - width * 0.06,
+        baseY - height + 8
+      )
+      g.fillStyle(0x5f8a3a, 0.7)
+      g.fillTriangle(
+        cx - width * 0.2,
+        baseY - 7,
+        cx - width * 0.02,
+        baseY - 7,
+        cx - width * 0.08,
+        baseY - height + 12
+      )
+
+      for (let i = 0; i < 3; i++) {
+        const tx = cx - width * 0.3 + i * width * 0.3
+        g.fillStyle(i % 2 === 0 ? 0x2f5136 : 0x24402e, 1)
+        g.fillTriangle(tx - 4, baseY, tx + 4, baseY, tx, baseY + 6)
+      }
+    }
+
+    tier(36, 94, 62, 30)
+    tier(37, 76, 54, 28)
+    tier(38, 58, 44, 26)
+    tier(38, 42, 32, 24)
+    tier(38, 28, 20, 18)
+
+    // 几道从冠里露出来的枝干
+    g.fillStyle(0x33241a, 1)
+    g.fillRect(20, 92, 16, 3)
+    g.fillRect(44, 74, 14, 3)
+    g.fillRect(22, 56, 12, 2)
+
+    g.generateTexture('tree-pine', 72, 124)
+    g.destroy()
   }
 
   // ── 岩石横截面 3 种（56x34 的岩块）—— 2026/10/17 重做：

@@ -1355,8 +1355,8 @@ export const LEVELS: LevelDef[] = [
     // 琥珀（2026/10/17）：摆在两块转角平台上，**要用岩柱的岩共鸣震开**。
     // 里面冻的东西不一样：一块是原石，一块是野猪。第三个平台（山顶）留给仙人和小考验
     ambers: [
-      { x: 3380, y: 1010, loot: 'gem', gemIndex: 2 },
-      { x: 1650, y: 710, loot: 'boar' },
+      { x: 3480, y: 1010, loot: 'gem', gemIndex: 2 },
+      { x: 1640, y: 710, loot: 'boar' },
       {
         x: 2200,
         y: 1160,
@@ -1364,12 +1364,11 @@ export const LEVELS: LevelDef[] = [
         text: '琥珀里冻着一个戴草帽、披蓑衣的史莱姆……',
       },
     ],
-    // 每块高度不变的平台各一枚疾风符（山顶除外）：山脚 / F1 / C1 / F2 / C2
+    // 疾风符（山顶和 F2 不放）：山脚 / F1 / C1 / C2
     speedItems: [
       { x: 650, y: 1360, duration: 10, multiplier: 1.6 },
       { x: 2400, y: 1160, duration: 10, multiplier: 1.6 },
-      { x: 3480, y: 1010, duration: 10, multiplier: 1.6 },
-      { x: 2525, y: 810, duration: 10, multiplier: 1.6 },
+      { x: 3300, y: 1010, duration: 10, multiplier: 1.6 },
       { x: 1750, y: 710, duration: 10, multiplier: 1.6 },
     ],
 
@@ -1401,7 +1400,7 @@ export const LEVELS: LevelDef[] = [
       // 实体挡板在上面 blockers 里，这些只负责让玩家看出"这里过不去"。
       { x: 1590, y: 460, key: 'summit-peak', flip: true, depth: 1.15 },
       { x: 2810, y: 460, key: 'summit-peak', depth: 1.15 },
-      { x: 3570, y: 1010, key: 'tree-cliff-a', flip: true, scale: 1.8, depth: 1.19 },
+      { x: 3558, y: 1010, key: 'tree-pine', scale: 1.05, depth: 1.19 },
       { x: 1490, y: 710, key: 'boulder-big', scale: 1.2, depth: 1.15 },
       // 岩体里的岩石横截面。坡面往下 26 像素是泥土走道，横截面顶部必须落在它下面，
       // 所以三块都往下压：a 在 R1，b 在 R2，c 在右侧山肩（那里没有泥土层，只跟着下移）
