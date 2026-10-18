@@ -1298,7 +1298,7 @@ export const LEVELS: LevelDef[] = [
     // 防掉落挡板：山顶左右沿、C1 右沿、C2 左沿。
     // 只挡人不画，画面上的山峰/树/大石头在 decor 里。
     blockers: [
-      { x: 1590, y: 360, width: 20, height: 200 }, // 山顶左沿：260~460，连跳/悬浮也翻不过去
+      { x: 1600, y: 360, width: 20, height: 200 }, // 山顶左沿：1590~1610，挡住平台边，防止移山后走出悬崖
       { x: 2930, y: 360, width: 20, height: 200 }, // 山顶右沿（转角平台外沿）
       { x: 3570, y: 950, width: 20, height: 120 }, // C1 右沿：3560~3580
       { x: 1490, y: 660, width: 20, height: 100 }, // C2 左沿：1480~1500
@@ -1331,8 +1331,8 @@ export const LEVELS: LevelDef[] = [
       { x: 2200, y: 1150, width: 1500, alpha: 0.38, depth: 1.16, drift: -36, duration: 32000 },
     ],
 
-    // 山顶湖：环形透视水面，外径 1000、泉眼 260×80；下半截被山顶平台挡住
-    summitLake: { x: 2200, y: 430, width: 1000, height: 180 },
+    // 山顶沼泽：不再是规整的圆湖，改成 1800~2600 的浑绿沼地；瀑布仍从 2200 落下
+    summitLake: { x: 2200, y: 440, width: 800, height: 180 },
     // 瀑布：宽度和 F1 一样（600），从泉眼一路直落到地面，不再在坡道处断开
     waterfall: {
       x: 2200,
@@ -1398,7 +1398,7 @@ export const LEVELS: LevelDef[] = [
       { x: 2840, y: 700, key: 'cliff-grass', scale: 1.2, flip: true, depth: 1.18 },
       // 边缘防掉落的画面：山顶两座岩峰、C1 右沿的崖树、C2 左沿的大石块。
       // 实体挡板在上面 blockers 里，这些只负责让玩家看出"这里过不去"。
-      { x: 1590, y: 460, key: 'summit-peak', flip: true, depth: 1.15 },
+      { x: 1660, y: 460, key: 'summit-peak', flip: true, depth: 1.15 },
       // 右沿岩峰也收回平台内（底边 2800~2920），不再有半块悬在平台外
       { x: 2860, y: 460, key: 'summit-peak', depth: 1.15 },
       { x: 3558, y: 1010, key: 'tree-pine', scale: 1.05, depth: 1.19 },
@@ -1413,17 +1413,26 @@ export const LEVELS: LevelDef[] = [
       { x: 250, y: 1360, key: 'pebble-a', scale: 1.8, depth: 1.2 },
       { x: 500, y: 1360, key: 'stone-pile', scale: 1.6, depth: 1.2 },
       { x: 700, y: 1360, key: 'pebble-c', scale: 1.8, depth: 1.2 },
-      // 山顶：一棵巨大的垂柳，树干顺着崖壁盘着往上；树下石桌石凳、桌上一壶三杯，
+      // 山顶远景：最高的主峰在最后面，前面是嵌着秘境门洞的石山
+      { x: 2200, y: 460, key: 'summit-high-peak', depth: 0.65 },
+      { x: 2200, y: 460, key: 'domain-entrance', depth: 0.95 },
+      // 近岸沼泽泥地 + 四块装饰踏石（都在水里，不站人）
+      { x: 2100, y: 460, key: 'summit-marsh', depth: 3.2 },
+      { x: 1850, y: 430, key: 'swamp-stone', depth: 3.3 },
+      { x: 1950, y: 424, key: 'swamp-stone', depth: 3.3 },
+      { x: 2450, y: 420, key: 'swamp-stone', depth: 3.3 },
+      { x: 2550, y: 424, key: 'swamp-stone', depth: 3.3 },
+      // 右岸：一棵巨大的垂柳，树干顺着崖壁盘着往上；树下石桌石凳、桌上一壶三杯，
       // 杯口三缕热气（'tea-steam' 会自动加一段往上飘的循环动画）
-      // 山顶 1600~2920：柳树 2500（冠铺 2380~2620），茶桌 2530，
-      // 宝箱 2740、原石 1650，湖环中心 2200
-      { x: 2500, y: 460, key: 'willow-summit', depth: 1.2 },
-      { x: 2530, y: 460, key: 'tea-table', depth: 1.22 },
-      { x: 2485, y: 460, key: 'tea-bench', depth: 1.22 },
-      { x: 2576, y: 460, key: 'tea-bench', depth: 1.22 },
-      { x: 2522, y: 440, key: 'tea-steam', depth: 1.24 },
-      { x: 2532, y: 436, key: 'tea-steam', depth: 1.24 },
-      { x: 2542, y: 441, key: 'tea-steam', depth: 1.24 },
+      // 山顶 1600~2920：柳树 2640（冠铺 2520~2760），茶桌 2660，
+      // 宝箱 2740、原石 1650，沼泽中心 2200
+      { x: 2640, y: 460, key: 'willow-summit', depth: 1.2 },
+      { x: 2660, y: 460, key: 'tea-table', depth: 1.22 },
+      { x: 2612, y: 460, key: 'tea-bench', depth: 1.22 },
+      { x: 2708, y: 460, key: 'tea-bench', depth: 1.22 },
+      { x: 2652, y: 440, key: 'tea-steam', depth: 1.24 },
+      { x: 2662, y: 436, key: 'tea-steam', depth: 1.24 },
+      { x: 2672, y: 441, key: 'tea-steam', depth: 1.24 },
     ],
 
     hints: [

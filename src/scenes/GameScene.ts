@@ -2186,7 +2186,8 @@ export class GameScene extends Phaser.Scene {
       this.craneNpc = this.add
         .image(this.level.crane.x, this.level.crane.y, 'npc-cloud-retainer-crane')
         .setOrigin(0.5, 1)
-        .setDepth(1.2)
+        // 山顶近岸的泥地/踏石在 3.2~3.3，白鹤要站在它们前面才不会被盖住腿
+        .setDepth(3.4)
     }
 
     // 古树主干：一条竖着平铺的树皮带，画在前后两层楼梯中间（默认 depth 2）

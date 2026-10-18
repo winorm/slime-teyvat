@@ -213,6 +213,10 @@ export class BootScene extends Phaser.Scene {
     this.makeBoulderBig()
     this.makeMountainMist()
     this.makeSummitLake()
+    this.makeSummitMarsh()
+    this.makeSummitHighPeak()
+    this.makeDomainEntrance()
+    this.makeSwampStone()
     this.makeWaterfall()
     this.makeSlimeShadow()
     this.makeTerracePaving()
@@ -7662,63 +7666,373 @@ export class BootScene extends Phaser.Scene {
     const H = 180
     const g = this.add.graphics()
     const cx = W / 2
-    const cy = H / 2
-    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+    const cy = 92
 
-    // 画一圈椭圆环：外椭圆和内椭圆之间填色，中心保持透明（泉眼）
-    const ring = (ow: number, oh: number, iw: number, ih: number, color: number, alpha = 1) => {
-      const segments = 56
+    // 泥岸：三层不规则的椭圆，边缘故意不完全同心，看起来像被水泡软的沼地
+    g.fillStyle(0x3f3528, 1)
+    g.fillEllipse(cx, cy + 2, 1000, 178)
+    g.fillStyle(0x5a4a36, 1)
+    g.fillEllipse(cx - 10, cy, 952, 158)
+    g.fillStyle(0x6b5a3f, 1)
+    g.fillEllipse(cx + 14, cy - 2, 890, 136)
 
-      g.fillStyle(color, alpha)
+    // 浑绿水面：不是规整的湖，用几块错开的椭圆叠出浅滩和深水
+    g.fillStyle(0x354f3d, 1)
+    g.fillEllipse(cx, cy, 832, 116)
+    g.fillStyle(0x456349, 1)
+    g.fillEllipse(cx - 46, cy - 4, 720, 98)
+    g.fillStyle(0x537457, 1)
+    g.fillEllipse(cx + 74, cy + 2, 560, 80)
+    g.fillStyle(0x2f4538, 0.9)
+    g.fillEllipse(cx - 130, cy + 12, 430, 54)
+    g.fillStyle(0x5f8061, 0.55)
+    g.fillEllipse(cx + 160, cy - 10, 320, 46)
 
-      for (let i = 0; i < segments; i++) {
-        const a0 = (i / segments) * Math.PI * 2
-        const a1 = ((i + 1) / segments) * Math.PI * 2
-
-        g.fillPoints(
-          [
-            P(cx + Math.cos(a0) * ow * 0.5, cy + Math.sin(a0) * oh * 0.5),
-            P(cx + Math.cos(a1) * ow * 0.5, cy + Math.sin(a1) * oh * 0.5),
-            P(cx + Math.cos(a1) * iw * 0.5, cy + Math.sin(a1) * ih * 0.5),
-            P(cx + Math.cos(a0) * iw * 0.5, cy + Math.sin(a0) * ih * 0.5),
-          ],
-          true
-        )
-      }
-    }
-
-    // 石岸
-    ring(1000, 180, 900, 146, 0x4f453b)
-    ring(982, 168, 920, 150, 0x6a5e52)
-    ring(962, 156, 940, 154, 0x73665a)
-
-    // 水面：外圈浅、靠泉眼深
-    ring(940, 156, 280, 84, 0x7fb9cc)
-    ring(900, 144, 280, 84, 0x6fa9bf)
-    ring(846, 130, 280, 84, 0x5f98af)
-    ring(790, 116, 280, 84, 0x4f8fa8)
-    ring(736, 104, 280, 84, 0x3f7f9e)
-
-    // 外岸碎石：沿最外圈撒一圈
-    let seed = 23
+    let seed = 31
     const rnd = () => {
       seed = (seed * 1664525 + 1013904223) >>> 0
       return seed / 4294967296
     }
 
-    for (let i = 0; i < 34; i++) {
+    // 水面上的藻斑
+    for (let i = 0; i < 26; i++) {
+      const x = cx - 360 + rnd() * 720
+      const y = cy - 44 + rnd() * 88
+      const w = 16 + rnd() * 54
+      const h = 5 + rnd() * 14
+
+      g.fillStyle(i % 3 === 0 ? 0x6f8a55 : i % 3 === 1 ? 0x4f7048 : 0x809a5b, 0.35 + rnd() * 0.25)
+      g.fillEllipse(x, y, w, h)
+    }
+
+    // 浮萍：小片圆叶，几片带缺口
+    for (let i = 0; i < 22; i++) {
+      const x = cx - 350 + rnd() * 700
+      const y = cy - 42 + rnd() * 82
+      const size = 5 + rnd() * 7
+
+      g.fillStyle(i % 2 === 0 ? 0x4f8a3a : 0x6f9a4a, 0.9)
+      g.fillEllipse(x, y, size, size * 0.58)
+      g.fillStyle(0x8fb45e, 0.55)
+      g.fillEllipse(x - size * 0.15, y - 1, size * 0.45, size * 0.25)
+    }
+
+    // 岸边芦苇：一圈长短不一的深绿细杆
+    for (let i = 0; i < 46; i++) {
       const angle = rnd() * Math.PI * 2
-      const rx = 480 + rnd() * 18
-      const ry = 86 + rnd() * 8
+      const rx = 420 + rnd() * 34
+      const ry = 68 + rnd() * 12
       const x = cx + Math.cos(angle) * rx
       const y = cy + Math.sin(angle) * ry
-      const size = 3 + rnd() * 6
+      const h = 8 + rnd() * 12
 
-      g.fillStyle(i % 3 === 0 ? 0x8a7c69 : i % 3 === 1 ? 0x5e5348 : 0x73665a, 1)
+      g.fillStyle(i % 3 === 0 ? 0x2f5136 : 0x4a6b3e, 0.85)
+      g.fillRect(x, y - h, 1, h)
+      g.fillStyle(0x8a9a5a, 0.8)
+      g.fillRect(x - 1, y - h, 3, 2)
+    }
+
+    // 外岸碎石和泥疙瘩
+    for (let i = 0; i < 30; i++) {
+      const angle = rnd() * Math.PI * 2
+      const rx = 470 + rnd() * 18
+      const ry = 84 + rnd() * 8
+      const x = cx + Math.cos(angle) * rx
+      const y = cy + Math.sin(angle) * ry
+      const size = 3 + rnd() * 7
+
+      g.fillStyle(i % 3 === 0 ? 0x7d7161 : i % 3 === 1 ? 0x4a4034 : 0x5e5348, 1)
       g.fillEllipse(x, y, size, size * 0.55)
     }
 
     g.generateTexture('summit-lake', W, H)
+    g.destroy()
+  }
+
+  // 山顶近岸的沼泽泥地（1000x40）：上缘是不规则的草/苔，下面是湿泥和浅水洼。
+  // 铺在 1600~2600 的山顶地面上，右岸和转角平台仍保留干地。
+  private makeSummitMarsh() {
+    const W = 1000
+    const H = 40
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+    const top: Array<[number, number]> = []
+
+    for (let x = 0; x <= W; x += 8) {
+      top.push([x, 24 + Math.sin(x * 0.021) * 3 + Math.sin(x * 0.067) * 1.5])
+    }
+
+    // 湿泥主体
+    g.fillStyle(0x4a3e2e, 1)
+    g.fillPoints([...top.map(([x, y]) => P(x, y)), P(W, H), P(0, H)], true)
+
+    // 靠上的一层湿泥
+    g.fillStyle(0x5a4a36, 1)
+    g.fillPoints(
+      [
+        ...top.map(([x, y]) => P(x, y)),
+        ...top.map(([x, y]) => P(x, y + 7)).reverse(),
+      ],
+      true
+    )
+
+    // 苔草边
+    g.fillStyle(0x5f7a3a, 1)
+    g.fillPoints(
+      [
+        ...top.map(([x, y]) => P(x, y - 2)),
+        ...top.map(([x, y]) => P(x, y + 3)).reverse(),
+      ],
+      true
+    )
+
+    // 草叶
+    for (let x = 6; x < W; x += 13) {
+      const y = 24 + Math.sin(x * 0.021) * 3 + Math.sin(x * 0.067) * 1.5
+      const h = 4 + (x % 5)
+
+      g.fillStyle(x % 3 === 0 ? 0x7fb04a : 0x5f8a3a, 1)
+      g.fillRect(x, y - h - 1, 1, h + 2)
+    }
+
+    // 浅水洼
+    for (let i = 0; i < 18; i++) {
+      const x = 30 + ((i * 53) % 940)
+      const y = 29 + ((i * 7) % 8)
+
+      g.fillStyle(i % 3 === 0 ? 0x4f6b52 : 0x5f8061, 0.45)
+      g.fillEllipse(x, y, 30 + (i % 5) * 12, 4 + (i % 3) * 2)
+    }
+
+    // 泥里的碎石
+    for (let i = 0; i < 14; i++) {
+      const x = 20 + ((i * 71) % 960)
+      const y = 27 + ((i * 11) % 9)
+
+      g.fillStyle(i % 2 === 0 ? 0x7d7161 : 0x4a4034, 1)
+      g.fillEllipse(x, y, 3 + (i % 4), 2 + (i % 2))
+    }
+
+    g.generateTexture('summit-marsh', W, H)
+    g.destroy()
+  }
+
+  // 山顶远处的最高主峰（640x380）：中间一座雪顶高峰，两边是矮一截的山脊。
+  private makeSummitHighPeak() {
+    const W = 640
+    const H = 380
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    // 最远的淡色山脊
+    g.fillStyle(0x6f8590, 0.55)
+    g.fillPoints(
+      [
+        P(0, 380),
+        P(0, 280),
+        P(70, 238),
+        P(130, 270),
+        P(210, 210),
+        P(290, 260),
+        P(370, 205),
+        P(460, 250),
+        P(540, 220),
+        P(640, 270),
+        P(640, 380),
+      ],
+      true
+    )
+
+    // 中景山脊
+    g.fillStyle(0x587078, 0.85)
+    g.fillPoints(
+      [
+        P(0, 380),
+        P(0, 300),
+        P(60, 268),
+        P(130, 296),
+        P(200, 240),
+        P(260, 282),
+        P(380, 238),
+        P(470, 280),
+        P(560, 252),
+        P(640, 300),
+        P(640, 380),
+      ],
+      true
+    )
+
+    // 主峰
+    g.fillStyle(0x40585c, 1)
+    g.fillPoints(
+      [P(150, 380), P(230, 220), P(290, 90), P(320, 20), P(350, 80), P(420, 220), P(500, 380)],
+      true
+    )
+
+    // 雪顶
+    g.fillStyle(0xdfeef2, 0.92)
+    g.fillPoints(
+      [P(290, 90), P(320, 20), P(350, 80), P(342, 108), P(330, 94), P(318, 124), P(305, 104)],
+      true
+    )
+
+    // 主峰受光/背光面
+    g.fillStyle(0x5b747c, 0.55)
+    g.fillPoints([P(320, 20), P(350, 80), P(420, 220), P(370, 220), P(340, 130)], true)
+    g.fillStyle(0x334a50, 0.55)
+    g.fillPoints([P(230, 220), P(290, 90), P(320, 20), P(310, 140), P(270, 240)], true)
+
+    // 两侧较矮的山峰
+    g.fillStyle(0x4b656c, 1)
+    g.fillTriangle(30, 380, 132, 162, 240, 380)
+    g.fillTriangle(400, 380, 520, 142, 624, 380)
+
+    // 底部山脚
+    g.fillStyle(0x35504f, 1)
+    g.fillRect(0, 322, W, 58)
+
+    g.generateTexture('summit-high-peak', W, H)
+    g.destroy()
+  }
+
+  // 秘境入口（320x340）：一座石山，正中嵌一道黑门洞，门框是石梁 + 金符。
+  // 只是画面，不参与交互；白鹤仍是进入秘境的对话入口。
+  private makeDomainEntrance() {
+    const W = 320
+    const H = 340
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    // 石山脚下的接地影
+    g.fillStyle(0x2a2118, 0.35)
+    g.fillEllipse(160, 334, 270, 14)
+
+    // 不规则石山
+    g.fillStyle(0x4f453b, 1)
+    g.fillPoints(
+      [
+        P(4, 340),
+        P(0, 260),
+        P(24, 176),
+        P(58, 100),
+        P(104, 52),
+        P(156, 30),
+        P(212, 58),
+        P(260, 112),
+        P(300, 200),
+        P(318, 340),
+      ],
+      true
+    )
+
+    g.fillStyle(0x73665a, 1)
+    g.fillPoints(
+      [
+        P(24, 340),
+        P(22, 258),
+        P(46, 178),
+        P(82, 118),
+        P(128, 72),
+        P(166, 54),
+        P(160, 340),
+      ],
+      true
+    )
+
+    g.fillStyle(0x5e5348, 1)
+    g.fillPoints(
+      [
+        P(166, 54),
+        P(212, 74),
+        P(258, 130),
+        P(294, 214),
+        P(300, 340),
+        P(188, 340),
+      ],
+      true
+    )
+
+    // 岩层裂缝
+    g.lineStyle(1, 0x3d342a, 0.7)
+    g.lineBetween(72, 140, 120, 210)
+    g.lineBetween(120, 210, 100, 300)
+    g.lineBetween(220, 110, 250, 200)
+    g.lineBetween(250, 200, 230, 300)
+
+    // 门洞
+    const dx = 160
+    const dw = 112
+    const dTop = 174
+    const dBottom = 330
+
+    // 门框外沿
+    g.fillStyle(0x9a8a70, 1)
+    g.fillRect(dx - dw / 2 - 16, dTop - 14, dw + 32, 16)
+    g.fillRect(dx - dw / 2 - 16, dTop, 14, dBottom - dTop)
+    g.fillRect(dx + dw / 2 + 2, dTop, 14, dBottom - dTop)
+    g.fillStyle(0x6a5e52, 1)
+    g.fillRect(dx - dw / 2 - 10, dTop - 8, dw + 20, 7)
+
+    // 黑门洞：矩形 + 上半圆拱
+    g.fillStyle(0x121816, 1)
+    g.fillRect(dx - dw / 2, dTop, dw, dBottom - dTop)
+    g.fillEllipse(dx, dTop, dw, 52)
+
+    // 门内一点冷光，表现出"里面有路"
+    g.fillStyle(0x3f6f6a, 0.22)
+    g.fillEllipse(dx, dTop + 24, dw * 0.66, 34)
+    g.fillStyle(0x8fd3c8, 0.12)
+    g.fillEllipse(dx, dTop + 30, dw * 0.36, 22)
+
+    // 台阶
+    g.fillStyle(0x6a5e52, 1)
+    g.fillRect(dx - dw / 2 - 24, dBottom, dw + 48, 10)
+    g.fillStyle(0x8a7c69, 1)
+    g.fillRect(dx - dw / 2 - 18, dBottom - 4, dw + 36, 6)
+
+    // 门框金符
+    g.fillStyle(0xffd54f, 0.95)
+    g.fillRect(dx - 30, dTop - 6, 8, 2)
+    g.fillRect(dx - 20, dTop - 6, 8, 2)
+    g.fillRect(dx + 12, dTop - 6, 8, 2)
+    g.fillRect(dx + 22, dTop - 6, 8, 2)
+    g.fillRect(dx - dw / 2 - 10, dTop + 36, 3, 12)
+    g.fillRect(dx + dw / 2 + 7, dTop + 36, 3, 12)
+
+    // 石山上的青苔
+    g.fillStyle(0x4f6b3a, 0.9)
+    g.fillEllipse(58, 220, 30, 10)
+    g.fillEllipse(250, 190, 26, 9)
+    g.fillEllipse(120, 110, 20, 7)
+
+    g.generateTexture('domain-entrance', W, H)
+    g.destroy()
+  }
+
+  // 沼泽里的踏石（60x24）：一块带苔藓的扁石，纯装饰。
+  private makeSwampStone() {
+    const W = 60
+    const H = 24
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    g.fillStyle(0x2a2118, 0.3)
+    g.fillEllipse(30, 22, 50, 6)
+    g.fillStyle(0x5e5348, 1)
+    g.fillPoints([P(4, 20), P(6, 12), P(16, 5), P(32, 3), P(48, 8), P(56, 15), P(54, 21)], true)
+    g.fillStyle(0x73665a, 1)
+    g.fillPoints([P(8, 17), P(10, 10), P(20, 6), P(34, 5), P(46, 9), P(50, 14), P(46, 18)], true)
+    g.fillStyle(0x8a7c69, 1)
+    g.fillPoints([P(14, 9), P(32, 6), P(40, 8), P(26, 11)], true)
+    g.fillStyle(0x4f6b3a, 1)
+    g.fillEllipse(28, 8, 22, 5)
+    g.fillStyle(0x6f8a55, 0.8)
+    g.fillEllipse(24, 7, 14, 3)
+    g.fillStyle(0x453d34, 0.7)
+    g.lineBetween(18, 12, 26, 17)
+    g.lineBetween(38, 10, 44, 16)
+
+    g.generateTexture('swamp-stone', W, H)
     g.destroy()
   }
 
