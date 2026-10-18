@@ -12,12 +12,21 @@ const FIRST_X = 72
 const FIRST_Y = 72
 
 export class SelectScene extends Phaser.Scene {
+  private selected = 0
+  private selectionBox!: Phaser.GameObjects.Rectangle
+  private levelLabel!: Phaser.GameObjects.Text
+
   constructor() {
     super('select')
   }
 
   create() {
     playMusic(this, 'music-menu')
+    this.selected = Phaser.Math.Clamp(
+      progress.levelIndex,
+      0,
+      Math.max(0, LEVELS.length - 1)
+    )
 
     this.add
       .text(240, 22, '选择关卡', {
@@ -27,12 +36,38 @@ export class SelectScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
 
+    // 左上角：当前黄框选中的是第几关
+    this.levelLabel = this.add
+      .text(12, 10, '', {
+        fontFamily: 'sans-serif',
+        fontSize: '15px',
+        color: '#ffd54f',
+      })
+      .setOrigin(0, 0)
+
     for (let index = 0; index < 15; index++) {
       const col = index % COLS
       const row = Math.floor(index / COLS)
 
       this.makeCell(index, FIRST_X + col * CELL_W, FIRST_Y + row * CELL_H)
     }
+
+    // 黄色选框：只画边框，压在格子内容上面
+    this.selectionBox = this.add
+      .rectangle(0, 0, 80, 64, 0xffd54f, 0)
+      .setStrokeStyle(3, 0xffd54f, 1)
+      .setDepth(20)
+
+    this.tweens.add({
+      targets: this.selectionBox,
+      alpha: 0.55,
+      duration: 720,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    this.refreshSelection()
 
     // 触屏上没有 Esc，这行提示本身可点，点了就回标题
     const back = this.add
@@ -50,15 +85,97 @@ export class SelectScene extends Phaser.Scene {
       this.scene.start('menu')
     })
 
+    this.input.keyboard!.on('keydown-LEFT', (event: KeyboardEvent) => {
+      if (!event.repeat) {
+        this.moveSelection(-1, 0)
+      }
+    })
+    this.input.keyboard!.on('keydown-RIGHT', (event: KeyboardEvent) => {
+      if (!event.repeat) {
+        this.moveSelection(1, 0)
+      }
+    })
+    this.input.keyboard!.on('keydown-UP', (event: KeyboardEvent) => {
+      if (!event.repeat) {
+        this.moveSelection(0, -1)
+      }
+    })
+    this.input.keyboard!.on('keydown-DOWN', (event: KeyboardEvent) => {
+      if (!event.repeat) {
+        this.moveSelection(0, 1)
+      }
+    })
+    this.input.keyboard!.on('keydown-SPACE', (event: KeyboardEvent) => {
+      if (!event.repeat) {
+        this.enterSelected()
+      }
+    })
+
     if (DEV_MODE) {
       this.add
-        .text(12, 12, '开发者模式：全部关卡已解锁', {
+        .text(12, 30, '开发者模式：全部关卡已解锁', {
           fontFamily: 'sans-serif',
-          fontSize: '12px',
+          fontSize: '10px',
           color: '#ff9a9a',
         })
         .setOrigin(0, 0)
     }
+  }
+
+  private cellAt(index: number) {
+    const col = index % COLS
+    const row = Math.floor(index / COLS)
+
+    return { x: FIRST_X + col * CELL_W, y: FIRST_Y + row * CELL_H }
+  }
+
+  private isPlayable(index: number) {
+    const level = LEVELS[index]
+
+    return level !== undefined && (DEV_MODE || index <= progress.maxLevel)
+  }
+
+  private refreshSelection() {
+    const position = this.cellAt(this.selected)
+    const playable = this.isPlayable(this.selected)
+
+    this.selectionBox.setPosition(position.x, position.y)
+    this.selectionBox.setStrokeStyle(3, 0xffd54f, 1)
+
+    this.levelLabel
+      .setText(`第 ${this.selected + 1} 关${playable ? '' : ' · 未解锁'}`)
+      .setColor(playable ? '#ffd54f' : '#8fa3b8')
+  }
+
+  private moveSelection(dx: number, dy: number) {
+    const next = this.selected + dx + dy * COLS
+
+    if (next < 0 || next >= LEVELS.length) {
+      return
+    }
+
+    // 左右移动不跨行；到了行尾就停住
+    if (
+      dx !== 0 &&
+      Math.floor(next / COLS) !== Math.floor(this.selected / COLS)
+    ) {
+      return
+    }
+
+    this.selected = next
+    this.refreshSelection()
+  }
+
+  private enterSelected() {
+    if (!this.isPlayable(this.selected)) {
+      this.selectionBox.setStrokeStyle(3, 0xff6b6b, 1)
+      this.time.delayedCall(140, () => this.refreshSelection())
+      return
+    }
+
+    progress.levelIndex = this.selected
+    saveProgress()
+    this.scene.start('game')
   }
 
   private makeCell(index: number, x: number, y: number) {
@@ -126,9 +243,9 @@ export class SelectScene extends Phaser.Scene {
       slime.setInteractive({ useHandCursor: true })
 
       slime.on('pointerdown', () => {
-        progress.levelIndex = index
-        saveProgress()
-        this.scene.start('game')
+        this.selected = index
+        this.refreshSelection()
+        this.enterSelected()
       })
     }
   }
