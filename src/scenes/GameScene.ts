@@ -10933,6 +10933,67 @@ export class GameScene extends Phaser.Scene {
     )
   }
 
+  // 第十关终点：往生堂门前的送仙典仪
+  private playSendOffRitual() {
+    if (this.finished || this.inputLocked) {
+      return
+    }
+
+    this.inputLocked = true
+    this.slime.setVelocity(0, 0)
+
+    this.showDialogue(
+      '胡桃',
+      [
+        '客官，三样东西都齐了？夜泊石、霓裳花、永生香——一样不少。',
+        '往生堂办事，讲究的是把该送的送走，不留念想。',
+      ],
+      () => {
+        this.showDialogue(
+          '钟离',
+          [
+            '送仙典仪，重在一个「送」字。',
+            '帝君之事，璃月自有公论。你做的已经够多了。',
+            '点香，引路吧。',
+          ],
+          () => this.playSendOffFx()
+        )
+      }
+    )
+  }
+
+  private playSendOffFx() {
+    this.physics.world.pause()
+    this.cameras.main.flash(280, 255, 220, 150)
+
+    const x = this.goalSprite.x
+    const baseY = this.goalSprite.y + 8
+
+    for (let i = 0; i < 6; i++) {
+      const glow = this.add
+        .image(x + (i - 2.5) * 18, baseY, 'blessing')
+        .setTint(0xffd54f)
+        .setDepth(9)
+        .setScale(0.4)
+        .setAlpha(0.8)
+
+      this.tweens.add({
+        targets: glow,
+        y: baseY - 60 - i * 8,
+        alpha: 0,
+        scaleX: 1.2,
+        scaleY: 1.2,
+        duration: 900 + i * 90,
+        delay: i * 80,
+        ease: 'Sine.easeOut',
+        onComplete: () => glow.destroy(),
+      })
+    }
+
+    this.showMessage('送仙典仪结束')
+    this.time.delayedCall(1200, () => this.win())
+  }
+
   // 修楼梯：木板飞入 + 落地音 + 震屏，动画结束把这一跑重建（断口就补回来了）
   private startRepair(repair: (typeof this.repairList)[number]) {
     if (this.woods <= 0 || repair.done) {
@@ -13490,7 +13551,13 @@ export class GameScene extends Phaser.Scene {
           action = () => this.showMessage(`还差：${missing.join('、')}`)
         } else {
           prompt = this.interactPrefix() + this.level.goal.prompt
-          action = () => this.win()
+          action = () => {
+            if (this.materialList.length > 0) {
+              this.playSendOffRitual()
+            } else {
+              this.win()
+            }
+          }
         }
       }
     }
