@@ -102,6 +102,7 @@ const TOWER_RESTORED_FLAG = 'tower-restored'
 //   ② 出玉京台那场追击演出放过了 —— 只跳过镜头演出，千岩军照旧会追上来
 // 存法同上（借 seenHints）
 const RITE_SEEN_FLAG = 'terrace-rite-seen'
+const AMBER_HINT_FLAG = 'amber-break-hint'
 const TERRACE_CHASE_FLAG = 'terrace-chase'
 
 // 岩柱：贴图多大、从落点上方多高开始掉、蓄力多久、落点最远能低于脚底多少
@@ -8998,6 +8999,32 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  // 第九关第一次靠近未碎的琥珀时，提示一次破坏条件。
+  // 用 seenHints 存档，换关、重开都不会再重复。
+  private updateAmberHint() {
+    if (this.ambers.length === 0 || hasSeenHint(AMBER_HINT_FLAG)) {
+      return
+    }
+
+    const near = this.ambers.some(
+      (amber) =>
+        !amber.broken &&
+        Phaser.Math.Distance.Between(
+          this.slime.x,
+          this.slime.y,
+          amber.def.x,
+          amber.def.y - 26
+        ) < 100
+    )
+
+    if (!near) {
+      return
+    }
+
+    markHintSeen(AMBER_HINT_FLAG)
+    this.showMessage('琥珀：用岩柱的岩共鸣震开，或跳上去踩碎；岩化后跳砸范围更大')
+  }
+
   // 每帧的贴地：人在弧的 x 范围内、脚底贴着弧面，就把脚底按到曲线上。
   // 三种情况不接管 —— 正在往上飞（起跳 / 被顶）、脚底离面太远（比如从高处掉下来）、
   // 输入被锁（演出 / 雷闪瞄准，那两种自己管重力）。
@@ -12931,6 +12958,8 @@ export class GameScene extends Phaser.Scene {
     this.updateResonance(dt)
     // 跳砸琥珀：普通跳 / 岩化跳砸都能震碎，不依赖岩柱
     this.updateAmberStomp()
+    // 第一次靠近未碎的琥珀：提示一次破坏条件
+    this.updateAmberHint()
     // 秘境第一重试炼：分段安全台、浮石消失、掉段扣心
     if (this.domainMode) {
       this.updateTrialStones()
