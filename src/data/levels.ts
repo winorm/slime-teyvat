@@ -1332,7 +1332,7 @@ export const LEVELS: LevelDef[] = [
     ],
 
     // 山顶沼泽：不再是规整的圆湖，改成 1800~2600 的浑绿沼地；瀑布仍从 2200 落下
-    summitLake: { x: 2200, y: 440, width: 800, height: 180 },
+    summitLake: { x: 2200, y: 410, width: 800, height: 180 },
     // 瀑布：宽度和 F1 一样（600），从泉眼一路直落到地面，不再在坡道处断开
     waterfall: {
       x: 2200,
@@ -1413,9 +1413,9 @@ export const LEVELS: LevelDef[] = [
       { x: 250, y: 1360, key: 'pebble-a', scale: 1.8, depth: 1.2 },
       { x: 500, y: 1360, key: 'stone-pile', scale: 1.6, depth: 1.2 },
       { x: 700, y: 1360, key: 'pebble-c', scale: 1.8, depth: 1.2 },
-      // 山顶远景：最高的主峰在最后面，前面是嵌着秘境门洞的石山
-      { x: 2200, y: 460, key: 'summit-high-peak', depth: 0.65 },
-      { x: 2200, y: 460, key: 'domain-entrance', depth: 0.95 },
+      // 山顶远景：一圈环形山体围着沼泽，正中低垭口藏一个远处的秘境门洞
+      { x: 2200, y: 460, key: 'summit-high-peak', depth: 0.6 },
+      { x: 2200, y: 400, key: 'domain-entrance', scale: 0.5, depth: 0.9 },
       // 近岸沼泽泥地 + 四块装饰踏石（都在水里，不站人）
       { x: 2100, y: 460, key: 'summit-marsh', depth: 3.2 },
       { x: 1850, y: 430, key: 'swamp-stone', depth: 3.3 },

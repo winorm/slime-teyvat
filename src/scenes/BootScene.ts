@@ -7660,33 +7660,52 @@ export class BootScene extends Phaser.Scene {
     g.destroy()
   }
 
-  // 山顶湖（1000x180）：环形透视水面，外圈石岸、中间是泉眼空洞。
+  // 山顶沼泽（1000x180）：**平行六边形**水面，不再是椭圆湖。
+  // 上下两条边平行、左右两组斜边也各自平行，读起来像 2.5D 里的一块六边形沼地。
   private makeSummitLake() {
     const W = 1000
     const H = 180
     const g = this.add.graphics()
     const cx = W / 2
     const cy = 92
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
 
-    // 泥岸：三层不规则的椭圆，边缘故意不完全同心，看起来像被水泡软的沼地
+    // 六个顶点：上下两条水平边，左右各两条平行的斜边
+    const hex = (inset: number) => {
+      const topHalf = 250 - inset * 1.3
+      const midHalf = 470 - inset * 1.8
+      const topY = 26 + inset
+      const botY = 154 - inset
+
+      return [
+        P(cx - topHalf, topY),
+        P(cx + topHalf, topY),
+        P(cx + midHalf, cy),
+        P(cx + topHalf, botY),
+        P(cx - topHalf, botY),
+        P(cx - midHalf, cy),
+      ]
+    }
+    const shift = (points: Phaser.Math.Vector2[], dx: number, dy: number) =>
+      points.map((point) => P(point.x + dx, point.y + dy))
+
+    // 泥岸三层，保持同样的六边形轮廓
     g.fillStyle(0x3f3528, 1)
-    g.fillEllipse(cx, cy + 2, 1000, 178)
+    g.fillPoints(hex(0), true)
     g.fillStyle(0x5a4a36, 1)
-    g.fillEllipse(cx - 10, cy, 952, 158)
+    g.fillPoints(hex(14), true)
     g.fillStyle(0x6b5a3f, 1)
-    g.fillEllipse(cx + 14, cy - 2, 890, 136)
+    g.fillPoints(hex(28), true)
 
-    // 浑绿水面：不是规整的湖，用几块错开的椭圆叠出浅滩和深水
+    // 浑绿水面：六边形轮廓内再分浅水和深水
     g.fillStyle(0x354f3d, 1)
-    g.fillEllipse(cx, cy, 832, 116)
+    g.fillPoints(hex(40), true)
     g.fillStyle(0x456349, 1)
-    g.fillEllipse(cx - 46, cy - 4, 720, 98)
-    g.fillStyle(0x537457, 1)
-    g.fillEllipse(cx + 74, cy + 2, 560, 80)
-    g.fillStyle(0x2f4538, 0.9)
-    g.fillEllipse(cx - 130, cy + 12, 430, 54)
-    g.fillStyle(0x5f8061, 0.55)
-    g.fillEllipse(cx + 160, cy - 10, 320, 46)
+    g.fillPoints(hex(52), true)
+    g.fillStyle(0x2f4538, 0.75)
+    g.fillPoints(shift(hex(58), -18, 2), true)
+    g.fillStyle(0x537457, 0.5)
+    g.fillPoints(shift(hex(60), 28, -2), true)
 
     let seed = 31
     const rnd = () => {
@@ -7694,12 +7713,12 @@ export class BootScene extends Phaser.Scene {
       return seed / 4294967296
     }
 
-    // 水面上的藻斑
+    // 水面上的藻斑（都落在六边形水面内部）
     for (let i = 0; i < 26; i++) {
-      const x = cx - 360 + rnd() * 720
-      const y = cy - 44 + rnd() * 88
-      const w = 16 + rnd() * 54
-      const h = 5 + rnd() * 14
+      const x = cx - 280 + rnd() * 560
+      const y = cy - 28 + rnd() * 56
+      const w = 14 + rnd() * 46
+      const h = 4 + rnd() * 11
 
       g.fillStyle(i % 3 === 0 ? 0x6f8a55 : i % 3 === 1 ? 0x4f7048 : 0x809a5b, 0.35 + rnd() * 0.25)
       g.fillEllipse(x, y, w, h)
@@ -7707,8 +7726,8 @@ export class BootScene extends Phaser.Scene {
 
     // 浮萍：小片圆叶，几片带缺口
     for (let i = 0; i < 22; i++) {
-      const x = cx - 350 + rnd() * 700
-      const y = cy - 42 + rnd() * 82
+      const x = cx - 260 + rnd() * 520
+      const y = cy - 24 + rnd() * 48
       const size = 5 + rnd() * 7
 
       g.fillStyle(i % 2 === 0 ? 0x4f8a3a : 0x6f9a4a, 0.9)
@@ -7717,32 +7736,30 @@ export class BootScene extends Phaser.Scene {
       g.fillEllipse(x - size * 0.15, y - 1, size * 0.45, size * 0.25)
     }
 
-    // 岸边芦苇：一圈长短不一的深绿细杆
-    for (let i = 0; i < 46; i++) {
-      const angle = rnd() * Math.PI * 2
-      const rx = 420 + rnd() * 34
-      const ry = 68 + rnd() * 12
-      const x = cx + Math.cos(angle) * rx
-      const y = cy + Math.sin(angle) * ry
-      const h = 8 + rnd() * 12
+    // 沿着六条边撒芦苇和碎石，强化"平行六边形"的轮廓
+    const outer = hex(2)
 
-      g.fillStyle(i % 3 === 0 ? 0x2f5136 : 0x4a6b3e, 0.85)
-      g.fillRect(x, y - h, 1, h)
-      g.fillStyle(0x8a9a5a, 0.8)
-      g.fillRect(x - 1, y - h, 3, 2)
-    }
+    for (let edge = 0; edge < outer.length; edge++) {
+      const a = outer[edge]
+      const b = outer[(edge + 1) % outer.length]
 
-    // 外岸碎石和泥疙瘩
-    for (let i = 0; i < 30; i++) {
-      const angle = rnd() * Math.PI * 2
-      const rx = 470 + rnd() * 18
-      const ry = 84 + rnd() * 8
-      const x = cx + Math.cos(angle) * rx
-      const y = cy + Math.sin(angle) * ry
-      const size = 3 + rnd() * 7
+      for (let t = 0.08; t < 1; t += 0.11) {
+        const x = a.x + (b.x - a.x) * t
+        const y = a.y + (b.y - a.y) * t
+        const h = 7 + ((edge * 7 + Math.round(t * 10)) % 10)
 
-      g.fillStyle(i % 3 === 0 ? 0x7d7161 : i % 3 === 1 ? 0x4a4034 : 0x5e5348, 1)
-      g.fillEllipse(x, y, size, size * 0.55)
+        g.fillStyle(edge % 2 === 0 ? 0x2f5136 : 0x4a6b3e, 0.85)
+        g.fillRect(x, y - h, 1, h)
+        g.fillStyle(0x8a9a5a, 0.8)
+        g.fillRect(x - 1, y - h, 3, 2)
+
+        if ((edge + Math.round(t * 10)) % 3 === 0) {
+          const size = 3 + ((edge + Math.round(t * 10)) % 6)
+
+          g.fillStyle(edge % 2 === 0 ? 0x7d7161 : 0x4a4034, 1)
+          g.fillEllipse(x + 4, y + 3, size, size * 0.55)
+        }
+      }
     }
 
     g.generateTexture('summit-lake', W, H)
@@ -7817,79 +7834,91 @@ export class BootScene extends Phaser.Scene {
     g.destroy()
   }
 
-  // 山顶远处的最高主峰（640x380）：中间一座雪顶高峰，两边是矮一截的山脊。
+  // 山顶远景的环形山体（1000x220）：一圈高低错落的山峰围着沼泽，
+  // 正中留一个较低的垭口，秘境入口就藏在那个远处的缺口里。
   private makeSummitHighPeak() {
-    const W = 640
-    const H = 380
+    const W = 1000
+    const H = 220
     const g = this.add.graphics()
     const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
 
-    // 最远的淡色山脊
-    g.fillStyle(0x6f8590, 0.55)
+    // 最远的一圈淡色山脊
+    g.fillStyle(0x6f8590, 0.5)
     g.fillPoints(
       [
-        P(0, 380),
-        P(0, 280),
-        P(70, 238),
-        P(130, 270),
-        P(210, 210),
-        P(290, 260),
-        P(370, 205),
-        P(460, 250),
-        P(540, 220),
-        P(640, 270),
-        P(640, 380),
+        P(0, 220),
+        P(0, 150),
+        P(80, 70),
+        P(160, 120),
+        P(240, 48),
+        P(320, 110),
+        P(400, 82),
+        P(500, 118),
+        P(600, 62),
+        P(680, 105),
+        P(780, 40),
+        P(860, 112),
+        P(940, 78),
+        P(1000, 145),
+        P(1000, 220),
       ],
       true
     )
 
-    // 中景山脊
-    g.fillStyle(0x587078, 0.85)
+    // 中景一圈
+    g.fillStyle(0x587078, 0.82)
     g.fillPoints(
       [
-        P(0, 380),
-        P(0, 300),
-        P(60, 268),
-        P(130, 296),
-        P(200, 240),
-        P(260, 282),
-        P(380, 238),
-        P(470, 280),
-        P(560, 252),
-        P(640, 300),
-        P(640, 380),
+        P(0, 220),
+        P(0, 168),
+        P(120, 108),
+        P(210, 146),
+        P(300, 92),
+        P(380, 132),
+        P(470, 138),
+        P(500, 148),
+        P(540, 132),
+        P(630, 86),
+        P(730, 72),
+        P(820, 128),
+        P(900, 118),
+        P(1000, 172),
+        P(1000, 220),
       ],
       true
     )
 
-    // 主峰
+    // 近处一圈，正中留低垭口
     g.fillStyle(0x40585c, 1)
     g.fillPoints(
-      [P(150, 380), P(230, 220), P(290, 90), P(320, 20), P(350, 80), P(420, 220), P(500, 380)],
+      [
+        P(0, 220),
+        P(0, 174),
+        P(90, 132),
+        P(170, 158),
+        P(260, 118),
+        P(340, 154),
+        P(420, 142),
+        P(500, 162),
+        P(580, 136),
+        P(660, 112),
+        P(740, 134),
+        P(820, 104),
+        P(910, 152),
+        P(1000, 178),
+        P(1000, 220),
+      ],
       true
     )
 
-    // 雪顶
-    g.fillStyle(0xdfeef2, 0.92)
-    g.fillPoints(
-      [P(290, 90), P(320, 20), P(350, 80), P(342, 108), P(330, 94), P(318, 124), P(305, 104)],
-      true
-    )
+    // 两处雪顶，给环形山一点高度层次
+    g.fillStyle(0xdfeef2, 0.85)
+    g.fillTriangle(214, 64, 240, 48, 266, 66)
+    g.fillTriangle(752, 54, 780, 40, 806, 56)
 
-    // 主峰受光/背光面
-    g.fillStyle(0x5b747c, 0.55)
-    g.fillPoints([P(320, 20), P(350, 80), P(420, 220), P(370, 220), P(340, 130)], true)
-    g.fillStyle(0x334a50, 0.55)
-    g.fillPoints([P(230, 220), P(290, 90), P(320, 20), P(310, 140), P(270, 240)], true)
-
-    // 两侧较矮的山峰
-    g.fillStyle(0x4b656c, 1)
-    g.fillTriangle(30, 380, 132, 162, 240, 380)
-    g.fillTriangle(400, 380, 520, 142, 624, 380)
-
-    // 底部山脚
-    g.fillStyle(0x35504f, 1)
-    g.fillRect(0, 322, W, 58)
+    // 山脚一圈薄雾
+    g.fillStyle(0xbfd4d8, 0.16)
+    g.fillRect(0, 194, W, 26)
 
     g.generateTexture('summit-high-peak', W, H)
     g.destroy()
