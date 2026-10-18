@@ -1747,6 +1747,8 @@ export class GameScene extends Phaser.Scene {
   private stairGfx: Phaser.GameObjects.Graphics[] = []
   private repaired: string[] = []
   private woods = 0
+  private ritualCenser: Phaser.GameObjects.Image | null = null
+  private ritualLit = false
 
   private paperShowing = false
   private paperLayer: Phaser.GameObjects.Container | null = null
@@ -1823,6 +1825,8 @@ export class GameScene extends Phaser.Scene {
     this.trialThreeDecor = []
     this.trialThreeCraneHome = null
     this.trialThreeStartMarker = null
+    this.ritualCenser = null
+    this.ritualLit = false
     this.devLevel = !this.domainMode && DEV_LEVEL_MODE
     // 测试关卡是「大厅 + 展厅」：devRoom < 0 在大厅，其余去对应那间展厅。
     // 换房间走 scene.restart()，所以 devRoom 是在上一帧就定好的
@@ -3060,6 +3064,8 @@ export class GameScene extends Phaser.Scene {
       this.statueSprite = this.placeStatue(statue.x, statue.y, statue.grants)
     }
 
+    this.buildSendOffStage()
+
     this.slime = this.physics.add.sprite(spawnPoint.x, spawnPoint.y, 'slime-none')
     this.slime.setBounce(0.2)
     this.slime.setCollideWorldBounds(true)
@@ -3717,6 +3723,7 @@ export class GameScene extends Phaser.Scene {
       this.trialTwoDone = true
       this.time.delayedCall(120, () => this.startTrialThree())
     }
+
   }
 
   // 关卡提示统一长这样：一块深色底 + 一行浅字，和交互提示、独白是同一套配色
@@ -10934,6 +10941,104 @@ export class GameScene extends Phaser.Scene {
   }
 
   // 第十关终点：往生堂门前的送仙典仪
+  // 门口先摆好两个活人：胡桃站左边、钟离站右边，门槛中间一只青铜香炉。
+  // 只有带供品的关（第十关）才有这段，别的关直接跳过
+  private buildSendOffStage() {
+    if (!this.level.materials || this.level.materials.length === 0) {
+      return
+    }
+
+    const gx = this.level.goal.x
+    const gy = this.level.goal.y
+
+    // 门洞是 2020~2160，两人分站左右，不挡中间那条「还差什么」的提示线
+    const hutao = this.add
+      .image(gx - 48, gy + 2, 'npc-hutao')
+      .setOrigin(0.5, 1)
+      // 只比建筑（-5）靠前、比史莱姆（9）靠后：玩家走到门口时是从他们身前过
+      .setDepth(0.9)
+    const zhongli = this.add
+      .image(gx + 48, gy + 2, 'npc-zhongli')
+      .setOrigin(0.5, 1)
+      .setDepth(0.9)
+      .setFlipX(true)
+
+    ;[hutao, zhongli].forEach((npc, index) => {
+      this.tweens.add({
+        targets: npc,
+        y: npc.y - 2,
+        duration: 1500 + index * 260,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      })
+    })
+
+    this.ritualCenser = this.add
+      .image(gx - 20, gy - 1, 'terrace-censer')
+      .setOrigin(0.5, 1)
+      .setDepth(0.95)
+  }
+
+  // 点香：香炉烧起来，一缕缕白烟往上走（对话期间一直烧着，不跟着物理暂停）
+  private lightRitualCenser() {
+    const censer = this.ritualCenser
+
+    if (!censer || this.ritualLit) {
+      return
+    }
+
+    this.ritualLit = true
+    censer.setTint(0xffcf7a)
+
+    const x = censer.x
+    const top = censer.y - censer.displayHeight + 2
+
+    // 炉口那点暖光
+    const ember = this.add
+      .image(x, top, 'blessing')
+      .setTint(0xffbf5a)
+      .setDepth(0.96)
+      .setScale(0.5)
+      .setAlpha(0.7)
+
+    this.tweens.add({
+      targets: ember,
+      scaleX: 0.75,
+      scaleY: 0.75,
+      alpha: 0.35,
+      duration: 700,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    this.time.addEvent({
+      delay: 240,
+      loop: true,
+      callback: () => {
+        const puff = this.add
+          .image(x + Phaser.Math.Between(-3, 3), top, 'pixel')
+          .setDisplaySize(Phaser.Math.Between(3, 5), Phaser.Math.Between(3, 5))
+          .setTint(0xf2e8d6)
+          .setAlpha(0.45)
+          .setDepth(0.96)
+
+        this.tweens.add({
+          targets: puff,
+          y: top - Phaser.Math.Between(20, 34),
+          x: puff.x + Phaser.Math.Between(-7, 7),
+          scaleX: 2.6,
+          scaleY: 2.6,
+          alpha: 0,
+          duration: 1500,
+          ease: 'Sine.easeOut',
+          onComplete: () => puff.destroy(),
+        })
+      },
+    })
+  }
+
   private playSendOffRitual() {
     if (this.finished || this.inputLocked) {
       return
@@ -10941,6 +11046,7 @@ export class GameScene extends Phaser.Scene {
 
     this.inputLocked = true
     this.slime.setVelocity(0, 0)
+    this.lightRitualCenser()
 
     this.showDialogue(
       '胡桃',
@@ -10966,8 +11072,10 @@ export class GameScene extends Phaser.Scene {
     this.physics.world.pause()
     this.cameras.main.flash(280, 255, 220, 150)
 
-    const x = this.goalSprite.x
-    const baseY = this.goalSprite.y + 8
+    // 光从香炉里升起来（没有香炉的关就退回宝箱位置）
+    const censer = this.ritualCenser
+    const x = censer?.x ?? this.goalSprite.x
+    const baseY = censer ? censer.y - censer.displayHeight + 4 : this.goalSprite.y + 8
 
     for (let i = 0; i < 6; i++) {
       const glow = this.add

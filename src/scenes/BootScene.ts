@@ -183,6 +183,7 @@ export class BootScene extends Phaser.Scene {
     this.makeHarborProps()
     this.makeLandBuildings()
     this.makeWangShengTang()
+    this.makeRitualNpcs()
     this.makeTerraceHouses()
     this.makeTerracePlaza()
     this.makeTerraceGate()
@@ -4733,6 +4734,329 @@ export class BootScene extends Phaser.Scene {
 
     g.generateTexture('wang-sheng-tang', 420, 300)
     g.destroy()
+  }
+
+  // 往生堂门口送仙典仪的两位：胡桃、钟离。
+  // 和老板娘的画法一致 —— 黑描边 + 平色史莱姆身子，靠帽子 / 衣饰 / 发色区分，
+  // 不画人脸五官以外的东西（这个游戏的 NPC 全是史莱姆）
+  private makeRitualNpcs() {
+    const outline = 0x14141f
+
+    // ── 胡桃（52x66）：深棕身子 + 黑宽檐帽 + 红梅 + 双马尾 + 挂在帽檐上的符纸 ──
+    const h = this.add.graphics()
+    const HUTAO_BODY = 0x5a3038
+    const HUTAO_BODY_LIGHT = 0x74404a
+    const HAT = 0x1b1620
+    const HAT_LIGHT = 0x2f2634
+    const RED = 0xb03a3a
+    const RED_LIGHT = 0xd25a4a
+    const GOLD = 0xd9a441
+    const HAIR = 0x3a2226
+    const HAIR_TIP = 0x9a3a3a
+
+    // 双马尾：先画在身子后面（左右各一条，越往下越细，末梢泛红）
+    ;[-1, 1].forEach((side) => {
+      // 26±17 是画布能放下的极限：再往外一点（±20）发梢就被 52 宽的画布切掉了
+      const baseX = 26 + side * 17
+      const swing = side * 4
+
+      h.fillStyle(outline, 1)
+      h.fillPoints(
+        [
+          new Phaser.Math.Vector2(baseX - side * 6, 30),
+          new Phaser.Math.Vector2(baseX + side * 3, 32),
+          new Phaser.Math.Vector2(baseX + swing + side * 2, 58),
+          new Phaser.Math.Vector2(baseX + swing - side * 5, 58),
+        ],
+        true
+      )
+      h.fillStyle(HAIR, 1)
+      h.fillPoints(
+        [
+          new Phaser.Math.Vector2(baseX - side * 5, 31),
+          new Phaser.Math.Vector2(baseX + side * 2, 33),
+          new Phaser.Math.Vector2(baseX + swing + side * 1, 56),
+          new Phaser.Math.Vector2(baseX + swing - side * 4, 56),
+        ],
+        true
+      )
+      h.fillStyle(HAIR_TIP, 1)
+      h.fillPoints(
+        [
+          new Phaser.Math.Vector2(baseX + swing - side * 4, 50),
+          new Phaser.Math.Vector2(baseX + swing + side * 1, 50),
+          new Phaser.Math.Vector2(baseX + swing + side * 1, 56),
+          new Phaser.Math.Vector2(baseX + swing - side * 4, 56),
+        ],
+        true
+      )
+    })
+
+    // 身子
+    h.fillStyle(outline, 1)
+    h.fillEllipse(26, 44, 46, 36)
+    h.fillStyle(HUTAO_BODY, 1)
+    h.fillEllipse(26, 44, 43, 33)
+    h.fillStyle(HUTAO_BODY_LIGHT, 1)
+    h.fillEllipse(22, 40, 26, 18)
+
+    // 外袍下摆：暗红一圈 + 金边
+    h.fillStyle(0x3f1f24, 1)
+    h.fillEllipse(26, 55, 40, 14)
+    h.fillStyle(RED, 1)
+    h.fillEllipse(26, 54, 37, 11)
+    h.fillStyle(GOLD, 1)
+    h.fillRect(9, 54, 34, 1)
+    // 前襟那道红带
+    h.fillStyle(RED_LIGHT, 1)
+    h.fillPoints(
+      [
+        new Phaser.Math.Vector2(23, 34),
+        new Phaser.Math.Vector2(29, 34),
+        new Phaser.Math.Vector2(28, 50),
+        new Phaser.Math.Vector2(24, 50),
+      ],
+      true
+    )
+    h.fillStyle(GOLD, 1)
+    h.fillRect(25, 38, 2, 2)
+    h.fillRect(25, 44, 2, 2)
+
+    // 眼睛：红梅色的点瞳，眼尾挑一点
+    h.fillStyle(outline, 1)
+    h.fillEllipse(18, 40, 7, 9)
+    h.fillEllipse(34, 40, 7, 9)
+    h.fillStyle(0xf2e6d0, 1)
+    h.fillEllipse(18, 40, 5, 7)
+    h.fillEllipse(34, 40, 5, 7)
+    h.fillStyle(RED, 1)
+    h.fillEllipse(18, 41, 3, 5)
+    h.fillEllipse(34, 41, 3, 5)
+    h.fillStyle(outline, 1)
+    h.fillEllipse(18, 41, 1.5, 3)
+    h.fillEllipse(34, 41, 1.5, 3)
+    // 眼尾那一抹红
+    h.fillStyle(RED_LIGHT, 1)
+    h.fillRect(21, 38, 2, 1)
+    h.fillRect(29, 38, 2, 1)
+    // 嘴：一个小弧，笑得有点坏
+    h.fillStyle(0x2a1620, 1)
+    h.fillRect(24, 47, 4, 1)
+    h.fillRect(25, 48, 2, 1)
+
+    // 宽檐帽：帽檐 + 帽筒 + 红带
+    h.fillStyle(outline, 1)
+    h.fillEllipse(26, 24, 50, 12)
+    h.fillStyle(HAT, 1)
+    h.fillEllipse(26, 23, 47, 10)
+    h.fillStyle(HAT_LIGHT, 1)
+    h.fillEllipse(26, 22, 40, 7)
+    h.fillStyle(outline, 1)
+    h.fillEllipse(26, 12, 30, 22)
+    h.fillStyle(HAT, 1)
+    h.fillEllipse(26, 12, 27, 20)
+    h.fillStyle(RED, 1)
+    h.fillRect(13, 16, 26, 4)
+    h.fillStyle(GOLD, 1)
+    h.fillRect(13, 16, 26, 1)
+
+    // 帽檐上的红梅（五瓣 + 金心）
+    const plum = (cx: number, cy: number, r: number) => {
+      h.fillStyle(0xe86a6a, 1)
+      for (let i = 0; i < 5; i++) {
+        const a = (Math.PI * 2 * i) / 5 - Math.PI / 2
+
+        h.fillCircle(cx + Math.cos(a) * r, cy + Math.sin(a) * r, r * 0.78)
+      }
+      h.fillStyle(GOLD, 1)
+      h.fillCircle(cx, cy, r * 0.6)
+    }
+
+    plum(36, 21, 3.4)
+    plum(15, 22, 2.4)
+
+    // 帽檐左侧挂下来的符纸（白纸条 + 朱砂）
+    h.fillStyle(outline, 1)
+    h.fillRect(8, 26, 8, 17)
+    h.fillStyle(0xf2ead4, 1)
+    h.fillRect(9, 27, 6, 15)
+    h.fillStyle(RED, 1)
+    h.fillRect(10, 29, 4, 1)
+    h.fillRect(11, 31, 2, 4)
+    h.fillRect(10, 36, 4, 1)
+    h.fillStyle(0x8a8070, 1)
+    h.fillRect(9, 41, 6, 1)
+
+    h.generateTexture('npc-hutao', 52, 62)
+    h.destroy()
+
+    // ── 钟离（52x70）：琥珀棕身子 + 深褐长袍（金边）+ 长发马尾 + 岩纹 ──
+    const z = this.add.graphics()
+    const ZHONGLI_BODY = 0x9a7550
+    const ZHONGLI_LIGHT = 0xb99468
+    const COAT = 0x4a3428
+    const COAT_LIGHT = 0x63472f
+    const GOLD_Z = 0xd9a441
+    const GOLD_LIGHT = 0xf0d07a
+    const HAIR_Z = 0x3b2a22
+    const HAIR_Z_TIP = 0xc08a3a
+
+    // 长发：脑后一束，垂到背后再挑起来，末梢泛金
+    z.fillStyle(outline, 1)
+    z.fillPoints(
+      [
+        new Phaser.Math.Vector2(34, 26),
+        new Phaser.Math.Vector2(45, 30),
+        new Phaser.Math.Vector2(48, 56),
+        new Phaser.Math.Vector2(42, 66),
+        new Phaser.Math.Vector2(37, 64),
+        new Phaser.Math.Vector2(40, 44),
+      ],
+      true
+    )
+    z.fillStyle(HAIR_Z, 1)
+    z.fillPoints(
+      [
+        new Phaser.Math.Vector2(35, 27),
+        new Phaser.Math.Vector2(43, 31),
+        new Phaser.Math.Vector2(46, 55),
+        new Phaser.Math.Vector2(41, 63),
+        new Phaser.Math.Vector2(38, 61),
+        new Phaser.Math.Vector2(41, 44),
+      ],
+      true
+    )
+    z.fillStyle(HAIR_Z_TIP, 1)
+    z.fillPoints(
+      [
+        new Phaser.Math.Vector2(43, 50),
+        new Phaser.Math.Vector2(46, 55),
+        new Phaser.Math.Vector2(41, 63),
+        new Phaser.Math.Vector2(38, 61),
+      ],
+      true
+    )
+
+    // 身子
+    z.fillStyle(outline, 1)
+    z.fillEllipse(26, 46, 46, 38)
+    z.fillStyle(ZHONGLI_BODY, 1)
+    z.fillEllipse(26, 46, 43, 35)
+    z.fillStyle(ZHONGLI_LIGHT, 1)
+    z.fillEllipse(21, 41, 24, 16)
+
+    // 长袍：下半身一整片深褐，中间开襟、两襟压金边
+    z.fillStyle(COAT, 1)
+    z.fillPoints(
+      [
+        new Phaser.Math.Vector2(5, 46),
+        new Phaser.Math.Vector2(47, 46),
+        new Phaser.Math.Vector2(42, 62),
+        new Phaser.Math.Vector2(10, 62),
+      ],
+      true
+    )
+    z.fillStyle(COAT_LIGHT, 1)
+    z.fillPoints(
+      [
+        new Phaser.Math.Vector2(21, 46),
+        new Phaser.Math.Vector2(31, 46),
+        new Phaser.Math.Vector2(29, 60),
+        new Phaser.Math.Vector2(23, 60),
+      ],
+      true
+    )
+    z.fillStyle(GOLD_Z, 1)
+    z.fillRect(21, 46, 1, 15)
+    z.fillRect(30, 46, 1, 15)
+    z.fillRect(10, 61, 32, 2)
+    // 肩上的披领
+    z.fillStyle(GOLD_Z, 1)
+    z.fillRect(8, 36, 36, 3)
+    z.fillStyle(GOLD_LIGHT, 1)
+    z.fillRect(8, 36, 36, 1)
+
+    // 胸口的岩纹：菱形金饰
+    z.fillStyle(GOLD_Z, 1)
+    z.fillPoints(
+      [
+        new Phaser.Math.Vector2(26, 41),
+        new Phaser.Math.Vector2(30, 45),
+        new Phaser.Math.Vector2(26, 49),
+        new Phaser.Math.Vector2(22, 45),
+      ],
+      true
+    )
+    z.fillStyle(0x6b4a2c, 1)
+    z.fillPoints(
+      [
+        new Phaser.Math.Vector2(26, 43),
+        new Phaser.Math.Vector2(28, 45),
+        new Phaser.Math.Vector2(26, 47),
+        new Phaser.Math.Vector2(24, 45),
+      ],
+      true
+    )
+
+    // 眼睛：琥珀色，眼尾一道红纹（帝君那抹红）
+    z.fillStyle(outline, 1)
+    z.fillEllipse(18, 40, 8, 8)
+    z.fillEllipse(34, 40, 8, 8)
+    z.fillStyle(0xf2e6d0, 1)
+    z.fillEllipse(18, 40, 6, 6)
+    z.fillEllipse(34, 40, 6, 6)
+    z.fillStyle(GOLD_Z, 1)
+    z.fillEllipse(18, 40, 4, 5)
+    z.fillEllipse(34, 40, 4, 5)
+    z.fillStyle(outline, 1)
+    z.fillEllipse(18, 40, 2, 4)
+    z.fillEllipse(34, 40, 2, 4)
+    z.fillStyle(0xc04a3a, 1)
+    z.fillRect(21, 37, 3, 1)
+    z.fillRect(29, 37, 3, 1)
+    // 眉：平直的一笔，显得沉稳
+    z.fillStyle(HAIR_Z, 1)
+    z.fillRect(14, 35, 8, 1)
+    z.fillRect(30, 35, 8, 1)
+
+    // 刘海：额前一片，右边垂一缕
+    z.fillStyle(outline, 1)
+    z.fillPoints(
+      [
+        new Phaser.Math.Vector2(8, 32),
+        new Phaser.Math.Vector2(14, 20),
+        new Phaser.Math.Vector2(30, 18),
+        new Phaser.Math.Vector2(40, 26),
+        new Phaser.Math.Vector2(36, 33),
+        new Phaser.Math.Vector2(30, 28),
+        new Phaser.Math.Vector2(22, 30),
+        new Phaser.Math.Vector2(16, 33),
+      ],
+      true
+    )
+    z.fillStyle(HAIR_Z, 1)
+    z.fillPoints(
+      [
+        new Phaser.Math.Vector2(9, 31),
+        new Phaser.Math.Vector2(15, 21),
+        new Phaser.Math.Vector2(30, 19),
+        new Phaser.Math.Vector2(39, 26),
+        new Phaser.Math.Vector2(35, 31),
+        new Phaser.Math.Vector2(29, 27),
+        new Phaser.Math.Vector2(21, 29),
+        new Phaser.Math.Vector2(15, 32),
+      ],
+      true
+    )
+    // 头顶那枚金冠饰
+    z.fillStyle(GOLD_Z, 1)
+    z.fillRect(24, 16, 4, 6)
+    z.fillRect(22, 18, 8, 2)
+    z.fillStyle(GOLD_LIGHT, 1)
+    z.fillRect(25, 17, 2, 2)
+
+    z.generateTexture('npc-zhongli', 52, 66)
+    z.destroy()
   }
 
   private makeSpikeLauncher() {
