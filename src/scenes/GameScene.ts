@@ -1112,8 +1112,12 @@ const DEV_SPAWN_X = (() => {
   return Number.isFinite(x) ? x : null
 })()
 
-// 秘境调试：?domain=1&trial=2 直接跳过第一重，落到第二重的岩脊擂台上
-const DOMAIN_START_TRIAL = new URLSearchParams(location.search).get('trial') === '2' ? 2 : 0
+// 秘境调试：?domain=1&trial=2 直接落到第二重擂台，?domain=1&trial=3 直接进第三重
+const DOMAIN_START_TRIAL = (() => {
+  const raw = new URLSearchParams(location.search).get('trial')
+
+  return raw === '2' ? 2 : raw === '3' ? 3 : 0
+})()
 
 const DEV_HUB: DevLevelDef = {
   ...devRoomShell(
@@ -1414,6 +1418,24 @@ export class GameScene extends Phaser.Scene {
     arrow: Phaser.GameObjects.Triangle | null
   }[] = []
   private trialTwoSideHintShown = false
+  // 第三重试炼：三口机关锅，记住苹果后看仙人换锅，三次里猜中两次
+  private trialThreeStarted = false
+  private trialThreeDone = false
+  private trialThreePassed = false
+  private trialThreePhase: 'idle' | 'show' | 'shuffle' | 'choose' | 'result' = 'idle'
+  private trialThreeRound = 0
+  private trialThreeCorrect = 0
+  private trialThreePots: {
+    id: number
+    sprite: Phaser.GameObjects.Image
+    slot: number
+  }[] = []
+  private trialThreeApplePot = 0
+  private trialThreeApple: Phaser.GameObjects.Image | null = null
+  private trialThreeHud: Phaser.GameObjects.Text | null = null
+  private trialThreeSwapsLeft = 0
+  private trialThreeDecor: Phaser.GameObjects.GameObject[] = []
+  private trialThreeCraneHome: { x: number; y: number } | null = null
   // 测试关卡现在待在哪一间：-1 = 大厅，0 起 = 大厅里那排传送门的下标。
   // 初值来自地址上的 ?room=N（见 DEV_START_ROOM），用来直接打开某一间
   private devRoom = DEV_START_ROOM
@@ -1700,6 +1722,18 @@ export class GameScene extends Phaser.Scene {
     this.trialTwoSideSpikes = []
     this.trialTwoSidePlan = []
     this.trialTwoSideHintShown = false
+    this.trialThreeStarted = false
+    this.trialThreeDone = false
+    this.trialThreePassed = false
+    this.trialThreePhase = 'idle'
+    this.trialThreeRound = 0
+    this.trialThreeCorrect = 0
+    this.trialThreePots = []
+    this.trialThreeApple = null
+    this.trialThreeHud = null
+    this.trialThreeSwapsLeft = 0
+    this.trialThreeDecor = []
+    this.trialThreeCraneHome = null
     this.devLevel = !this.domainMode && DEV_LEVEL_MODE
     // 测试关卡是「大厅 + 展厅」：devRoom < 0 在大厅，其余去对应那间展厅。
     // 换房间走 scene.restart()，所以 devRoom 是在上一帧就定好的
@@ -3498,7 +3532,7 @@ export class GameScene extends Phaser.Scene {
         this.devIntroSeen.push(this.devRoom)
         this.showIntro(this.level.intro)
       }
-    } else if (!(this.domainMode && DOMAIN_START_TRIAL === 2)) {
+    } else if (!(this.domainMode && DOMAIN_START_TRIAL > 0)) {
       this.showIntro(this.level.intro)
     }
 
@@ -3557,6 +3591,12 @@ export class GameScene extends Phaser.Scene {
     if (this.domainMode && DOMAIN_START_TRIAL === 2 && this.level.trialTwo) {
       this.trialOneDone = true
       this.time.delayedCall(120, () => this.startTrialTwo())
+    }
+
+    if (this.domainMode && DOMAIN_START_TRIAL === 3 && this.level.trialThree) {
+      this.trialOneDone = true
+      this.trialTwoDone = true
+      this.time.delayedCall(120, () => this.startTrialThree())
     }
   }
 
@@ -4203,11 +4243,27 @@ export class GameScene extends Phaser.Scene {
   private talkToCrane() {
     if (this.domainMode) {
       if (this.trialTwoDone) {
-        this.showDialogue('留云借风真君', [
-          '第二重也过了，脚底下总算有点仙家样子。',
-          '第三重，考的是心智。',
-          '容我把三口机关锅摆好，再来唤你。',
-        ])
+        if (this.trialThreeDone && this.trialThreePassed) {
+          this.showDialogue('留云借风真君', ['宝箱就在那边，拿去吧。'])
+          return
+        }
+
+        if (this.trialThreeStarted) {
+          this.showDialogue('留云借风真君', ['先选出苹果在哪口锅里。'])
+          return
+        }
+
+        this.trialThreeDone = false
+        this.showDialogue(
+          '留云借风真君',
+          [
+            '第二重也过了，脚底下总算有点仙家样子。',
+            '第三重，考的是心智。',
+            '三只机关锅，只有一只藏着苹果。看清它，再记牢我换锅的顺序。',
+            '三次里猜中两次，这一重就算你过。',
+          ],
+          () => this.startTrialThree()
+        )
         return
       }
 
@@ -4854,6 +4910,357 @@ export class GameScene extends Phaser.Scene {
       this.trialTwoHud = null
       this.cameras.main.flash(240, 255, 230, 150)
     })
+  }
+
+  // ── 第三重：三口机关锅，看苹果 → 换锅 → 选锅 ─────────────────────
+  private startTrialThree() {
+    const def = this.level.trialThree
+
+    if (!this.domainMode || !def || this.trialThreeStarted) {
+      return
+    }
+
+    this.trialThreeStarted = true
+    this.trialThreeDone = false
+    this.trialThreePassed = false
+    this.trialThreeRound = 0
+    this.trialThreeCorrect = 0
+    this.trialThreePhase = 'idle'
+    this.buildTrialThreeArea(def)
+
+    // 仙人亲自下场：临时站到锅左边看着，挑战结束再回原位
+    if (this.craneNpc) {
+      this.trialThreeCraneHome = { x: this.craneNpc.x, y: this.craneNpc.y }
+      this.craneNpc.setPosition(def.area.left - 40, def.area.groundY)
+    }
+
+    this.trialThreeHud = this.add
+      .text(240, 46, '', {
+        fontFamily: 'sans-serif',
+        fontSize: '9px',
+        color: '#ffd54f',
+      })
+      .setOrigin(0.5, 0)
+      .setScrollFactor(0)
+      .setDepth(HUD_DEPTH)
+
+    const body = this.slime.body as Phaser.Physics.Arcade.Body
+    body.reset(def.area.left + 30, def.area.groundY - body.height / 2)
+    this.slime.setVelocity(0, 0)
+    this.cameras.main.flash(220, 180, 220, 255)
+    this.showMessage('第三重试炼：记住苹果在哪口锅里')
+    this.time.delayedCall(700, () => this.startTrialThreeRound(1))
+  }
+
+  private buildTrialThreeArea(def: NonNullable<LevelDef['trialThree']>) {
+    const first = def.slots[0]
+    const last = def.slots[def.slots.length - 1]
+    const center = (first + last) / 2
+
+    const ring = this.add
+      .ellipse(center, def.area.groundY - 1, last - first + 120, 26, 0xffd54f, 0.05)
+      .setStrokeStyle(1, 0xffd54f, 0.3)
+      .setDepth(2.6)
+
+    this.trialThreeDecor.push(ring)
+
+    this.trialThreePots = def.slots.map((x, id) => {
+      const seat = this.add
+        .ellipse(x, def.area.groundY - 1, 52, 12, 0xffd54f, 0.06)
+        .setDepth(2.7)
+
+      this.trialThreeDecor.push(seat)
+
+      const sprite = this.add
+        .image(x, def.area.groundY, 'trial-pot')
+        .setOrigin(0.5, 1)
+        .setDepth(6)
+
+      return { id, sprite, slot: id }
+    })
+
+    this.trialThreeApple = this.add
+      .image(def.slots[0], def.area.groundY - 2, 'trial-apple')
+      .setOrigin(0.5, 1)
+      .setDepth(5.4)
+      .setVisible(false)
+  }
+
+  private startTrialThreeRound(round: number) {
+    const def = this.level.trialThree
+
+    if (!def || this.trialThreeDone) {
+      return
+    }
+
+    this.trialThreeRound = round
+    this.trialThreePhase = 'show'
+    this.trialThreeApplePot = Phaser.Math.Between(0, this.trialThreePots.length - 1)
+    this.trialThreeHud?.setText(
+      `第三重  ${round}/${def.rounds}  ·  猜中 ${this.trialThreeCorrect}`
+    )
+
+    // 锅先回到各自的槽位，再抬锅露苹果
+    this.trialThreePots.forEach((pot) => {
+      pot.slot = pot.id
+      this.tweens.killTweensOf(pot.sprite)
+      this.tweens.add({
+        targets: pot.sprite,
+        x: def.slots[pot.id],
+        y: def.area.groundY,
+        duration: 300,
+        ease: 'Sine.easeInOut',
+      })
+    })
+
+    this.trialThreeApple?.setVisible(false)
+
+    const applePot = this.trialThreePots[this.trialThreeApplePot]
+
+    this.time.delayedCall(360, () => {
+      if (this.trialThreeDone) {
+        return
+      }
+
+      this.trialThreeApple
+        ?.setPosition(applePot.sprite.x, def.area.groundY - 2)
+        .setVisible(true)
+        .setAlpha(1)
+
+      this.tweens.add({
+        targets: applePot.sprite,
+        y: def.area.groundY - 30,
+        duration: 260,
+        hold: def.showTime,
+        yoyo: true,
+        ease: 'Sine.easeInOut',
+        onComplete: () => {
+          this.trialThreeApple?.setVisible(false)
+          this.beginTrialThreeShuffle()
+        },
+      })
+    })
+  }
+
+  private beginTrialThreeShuffle() {
+    const def = this.level.trialThree
+
+    if (!def || this.trialThreeDone) {
+      return
+    }
+
+    this.trialThreePhase = 'shuffle'
+    this.trialThreeSwapsLeft =
+      def.swaps[Math.min(this.trialThreeRound - 1, def.swaps.length - 1)] ?? 4
+    this.showMessage('仙人开始换锅……')
+    this.time.delayedCall(250, () => this.runTrialThreeSwap())
+  }
+
+  private runTrialThreeSwap() {
+    const def = this.level.trialThree
+
+    if (!def || this.trialThreeDone) {
+      return
+    }
+
+    if (this.trialThreeSwapsLeft <= 0) {
+      this.trialThreePhase = 'choose'
+      this.showMessage('苹果在哪口锅里？走近按 F 选')
+      return
+    }
+
+    const a = this.trialThreePots[Phaser.Math.Between(0, this.trialThreePots.length - 1)]
+    let b = this.trialThreePots[Phaser.Math.Between(0, this.trialThreePots.length - 1)]
+
+    while (b === a) {
+      b = this.trialThreePots[Phaser.Math.Between(0, this.trialThreePots.length - 1)]
+    }
+
+    const ax = a.sprite.x
+    const bx = b.sprite.x
+    const aSlot = a.slot
+    a.slot = b.slot
+    b.slot = aSlot
+
+    // a 从 b 上面绕过去，b 贴着地面滑过去
+    this.tweens.add({
+      targets: a.sprite,
+      x: bx,
+      duration: def.swapTime,
+      ease: 'Sine.easeInOut',
+      onComplete: () => {
+        this.trialThreeSwapsLeft -= 1
+        this.time.delayedCall(50, () => this.runTrialThreeSwap())
+      },
+    })
+    this.tweens.add({
+      targets: a.sprite,
+      y: def.area.groundY - 26,
+      duration: Math.round(def.swapTime / 2),
+      yoyo: true,
+      ease: 'Sine.easeInOut',
+    })
+    this.tweens.add({
+      targets: b.sprite,
+      x: ax,
+      duration: def.swapTime,
+      ease: 'Sine.easeInOut',
+    })
+  }
+
+  private chooseTrialThreePot(pot: { id: number; sprite: Phaser.GameObjects.Image }) {
+    const def = this.level.trialThree
+
+    if (!def || this.trialThreeDone || this.trialThreePhase !== 'choose') {
+      return
+    }
+
+    this.trialThreePhase = 'result'
+    const correct = pot.id === this.trialThreeApplePot
+
+    if (correct) {
+      this.trialThreeCorrect += 1
+    }
+
+    this.trialThreeHud?.setText(
+      `第三重  ${this.trialThreeRound}/${def.rounds}  ·  猜中 ${this.trialThreeCorrect}`
+    )
+
+    this.tweens.add({
+      targets: pot.sprite,
+      y: def.area.groundY - 30,
+      duration: 220,
+      hold: 500,
+      yoyo: true,
+      ease: 'Sine.easeInOut',
+    })
+
+    if (correct) {
+      this.trialThreeApple
+        ?.setPosition(pot.sprite.x, def.area.groundY - 2)
+        .setVisible(true)
+      playSfx(this, 'sfx-gem', 0.5)
+      this.cameras.main.flash(140, 120, 220, 150)
+      this.showMessage('猜对了')
+    } else {
+      playSfx(this, 'sfx-land', 0.28)
+      this.cameras.main.flash(140, 220, 90, 90)
+      this.showMessage('猜错了')
+
+      const applePot = this.trialThreePots[this.trialThreeApplePot]
+
+      this.time.delayedCall(300, () => {
+        this.trialThreeApple
+          ?.setPosition(applePot.sprite.x, def.area.groundY - 2)
+          .setVisible(true)
+        this.tweens.add({
+          targets: applePot.sprite,
+          y: def.area.groundY - 30,
+          duration: 220,
+          hold: 420,
+          yoyo: true,
+          ease: 'Sine.easeInOut',
+        })
+      })
+    }
+
+    this.time.delayedCall(1500, () => {
+      this.trialThreeApple?.setVisible(false)
+
+      if (this.trialThreeRound >= def.rounds) {
+        this.finishTrialThree()
+      } else {
+        this.startTrialThreeRound(this.trialThreeRound + 1)
+      }
+    })
+  }
+
+  private finishTrialThree() {
+    const def = this.level.trialThree
+
+    if (!def || this.trialThreeDone) {
+      return
+    }
+
+    this.trialThreeDone = true
+    this.trialThreePassed = this.trialThreeCorrect >= 2
+    this.trialThreePhase = 'idle'
+    this.trialThreeHud?.destroy()
+    this.trialThreeHud = null
+
+    if (this.trialThreePassed) {
+      const lines =
+        this.trialThreeCorrect === def.rounds
+          ? ['三次全中，心明眼亮。', '这一重，算你过了。', '宝箱就在那边，拿去吧。']
+          : ['三中其二，不算完美，也够格了。', '宝箱就在那边，拿去吧。']
+
+      playSfx(this, 'sfx-gem', 0.6)
+      this.cameras.main.flash(220, 255, 230, 150)
+      this.showDialogue('留云借风真君', lines, () => {
+        this.restoreTrialThreeCrane()
+        this.revealGoal()
+      })
+      return
+    }
+
+    const firstLine =
+      this.trialThreeCorrect === 0 ? '三次都没猜中……' : '三中其一……'
+
+    this.showDialogue(
+      '留云借风真君',
+      [firstLine, '心浮气躁。这局不算，回去歇口气，再来找我。'],
+      () => {
+        this.clearTrialThree()
+        this.restoreTrialThreeCrane()
+        this.trialThreeStarted = false
+        const body = this.slime.body as Phaser.Physics.Arcade.Body
+        body.reset(740, 800 - body.height / 2)
+        this.slime.setVelocity(0, 0)
+        this.cameras.main.flash(200, 120, 80, 80)
+      }
+    )
+  }
+
+  private clearTrialThree() {
+    this.trialThreePots.forEach((pot) => {
+      this.tweens.killTweensOf(pot.sprite)
+      pot.sprite.destroy()
+    })
+    this.trialThreePots = []
+
+    if (this.trialThreeApple) {
+      this.tweens.killTweensOf(this.trialThreeApple)
+      this.trialThreeApple.destroy()
+      this.trialThreeApple = null
+    }
+
+    this.trialThreeDecor.forEach((item) => {
+      this.tweens.killTweensOf(item)
+      item.destroy()
+    })
+    this.trialThreeDecor = []
+
+    this.trialThreeHud?.destroy()
+    this.trialThreeHud = null
+    this.trialThreePhase = 'idle'
+  }
+
+  private restoreTrialThreeCrane() {
+    if (this.craneNpc && this.trialThreeCraneHome) {
+      this.craneNpc.setPosition(this.trialThreeCraneHome.x, this.trialThreeCraneHome.y)
+    }
+
+    this.trialThreeCraneHome = null
+  }
+
+  private updateTrialThree() {
+    const def = this.level.trialThree
+
+    if (!this.domainMode || !def || !this.trialThreeStarted || this.trialThreeDone) {
+      return
+    }
+
+    this.slime.x = Phaser.Math.Clamp(this.slime.x, def.area.left + 16, def.area.right - 16)
   }
 
   private refreshHud() {
@@ -12298,6 +12705,7 @@ export class GameScene extends Phaser.Scene {
       this.updateTrialStones()
       this.updateTrialOne(dt)
       this.updateTrialTwo(dt)
+      this.updateTrialThree()
       this.updateTrialReturn()
     }
     // 自动上台阶的那几帧人在空中，但动画和音效要按「还在走路」算，
@@ -12445,8 +12853,29 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    // 第三重：只在仙人喊停之后才能选锅
+    if (
+      !prompt &&
+      this.domainMode &&
+      this.trialThreeStarted &&
+      !this.trialThreeDone &&
+      this.trialThreePhase === 'choose'
+    ) {
+      for (const pot of this.trialThreePots) {
+        if (Math.abs(this.slime.x - pot.sprite.x) < 36) {
+          prompt = this.interactPrefix() + '选这口锅'
+          action = () => this.chooseTrialThreePot(pot)
+          break
+        }
+      }
+    }
+
     // 山顶的仙人：靠近后对话，进入仙家试炼
-    if (!prompt && this.craneNpc) {
+    if (
+      !prompt &&
+      this.craneNpc &&
+      !(this.trialThreeStarted && !this.trialThreeDone)
+    ) {
       const distance = Phaser.Math.Distance.Between(
         this.slime.x,
         this.slime.y,

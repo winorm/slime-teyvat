@@ -60,6 +60,16 @@ export const DOMAIN_LEVEL: LevelDef = {
       height: 42,
     },
   },
+  // 第三重试炼：三口仙家机关锅摆在第一重和第二重之间的空地上。
+  // 每轮先抬锅露出苹果，再按 4 / 5 / 6 次换位，最后由玩家走近按 F 选锅。
+  trialThree: {
+    area: { left: 1040, right: 1460, groundY: 800 },
+    slots: [1120, 1250, 1380],
+    rounds: 3,
+    swaps: [4, 5, 6],
+    showTime: 900,
+    swapTime: 380,
+  },
   // 云台：两排交错的 cloud-puff，顶面刚好托住隐形平台的 y=800
   decor: [
     { x: -40, y: 850, key: 'cloud-puff', scale: 1.45, depth: 0.74 },

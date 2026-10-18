@@ -296,6 +296,15 @@ export type LevelDef = {
       height: number
     }
   }
+  // 秘境第三重试炼：三口机关锅，记住苹果后看仙人换锅，三次里猜中两次过关
+  trialThree?: {
+    area: { left: number; right: number; groundY: number }
+    slots: number[]
+    rounds: number
+    swaps: number[]
+    showTime: number
+    swapTime: number
+  }
   platforms: PlatformDef[]
   // 纯碰撞边缘（不画）：山顶/转角平台的防掉落挡板。
   // 画面由 decor 里的山峰、树、大石块负责，这里只放一个看不见的实体。

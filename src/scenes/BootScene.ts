@@ -195,6 +195,8 @@ export class BootScene extends Phaser.Scene {
     this.makeTrialStone()
     this.makeTrialRockSpike()
     this.makeTrialSideSpike()
+    this.makeTrialPot()
+    this.makeTrialApple()
     this.makeAmberStand()
     this.makeCliffTrees()
     this.makeRockStrata()
@@ -5859,6 +5861,86 @@ export class BootScene extends Phaser.Scene {
     g.fillRect(6, 13, 2, 1)
 
     g.generateTexture('trial-side-spike', 36, 14)
+    g.destroy()
+  }
+
+  // 第三重试炼的仙家机关锅（40x34）：青铜锅身、金色箍、锅盖和两只提耳。
+  private makeTrialPot() {
+    const g = this.add.graphics()
+
+    // 接地影
+    g.fillStyle(0x2a2118, 0.35)
+    g.fillEllipse(20, 32, 30, 6)
+
+    // 两只提耳
+    g.fillStyle(0x8a6f3c, 1)
+    g.fillRect(1, 16, 6, 3)
+    g.fillRect(33, 16, 6, 3)
+    g.fillStyle(0xffd54f, 0.8)
+    g.fillRect(1, 16, 6, 1)
+    g.fillRect(33, 16, 6, 1)
+
+    // 锅身：下腹暗、上腹亮
+    g.fillStyle(0x4f4232, 1)
+    g.fillEllipse(20, 24, 32, 16)
+    g.fillStyle(0x7a6547, 1)
+    g.fillEllipse(20, 20, 32, 20)
+    g.fillStyle(0x9a8460, 1)
+    g.fillEllipse(18, 18, 24, 14)
+    g.fillStyle(0xb59a6d, 0.55)
+    g.fillEllipse(15, 15, 12, 8)
+
+    // 金色箍和铆钉
+    g.fillStyle(0xd9a441, 1)
+    g.fillRect(4, 21, 32, 2)
+    g.fillStyle(0xffd54f, 0.9)
+    g.fillRect(4, 21, 32, 1)
+    ;[7, 13, 27, 33].forEach((x) => {
+      g.fillStyle(0xffe9a8, 1)
+      g.fillRect(x, 22, 1, 1)
+    })
+
+    // 锅盖
+    g.fillStyle(0x5a4a35, 1)
+    g.fillEllipse(20, 11, 34, 8)
+    g.fillStyle(0x8a7350, 1)
+    g.fillEllipse(20, 9, 32, 6)
+    g.fillStyle(0xd9a441, 1)
+    g.fillRect(4, 9, 32, 1)
+    g.fillStyle(0x9a7a45, 1)
+    g.fillEllipse(20, 5, 16, 6)
+    g.fillStyle(0xffd54f, 1)
+    g.fillCircle(20, 3, 2)
+
+    // 盖沿的一点高光
+    g.fillStyle(0xfff1c4, 0.7)
+    g.fillRect(9, 8, 12, 1)
+
+    g.generateTexture('trial-pot', 40, 34)
+    g.destroy()
+  }
+
+  // 藏在锅下的苹果（14x14）：红果、深红底、绿叶和短梗。
+  private makeTrialApple() {
+    const g = this.add.graphics()
+
+    g.fillStyle(0x8e1f1f, 1)
+    g.fillCircle(7, 9, 5)
+    g.fillStyle(0xd63c3c, 1)
+    g.fillCircle(7, 8, 4.5)
+    g.fillStyle(0xf06a5a, 0.9)
+    g.fillCircle(5, 6, 2)
+    g.fillStyle(0xffb0a0, 0.8)
+    g.fillCircle(4.5, 5.5, 1)
+
+    g.fillStyle(0x6b4a2c, 1)
+    g.fillRect(7, 1, 1, 3)
+    g.fillStyle(0x4f8a3a, 1)
+    g.fillEllipse(10, 3, 5, 3)
+    g.fillStyle(0x7fb04a, 1)
+    g.fillEllipse(10, 2.6, 3, 1.6)
+
+    g.generateTexture('trial-apple', 14, 14)
     g.destroy()
   }
 
