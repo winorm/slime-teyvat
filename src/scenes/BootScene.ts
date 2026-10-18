@@ -4645,7 +4645,7 @@ export class BootScene extends Phaser.Scene {
 
     // 地面那一道金线
     far.fillStyle(0x8a6a2f, 0.5)
-    far.fillRect(0, 262, 480, 3)
+    far.fillRect(0, 228, 480, 3)
 
     far.generateTexture('bg-golden-house-far', 480, 270)
     far.destroy()
@@ -4655,15 +4655,15 @@ export class BootScene extends Phaser.Scene {
     // 包金立柱：柱身三段受光 + 柱头 / 柱础 + 红幡
     const pillar = (x: number) => {
       mid.fillStyle(0x2a1a10, 1)
-      mid.fillRect(x - 19, 26, 38, 244)
+      mid.fillRect(x - 19, 26, 38, 206)
       mid.fillStyle(0x6b4a20, 1)
-      mid.fillRect(x - 16, 30, 32, 240)
+      mid.fillRect(x - 16, 30, 32, 196)
       mid.fillStyle(0xb08a3a, 1)
-      mid.fillRect(x - 16, 30, 11, 240)
+      mid.fillRect(x - 16, 30, 11, 196)
       mid.fillStyle(0x8a6a2f, 1)
-      mid.fillRect(x - 5, 30, 6, 240)
+      mid.fillRect(x - 5, 30, 6, 196)
       mid.fillStyle(0x4a3418, 1)
-      mid.fillRect(x + 7, 30, 9, 240)
+      mid.fillRect(x + 7, 30, 9, 196)
 
       // 柱头
       mid.fillStyle(0x8a6a2f, 1)
@@ -4675,9 +4675,9 @@ export class BootScene extends Phaser.Scene {
 
       // 柱础
       mid.fillStyle(0x6b4a20, 1)
-      mid.fillRect(x - 26, 254, 52, 16)
+      mid.fillRect(x - 26, 224, 52, 8)
       mid.fillStyle(0x8a6a2f, 1)
-      mid.fillRect(x - 26, 254, 52, 3)
+      mid.fillRect(x - 26, 224, 52, 2)
 
       // 红幡（金边、下端燕尾）
       mid.fillStyle(0x7a2e22, 1)
@@ -4700,44 +4700,95 @@ export class BootScene extends Phaser.Scene {
 
     ;[60, 240, 420].forEach(pillar)
 
-    // 柱间的摩拉堆：一堆堆金币，顶上压着几枚立起来的
+    // 柱间的摩拉堆：**锥形** —— 底宽顶尖，一层层金币带，顶上再立几枚。
+    // 底边压在 y=232：这是镜头贴着地面时，屏幕上的地面线（世界 1160 → 屏幕 230），
+    // 画到 232 以下就被地板盖住了，之前那版就是埋到地板底下才看不见
     const pile = (x: number, w: number, h: number) => {
-      mid.fillStyle(0x8a6a2f, 1)
-      mid.fillEllipse(x, 268, w, h)
+      const baseY = 232
+      const topY = baseY - h
+      const half = w / 2
+
+      // 深色轮廓（锥形）
+      mid.fillStyle(0x5a3f18, 1)
+      mid.fillPoints(
+        [
+          P(x - half, baseY),
+          P(x + half, baseY),
+          P(x + w * 0.13, topY),
+          P(x - w * 0.13, topY),
+        ],
+        true
+      )
+      // 金币主体
       mid.fillStyle(0xd9a441, 1)
-      mid.fillEllipse(x, 266 - h * 0.1, w * 0.88, h * 0.7)
+      mid.fillPoints(
+        [
+          P(x - half + 3, baseY - 2),
+          P(x + half - 3, baseY - 2),
+          P(x + w * 0.1, topY + 4),
+          P(x - w * 0.1, topY + 4),
+        ],
+        true
+      )
+      // 左侧受光
       mid.fillStyle(0xf0d07a, 1)
-      mid.fillEllipse(x - w * 0.18, 264 - h * 0.15, w * 0.4, h * 0.34)
-      mid.fillStyle(0xb08a3a, 1)
-      mid.fillEllipse(x + w * 0.24, 264 - h * 0.05, w * 0.2, h * 0.16)
-      // 散出来的金币
+      mid.fillPoints(
+        [
+          P(x - half + 6, baseY - 5),
+          P(x - w * 0.06, baseY - 5),
+          P(x - w * 0.03, topY + 8),
+          P(x - w * 0.09, topY + 8),
+        ],
+        true
+      )
+
+      // 一层层的金币带
+      for (let i = 1; i <= 4; i++) {
+        const t = i / 5
+        const yy = topY + (baseY - topY) * t
+        const bandHalf = w * 0.13 + (half - w * 0.13) * t
+
+        mid.fillStyle(0xb08a3a, 0.85)
+        mid.fillRect(x - bandHalf, yy, bandHalf * 2, 2)
+        mid.fillStyle(0xf7e3a6, 0.6)
+        mid.fillRect(x - bandHalf, yy, bandHalf * 2, 1)
+      }
+
+      // 顶上立着的几枚金币
+      for (let i = -1; i <= 1; i++) {
+        mid.fillStyle(0xc9a441, 1)
+        mid.fillEllipse(x + i * 6, topY - 3, 5, 7)
+        mid.fillStyle(0xf7e3a6, 1)
+        mid.fillEllipse(x + i * 6 - 1, topY - 4, 2, 3)
+      }
+
+      // 脚边散落的金币
       for (let i = 0; i < 6; i++) {
-        const cx = x + (i - 2.5) * (w * 0.24)
-        const cy = 268 - (i % 2) * 2
+        const cx = x + (i - 2.5) * (w * 0.22)
 
         mid.fillStyle(0xc9a441, 1)
-        mid.fillEllipse(cx, cy, 7, 4)
+        mid.fillEllipse(cx, baseY - 1, 7, 4)
         mid.fillStyle(0xf0d07a, 1)
-        mid.fillEllipse(cx, cy - 1, 4, 2)
+        mid.fillEllipse(cx, baseY - 2, 4, 2)
       }
     }
 
-    // 三座大摩拉堆（比柱子还低一点，压在柱脚之间）
-    pile(148, 96, 44)
-    pile(330, 116, 52)
-    pile(464, 78, 34)
+    // 三座大摩拉堆，压在柱脚之间、贴着地面线
+    pile(148, 100, 54)
+    pile(330, 124, 70)
+    pile(464, 82, 42)
 
-    // 宝箱：摩拉堆边上露出半只箱子
+    // 宝箱：摩拉堆边上露半只箱子（底边也压在地面线上）
     ;[96, 396].forEach((x) => {
       mid.fillStyle(0x4a3418, 1)
-      mid.fillRect(x - 18, 246, 36, 22)
+      mid.fillRect(x - 18, 210, 36, 22)
       mid.fillStyle(0x6b4a20, 1)
-      mid.fillRect(x - 16, 248, 32, 18)
+      mid.fillRect(x - 16, 212, 32, 18)
       mid.fillStyle(0xd9a441, 1)
-      mid.fillRect(x - 16, 254, 32, 3)
-      mid.fillRect(x - 3, 248, 6, 18)
+      mid.fillRect(x - 16, 218, 32, 3)
+      mid.fillRect(x - 3, 212, 6, 18)
       mid.fillStyle(0xf0d07a, 1)
-      mid.fillRect(x - 2, 256, 4, 4)
+      mid.fillRect(x - 2, 220, 4, 4)
     })
 
     // 柱间挂的红灯笼
