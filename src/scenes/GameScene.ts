@@ -1422,7 +1422,7 @@ export class GameScene extends Phaser.Scene {
   private trialThreeStarted = false
   private trialThreeDone = false
   private trialThreePassed = false
-  private trialThreePhase: 'idle' | 'show' | 'shuffle' | 'choose' | 'result' = 'idle'
+  private trialThreePhase: 'idle' | 'ready' | 'show' | 'shuffle' | 'choose' | 'result' = 'idle'
   private trialThreeRound = 0
   private trialThreeCorrect = 0
   private trialThreePots: {
@@ -1437,6 +1437,7 @@ export class GameScene extends Phaser.Scene {
   private trialThreeSwapsLeft = 0
   private trialThreeDecor: Phaser.GameObjects.GameObject[] = []
   private trialThreeCraneHome: { x: number; y: number } | null = null
+  private trialThreeStartMarker: Phaser.GameObjects.Image | null = null
   // 测试关卡现在待在哪一间：-1 = 大厅，0 起 = 大厅里那排传送门的下标。
   // 初值来自地址上的 ?room=N（见 DEV_START_ROOM），用来直接打开某一间
   private devRoom = DEV_START_ROOM
@@ -1735,6 +1736,7 @@ export class GameScene extends Phaser.Scene {
     this.trialThreeSwapsLeft = 0
     this.trialThreeDecor = []
     this.trialThreeCraneHome = null
+    this.trialThreeStartMarker = null
     this.devLevel = !this.domainMode && DEV_LEVEL_MODE
     // 测试关卡是「大厅 + 展厅」：devRoom < 0 在大厅，其余去对应那间展厅。
     // 换房间走 scene.restart()，所以 devRoom 是在上一帧就定好的
@@ -4926,7 +4928,7 @@ export class GameScene extends Phaser.Scene {
     this.trialThreePassed = false
     this.trialThreeRound = 0
     this.trialThreeCorrect = 0
-    this.trialThreePhase = 'idle'
+    this.trialThreePhase = 'ready'
     this.buildTrialThreeArea(def)
 
     // 仙人亲自下场：临时站到锅左边看着，挑战结束再回原位
@@ -4936,7 +4938,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.trialThreeHud = this.add
-      .text(240, 46, '', {
+      .text(240, 46, '第三重 · 走到中间开始', {
         fontFamily: 'sans-serif',
         fontSize: '9px',
         color: '#ffd54f',
@@ -4949,8 +4951,40 @@ export class GameScene extends Phaser.Scene {
     body.reset(def.area.left + 30, def.area.groundY - body.height / 2)
     this.slime.setVelocity(0, 0)
     this.cameras.main.flash(220, 180, 220, 255)
-    this.showMessage('第三重试炼：记住苹果在哪口锅里')
-    this.time.delayedCall(700, () => this.startTrialThreeRound(1))
+    this.showMessage('走到锅阵中间，按 F 开始挑战')
+  }
+
+  private beginTrialThreeChallenge() {
+    const def = this.level.trialThree
+
+    if (!def || !this.domainMode || !this.trialThreeStarted || this.trialThreeDone) {
+      return
+    }
+
+    if (this.trialThreePhase !== 'ready') {
+      return
+    }
+
+    this.trialThreePhase = 'idle'
+
+    const marker = this.trialThreeStartMarker
+    this.trialThreeStartMarker = null
+
+    if (marker) {
+      this.tweens.killTweensOf(marker)
+      this.tweens.add({
+        targets: marker,
+        alpha: 0,
+        scaleX: 1.5,
+        scaleY: 1.5,
+        duration: 220,
+        onComplete: () => marker.destroy(),
+      })
+    }
+
+    playSfx(this, 'sfx-interact', 0.5)
+    this.showMessage('第三重，开始')
+    this.startTrialThreeRound(1)
   }
 
   private buildTrialThreeArea(def: NonNullable<LevelDef['trialThree']>) {
@@ -4987,6 +5021,23 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(0.5, 1)
       .setDepth(5.4)
       .setVisible(false)
+
+    // 中间的仙家符箓：玩家走到它下面按 F，第三重才开始
+    this.trialThreeStartMarker = this.add
+      .image(center, def.area.groundY - 44, 'trial-talisman')
+      .setTint(0xffd54f)
+      .setOrigin(0.5, 1)
+      .setDepth(6.5)
+      .setScale(0.95)
+
+    this.tweens.add({
+      targets: this.trialThreeStartMarker,
+      y: def.area.groundY - 50,
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
   }
 
   private startTrialThreeRound(round: number) {
@@ -5274,6 +5325,12 @@ export class GameScene extends Phaser.Scene {
       this.tweens.killTweensOf(this.trialThreeApple)
       this.trialThreeApple.destroy()
       this.trialThreeApple = null
+    }
+
+    if (this.trialThreeStartMarker) {
+      this.tweens.killTweensOf(this.trialThreeStartMarker)
+      this.trialThreeStartMarker.destroy()
+      this.trialThreeStartMarker = null
     }
 
     this.trialThreeDecor.forEach((item) => {
@@ -12899,6 +12956,23 @@ export class GameScene extends Phaser.Scene {
           this.statueUsed = true
           this.playStatueScene(statue.grants)
         }
+      }
+    }
+
+    // 第三重：先走到中间的符箓下按 F 开始
+    if (
+      !prompt &&
+      this.domainMode &&
+      this.trialThreeStarted &&
+      !this.trialThreeDone &&
+      this.trialThreePhase === 'ready'
+    ) {
+      const def = this.level.trialThree
+      const center = def ? (def.slots[0] + def.slots[def.slots.length - 1]) / 2 : 0
+
+      if (def && Math.abs(this.slime.x - center) < 44) {
+        prompt = this.interactPrefix() + '开始挑战'
+        action = () => this.beginTrialThreeChallenge()
       }
     }
 
