@@ -11844,7 +11844,8 @@ export class GameScene extends Phaser.Scene {
       onComplete: () => flash.destroy(),
     })
 
-    this.showMessage('被发现了！往回一看全是千岩军，快跑！')
+    // 第十关只留一句"被发现了！"，后面的解释交给玩家自己看画面
+    this.showMessage(this.level.rite ? '被发现了！' : '被发现了！往回一看全是千岩军，快跑！')
 
     this.time.delayedCall(1500, () => {
       camera.zoomTo(1, 400, 'Sine.easeInOut')
