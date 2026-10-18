@@ -8514,7 +8514,9 @@ export class GameScene extends Phaser.Scene {
     ;(this.level.ambers ?? []).forEach((def) => {
       // 坐台先摆（砸碎了也留着），琥珀坐在它上面
       if (def.stand !== false) {
-        this.add.image(def.x, def.y, 'amber-stand').setOrigin(0.5, 1).setDepth(4)
+        const standKey = typeof def.stand === 'string' ? def.stand : 'amber-stand'
+
+        this.add.image(def.x, def.y, standKey).setOrigin(0.5, 1).setDepth(4)
       }
 
       const sprite = this.add
@@ -11895,7 +11897,12 @@ export class GameScene extends Phaser.Scene {
       if (this.chaserList.length > 0) {
         this.chaserList.forEach((chaser) => chaser.sprite.destroy())
         this.chaserList = []
-        this.showMessage('甩掉他们了')
+        // 玉京台这一关不是"甩掉"——是凝光在台上把人喝退了
+        this.showMessage(
+          this.level.rite
+            ? '凝光：帝君之事，七星自有公论 —— 都退下。'
+            : '甩掉他们了'
+        )
       }
 
       return
@@ -13984,8 +13991,11 @@ export class GameScene extends Phaser.Scene {
     // 追击小队：走过触发线就演出一段、然后原地生成千岩军。
     // chaseOnLand（第八关）：光走过线不算，还得脚落到地面 —— 出了玉京台跳下来那一下
     if (this.squadDef) {
+      // 第十关：交完供品出门才会被认出来（没交接之前在街上走多少趟都没人追）
+      const gateOpen = !this.level.rite || this.sendOffUnlocked
       const ready =
         !this.chased &&
+        gateOpen &&
         this.slime.x > this.squadDef.at &&
         (!this.level.chaseOnLand || body.blocked.down)
 

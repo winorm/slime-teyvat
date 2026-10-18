@@ -441,7 +441,7 @@ export type AmberDef = {
   x: number
   y: number                                  // 底面那条线（贴地摆）
   key?: string                               // 贴图，不写＝amber（第十关的矿壳用 ore-shell）
-  stand?: boolean                            // 底下垫不垫那堆土（不写＝垫）
+  stand?: boolean | string                   // 底下垫什么：不写＝amber-stand，false＝不垫，字符串＝指定贴图
   loot?: 'gem' | 'boar' | 'npc' | 'material' // 里面冻着什么（不写＝gem）
   text?: string                              // npc 那一句
   gemIndex?: number                          // loot 是 gem 时用它当"第几颗原石"（0 起）
@@ -1568,7 +1568,7 @@ export const LEVELS: LevelDef[] = [
         x: 880,
         y: 1160,
         key: 'ore-shell',
-        stand: false,
+        stand: 'ore-stand',
         loot: 'material',
         item: { key: 'item-noctilocus', label: '夜泊石' },
       },
@@ -1600,6 +1600,15 @@ export const LEVELS: LevelDef[] = [
 
     // 送仙典仪的祭坛（玉京台台面中心）。x 是玩家走的走线，祭坛/人群/凝光都排在这条线往后
     rite: { x: 6100, y: 880 },
+
+    // 交完供品往玉京台走时被千岩军盯上：两个追兵从往生堂后面追上来，
+    // 玩家跑上玉京台台面（5600）就收队 —— 石阶上有追兵挡着，他们不敢跟上来
+    chaseAt: 2400,
+    squadCount: 2,
+    squadSpeed: 80,
+    squadSpawnGap: 260,
+    squadStop: 5600,
+    chaseCause: 'guard',
 
     hints: [
       { x: 100, y: 1085, text: '向右走，去往生堂找客卿' },

@@ -194,6 +194,7 @@ export class BootScene extends Phaser.Scene {
     this.makeCloudRetainerCrane()
     this.makeAmber()
     this.makeOreShell()
+    this.makeOreStand()
     this.makeAmberBoar()
     this.makeAmberNpc()
     this.makeSpeedCharm()
@@ -6338,6 +6339,37 @@ export class BootScene extends Phaser.Scene {
     g.fillEllipse(22, 37, 40, 4)
 
     g.generateTexture('ore-shell', 44, 38)
+    g.destroy()
+  }
+
+  // ── 矿壳的底座（64x10）：一块压在地面上的扁石台 ────────────────────
+  //   矿壳底边在 def.y − 4，底座顶面在 def.y − 10，石头正好"坐"进去一截，
+  //   不会像浮在台面上。边上撒两颗碎石、台面一道高光
+  private makeOreStand() {
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    // 台体：上大下小、左右各切一个斜角
+    g.fillStyle(0x2e2e36, 1)
+    g.fillPoints([P(2, 9), P(4, 2), P(60, 2), P(62, 9)], true)
+    g.fillStyle(0x5c5c66, 1)
+    g.fillPoints([P(3, 8), P(5, 3), P(59, 3), P(61, 8)], true)
+    // 台面高光
+    g.fillStyle(0x7a7a86, 1)
+    g.fillRect(6, 2, 52, 2)
+    g.fillStyle(0x8e8e9a, 1)
+    g.fillRect(10, 2, 30, 1)
+    // 底边阴影
+    g.fillStyle(0x1a1a22, 0.4)
+    g.fillRect(3, 9, 58, 1)
+    // 两侧碎石
+    g.fillStyle(0x4a4a54, 1)
+    g.fillCircle(2, 7, 2)
+    g.fillCircle(62, 8, 1.6)
+    g.fillStyle(0x6b6b73, 1)
+    g.fillCircle(2, 6, 1.2)
+
+    g.generateTexture('ore-stand', 64, 10)
     g.destroy()
   }
 
