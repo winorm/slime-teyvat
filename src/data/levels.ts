@@ -393,6 +393,9 @@ export type LevelDef = {
   bg?: BgTheme
   // 背景整幅钉在屏幕上，不随镜头的上下移动（平地街景用，飞起来时背景楼房不会跟着飞）
   bgFixedY?: boolean
+  // 高关卡默认用"整幅背景图"（不横向滚动）。写 true 就强制走平铺 + 横向视差，
+  // 适合室内大厅这种"走过去像绕了一圈"的场景
+  bgTiled?: boolean
   windmill?: { x: number; y: number }
   inn?: { x: number; y: number }          // 望舒客栈：画在背景里的地标，不参与碰撞
   decor?: DecorDef[]                      // 背景静物：破屋、矿山剪影
@@ -1673,7 +1676,8 @@ export const LEVELS: LevelDef[] = [
     unlocks: ['wind'],
     spawn: { x: 100, y: 1147 },
     bg: 'golden-house',
-    bgFixedY: true,
+    // 背景要跟着镜头横向走，看着像绕着金库走了一圈
+    bgTiled: true,
     // 黄金屋这一关还没收尾（公子打完是过场接群玉阁），宝箱先关着
     goal: { x: 2480, y: 1146, kind: 'chest', prompt: '打开' },
     goalDisabled: true,
@@ -1691,8 +1695,9 @@ export const LEVELS: LevelDef[] = [
     monuments: [],
 
     decor: [
-      // 金库尽头的仙体：金龙像（先用正面那条龙的贴图立在金台上）
-      { x: 2200, y: 1160, key: 'dragon-ascend-front', scale: 1, depth: -5 },
+      // 金库尽头的仙体：侧卧的金龙（闭着眼），底下垫三级金台
+      { x: 2200, y: 1160, key: 'gold-pedestal', depth: -5 },
+      { x: 2200, y: 1132, key: 'dragon-wreck', scale: 1.05, depth: -4.9 },
     ],
 
     hints: [

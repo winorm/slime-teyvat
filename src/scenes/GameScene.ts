@@ -2053,7 +2053,7 @@ export class GameScene extends Phaser.Scene {
     // 只有"很高的**户外**关卡"才用整幅图那套（第七关爬树，2200 高）。
     // 塔内（tower）是室内：墙面必须跟世界 1:1 地往上走 —— 第五关高 1600，也过了 800 这条线，
     // 但它得照旧走下面的"平铺 + 分层视差"，所以这里要把 worldLocked 排除掉
-    const tallOutdoor = this.level.height > 800 && !worldLocked
+    const tallOutdoor = this.level.height > 800 && !worldLocked && !this.level.bgTiled
 
     this.bgFarY = worldLocked ? 1 : tallOutdoor ? 0.06 : 0
     this.bgMidY = worldLocked ? 1 : tallOutdoor ? 0.14 : 0
@@ -2298,6 +2298,25 @@ export class GameScene extends Phaser.Scene {
 
     this.buildMistBands()
     this.buildSummitLake()
+
+    // 黄金屋：金砖大理石地板（平台本身只带一层平色，这里再铺一层带砖缝和菱纹的贴图），
+    // 沿口压一道亮金线。深度 0.12，在人（9）和背景（-5）之间
+    if (this.level.bg === 'golden-house') {
+      const floorTop = this.level.platforms.reduce(
+        (highest, item) => Math.max(highest, item.y - item.height / 2),
+        Number.NEGATIVE_INFINITY
+      )
+
+      this.add
+        .tileSprite(0, floorTop, this.level.width, 40, 'golden-floor')
+        .setOrigin(0, 0)
+        .setDepth(0.12)
+
+      this.add
+        .rectangle(0, floorTop - 2, this.level.width, 2, 0xffe9a8, 0.55)
+        .setOrigin(0, 0)
+        .setDepth(0.13)
+    }
 
     // 山顶的仙人：白鹤形态的留云借风真君，靠近后进入仙家试炼
     if (this.level.crane) {

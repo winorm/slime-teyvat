@@ -184,6 +184,8 @@ export class BootScene extends Phaser.Scene {
     this.makeLandBuildings()
     this.makeWangShengTang()
     this.makeGoldenHouseBg()
+    this.makeGoldenFloor()
+    this.makeGoldPedestal()
     this.makeEaveBridge()
     this.makeWallLedge()
     this.makeCanalGap()
@@ -4708,11 +4710,35 @@ export class BootScene extends Phaser.Scene {
       mid.fillEllipse(x - w * 0.18, 264 - h * 0.15, w * 0.4, h * 0.34)
       mid.fillStyle(0xb08a3a, 1)
       mid.fillEllipse(x + w * 0.24, 264 - h * 0.05, w * 0.2, h * 0.16)
+      // 散出来的金币
+      for (let i = 0; i < 6; i++) {
+        const cx = x + (i - 2.5) * (w * 0.24)
+        const cy = 268 - (i % 2) * 2
+
+        mid.fillStyle(0xc9a441, 1)
+        mid.fillEllipse(cx, cy, 7, 4)
+        mid.fillStyle(0xf0d07a, 1)
+        mid.fillEllipse(cx, cy - 1, 4, 2)
+      }
     }
 
-    pile(150, 70, 26)
-    pile(330, 84, 30)
-    pile(468, 56, 22)
+    // 三座大摩拉堆（比柱子还低一点，压在柱脚之间）
+    pile(148, 96, 44)
+    pile(330, 116, 52)
+    pile(464, 78, 34)
+
+    // 宝箱：摩拉堆边上露出半只箱子
+    ;[96, 396].forEach((x) => {
+      mid.fillStyle(0x4a3418, 1)
+      mid.fillRect(x - 18, 246, 36, 22)
+      mid.fillStyle(0x6b4a20, 1)
+      mid.fillRect(x - 16, 248, 32, 18)
+      mid.fillStyle(0xd9a441, 1)
+      mid.fillRect(x - 16, 254, 32, 3)
+      mid.fillRect(x - 3, 248, 6, 18)
+      mid.fillStyle(0xf0d07a, 1)
+      mid.fillRect(x - 2, 256, 4, 4)
+    })
 
     // 柱间挂的红灯笼
     ;[150, 330].forEach((x) => {
@@ -4730,6 +4756,75 @@ export class BootScene extends Phaser.Scene {
 
     mid.generateTexture('bg-golden-house-mid', 480, 270)
     mid.destroy()
+  }
+
+  // ── 黄金屋的大理石金砖地板（48x40，横向平铺）──────────────────────
+  //   顶面一道亮金线，砖缝深色，每块中间嵌一枚菱形金纹 —— 要有"国库"那种大气
+  private makeGoldenFloor() {
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    // 砖体：上亮下暗
+    g.fillStyle(0x6b4a1e, 1)
+    g.fillRect(0, 0, 48, 40)
+    g.fillStyle(0x8a6528, 1)
+    g.fillRect(0, 2, 48, 26)
+    g.fillStyle(0x5a3f18, 1)
+    g.fillRect(0, 28, 48, 12)
+
+    // 砖缝
+    g.fillStyle(0x3a2a12, 1)
+    g.fillRect(0, 0, 1, 40)
+    g.fillRect(47, 0, 1, 40)
+    g.fillRect(0, 39, 48, 1)
+
+    // 顶面亮线
+    g.fillStyle(0xe6c06a, 1)
+    g.fillRect(0, 0, 48, 2)
+    g.fillStyle(0xfff0bd, 0.5)
+    g.fillRect(0, 0, 48, 1)
+
+    // 菱形金纹
+    g.fillStyle(0xc9a441, 0.85)
+    g.fillPoints([P(24, 14), P(32, 20), P(24, 26), P(16, 20)], true)
+    g.fillStyle(0x6b4a1e, 1)
+    g.fillPoints([P(24, 17), P(29, 20), P(24, 23), P(19, 20)], true)
+    g.fillStyle(0xf0d07a, 0.9)
+    g.fillPoints([P(24, 18), P(27, 20), P(24, 22), P(21, 20)], true)
+
+    // 砖面的反光斜纹
+    g.fillStyle(0xffffff, 0.06)
+    g.fillPoints([P(4, 2), P(18, 2), P(6, 30), P(2, 30)], true)
+
+    g.generateTexture('golden-floor', 48, 40)
+    g.destroy()
+  }
+
+  // ── 仙体的金台（220x34）：三级金台阶，带围栏一样的边沿 ─────────────
+  private makeGoldPedestal() {
+    const g = this.add.graphics()
+
+    g.fillStyle(0x4a3418, 1)
+    g.fillRect(6, 26, 208, 8)
+    g.fillStyle(0x8a6a2f, 1)
+    g.fillRect(6, 26, 208, 3)
+
+    g.fillStyle(0x2a1a10, 1)
+    g.fillRect(26, 16, 168, 12)
+    g.fillStyle(0x6b4a20, 1)
+    g.fillRect(28, 17, 164, 9)
+    g.fillStyle(0xb08a3a, 1)
+    g.fillRect(28, 17, 164, 2)
+
+    g.fillStyle(0x3a2a12, 1)
+    g.fillRect(48, 8, 124, 10)
+    g.fillStyle(0x8a6528, 1)
+    g.fillRect(50, 9, 120, 7)
+    g.fillStyle(0xd9a441, 1)
+    g.fillRect(50, 9, 120, 2)
+
+    g.generateTexture('gold-pedestal', 220, 34)
+    g.destroy()
   }
 
   // ── 两座屋檐之间搭的木板桥（150x16）──────────────────────────────
