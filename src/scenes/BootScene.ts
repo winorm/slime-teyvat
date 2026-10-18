@@ -317,6 +317,7 @@ export class BootScene extends Phaser.Scene {
     this.makeXiaoSlime()
     this.makeInnkeeper()
     this.makeIngredientItems()
+    this.makeRitualMaterials()
     this.makeOsmanthusTree()
     this.makePetal()
   }
@@ -1400,6 +1401,88 @@ export class BootScene extends Phaser.Scene {
     dish.fillRect(11, 6, 1, 1)
     dish.generateTexture('item-almond-tofu', 18, 14)
     dish.destroy()
+  }
+
+  // 第十关送仙典仪的三样供品（24x22）：夜泊石、霓裳花、永生香
+  private makeRitualMaterials() {
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    // 夜泊石：深蓝晶簇，中间一根最高，两边各一根斜晶
+    const noctilocus = this.add.graphics()
+    noctilocus.fillStyle(0x2a2118, 0.3)
+    noctilocus.fillEllipse(12, 21, 20, 5)
+    noctilocus.fillStyle(0x10203a, 1)
+    noctilocus.fillPoints([P(12, 1), P(18, 10), P(17, 20), P(7, 20), P(6, 10)], true)
+    noctilocus.fillStyle(0x2e5a8a, 1)
+    noctilocus.fillPoints([P(12, 3), P(16, 11), P(15, 19), P(8, 19), P(8, 11)], true)
+    noctilocus.fillStyle(0x6fa9d8, 1)
+    noctilocus.fillPoints([P(12, 4), P(14, 11), P(13, 18), P(10, 13)], true)
+    noctilocus.fillStyle(0x244a74, 1)
+    noctilocus.fillPoints([P(6, 8), P(10, 14), P(9, 20), P(3, 20), P(3, 13)], true)
+    noctilocus.fillStyle(0x3a6a9a, 1)
+    noctilocus.fillPoints([P(18, 10), P(21, 15), P(20, 20), P(15, 20), P(15, 13)], true)
+    noctilocus.fillStyle(0xa8d8f0, 0.8)
+    noctilocus.fillRect(11, 5, 2, 4)
+    noctilocus.generateTexture('item-noctilocus', 24, 22)
+    noctilocus.destroy()
+
+    // 霓裳花：一枝粉花，绿叶托底
+    const silk = this.add.graphics()
+    silk.fillStyle(0x2f5a35, 1)
+    silk.fillRect(11, 9, 2, 12)
+    silk.fillEllipse(6, 17, 10, 5)
+    silk.fillEllipse(18, 15, 10, 5)
+    silk.fillStyle(0x5f8a3a, 1)
+    silk.fillEllipse(6, 16.5, 8, 3.4)
+    silk.fillEllipse(18, 14.5, 8, 3.4)
+    silk.fillStyle(0x8a2f4a, 1)
+    for (const [x, y] of [[12, 4], [7, 7], [17, 7], [8, 11], [16, 11]]) {
+      silk.fillEllipse(x, y, 7, 6)
+    }
+    silk.fillStyle(0xd45a7a, 1)
+    for (const [x, y] of [[12, 5], [8, 7.5], [16, 7.5], [9, 10.5], [15, 10.5]]) {
+      silk.fillEllipse(x, y, 5, 4.2)
+    }
+    silk.fillStyle(0xf08aa0, 1)
+    silk.fillEllipse(10, 6, 2, 2)
+    silk.fillStyle(0xffd54f, 1)
+    silk.fillCircle(12, 8, 2.2)
+    silk.fillStyle(0xffe9a8, 1)
+    silk.fillCircle(11.4, 7.4, 0.9)
+    silk.generateTexture('item-silkflower', 24, 22)
+    silk.destroy()
+
+    // 永生香：小铜香炉 + 三炷香 + 一缕烟
+    const incense = this.add.graphics()
+    incense.fillStyle(0x2a2118, 0.3)
+    incense.fillEllipse(12, 21, 18, 5)
+
+    incense.fillStyle(0x5a4a35, 1)
+    incense.fillRect(9, 4, 1, 9)
+    incense.fillRect(12, 2, 1, 11)
+    incense.fillRect(15, 4, 1, 9)
+    incense.fillStyle(0xd9a441, 1)
+    incense.fillRect(9, 3, 1, 2)
+    incense.fillRect(12, 1, 1, 2)
+    incense.fillRect(15, 3, 1, 2)
+
+    incense.fillStyle(0x3f2c1c, 1)
+    incense.fillEllipse(12, 16, 18, 8)
+    incense.fillStyle(0x8a6f3c, 1)
+    incense.fillEllipse(12, 14.5, 17, 6)
+    incense.fillStyle(0xffd54f, 1)
+    incense.fillRect(4, 14, 16, 1)
+    incense.fillRect(9, 19, 6, 1)
+
+    incense.lineStyle(1, 0xd9e4e8, 0.45)
+    incense.beginPath()
+    incense.moveTo(12, 1)
+    incense.lineTo(10, -3)
+    incense.lineTo(13, -6)
+    incense.strokePath()
+
+    incense.generateTexture('item-incense', 24, 22)
+    incense.destroy()
   }
 
   // 望舒客栈一楼右侧那棵景观树：不是樱花，是本地（璃月＝中国）的「金桂」。

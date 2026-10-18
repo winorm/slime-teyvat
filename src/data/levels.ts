@@ -154,6 +154,14 @@ export type PickupDef = {
   prompt: string
 }
 
+// 第十关送仙典仪的三样供品（夜泊石 / 霓裳花 / 永生香）。纯拾取，不做木材那套“一次一根”
+export type MaterialDef = {
+  x: number
+  y: number
+  key: string
+  label: string
+}
+
 // 疾风符：拾取后一段时间内移动加速（第九关爬山用）
 export type SpeedItemDef = {
   x: number
@@ -347,6 +355,7 @@ export type LevelDef = {
   cameraBias?: number
   depthGates?: DepthGateDef[]
   pickups?: PickupDef[]
+  materials?: MaterialDef[]
   speedItems?: SpeedItemDef[]
   repairs?: RepairDef[]
   orbs: OrbDef[]
@@ -1443,6 +1452,63 @@ export const LEVELS: LevelDef[] = [
       // 而跳/悬浮早在前面几关教过了 —— 玩家就再也看不到这句。所以只说动作
       { x: 2600, y: 1120, text: '顺着山路盘上去' },
       { x: 2250, y: 420, text: '仙人就在前面' },
+    ],
+  },
+
+  // ══ 第十关 · 送仙（2026/10/18 开工：璃月港 → 往生堂）════════════════════
+  // 帝君遇刺后的璃月港仍在戒严。玩家去往生堂找客卿，替送仙典仪收集三样供品：
+  // 夜泊石、霓裳花、永生香。三样齐了才能进往生堂。
+  {
+    name: '第十关 · 送仙',
+    intro:
+      '回到璃月港，帝君遇刺后的戒严还没有解除。\n先去往生堂找那位客卿，问清送仙典仪的事。\n路上顺便把典仪要用的三样东西找齐吧。',
+
+    width: 3400,
+    height: 1200,
+    startElement: 'rock',
+    unlocks: ['wind'],
+    spawn: { x: 60, y: 1147 },
+    bg: 'harbor',
+    goal: { x: 3300, y: 1146, kind: 'chest', prompt: '进入往生堂' },
+
+    platforms: [
+      // 一条平直的港口街道（顶面 1160）
+      { x: 1700, y: 1180, width: 3400, height: 40, brick: true },
+    ],
+
+    orbs: [],
+    gems: [
+      { x: 420, y: 1147 },
+      { x: 1750, y: 1147 },
+      { x: 3000, y: 1147 },
+    ],
+    blessings: [],
+    hazards: [],
+    monuments: [],
+
+    // 送仙典仪的三样供品：纯拾取，三样齐了才能进往生堂
+    materials: [
+      { x: 760, y: 1160, key: 'item-noctilocus', label: '夜泊石' },
+      { x: 1780, y: 1160, key: 'item-silkflower', label: '霓裳花' },
+      { x: 2580, y: 1160, key: 'item-incense', label: '永生香' },
+    ],
+
+    // 先复用第八关的港口 / 街道打包；往生堂的专用建筑留到下一步
+    harborBlocks: [
+      { at: 0, kind: 'dock' },
+      { at: 460, kind: 'street', variant: 2 },
+      { at: 920, kind: 'street' },
+      { at: 1380, kind: 'street', variant: 3 },
+      { at: 1840, kind: 'dock', variant: 3 },
+      { at: 2300, kind: 'street', variant: 2 },
+      { at: 2760, kind: 'street' },
+    ],
+
+    hints: [
+      { x: 100, y: 1085, text: '向右走，去往生堂找客卿' },
+      { x: 760, y: 1085, text: '夜泊石在码头的货箱旁' },
+      { x: 1780, y: 1085, text: '霓裳花在街边的花摊' },
+      { x: 2580, y: 1085, text: '永生香在香铺门口' },
     ],
   },
 

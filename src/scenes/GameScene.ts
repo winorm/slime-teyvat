@@ -1661,6 +1661,11 @@ export class GameScene extends Phaser.Scene {
   private launchers: LauncherRef[] = []
   private noteList: NoteRef[] = []
   private pickupList: (PickupDef & { parts: Phaser.GameObjects.Image[]; taken: boolean })[] = []
+  private materialList: {
+    sprite: Phaser.GameObjects.Image
+    label: string
+    taken: boolean
+  }[] = []
   private speedItems: { sprite: Phaser.GameObjects.Image; def: SpeedItemDef; taken: boolean }[] = []
   private speedBoostTimer = 0
   private speedBoostMultiplier = 1
@@ -3185,6 +3190,7 @@ export class GameScene extends Phaser.Scene {
 
     this.noteList = []
     this.pickupList = []
+    this.materialList = []
     this.repairList = []
     this.stairGfx = []
 
@@ -3216,6 +3222,26 @@ export class GameScene extends Phaser.Scene {
         .setDepth(5.1)
 
       this.pickupList.push({ ...def, parts: [lower, upper], taken: false })
+    })
+
+    ;(this.level.materials ?? []).forEach((def) => {
+      const sprite = this.add
+        .image(def.x, def.y, def.key)
+        .setOrigin(0.5, 1)
+        // 港口打包里有 depth 13 的背向摊位/房子，供品要始终看得见
+        .setDepth(14)
+      const baseY = sprite.y
+
+      this.tweens.add({
+        targets: sprite,
+        y: baseY - 3,
+        duration: 900,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      })
+
+      this.materialList.push({ sprite, label: def.label, taken: false })
     })
 
     ;(this.level.repairs ?? []).forEach((def) => {
@@ -5294,10 +5320,14 @@ export class GameScene extends Phaser.Scene {
     this.trialThreeHud = null
 
     if (this.trialThreePassed) {
+      const nextChapter = [
+        '璃月港的帝君遇刺，送仙典仪就要开始了。',
+        '去往生堂找那位客卿，他知道下一步该怎么做。',
+      ]
       const lines =
         this.trialThreeCorrect === def.rounds
-          ? ['三次全中，心明眼亮。', '这一重，算你过了。', '宝箱就在那边，拿去吧。']
-          : ['三中其二，不算完美，也够格了。', '宝箱就在那边，拿去吧。']
+          ? ['三次全中，心明眼亮。', '这一重，算你过了。', ...nextChapter, '宝箱就在那边，拿去吧。']
+          : ['三中其二，不算完美，也够格了。', ...nextChapter, '宝箱就在那边，拿去吧。']
 
       playSfx(this, 'sfx-gem', 0.6)
       this.cameras.main.flash(220, 255, 230, 150)
@@ -10739,6 +10769,26 @@ export class GameScene extends Phaser.Scene {
     this.showMessage('拿到木材 ×1（拿去修楼梯）')
   }
 
+  // 第十关：拾取送仙典仪的供品
+  private takeMaterial(item: (typeof this.materialList)[number]) {
+    if (item.taken) {
+      return
+    }
+
+    item.taken = true
+    item.sprite.destroy()
+    playSfx(this, 'sfx-gem', 0.4)
+
+    const got = this.materialList.filter((one) => one.taken).length
+    const total = this.materialList.length
+
+    this.showMessage(
+      got >= total
+        ? `拿到${item.label}（${got}/${total}）—— 三样齐了，去往生堂`
+        : `拿到${item.label}（${got}/${total}）`
+    )
+  }
+
   // 修楼梯：木板飞入 + 落地音 + 震屏，动画结束把这一跑重建（断口就补回来了）
   private startRepair(repair: (typeof this.repairList)[number]) {
     if (this.woods <= 0 || repair.done) {
@@ -13215,6 +13265,28 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    // 第十关的三样供品：走近拾取，三样齐了才能进往生堂
+    if (!prompt) {
+      for (const item of this.materialList) {
+        if (item.taken) {
+          continue
+        }
+
+        if (
+          Phaser.Math.Distance.Between(
+            this.slime.x,
+            this.slime.y,
+            item.sprite.x,
+            item.sprite.y
+          ) < 46
+        ) {
+          prompt = this.interactPrefix() + '拾取' + item.label
+          action = () => this.takeMaterial(item)
+          break
+        }
+      }
+    }
+
     // 木材堆：一堆只能拿一根（拿完这一堆就没了），手里空着才能拿 —— 一趟一根
     if (!prompt && this.woods === 0) {
       for (const pickup of this.pickupList) {
@@ -13265,8 +13337,17 @@ export class GameScene extends Phaser.Scene {
         ) < 48
 
       if (nearGoal) {
-        prompt = this.interactPrefix() + this.level.goal.prompt
-        action = () => this.win()
+        const missing = this.materialList
+          .filter((item) => !item.taken)
+          .map((item) => item.label)
+
+        if (missing.length > 0) {
+          prompt = this.interactPrefix() + '还差' + missing.join('、')
+          action = () => this.showMessage(`还差：${missing.join('、')}`)
+        } else {
+          prompt = this.interactPrefix() + this.level.goal.prompt
+          action = () => this.win()
+        }
       }
     }
 
