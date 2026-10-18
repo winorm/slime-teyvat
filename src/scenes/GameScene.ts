@@ -1203,6 +1203,10 @@ export class GameScene extends Phaser.Scene {
   private wallRT: Phaser.GameObjects.RenderTexture | null = null
   private wallBox = { left: 0, top: 0, width: 0, height: 0 }
   private wallDrawn = { x: -99999, y: -99999 }
+  // 第九关的整幅瀑布：后层玩家走在它下面时，在史莱姆身上擦一个透视洞
+  private waterfallRT: Phaser.GameObjects.RenderTexture | null = null
+  private waterfallFullDrawn = false
+  private waterfallDrawn = { x: -99999, y: -99999, layer: '' as string }
   // 「史莱姆这一层前面」那些**背面朝向**的摊位 / 房子（港口打包 front 里 depth 13 的那几个）：
   // 做成 RenderTexture，每帧在史莱姆身上和还没捡的原石身上擦一个透视洞，
   // 不然人一走到它们后面就被整个盖住、原石也看不见了
@@ -1907,6 +1911,9 @@ export class GameScene extends Phaser.Scene {
     // 第八关里清档 → 开新游戏 → 点一下屏幕就炸）
     this.wallRT = null
     this.wallDrawn = { x: -99999, y: -99999 }
+    this.waterfallRT = null
+    this.waterfallFullDrawn = false
+    this.waterfallDrawn = { x: -99999, y: -99999, layer: '' }
     this.revealRailRT = null
     this.revealRailDrawn = { x: -99999, y: -99999 }
     // 同理：这些 RenderTexture 是建关卡时现造的，场景实例复用，引用必须清干净
@@ -7970,13 +7977,20 @@ export class GameScene extends Phaser.Scene {
     const fall = this.level.waterfall
 
     if (fall) {
-      fall.segments.forEach((segment) => {
-        this.add
-          .image(fall.x, segment.y, 'waterfall')
-          .setOrigin(0.5, 0)
-          .setDepth(1.16)
-          .setScale((fall.width ?? 600) / 600, segment.height / 180)
-      })
+      const segment = fall.segments[0]
+
+      if (segment) {
+        const width = fall.width ?? 600
+
+        // 水帘画在 RenderTexture 上：盖在后层玩家（眼睛 1.3）前面，
+        // 玩家走到 F2/L2 这一段时在史莱姆身上擦透视洞
+        this.waterfallRT = this.add
+          .renderTexture(fall.x - width / 2, segment.y, width, segment.height)
+          .setOrigin(0, 0)
+          .setDepth(1.34)
+        this.waterfallFullDrawn = false
+        this.waterfallDrawn = { x: -99999, y: -99999, layer: '' }
+      }
     }
   }
 
@@ -9589,6 +9603,7 @@ export class GameScene extends Phaser.Scene {
     this.updateRoot()
     this.updateSpindle()
     this.updateRevealRails()
+    this.updateWaterfall()
   }
 
   // 层补片（活板）的透视：楼板照常画着，只在史莱姆附近擦掉一个椭圆。
@@ -9631,6 +9646,59 @@ export class GameScene extends Phaser.Scene {
       rt.render()
       piece.drawn = { x: px, y: py, layer: this.playerLayer }
     })
+  }
+
+  // 第九关瀑布的透视：整幅水帘画在 RenderTexture 上，盖在后层玩家前面。
+  // 玩家走到瀑布下面时，在史莱姆身上擦一个柔和的椭圆洞 —— 水还在，
+  // 但人和脚下那截 F2/L2 平台能透出来，像隔着水帘看。
+  private updateWaterfall() {
+    const rt = this.waterfallRT
+    const fall = this.level.waterfall
+
+    if (!rt || !fall || fall.segments.length === 0) {
+      return
+    }
+
+    const segment = fall.segments[0]
+    const width = fall.width ?? 600
+    const left = fall.x - width / 2
+    const top = segment.y
+    const px = this.slime.x
+    const py = this.slime.y
+    const inside =
+      px >= left - 40 &&
+      px <= left + width + 40 &&
+      py >= top - 100 &&
+      py <= top + segment.height + 80
+    const needsHole = this.playerLayer === 'back' && inside
+    const last = this.waterfallDrawn
+
+    // 不需要擦洞时，完整的水帘只要画一次；之后玩家怎么走都不用重画
+    if (!needsHole && this.waterfallFullDrawn) {
+      return
+    }
+
+    if (
+      needsHole &&
+      last.layer === this.playerLayer &&
+      Math.abs(px - last.x) < 1 &&
+      Math.abs(py - last.y) < 1
+    ) {
+      return
+    }
+
+    rt.clear()
+    rt.repeat('waterfall', undefined, 0, 0, width, segment.height)
+
+    if (needsHole) {
+      rt.erase('reveal-blob', px - left, py - top)
+      this.waterfallFullDrawn = false
+    } else {
+      this.waterfallFullDrawn = true
+    }
+
+    rt.render()
+    this.waterfallDrawn = { x: px, y: py, layer: this.playerLayer }
   }
 
   // 楼内那根短木的数据（可选字段，没写就不画）
@@ -12467,6 +12535,8 @@ export class GameScene extends Phaser.Scene {
     this.updateSpindle()
     // 活板（层补片）上的透视圈：楼板一直画着，只擦史莱姆附近那一块
     this.updateLayerReveals()
+    // 第九关瀑布：后层玩家在瀑布下面时擦透视洞
+    this.updateWaterfall()
     // 玉京台那种画在玩家前面的栏杆：也在玩家身上擦透视洞
     this.updateRevealRails()
     // 背面朝向的摊位 / 房子：史莱姆和原石走到后面时也透出来
