@@ -1758,6 +1758,8 @@ export class GameScene extends Phaser.Scene {
   private repaired: string[] = []
   private woods = 0
   private ritualCenser: Phaser.GameObjects.Image | null = null
+  private ritualCensers: Phaser.GameObjects.Image[] = []
+  private riteDragon: Phaser.GameObjects.Image | null = null
   private ritualLit = false
   // 第十关送仙：往生堂门口交接 → 玉京台祭坛行礼
   private hutaoNpc: Phaser.GameObjects.Image | null = null
@@ -1842,6 +1844,8 @@ export class GameScene extends Phaser.Scene {
     this.trialThreeCraneHome = null
     this.trialThreeStartMarker = null
     this.ritualCenser = null
+    this.ritualCensers = []
+    this.riteDragon = null
     this.ritualLit = false
     this.holdPickup = null
     this.hutaoNpc = null
@@ -11211,13 +11215,25 @@ export class GameScene extends Phaser.Scene {
     seat(0, 40, 'npc-ningguang')
 
     // 祭坛两边的香炉（右边的这只就是典仪点起来的那只）
+    this.ritualCensers = []
     ;[-120, 120].forEach((dx, index) => {
       const censer = seat(dx, 45, 'terrace-censer')
+
+      this.ritualCensers.push(censer)
 
       if (index === 1) {
         this.ritualCenser = censer
       }
     })
+
+    // 送仙时要升空的"神体"：一条闭着眼的龙，先藏在祭坛上方，典仪开始才浮出来
+    this.riteDragon = this.add
+      .image(altar.x, altar.y - 60, 'dragon-wreck')
+      .setOrigin(0.5, 1)
+      .setScale(0.8)
+      .setTint(0xfff0d0)
+      .setDepth(2.6)
+      .setVisible(false)
 
     // 钟离：交接之后才从往生堂"先过去"，所以先藏在这儿
     this.zhongliRite = seat(-95, 55, 'npc-zhongli').setVisible(false)
@@ -11225,60 +11241,67 @@ export class GameScene extends Phaser.Scene {
 
   // 点香：香炉烧起来，一缕缕白烟往上走（对话期间一直烧着，不跟着物理暂停）
   private lightRitualCenser() {
-    const censer = this.ritualCenser
+    // 左右两只香炉一起点：画面和烟各来一份
+    const censers = this.ritualCensers.length > 0
+      ? this.ritualCensers
+      : this.ritualCenser
+        ? [this.ritualCenser]
+        : []
 
-    if (!censer || this.ritualLit) {
+    if (censers.length === 0 || this.ritualLit) {
       return
     }
 
     this.ritualLit = true
-    censer.setTint(0xffcf7a)
+    censers.forEach((censer) => {
+      censer.setTint(0xffcf7a)
 
-    const x = censer.x
-    const top = censer.y - censer.displayHeight + 2
+      const x = censer.x
+      const top = censer.y - censer.displayHeight + 2
 
-    // 炉口那点暖光
-    const ember = this.add
-      .image(x, top, 'blessing')
-      .setTint(0xffbf5a)
-      .setDepth(0.96)
-      .setScale(0.5)
-      .setAlpha(0.7)
+      // 炉口那点暖光
+      const ember = this.add
+        .image(x, top, 'blessing')
+        .setTint(0xffbf5a)
+        .setDepth(0.96)
+        .setScale(0.5)
+        .setAlpha(0.7)
 
-    this.tweens.add({
-      targets: ember,
-      scaleX: 0.75,
-      scaleY: 0.75,
-      alpha: 0.35,
-      duration: 700,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    })
+      this.tweens.add({
+        targets: ember,
+        scaleX: 0.75,
+        scaleY: 0.75,
+        alpha: 0.35,
+        duration: 700,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      })
 
-    this.time.addEvent({
-      delay: 240,
-      loop: true,
-      callback: () => {
-        const puff = this.add
-          .image(x + Phaser.Math.Between(-3, 3), top, 'pixel')
-          .setDisplaySize(Phaser.Math.Between(3, 5), Phaser.Math.Between(3, 5))
-          .setTint(0xf2e8d6)
-          .setAlpha(0.45)
-          .setDepth(0.96)
+      this.time.addEvent({
+        delay: 240,
+        loop: true,
+        callback: () => {
+          const puff = this.add
+            .image(x + Phaser.Math.Between(-3, 3), top, 'pixel')
+            .setDisplaySize(Phaser.Math.Between(3, 5), Phaser.Math.Between(3, 5))
+            .setTint(0xf2e8d6)
+            .setAlpha(0.45)
+            .setDepth(0.96)
 
-        this.tweens.add({
-          targets: puff,
-          y: top - Phaser.Math.Between(20, 34),
-          x: puff.x + Phaser.Math.Between(-7, 7),
-          scaleX: 2.6,
-          scaleY: 2.6,
-          alpha: 0,
-          duration: 1500,
-          ease: 'Sine.easeOut',
-          onComplete: () => puff.destroy(),
-        })
-      },
+          this.tweens.add({
+            targets: puff,
+            y: top - Phaser.Math.Between(20, 34),
+            x: puff.x + Phaser.Math.Between(-7, 7),
+            scaleX: 2.6,
+            scaleY: 2.6,
+            alpha: 0,
+            duration: 1500,
+            ease: 'Sine.easeOut',
+            onComplete: () => puff.destroy(),
+          })
+        },
+      })
     })
   }
 
@@ -11348,109 +11371,182 @@ export class GameScene extends Phaser.Scene {
     this.sendOffDone = true
 
     const camera = this.cameras.main
-    const censer = this.ritualCenser
-    const x = censer?.x ?? this.goalSprite.x
-    const baseY = censer ? censer.y - censer.displayHeight + 4 : this.goalSprite.y + 8
+    // 左右两只香炉各来一套（没有香炉的关就退回宝箱位置）
+    const censers =
+      this.ritualCensers.length > 0
+        ? this.ritualCensers
+        : this.ritualCenser
+          ? [this.ritualCenser]
+          : []
+    const spots =
+      censers.length > 0
+        ? censers.map((one) => ({ x: one.x, y: one.y - one.displayHeight + 4 }))
+        : [{ x: this.goalSprite.x, y: this.goalSprite.y + 8 }]
 
     camera.flash(280, 255, 220, 150)
     // 镜头慢慢推近祭坛，给这 5 秒的典仪一个仪式感
     camera.zoomTo(1.18, 1800, 'Sine.easeInOut')
+    // 再往上抬一点：升空的神体在上方，画面要留出位置
+    camera.stopFollow()
+    camera.pan(this.slime.x, this.slime.y - 70, 1200, 'Sine.easeInOut')
 
-    // ① 香炉上方升起一道金色光柱：先长出来、再淡掉
-    const column = this.add
-      .image(x, baseY, 'pixel')
-      .setOrigin(0.5, 1)
-      .setDisplaySize(26, 6)
-      .setTint(0xffd76a)
-      .setAlpha(0.85)
-      .setDepth(9.05)
+    spots.forEach(({ x, y: baseY }) => {
+      // ① 香炉上方升起一道金色光柱：先长出来、再淡掉
+      const column = this.add
+        .image(x, baseY, 'pixel')
+        .setOrigin(0.5, 1)
+        .setDisplaySize(26, 6)
+        .setTint(0xffd76a)
+        .setAlpha(0.85)
+        .setDepth(9.05)
 
-    this.tweens.add({
-      targets: column,
-      displayHeight: 150,
-      alpha: { from: 0.85, to: 0.55 },
-      duration: 1400,
-      ease: 'Sine.easeOut',
-      onComplete: () => {
+      this.tweens.add({
+        targets: column,
+        displayHeight: 150,
+        alpha: { from: 0.85, to: 0.55 },
+        duration: 1400,
+        ease: 'Sine.easeOut',
+        onComplete: () => {
+          this.tweens.add({
+            targets: column,
+            displayHeight: 210,
+            alpha: 0,
+            duration: 2600,
+            ease: 'Sine.easeIn',
+            onComplete: () => column.destroy(),
+          })
+        },
+      })
+
+      // ② 一圈圈往上飘的金色光点
+      for (let i = 0; i < 12; i++) {
+        this.time.delayedCall(i * 170, () => {
+          const orb = this.add
+            .image(x + Phaser.Math.Between(-22, 22), baseY - Phaser.Math.Between(0, 20), 'blessing')
+            .setTint(0xffe08a)
+            .setDepth(9.1)
+            .setScale(0.35)
+            .setAlpha(0.9)
+
+          this.tweens.add({
+            targets: orb,
+            y: orb.y - Phaser.Math.Between(90, 150),
+            x: orb.x + Phaser.Math.Between(-18, 18),
+            alpha: 0,
+            scaleX: 1.1,
+            scaleY: 1.1,
+            duration: 1500,
+            ease: 'Sine.easeOut',
+            onComplete: () => orb.destroy(),
+          })
+        })
+      }
+
+      // ③ 两道金色冲击环：典礼的节拍
+      ;[900, 2900].forEach((delay, index) => {
+        this.time.delayedCall(delay, () => {
+          const ring = this.add
+            .image(x, baseY, 'shock-ring')
+            .setDepth(9.2)
+            .setScale(0.3)
+            .setAlpha(0.85)
+            .setTint(0xffd76a)
+
+          this.tweens.add({
+            targets: ring,
+            scaleX: index === 0 ? 3.4 : 4.6,
+            scaleY: index === 0 ? 1.5 : 1.9,
+            alpha: 0,
+            duration: 900,
+            ease: 'Quad.easeOut',
+            onComplete: () => ring.destroy(),
+          })
+        })
+      })
+
+      // ④ 细碎的金粉
+      for (let i = 0; i < 18; i++) {
+        this.time.delayedCall(400 + i * 90, () => {
+          const dust = this.add
+            .image(x + Phaser.Math.Between(-40, 40), baseY - Phaser.Math.Between(0, 60), 'pixel')
+            .setDisplaySize(2, 2)
+            .setTint(i % 3 === 0 ? 0xfff2c0 : 0xffd76a)
+            .setAlpha(0.8)
+            .setDepth(9.15)
+
+          this.tweens.add({
+            targets: dust,
+            y: dust.y - Phaser.Math.Between(40, 90),
+            alpha: 0,
+            duration: 1200,
+            ease: 'Sine.easeOut',
+            onComplete: () => dust.destroy(),
+          })
+        })
+      }
+    })
+
+    // ⑤ 神体升空：先浮出来，再缓缓上升、淡进云里
+    const dragon = this.riteDragon
+
+    if (dragon) {
+      dragon.setVisible(true).setAlpha(0).setScale(0.8)
+      this.tweens.add({ targets: dragon, alpha: 0.95, duration: 800, ease: 'Sine.easeOut' })
+      this.tweens.add({
+        targets: dragon,
+        y: dragon.y - 8,
+        duration: 900,
+        yoyo: true,
+        repeat: 1,
+        ease: 'Sine.easeInOut',
+      })
+
+      const riseFrom = dragon.y
+
+      this.time.delayedCall(1400, () => {
         this.tweens.add({
-          targets: column,
-          displayHeight: 210,
+          targets: dragon,
+          y: riseFrom - 220,
           alpha: 0,
-          duration: 2600,
+          scaleX: 0.92,
+          scaleY: 0.92,
+          duration: 3400,
           ease: 'Sine.easeIn',
-          onComplete: () => column.destroy(),
+          onComplete: () => dragon.setVisible(false),
         })
-      },
-    })
+      })
 
-    // ② 一圈圈往上飘的金色光点
-    for (let i = 0; i < 14; i++) {
-      this.time.delayedCall(i * 170, () => {
-        const orb = this.add
-          .image(x + Phaser.Math.Between(-22, 22), baseY - Phaser.Math.Between(0, 20), 'blessing')
-          .setTint(0xffe08a)
-          .setDepth(9.1)
-          .setScale(0.35)
-          .setAlpha(0.9)
+      // 云气：上升途中几团云围拢过来，托着神体没入云中
+      ;[1500, 2300, 3100, 3800].forEach((delay, index) => {
+        this.time.delayedCall(delay, () => {
+          const cloud = this.add
+            .image(
+              dragon.x + (index % 2 === 0 ? -1 : 1) * Phaser.Math.Between(18, 46),
+              riseFrom - 70 - index * 26,
+              'cloud-puff'
+            )
+            .setTint(0xfff6e0)
+            .setAlpha(0)
+            .setDepth(2.7)
+            .setScale(0.45)
 
-        this.tweens.add({
-          targets: orb,
-          y: orb.y - Phaser.Math.Between(90, 150),
-          x: orb.x + Phaser.Math.Between(-18, 18),
-          alpha: 0,
-          scaleX: 1.1,
-          scaleY: 1.1,
-          duration: 1500,
-          ease: 'Sine.easeOut',
-          onComplete: () => orb.destroy(),
+          this.tweens.add({
+            targets: cloud,
+            alpha: 0.6,
+            y: cloud.y - 26,
+            scaleX: 0.85,
+            scaleY: 0.85,
+            duration: 900,
+            yoyo: true,
+            hold: 260,
+            ease: 'Sine.easeInOut',
+            onComplete: () => cloud.destroy(),
+          })
         })
       })
     }
 
-    // ③ 两道金色冲击环：典礼的节拍
-    ;[900, 2900].forEach((delay, index) => {
-      this.time.delayedCall(delay, () => {
-        const ring = this.add
-          .image(x, baseY, 'shock-ring')
-          .setDepth(9.2)
-          .setScale(0.3)
-          .setAlpha(0.85)
-          .setTint(0xffd76a)
-
-        this.tweens.add({
-          targets: ring,
-          scaleX: index === 0 ? 3.4 : 4.6,
-          scaleY: index === 0 ? 1.5 : 1.9,
-          alpha: 0,
-          duration: 900,
-          ease: 'Quad.easeOut',
-          onComplete: () => ring.destroy(),
-        })
-      })
-    })
-
-    // ④ 细碎的金粉
-    for (let i = 0; i < 24; i++) {
-      this.time.delayedCall(400 + i * 90, () => {
-        const dust = this.add
-          .image(x + Phaser.Math.Between(-40, 40), baseY - Phaser.Math.Between(0, 60), 'pixel')
-          .setDisplaySize(2, 2)
-          .setTint(i % 3 === 0 ? 0xfff2c0 : 0xffd76a)
-          .setAlpha(0.8)
-          .setDepth(9.15)
-
-        this.tweens.add({
-          targets: dust,
-          y: dust.y - Phaser.Math.Between(40, 90),
-          alpha: 0,
-          duration: 1200,
-          ease: 'Sine.easeOut',
-          onComplete: () => dust.destroy(),
-        })
-      })
-    }
-
-    // ⑤ 收尾闪一下，5 秒整
+    // ⑥ 收尾闪一下，5 秒整
     this.time.delayedCall(4300, () => camera.flash(420, 255, 235, 180))
     this.time.delayedCall(4700, () => this.showMessage('送仙典仪结束'))
 
