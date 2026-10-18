@@ -1396,7 +1396,8 @@ export const LEVELS: LevelDef[] = [
       { x: 1590, y: 460, key: 'summit-peak', flip: true, depth: 1.15 },
       { x: 2810, y: 460, key: 'summit-peak', depth: 1.15 },
       { x: 3558, y: 1010, key: 'tree-pine', scale: 1.05, depth: 1.19 },
-      { x: 1490, y: 710, key: 'boulder-big', scale: 1.2, depth: 1.15 },
+      // C2 左沿的大石块：右移半块（约 58px），左沿正好压在悬崖边 1500 上，不再往外悬空
+      { x: 1548, y: 710, key: 'boulder-big', scale: 1.2, depth: 1.15 },
       // 岩体里的岩石横截面。坡面往下 26 像素是泥土走道，横截面顶部必须落在它下面，
       // 所以三块都往下压：a 在 R1，b 在 R2，c 在右侧山肩（那里没有泥土层，只跟着下移）
       { x: 1200, y: 1378, key: 'rock-strata-a', scale: 1.4, depth: 1.16 },
