@@ -1416,8 +1416,10 @@ export const LEVELS: LevelDef[] = [
       // 山顶远景：一圈环形山体围着沼泽，正中低垭口藏一个远处的秘境门洞
       { x: 2200, y: 460, key: 'summit-high-peak', depth: 0.6 },
       { x: 2200, y: 400, key: 'domain-entrance', scale: 0.5, depth: 0.9 },
-      // 近岸沼泽泥地 + 四块装饰踏石（都在水里，不站人）
-      { x: 2100, y: 460, key: 'summit-marsh', depth: 3.2 },
+      // 浅池塘：近岸只留一条窄泥边，池塘水从中间翻过池沿接上瀑布
+      { x: 2200, y: 460, key: 'pond-edge', depth: 1.32 },
+      { x: 2200, y: 452, key: 'pond-spill', depth: 1.36 },
+      // 四块装饰踏石（都在水里，不站人）
       { x: 1850, y: 430, key: 'swamp-stone', depth: 3.3 },
       { x: 1950, y: 424, key: 'swamp-stone', depth: 3.3 },
       { x: 2450, y: 420, key: 'swamp-stone', depth: 3.3 },

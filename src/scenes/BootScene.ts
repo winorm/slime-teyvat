@@ -214,6 +214,7 @@ export class BootScene extends Phaser.Scene {
     this.makeMountainMist()
     this.makeSummitLake()
     this.makeSummitMarsh()
+    this.makePondSpill()
     this.makeSummitHighPeak()
     this.makeDomainEntrance()
     this.makeSwampStone()
@@ -7697,15 +7698,17 @@ export class BootScene extends Phaser.Scene {
     g.fillStyle(0x6b5a3f, 1)
     g.fillPoints(hex(28), true)
 
-    // 浑绿水面：六边形轮廓内再分浅水和深水
-    g.fillStyle(0x354f3d, 1)
+    // 浅水池塘：先铺一层看得见的沙底，再压一层半透明的浅青水
+    g.fillStyle(0x9a8a6a, 1)
     g.fillPoints(hex(40), true)
-    g.fillStyle(0x456349, 1)
+    g.fillStyle(0x8a7c5e, 1)
     g.fillPoints(hex(52), true)
-    g.fillStyle(0x2f4538, 0.75)
-    g.fillPoints(shift(hex(58), -18, 2), true)
-    g.fillStyle(0x537457, 0.5)
-    g.fillPoints(shift(hex(60), 28, -2), true)
+    g.fillStyle(0xb5a47a, 0.45)
+    g.fillPoints(shift(hex(58), -20, 2), true)
+    g.fillStyle(0x7fb9c9, 0.42)
+    g.fillPoints(hex(38), true)
+    g.fillStyle(0x9fd3df, 0.2)
+    g.fillPoints(hex(48), true)
 
     let seed = 31
     const rnd = () => {
@@ -7713,22 +7716,33 @@ export class BootScene extends Phaser.Scene {
       return seed / 4294967296
     }
 
-    // 水面上的藻斑（都落在六边形水面内部）
-    for (let i = 0; i < 26; i++) {
+    // 水底能看见的沙斑和碎石
+    for (let i = 0; i < 18; i++) {
       const x = cx - 280 + rnd() * 560
       const y = cy - 28 + rnd() * 56
       const w = 14 + rnd() * 46
       const h = 4 + rnd() * 11
 
-      g.fillStyle(i % 3 === 0 ? 0x6f8a55 : i % 3 === 1 ? 0x4f7048 : 0x809a5b, 0.35 + rnd() * 0.25)
+      g.fillStyle(i % 3 === 0 ? 0xb5a47a : i % 3 === 1 ? 0x7d7161 : 0x9a8a6a, 0.35 + rnd() * 0.25)
       g.fillEllipse(x, y, w, h)
     }
 
-    // 浮萍：小片圆叶，几片带缺口
-    for (let i = 0; i < 22; i++) {
+    // 浅水上的细小涟漪
+    g.lineStyle(1, 0xeaf9fc, 0.32)
+
+    for (let i = 0; i < 14; i++) {
       const x = cx - 260 + rnd() * 520
       const y = cy - 24 + rnd() * 48
-      const size = 5 + rnd() * 7
+      const w = 18 + rnd() * 40
+
+      g.strokeEllipse(x, y, w, 3 + rnd() * 2)
+    }
+
+    // 少量浮萍，保持池塘感而不是沼泽
+    for (let i = 0; i < 8; i++) {
+      const x = cx - 240 + rnd() * 480
+      const y = cy - 20 + rnd() * 40
+      const size = 5 + rnd() * 6
 
       g.fillStyle(i % 2 === 0 ? 0x4f8a3a : 0x6f9a4a, 0.9)
       g.fillEllipse(x, y, size, size * 0.58)
@@ -7743,7 +7757,7 @@ export class BootScene extends Phaser.Scene {
       const a = outer[edge]
       const b = outer[(edge + 1) % outer.length]
 
-      for (let t = 0.08; t < 1; t += 0.11) {
+      for (let t = 0.1; t < 1; t += 0.18) {
         const x = a.x + (b.x - a.x) * t
         const y = a.y + (b.y - a.y) * t
         const h = 7 + ((edge * 7 + Math.round(t * 10)) % 10)
@@ -7766,17 +7780,17 @@ export class BootScene extends Phaser.Scene {
     g.destroy()
   }
 
-  // 山顶近岸的沼泽泥地（1000x40）：上缘是不规则的草/苔，下面是湿泥和浅水洼。
-  // 铺在 1600~2600 的山顶地面上，右岸和转角平台仍保留干地。
+  // 池塘近岸的窄泥边（800x24）：只围在池塘前缘，别再铺成一整片沼泽，
+  // 让山顶 1600~2920 从左到右都仍然是可走的地面。
   private makeSummitMarsh() {
-    const W = 1000
-    const H = 40
+    const W = 800
+    const H = 24
     const g = this.add.graphics()
     const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
     const top: Array<[number, number]> = []
 
     for (let x = 0; x <= W; x += 8) {
-      top.push([x, 24 + Math.sin(x * 0.021) * 3 + Math.sin(x * 0.067) * 1.5])
+      top.push([x, 12 + Math.sin(x * 0.023) * 2 + Math.sin(x * 0.071) * 1.2])
     }
 
     // 湿泥主体
@@ -7803,34 +7817,68 @@ export class BootScene extends Phaser.Scene {
       true
     )
 
+    // 池塘水面贴着泥边的一道浅色水线
+    g.fillStyle(0x9fd3df, 0.5)
+    g.fillPoints(
+      [
+        ...top.map(([x, y]) => P(x, y - 4)),
+        ...top.map(([x, y]) => P(x, y - 2)).reverse(),
+      ],
+      true
+    )
+
     // 草叶
     for (let x = 6; x < W; x += 13) {
-      const y = 24 + Math.sin(x * 0.021) * 3 + Math.sin(x * 0.067) * 1.5
+      const y = 12 + Math.sin(x * 0.023) * 2 + Math.sin(x * 0.071) * 1.2
       const h = 4 + (x % 5)
 
       g.fillStyle(x % 3 === 0 ? 0x7fb04a : 0x5f8a3a, 1)
       g.fillRect(x, y - h - 1, 1, h + 2)
     }
 
-    // 浅水洼
-    for (let i = 0; i < 18; i++) {
-      const x = 30 + ((i * 53) % 940)
-      const y = 29 + ((i * 7) % 8)
-
-      g.fillStyle(i % 3 === 0 ? 0x4f6b52 : 0x5f8061, 0.45)
-      g.fillEllipse(x, y, 30 + (i % 5) * 12, 4 + (i % 3) * 2)
-    }
-
     // 泥里的碎石
-    for (let i = 0; i < 14; i++) {
-      const x = 20 + ((i * 71) % 960)
-      const y = 27 + ((i * 11) % 9)
+    for (let i = 0; i < 12; i++) {
+      const x = 20 + ((i * 71) % 760)
+      const y = 15 + ((i * 11) % 7)
 
       g.fillStyle(i % 2 === 0 ? 0x7d7161 : 0x4a4034, 1)
       g.fillEllipse(x, y, 3 + (i % 4), 2 + (i % 2))
     }
 
-    g.generateTexture('summit-marsh', W, H)
+    g.generateTexture('pond-edge', W, H)
+    g.destroy()
+  }
+
+  // 池塘和瀑布的接口（600x24）：一道浅水翻过池沿的白沫，压住瀑布顶端，
+  // 让池塘看起来真的是从这里流下去的，而不是瀑布凭空从山下开始。
+  private makePondSpill() {
+    const W = 600
+    const H = 24
+    const g = this.add.graphics()
+
+    // 贴地的浅水带
+    g.fillStyle(0x9fd3df, 0.55)
+    g.fillRect(0, 10, W, 8)
+    g.fillStyle(0xd9f3f8, 0.45)
+    g.fillRect(0, 8, W, 3)
+
+    // 池沿白沫
+    for (let x = 18; x < W; x += 54) {
+      g.fillStyle(0xeaf9fc, 0.78)
+      g.fillEllipse(x, 13 + (x % 3) * 2, 48, 8)
+      g.fillStyle(0xffffff, 0.55)
+      g.fillEllipse(x + 12, 10 + (x % 4), 30, 5)
+    }
+
+    // 刚翻过池沿的几道短水线
+    g.fillStyle(0xffffff, 0.3)
+
+    for (let x = 30; x < W; x += 70) {
+      g.fillRect(x, 15, 2, 8)
+      g.fillRect(x + 8, 17, 1, 6)
+    }
+
+    g.generateTexture('pond-spill', W, H)
     g.destroy()
   }
 
