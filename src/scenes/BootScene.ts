@@ -7705,6 +7705,7 @@ export class BootScene extends Phaser.Scene {
     this.makeSkyBackground()
     this.makeTowerBackground()
     this.makeLiyueBackground()
+    this.makeMountainFoothill()
   }
 
   // 第一关·沙滩：天上一个太阳，远处海面，近处沙丘。
@@ -8289,6 +8290,79 @@ export class BootScene extends Phaser.Scene {
 
   // 望舒客栈：一根很高的岩柱，顶上压着一栋木楼，檐下挂着灯笼。
   // 画在背景层里当路标，不参与碰撞
+  // 第九关山脚左侧的背景小山（1200x200）：从左边地面起坡，落到 x=800 的山脚，
+  // 再沿着 R1 背后微微抬起，最后藏进大山里。它替换掉原来的方形山肩填色，
+  // 让出生点后面那道“岩墙”真正连到右边的大山。
+  private makeMountainFoothill() {
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+    const top: Array<[number, number]> = [
+      [0, 200],
+      [40, 190],
+      [100, 175],
+      [160, 155],
+      [220, 130],
+      [280, 105],
+      [330, 85],
+      [380, 75],
+      [430, 85],
+      [500, 115],
+      [570, 145],
+      [640, 165],
+      [720, 180],
+      [800, 190],
+      [900, 170],
+      [1000, 150],
+      [1100, 135],
+      [1200, 130],
+    ]
+
+    // 主体：从山脊线一路填到地面，下面会被地面/坡体盖住
+    g.fillStyle(0x3f5a55, 1)
+    g.fillPoints(
+      [...top.map(([x, y]) => P(x, y)), P(1200, 200), P(0, 200)],
+      true
+    )
+
+    // 山脊顶部受光的一条窄边
+    const rim = [
+      ...top.map(([x, y]) => P(x, y)),
+      ...[...top].reverse().map(([x, y]) => P(x, y + 3)),
+    ]
+    g.fillStyle(0x5c7870, 0.85)
+    g.fillPoints(rim, true)
+
+    // 左坡的暗面和两块岩壁
+    g.fillStyle(0x354a47, 0.75)
+    g.fillPoints(
+      [P(220, 130), P(330, 85), P(380, 75), P(430, 120), P(360, 150), P(280, 165)],
+      true
+    )
+    g.fillStyle(0x4a6660, 0.6)
+    g.fillPoints([P(100, 175), P(220, 130), P(280, 165), P(180, 195)], true)
+
+    g.lineStyle(1, 0x2c403d, 0.5)
+    g.lineBetween(260, 120, 300, 170)
+    g.lineBetween(340, 100, 380, 155)
+    g.lineBetween(430, 95, 470, 155)
+
+    // 山脊上几棵松树，给背景小山一个尺度
+    const pine = (x: number, baseY: number, height: number) => {
+      g.fillStyle(0x2f4a48, 1)
+      g.fillRect(x, baseY - height, 2, height)
+      g.fillTriangle(x - 7, baseY - height + 6, x + 9, baseY - height + 6, x + 1, baseY - height - 5)
+      g.fillTriangle(x - 5, baseY - height + 13, x + 7, baseY - height + 13, x + 1, baseY - height + 2)
+    }
+
+    pine(230, 128, 22)
+    pine(320, 96, 26)
+    pine(540, 140, 18)
+    pine(980, 155, 16)
+
+    g.generateTexture('bg-foothill', 1200, 200)
+    g.destroy()
+  }
+
   private makeInn() {
     const gfx = this.add.graphics()
 
