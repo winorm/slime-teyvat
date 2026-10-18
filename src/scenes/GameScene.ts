@@ -530,6 +530,8 @@ type LandPlatform = {
   width: number
   height?: number
   oneWay?: boolean
+  // 屋檐碰撞箱：画面里的屋檐已经画在房子贴图上，这里只留碰撞
+  hidden?: boolean
 }
 
 type LandPack = {
@@ -552,14 +554,16 @@ const LAND_BLOCKS: Record<'land-a' | 'land-b', LandPack> = {
     ],
     front: [],
     platforms: [
-      { dx: 190, dy: -60, width: 240, oneWay: true },
-      { dx: 190, dy: -120, width: 300, oneWay: true },
-      { dx: 190, dy: -190, width: 250, oneWay: true },
-      { dx: 190, dy: -230, width: 210, oneWay: true },
-      { dx: 650, dy: -60, width: 240, oneWay: true },
-      { dx: 650, dy: -120, width: 300, oneWay: true },
-      { dx: 650, dy: -190, width: 250, oneWay: true },
-      { dx: 650, dy: -230, width: 210, oneWay: true },
+      // 屋檐：碰撞箱隐形，宽度对齐 roof() 真正画出来的檐口底边
+      { dx: 190, dy: -56, width: 360, oneWay: true, hidden: true },
+      { dx: 190, dy: -166, width: 348, oneWay: true, hidden: true },
+      { dx: 190, dy: -192, width: 308, oneWay: true, hidden: true },
+      // 二层阳台地板：保留可见，宽度对齐 324 的挑台
+      { dx: 190, dy: -126, width: 324, oneWay: true },
+      { dx: 650, dy: -56, width: 360, oneWay: true, hidden: true },
+      { dx: 650, dy: -166, width: 348, oneWay: true, hidden: true },
+      { dx: 650, dy: -192, width: 308, oneWay: true, hidden: true },
+      { dx: 650, dy: -126, width: 324, oneWay: true },
     ],
   },
   // 三层客栈 + 两层茶楼，檐口和挑台连成一条可以往上爬的路线
@@ -574,16 +578,18 @@ const LAND_BLOCKS: Record<'land-a' | 'land-b', LandPack> = {
     ],
     front: [],
     platforms: [
-      { dx: 200, dy: -60, width: 240, oneWay: true },
-      { dx: 200, dy: -140, width: 300, oneWay: true },
-      { dx: 200, dy: -230, width: 280, oneWay: true },
-      { dx: 200, dy: -310, width: 240, oneWay: true },
-      { dx: 200, dy: -350, width: 200, oneWay: true },
-      { dx: 700, dy: -60, width: 230, oneWay: true },
-      { dx: 700, dy: -140, width: 300, oneWay: true },
-      { dx: 700, dy: -230, width: 280, oneWay: true },
-      { dx: 700, dy: -310, width: 240, oneWay: true },
-      { dx: 700, dy: -350, width: 200, oneWay: true },
+      // 屋檐碰撞箱：隐形，宽度对齐三层楼真正画出来的檐口
+      { dx: 200, dy: -56, width: 380, oneWay: true, hidden: true },
+      { dx: 200, dy: -286, width: 368, oneWay: true, hidden: true },
+      { dx: 200, dy: -314, width: 320, oneWay: true, hidden: true },
+      // 二层 / 三层阳台地板：可见，对齐挑台宽度
+      { dx: 200, dy: -148, width: 344, oneWay: true },
+      { dx: 200, dy: -238, width: 324, oneWay: true },
+      { dx: 700, dy: -56, width: 380, oneWay: true, hidden: true },
+      { dx: 700, dy: -286, width: 368, oneWay: true, hidden: true },
+      { dx: 700, dy: -314, width: 320, oneWay: true, hidden: true },
+      { dx: 700, dy: -148, width: 344, oneWay: true },
+      { dx: 700, dy: -238, width: 324, oneWay: true },
     ],
   },
 }
@@ -6687,6 +6693,7 @@ export class GameScene extends Phaser.Scene {
         platform.setTint(0x8a6a44)
         platform.refreshBody()
         platform.setDepth(3)
+        platform.setVisible(def.hidden !== true)
 
         if (def.oneWay ?? true) {
           const body = platform.body as Phaser.Physics.Arcade.StaticBody
@@ -6695,11 +6702,13 @@ export class GameScene extends Phaser.Scene {
           body.checkCollision.right = false
         }
 
-        this.add
-          .image(block.at + def.dx, blockGround + def.dy, 'pixel')
-          .setDisplaySize(def.width, 2)
-          .setTint(0xb09068)
-          .setDepth(3.05)
+        if (!def.hidden) {
+          this.add
+            .image(block.at + def.dx, blockGround + def.dy, 'pixel')
+            .setDisplaySize(def.width, 2)
+            .setTint(0xb09068)
+            .setDepth(3.05)
+        }
       })
     })
   }
