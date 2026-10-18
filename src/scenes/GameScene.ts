@@ -58,6 +58,8 @@ const CRUMBLE_DELAY = 1200
 // 技能持续时间（秒）
 const ARMOR_TIME = 10
 const PILLAR_TIME = 30
+// 第九关瀑布水帘的图层：压在后层玩家（1.2 / 眼睛 1.3）前面
+const WATERFALL_DEPTH = 1.34
 
 // 岩化的冷却：技能结束后要等这么久才能再按 X（时间到、被打碎、换元素都算结束）
 const ARMOR_COOLDOWN = 8
@@ -7987,7 +7989,7 @@ export class GameScene extends Phaser.Scene {
         this.waterfallRT = this.add
           .renderTexture(fall.x - width / 2, segment.y, width, segment.height)
           .setOrigin(0, 0)
-          .setDepth(1.34)
+          .setDepth(WATERFALL_DEPTH)
         this.waterfallFullDrawn = false
         this.waterfallDrawn = { x: -99999, y: -99999, layer: '' }
       }
@@ -8196,6 +8198,59 @@ export class GameScene extends Phaser.Scene {
 
         band(-2, 3, 0x5f8a3a)
         band(-2, 0, 0x7fb04a)
+      }
+
+      // ⑧ C2→山顶这一跑：走面（草带 + 26 像素泥土）画在瀑布上面，
+      // 坡体本身仍留在瀑布后面；只取瀑布覆盖的那一段 x
+      if (def.overWaterfall && this.level.waterfall) {
+        const fall = this.level.waterfall
+        const fallLeft = fall.x - (fall.width ?? 600) / 2 - 16
+        const fallRight = fall.x + (fall.width ?? 600) / 2 + 16
+        const overlayPoints = surface.filter((p) => p.x >= fallLeft && p.x <= fallRight)
+
+        if (overlayPoints.length > 1) {
+          const overlay = this.add.graphics().setDepth(WATERFALL_DEPTH + 0.06)
+
+          overlay.fillStyle(earth, 1)
+          overlay.fillPoints(
+            [
+              ...overlayPoints.map((p) => new Phaser.Math.Vector2(p.x, p.y)),
+              ...overlayPoints
+                .map((p) => new Phaser.Math.Vector2(p.x, p.y + SOIL))
+                .reverse(),
+            ],
+            true
+          )
+
+          overlay.fillStyle(lighten(earth, 0x1c), 1)
+          overlay.fillPoints(
+            [
+              ...overlayPoints.map((p) => new Phaser.Math.Vector2(p.x, p.y)),
+              ...overlayPoints
+                .map((p) => new Phaser.Math.Vector2(p.x, p.y + 4))
+                .reverse(),
+            ],
+            true
+          )
+
+          if (def.grass) {
+            const band = (topOffset: number, bottomOffset: number, color: number) => {
+              overlay.fillStyle(color, 1)
+              overlay.fillPoints(
+                [
+                  ...overlayPoints.map((p) => new Phaser.Math.Vector2(p.x, p.y + topOffset)),
+                  ...overlayPoints
+                    .map((p) => new Phaser.Math.Vector2(p.x, p.y + bottomOffset))
+                    .reverse(),
+                ],
+                true
+              )
+            }
+
+            band(-2, 3, 0x5f8a3a)
+            band(-2, 0, 0x7fb04a)
+          }
+        }
       }
     })
   }

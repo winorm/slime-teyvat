@@ -118,6 +118,9 @@ export type SlopeDef = {
   // 这些细节画在坡体的岩石填色**里面**，不会盖到草带和走面。
   //   gully —— 冲沟中心的世界 x（不写就只画岩层）
   frontFace?: { gully?: number }
+  // 这一段坡的走面要画在瀑布前面（第九关 C2→山顶的 R3）：
+  // 只把草带和 26 像素泥土层抬到瀑布之上，坡体本身仍在瀑布后面
+  overWaterfall?: boolean
 }
 
 // 带透视的栏杆：画在玩家前面（depth 12），玩家走到它后面时在它身上擦一个洞，
@@ -1248,13 +1251,14 @@ export const LEVELS: LevelDef[] = [
     intro:
       '逃出璃月港的路上，一位气质不凡的先生叫住了我。\n他说自己只是个客卿，让我去北边的高山上找仙人求助。\n既然已经走投无路，那就去试试吧。',
 
-    // **圆台形山体**（2026/10/17 第四版）：底座 0~4400，中轴 2200，山顶 1600~2800。
+    // **圆台形山体**（2026/10/17 第四版）：底座 0~4400，中轴 2200，
+    // 山顶 1600~2920（右端多出 120 做转角平台）。
     //   山脚 0~800（顶面 1360）
     //   右爬 R1 800→1900（1100 宽，升 200）→ 平地 F1 1900~2500（1160）
     //   右爬 R2 2500→3200（700 宽，升 150）→ 转角 C1 3200~3450（1010）
     //   左爬 L1 3450→2650（800 宽，升 200，后层）→ 平地 F2 2400~2650（810）
     //   左爬半段 L2 2400→1800（600 宽，升 100，后层）→ 转角 C2 1600~1800（710）
-    //   右爬 R3 1600→2800（1200 宽，升 250）→ 山顶 1600~2800（1200）
+    //   右爬 R3 1600→2800（1200 宽，升 250）→ 山顶 1600~2920（1320，右端 120 转角平台）
     // 山顶中心 2200 就是整座山的中轴；湖是环形，泉眼在中轴，瀑布从泉眼落到地面。
     width: 4400,
     height: 1500,
@@ -1275,7 +1279,7 @@ export const LEVELS: LevelDef[] = [
       { x: 3380, y: 1013, width: 360, height: 6, grass: true, depth: 3 },
       { x: 2525, y: 813, width: 250, height: 6, grass: true, depth: 1.1, layer: 'back' },
       { x: 1650, y: 713, width: 300, height: 6, grass: true, depth: 3 },
-      { x: 2200, y: 463, width: 1200, height: 6, grass: true, depth: 3 },
+      { x: 2260, y: 463, width: 1320, height: 6, grass: true, depth: 3 },
       // 山脚底下：泥土 + 岩石
       { x: 400, y: 1430, width: 800, height: 140, tint: 0x8a6a4a, depth: 1.0 },
       { x: 2600, y: 1430, width: 3600, height: 140, tint: 0x5e5348, depth: 1.0 },
@@ -1285,7 +1289,7 @@ export const LEVELS: LevelDef[] = [
       ...platformFill(3380, 360, 1010, 1360, 1.02),
       ...platformFill(2525, 250, 810, 1360, 0.9),
       ...platformFill(1650, 300, 710, 1360, 0.9),
-      ...platformFill(2200, 1200, 460, 1360, 0.9),
+      ...platformFill(2260, 1320, 460, 1360, 0.9),
       // 左右两侧的山肩：只画不挡人，把底座撑宽（0~4400）
       // 左边山肩改成背景小山 bg-foothill（见 decor），不再用方形填色
       ...platformFill(3925, 950, 1010, 1360, 0.9),
@@ -1295,7 +1299,7 @@ export const LEVELS: LevelDef[] = [
     // 只挡人不画，画面上的山峰/树/大石头在 decor 里。
     blockers: [
       { x: 1590, y: 360, width: 20, height: 200 }, // 山顶左沿：260~460，连跳/悬浮也翻不过去
-      { x: 2810, y: 360, width: 20, height: 200 }, // 山顶右沿
+      { x: 2930, y: 360, width: 20, height: 200 }, // 山顶右沿（转角平台外沿）
       { x: 3570, y: 950, width: 20, height: 120 }, // C1 右沿：3560~3580
       { x: 1490, y: 660, width: 20, height: 100 }, // C2 左沿：1480~1500
     ],
@@ -1312,7 +1316,7 @@ export const LEVELS: LevelDef[] = [
       // L2：2400→1800，810→710（后层，半段）
       { x: 1800, y: 710, width: 1200, rise: 100, tStart: 1, tEnd: 0, mode: 'ramp', grass: true, layer: 'back', depthTo: 1360, depth: 1.1, frontFace: {} },
       // R3：1600→2800，710→460
-      { x: 2800, y: 460, width: 2400, rise: 250, tStart: -1, tEnd: 0, mode: 'ramp', grass: true, depthTo: 1360, depth: 1.05, frontFace: {} },
+      { x: 2800, y: 460, width: 2400, rise: 250, tStart: -1, tEnd: 0, mode: 'ramp', grass: true, depthTo: 1360, depth: 1.05, frontFace: {}, overWaterfall: true },
     ],
 
     depthGates: [
@@ -1389,12 +1393,12 @@ export const LEVELS: LevelDef[] = [
       { x: 4360, y: 1280, key: 'cliff-grass', scale: 1.3, flip: true, depth: 1.18 },
       { x: 1590, y: 500, key: 'cliff-grass', scale: 1.3, flip: true, depth: 1.18 },
       { x: 1520, y: 1120, key: 'cliff-grass', scale: 1.2, flip: true, depth: 1.18 },
-      { x: 2880, y: 480, key: 'cliff-grass', scale: 1.4, flip: true, depth: 1.18 },
+      { x: 3000, y: 480, key: 'cliff-grass', scale: 1.4, flip: true, depth: 1.18 },
       { x: 2840, y: 700, key: 'cliff-grass', scale: 1.2, flip: true, depth: 1.18 },
       // 边缘防掉落的画面：山顶两座岩峰、C1 右沿的崖树、C2 左沿的大石块。
       // 实体挡板在上面 blockers 里，这些只负责让玩家看出"这里过不去"。
       { x: 1590, y: 460, key: 'summit-peak', flip: true, depth: 1.15 },
-      { x: 2810, y: 460, key: 'summit-peak', depth: 1.15 },
+      { x: 2930, y: 460, key: 'summit-peak', depth: 1.15 },
       { x: 3558, y: 1010, key: 'tree-pine', scale: 1.05, depth: 1.19 },
       // C2 左沿的大石块：右移半块（约 58px），左沿正好压在悬崖边 1500 上，不再往外悬空
       { x: 1548, y: 710, key: 'boulder-big', scale: 1.2, depth: 1.15 },
@@ -1409,7 +1413,7 @@ export const LEVELS: LevelDef[] = [
       { x: 700, y: 1360, key: 'pebble-c', scale: 1.8, depth: 1.2 },
       // 山顶：一棵巨大的垂柳，树干顺着崖壁盘着往上；树下石桌石凳、桌上一壶三杯，
       // 杯口三缕热气（'tea-steam' 会自动加一段往上飘的循环动画）
-      // 山顶 1600~2800：柳树 2500（冠铺 2380~2620），茶桌 2530，
+      // 山顶 1600~2920：柳树 2500（冠铺 2380~2620），茶桌 2530，
       // 宝箱 2740、原石 1650，湖环中心 2200
       { x: 2500, y: 460, key: 'willow-summit', depth: 1.2 },
       { x: 2530, y: 460, key: 'tea-table', depth: 1.22 },
