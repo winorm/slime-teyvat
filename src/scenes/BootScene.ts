@@ -4487,7 +4487,7 @@ export class BootScene extends Phaser.Scene {
     two.fillRect(34, 171, 314, 3)
 
     roof(two, 16, 104, 348, 30)
-    roof(two, 36, 74, 308, 74)
+    roof(two, 36, 38, 308, 70)
     sign(two, 322, 196, 44)
     lantern(two, 48, 178)
     lantern(two, 336, 178)
@@ -4532,6 +4532,17 @@ export class BootScene extends Phaser.Scene {
     windowBox(three, 180, 202, 42, 26)
     windowBox(three, 278, 202, 42, 26)
 
+    // 三层墙底(250)到二层挑台(272)之间补实墙体：撤掉高栅栏后这里原来露空了
+    three.fillStyle(WALL, 1)
+    three.fillRect(40, 250, 320, 22)
+    three.fillStyle(WALL_SHADE, 1)
+    three.fillRect(40, 266, 320, 6)
+    three.fillStyle(TIMBER, 1)
+    three.fillRect(40, 250, 320, 4)
+    three.fillRect(40, 268, 320, 4)
+    three.fillRect(40, 250, 6, 22)
+    three.fillRect(354, 250, 6, 22)
+
     // 三层墙与屋顶之间的阁楼墙，一直顶到屋顶底边 104
     three.fillStyle(WALL, 1)
     three.fillRect(58, 104, 284, 86)
@@ -4552,7 +4563,7 @@ export class BootScene extends Phaser.Scene {
     three.fillRect(44, 178, 314, 3)
 
     roof(three, 16, 104, 368, 30)
-    roof(three, 40, 74, 320, 74)
+    roof(three, 40, 36, 320, 70)
     sign(three, 340, 290, 54)
     lantern(three, 50, 276)
     lantern(three, 354, 276)
