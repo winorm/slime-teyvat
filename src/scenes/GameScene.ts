@@ -7975,7 +7975,7 @@ export class GameScene extends Phaser.Scene {
           .image(fall.x, segment.y, 'waterfall')
           .setOrigin(0.5, 0)
           .setDepth(1.16)
-          .setScale((fall.width ?? 42) / 42, segment.height / 180)
+          .setScale((fall.width ?? 600) / 600, segment.height / 180)
       })
     }
   }

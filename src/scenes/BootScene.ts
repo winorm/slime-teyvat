@@ -7722,44 +7722,55 @@ export class BootScene extends Phaser.Scene {
     g.destroy()
   }
 
-  // 瀑布（42x180）：一条直着落下的水柱，靠几条竖直亮纹和底部白沫表现流动。
+  // 瀑布（600x180）：一整幅宽水帘，宽度和 F1 平台一样（600）。
+  // 横向是中间亮、两侧暗的水体渐变，竖向是长短交错的亮纹，底部只留一条白沫。
   private makeWaterfall() {
-    const W = 42
+    const W = 600
     const H = 180
     const g = this.add.graphics()
-    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
 
-    // 后面一层暗水，给水柱一点厚度
-    g.fillStyle(0x2f5666, 0.4)
-    g.fillRect(10, 0, 22, 174)
+    // 水体：横向渐变，中间最亮、两侧压暗，像一整幅水帘
+    for (let x = 0; x < W; x += 4) {
+      const d = Math.abs(x + 2 - W / 2) / (W / 2)
+      const color = this.mixColor(0x5f98af, 0xb8e4ec, 1 - d * 0.88)
 
-    // 上窄下宽的水柱
-    g.fillStyle(0x6fa9bf, 0.92)
-    g.fillPoints([P(12, 0), P(30, 0), P(34, 170), P(8, 170)], true)
-    g.fillStyle(0x9fd3df, 0.92)
-    g.fillPoints([P(15, 0), P(26, 0), P(29, 165), P(12, 165)], true)
-    g.fillStyle(0xd9f3f8, 0.62)
-    g.fillRect(19, 0, 4, 166)
-
-    // 竖直亮纹：长短交错，不是匀速直线
-    for (let i = 0; i < 7; i++) {
-      const x = 10 + ((i * 7) % 22)
-      const y = (i * 23) % 42
-      const h = 32 + ((i * 37) % 72)
-
-      g.fillStyle(0xffffff, 0.18 + (i % 3) * 0.08)
-      g.fillRect(x, y, 2, h)
+      g.fillStyle(color, 0.92)
+      g.fillRect(x, 0, 4, H - 4)
     }
 
-    // 底部白沫与两侧水花
+    // 两侧的暗边，给水帘一点厚度
+    g.fillStyle(0x2f5666, 0.35)
+    g.fillRect(0, 0, 10, H - 4)
+    g.fillRect(W - 10, 0, 10, H - 4)
+
+    // 竖直亮纹：长短交错，铺满整个宽度
+    for (let i = 0; i < 70; i++) {
+      const x = 8 + ((i * 53) % (W - 16))
+      const y = (i * 29) % 120
+      const h = 30 + ((i * 41) % 90)
+
+      g.fillStyle(0xffffff, 0.08 + (i % 4) * 0.04)
+      g.fillRect(x, y, 2 + (i % 3 === 0 ? 1 : 0), h)
+    }
+
+    // 顶部薄薄一层亮水
+    g.fillStyle(0xd9f3f8, 0.55)
+    g.fillRect(8, 0, W - 16, 3)
+
+    // 底部白沫：只留窄窄一条，纵向拉长后正好变成落地水花
     g.fillStyle(0xcfeef5, 0.35)
-    g.fillEllipse(7, 150, 10, 18)
-    g.fillEllipse(35, 145, 9, 16)
+    g.fillRect(6, H - 10, W - 12, 8)
     g.fillStyle(0xeaf9fc, 0.8)
-    g.fillEllipse(21, 168, 30, 10)
+
+    for (let x = 20; x < W; x += 70) {
+      g.fillEllipse(x, H - 5, 60, 8)
+    }
+
     g.fillStyle(0xffffff, 0.55)
-    g.fillEllipse(14, 171, 16, 8)
-    g.fillEllipse(28, 172, 14, 7)
+
+    for (let x = 45; x < W; x += 90) {
+      g.fillEllipse(x, H - 4, 40, 5)
+    }
 
     g.generateTexture('waterfall', W, H)
     g.destroy()

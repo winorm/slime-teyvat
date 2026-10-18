@@ -1329,16 +1329,11 @@ export const LEVELS: LevelDef[] = [
 
     // 山顶湖：环形透视水面，外径 1000、泉眼 260×80；下半截被山顶平台挡住
     summitLake: { x: 2200, y: 430, width: 1000, height: 180 },
-    // 瀑布：从泉眼一路落到地面，遇到 R3 / L2 / F1 三条走线就断开一小段
+    // 瀑布：宽度和 F1 一样（600），从泉眼一路直落到地面，不再在坡道处断开
     waterfall: {
       x: 2200,
-      width: 42,
-      segments: [
-        { y: 440, height: 135 },
-        { y: 595, height: 179 },
-        { y: 794, height: 356 },
-        { y: 1180, height: 180 },
-      ],
+      width: 600,
+      segments: [{ y: 440, height: 920 }],
     },
 
     orbs: [],
