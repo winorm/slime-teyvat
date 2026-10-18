@@ -11344,42 +11344,137 @@ export class GameScene extends Phaser.Scene {
 
   private playSendOffFx() {
     this.physics.world.pause()
-    this.cameras.main.flash(280, 255, 220, 150)
+    this.inputLocked = true
+    this.sendOffDone = true
 
-    // 光从香炉里升起来（没有香炉的关就退回宝箱位置）
+    const camera = this.cameras.main
     const censer = this.ritualCenser
     const x = censer?.x ?? this.goalSprite.x
     const baseY = censer ? censer.y - censer.displayHeight + 4 : this.goalSprite.y + 8
 
-    for (let i = 0; i < 6; i++) {
-      const glow = this.add
-        .image(x + (i - 2.5) * 18, baseY, 'blessing')
-        .setTint(0xffd54f)
-        .setDepth(9)
-        .setScale(0.4)
-        .setAlpha(0.8)
+    camera.flash(280, 255, 220, 150)
+    // 镜头慢慢推近祭坛，给这 5 秒的典仪一个仪式感
+    camera.zoomTo(1.18, 1800, 'Sine.easeInOut')
 
-      this.tweens.add({
-        targets: glow,
-        y: baseY - 60 - i * 8,
-        alpha: 0,
-        scaleX: 1.2,
-        scaleY: 1.2,
-        duration: 900 + i * 90,
-        delay: i * 80,
-        ease: 'Sine.easeOut',
-        onComplete: () => glow.destroy(),
+    // ① 香炉上方升起一道金色光柱：先长出来、再淡掉
+    const column = this.add
+      .image(x, baseY, 'pixel')
+      .setOrigin(0.5, 1)
+      .setDisplaySize(26, 6)
+      .setTint(0xffd76a)
+      .setAlpha(0.85)
+      .setDepth(9.05)
+
+    this.tweens.add({
+      targets: column,
+      displayHeight: 150,
+      alpha: { from: 0.85, to: 0.55 },
+      duration: 1400,
+      ease: 'Sine.easeOut',
+      onComplete: () => {
+        this.tweens.add({
+          targets: column,
+          displayHeight: 210,
+          alpha: 0,
+          duration: 2600,
+          ease: 'Sine.easeIn',
+          onComplete: () => column.destroy(),
+        })
+      },
+    })
+
+    // ② 一圈圈往上飘的金色光点
+    for (let i = 0; i < 14; i++) {
+      this.time.delayedCall(i * 170, () => {
+        const orb = this.add
+          .image(x + Phaser.Math.Between(-22, 22), baseY - Phaser.Math.Between(0, 20), 'blessing')
+          .setTint(0xffe08a)
+          .setDepth(9.1)
+          .setScale(0.35)
+          .setAlpha(0.9)
+
+        this.tweens.add({
+          targets: orb,
+          y: orb.y - Phaser.Math.Between(90, 150),
+          x: orb.x + Phaser.Math.Between(-18, 18),
+          alpha: 0,
+          scaleX: 1.1,
+          scaleY: 1.1,
+          duration: 1500,
+          ease: 'Sine.easeOut',
+          onComplete: () => orb.destroy(),
+        })
       })
     }
 
-    this.showMessage('送仙典仪结束')
+    // ③ 两道金色冲击环：典礼的节拍
+    ;[900, 2900].forEach((delay, index) => {
+      this.time.delayedCall(delay, () => {
+        const ring = this.add
+          .image(x, baseY, 'shock-ring')
+          .setDepth(9.2)
+          .setScale(0.3)
+          .setAlpha(0.85)
+          .setTint(0xffd76a)
 
-    // 典仪演完：宝箱在祭坛前浮现，玩家自己走过去开
-    this.sendOffDone = true
-    this.time.delayedCall(900, () => {
+        this.tweens.add({
+          targets: ring,
+          scaleX: index === 0 ? 3.4 : 4.6,
+          scaleY: index === 0 ? 1.5 : 1.9,
+          alpha: 0,
+          duration: 900,
+          ease: 'Quad.easeOut',
+          onComplete: () => ring.destroy(),
+        })
+      })
+    })
+
+    // ④ 细碎的金粉
+    for (let i = 0; i < 24; i++) {
+      this.time.delayedCall(400 + i * 90, () => {
+        const dust = this.add
+          .image(x + Phaser.Math.Between(-40, 40), baseY - Phaser.Math.Between(0, 60), 'pixel')
+          .setDisplaySize(2, 2)
+          .setTint(i % 3 === 0 ? 0xfff2c0 : 0xffd76a)
+          .setAlpha(0.8)
+          .setDepth(9.15)
+
+        this.tweens.add({
+          targets: dust,
+          y: dust.y - Phaser.Math.Between(40, 90),
+          alpha: 0,
+          duration: 1200,
+          ease: 'Sine.easeOut',
+          onComplete: () => dust.destroy(),
+        })
+      })
+    }
+
+    // ⑤ 收尾闪一下，5 秒整
+    this.time.delayedCall(4300, () => camera.flash(420, 255, 235, 180))
+    this.time.delayedCall(4700, () => this.showMessage('送仙典仪结束'))
+
+    // 5 秒典礼演完 → 镜头特写宝箱，宝箱在特写里浮现
+    this.time.delayedCall(5000, () => this.playChestCloseUp())
+  }
+
+  // 典仪之后的宝箱特写：镜头推近、宝箱浮现，停一会儿再拉回来交还操作
+  private playChestCloseUp() {
+    const camera = this.cameras.main
+    const chestX = this.goalSprite.x
+    const chestY = this.goalSprite.y
+
+    camera.stopFollow()
+    camera.zoomTo(1.75, 700, 'Sine.easeInOut')
+    camera.pan(chestX, chestY - 4, 700, 'Sine.easeInOut')
+
+    this.time.delayedCall(800, () => this.revealGoal())
+
+    this.time.delayedCall(2600, () => {
+      camera.zoomTo(1, 600, 'Sine.easeInOut')
+      camera.startFollow(this.slime, true, 0.12, 0.12)
       this.physics.world.resume()
       this.inputLocked = false
-      this.revealGoal()
     })
   }
 
