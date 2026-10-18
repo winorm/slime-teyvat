@@ -11226,14 +11226,12 @@ export class GameScene extends Phaser.Scene {
       }
     })
 
-    // 送仙时要升空的"神体"：一条闭着眼的龙，**竖起来、头朝下、身子弯着**往上走。
-    // 贴图用的是撞毁那条（240x140，头在左、尾在右），逆时针转 90° 就变成
-    // 头在下、尾在上、脊背弯向一侧的竖姿
+    // 送仙时要升空的"神体"：专门画的竖姿（160x230）—— 脖子拱起、头在上方低垂、
+    // 身子弯下来、尾羽在最下面。尾巴尖踩在祭坛上方一点，往上飘的时候整条龙都能看见
     this.riteDragon = this.add
-      .image(altar.x, altar.y - 112, 'dragon-wreck')
-      .setOrigin(0.5, 0.5)
-      .setScale(0.8)
-      .setAngle(-90)
+      .image(altar.x, altar.y - 26, 'dragon-ascend')
+      .setOrigin(0.5, 1)
+      .setScale(0.75)
       .setTint(0xfff0d0)
       .setDepth(2.6)
       .setVisible(false)

@@ -8502,7 +8502,31 @@ export class BootScene extends Phaser.Scene {
     wreck.generateTexture('dragon-wreck', 240, 140)
     wreck.destroy()
 
-    // ⑥ 砸在祭坛上那一圈冲击波（96x96）：一圈金白的光环，越往外越淡
+    // ⑥ 送仙升空的神体（160x230）：竖姿 —— 脖子先向上拱起、头在上方低垂
+    //    （吻部朝下），身子顺势弯下来，尾羽落在最下面。
+    //    脊椎从"脖子根"起步：起点 (84,52) → 下一节 (102,34) 是朝右上走的，
+    //    paintDragon 把头顶在切线反方向，于是头正好挂在左上、低垂着
+    const ascend = this.add.graphics()
+
+    paintDragon(
+      ascend,
+      [
+        [84, 52],
+        [102, 34],
+        [124, 52],
+        [134, 86],
+        [128, 122],
+        [110, 156],
+        [88, 186],
+        [74, 208],
+      ],
+      true
+    )
+
+    ascend.generateTexture('dragon-ascend', 160, 230)
+    ascend.destroy()
+
+    // ⑦ 砸在祭坛上那一圈冲击波（96x96）：一圈金白的光环，越往外越淡
     const ring = this.add.graphics()
 
     for (let i = 12; i > 0; i--) {
