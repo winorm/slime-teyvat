@@ -1403,10 +1403,11 @@ export const LEVELS: LevelDef[] = [
       { x: 2810, y: 460, key: 'summit-peak', depth: 1.15 },
       { x: 3570, y: 1010, key: 'tree-cliff-a', flip: true, scale: 1.8, depth: 1.19 },
       { x: 1490, y: 710, key: 'boulder-big', scale: 1.2, depth: 1.15 },
-      // 岩体里的岩石横截面（旧坐标全部换掉，压深一点，别浮在坡面上）
-      { x: 1200, y: 1340, key: 'rock-strata-a', scale: 1.4, depth: 1.16 },
-      { x: 3000, y: 1080, key: 'rock-strata-b', scale: 1.4, depth: 1.16 },
-      { x: 3900, y: 1250, key: 'rock-strata-c', scale: 1.4, depth: 1.16 },
+      // 岩体里的岩石横截面。坡面往下 26 像素是泥土走道，横截面顶部必须落在它下面，
+      // 所以三块都往下压：a 在 R1，b 在 R2，c 在右侧山肩（那里没有泥土层，只跟着下移）
+      { x: 1200, y: 1378, key: 'rock-strata-a', scale: 1.4, depth: 1.16 },
+      { x: 3000, y: 1118, key: 'rock-strata-b', scale: 1.4, depth: 1.16 },
+      { x: 3900, y: 1276, key: 'rock-strata-c', scale: 1.4, depth: 1.16 },
       // 山脚石子
       { x: 250, y: 1360, key: 'pebble-a', scale: 1.8, depth: 1.2 },
       { x: 500, y: 1360, key: 'stone-pile', scale: 1.6, depth: 1.2 },
