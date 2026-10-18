@@ -1393,12 +1393,14 @@ export const LEVELS: LevelDef[] = [
       { x: 4360, y: 1280, key: 'cliff-grass', scale: 1.3, flip: true, depth: 1.18 },
       { x: 1590, y: 500, key: 'cliff-grass', scale: 1.3, flip: true, depth: 1.18 },
       { x: 1520, y: 1120, key: 'cliff-grass', scale: 1.2, flip: true, depth: 1.18 },
-      { x: 3000, y: 480, key: 'cliff-grass', scale: 1.4, flip: true, depth: 1.18 },
+      // 山顶右沿的崖草往左收回平台/崖壁范围内，别悬在平台外的空中
+      { x: 2900, y: 480, key: 'cliff-grass', scale: 1.4, flip: true, depth: 1.18 },
       { x: 2840, y: 700, key: 'cliff-grass', scale: 1.2, flip: true, depth: 1.18 },
       // 边缘防掉落的画面：山顶两座岩峰、C1 右沿的崖树、C2 左沿的大石块。
       // 实体挡板在上面 blockers 里，这些只负责让玩家看出"这里过不去"。
       { x: 1590, y: 460, key: 'summit-peak', flip: true, depth: 1.15 },
-      { x: 2930, y: 460, key: 'summit-peak', depth: 1.15 },
+      // 右沿岩峰也收回平台内（底边 2800~2920），不再有半块悬在平台外
+      { x: 2860, y: 460, key: 'summit-peak', depth: 1.15 },
       { x: 3558, y: 1010, key: 'tree-pine', scale: 1.05, depth: 1.19 },
       // C2 左沿的大石块：右移半块（约 58px），左沿正好压在悬崖边 1500 上，不再往外悬空
       { x: 1548, y: 710, key: 'boulder-big', scale: 1.2, depth: 1.15 },
