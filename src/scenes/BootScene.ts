@@ -196,6 +196,7 @@ export class BootScene extends Phaser.Scene {
     this.makeTrialRockSpike()
     this.makeTrialSideSpike()
     this.makeTrialPot()
+    this.makeTrialPotLid()
     this.makeTrialApple()
     this.makeAmberStand()
     this.makeCliffTrees()
@@ -5864,59 +5865,75 @@ export class BootScene extends Phaser.Scene {
     g.destroy()
   }
 
-  // 第三重试炼的仙家机关锅（40x34）：青铜锅身、金色箍、锅盖和两只提耳。
+  // 第三重试炼的仙家机关锅锅身（40x30）：青铜锅身、金色箍、两只提耳，锅口是开的。
+  // 锅盖单独一张贴图，猜苹果时只开盖，锅本身不动。
   private makeTrialPot() {
     const g = this.add.graphics()
 
     // 接地影
     g.fillStyle(0x2a2118, 0.35)
-    g.fillEllipse(20, 32, 30, 6)
+    g.fillEllipse(20, 28, 32, 6)
 
     // 两只提耳
     g.fillStyle(0x8a6f3c, 1)
-    g.fillRect(1, 16, 6, 3)
-    g.fillRect(33, 16, 6, 3)
+    g.fillRect(1, 14, 6, 3)
+    g.fillRect(33, 14, 6, 3)
     g.fillStyle(0xffd54f, 0.8)
-    g.fillRect(1, 16, 6, 1)
-    g.fillRect(33, 16, 6, 1)
+    g.fillRect(1, 14, 6, 1)
+    g.fillRect(33, 14, 6, 1)
 
     // 锅身：下腹暗、上腹亮
     g.fillStyle(0x4f4232, 1)
-    g.fillEllipse(20, 24, 32, 16)
+    g.fillEllipse(20, 22, 32, 16)
     g.fillStyle(0x7a6547, 1)
-    g.fillEllipse(20, 20, 32, 20)
+    g.fillEllipse(20, 17, 32, 20)
     g.fillStyle(0x9a8460, 1)
-    g.fillEllipse(18, 18, 24, 14)
+    g.fillEllipse(18, 15, 24, 14)
     g.fillStyle(0xb59a6d, 0.55)
-    g.fillEllipse(15, 15, 12, 8)
+    g.fillEllipse(15, 12, 12, 8)
 
     // 金色箍和铆钉
     g.fillStyle(0xd9a441, 1)
-    g.fillRect(4, 21, 32, 2)
+    g.fillRect(4, 19, 32, 2)
     g.fillStyle(0xffd54f, 0.9)
-    g.fillRect(4, 21, 32, 1)
+    g.fillRect(4, 19, 32, 1)
     ;[7, 13, 27, 33].forEach((x) => {
       g.fillStyle(0xffe9a8, 1)
-      g.fillRect(x, 22, 1, 1)
+      g.fillRect(x, 20, 1, 1)
     })
 
-    // 锅盖
+    // 锅口：外沿金圈 + 里面一圈深色，看得出盖子是盖在这上面的
+    g.fillStyle(0x6b5a3f, 1)
+    g.fillEllipse(20, 6, 34, 10)
+    g.fillStyle(0x2e261c, 1)
+    g.fillEllipse(20, 6, 29, 7)
+    g.lineStyle(2, 0xd9a441, 0.9)
+    g.strokeEllipse(20, 6, 34, 10)
+    g.fillStyle(0xfff1c4, 0.55)
+    g.fillRect(7, 3, 10, 1)
+
+    g.generateTexture('trial-pot', 40, 30)
+    g.destroy()
+  }
+
+  // 锅盖（36x12）：盖面 + 金色边 + 小钮，单独一张，方便打开和盖上。
+  private makeTrialPotLid() {
+    const g = this.add.graphics()
+
     g.fillStyle(0x5a4a35, 1)
-    g.fillEllipse(20, 11, 34, 8)
+    g.fillEllipse(18, 8, 34, 6)
     g.fillStyle(0x8a7350, 1)
-    g.fillEllipse(20, 9, 32, 6)
+    g.fillEllipse(18, 6, 30, 6)
     g.fillStyle(0xd9a441, 1)
-    g.fillRect(4, 9, 32, 1)
+    g.fillRect(3, 7, 30, 1)
     g.fillStyle(0x9a7a45, 1)
-    g.fillEllipse(20, 5, 16, 6)
+    g.fillEllipse(18, 4, 16, 6)
     g.fillStyle(0xffd54f, 1)
-    g.fillCircle(20, 3, 2)
-
-    // 盖沿的一点高光
+    g.fillCircle(18, 2, 2)
     g.fillStyle(0xfff1c4, 0.7)
-    g.fillRect(9, 8, 12, 1)
+    g.fillRect(7, 5, 12, 1)
 
-    g.generateTexture('trial-pot', 40, 34)
+    g.generateTexture('trial-pot-lid', 36, 12)
     g.destroy()
   }
 

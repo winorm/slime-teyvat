@@ -1427,7 +1427,8 @@ export class GameScene extends Phaser.Scene {
   private trialThreeCorrect = 0
   private trialThreePots: {
     id: number
-    sprite: Phaser.GameObjects.Image
+    pot: Phaser.GameObjects.Container
+    lid: Phaser.GameObjects.Image
     slot: number
   }[] = []
   private trialThreeApplePot = 0
@@ -4971,12 +4972,13 @@ export class GameScene extends Phaser.Scene {
 
       this.trialThreeDecor.push(seat)
 
-      const sprite = this.add
-        .image(x, def.area.groundY, 'trial-pot')
-        .setOrigin(0.5, 1)
-        .setDepth(6)
+      const pot = this.add.container(x, def.area.groundY).setDepth(6)
+      const body = this.add.image(0, 0, 'trial-pot').setOrigin(0.5, 1)
+      const lid = this.add.image(0, -27, 'trial-pot-lid').setOrigin(0.5, 1)
 
-      return { id, sprite, slot: id }
+      pot.add([body, lid])
+
+      return { id, pot, lid, slot: id }
     })
 
     this.trialThreeApple = this.add
@@ -5000,12 +5002,13 @@ export class GameScene extends Phaser.Scene {
       `第三重  ${round}/${def.rounds}  ·  猜中 ${this.trialThreeCorrect}`
     )
 
-    // 锅先回到各自的槽位，再抬锅露苹果
+    // 锅先回到各自的槽位，再开盖露苹果
     this.trialThreePots.forEach((pot) => {
       pot.slot = pot.id
-      this.tweens.killTweensOf(pot.sprite)
+      this.tweens.killTweensOf(pot.pot)
+      pot.lid.setPosition(0, -27).setAngle(0)
       this.tweens.add({
-        targets: pot.sprite,
+        targets: pot.pot,
         x: def.slots[pot.id],
         y: def.area.groundY,
         duration: 300,
@@ -5022,23 +5025,7 @@ export class GameScene extends Phaser.Scene {
         return
       }
 
-      this.trialThreeApple
-        ?.setPosition(applePot.sprite.x, def.area.groundY - 2)
-        .setVisible(true)
-        .setAlpha(1)
-
-      this.tweens.add({
-        targets: applePot.sprite,
-        y: def.area.groundY - 30,
-        duration: 260,
-        hold: def.showTime,
-        yoyo: true,
-        ease: 'Sine.easeInOut',
-        onComplete: () => {
-          this.trialThreeApple?.setVisible(false)
-          this.beginTrialThreeShuffle()
-        },
-      })
+      this.revealTrialThreeApple(applePot, def.showTime, () => this.beginTrialThreeShuffle())
     })
   }
 
@@ -5076,15 +5063,15 @@ export class GameScene extends Phaser.Scene {
       b = this.trialThreePots[Phaser.Math.Between(0, this.trialThreePots.length - 1)]
     }
 
-    const ax = a.sprite.x
-    const bx = b.sprite.x
+    const ax = a.pot.x
+    const bx = b.pot.x
     const aSlot = a.slot
     a.slot = b.slot
     b.slot = aSlot
 
     // a 从 b 上面绕过去，b 贴着地面滑过去
     this.tweens.add({
-      targets: a.sprite,
+      targets: a.pot,
       x: bx,
       duration: def.swapTime,
       ease: 'Sine.easeInOut',
@@ -5094,21 +5081,102 @@ export class GameScene extends Phaser.Scene {
       },
     })
     this.tweens.add({
-      targets: a.sprite,
+      targets: a.pot,
       y: def.area.groundY - 26,
       duration: Math.round(def.swapTime / 2),
       yoyo: true,
       ease: 'Sine.easeInOut',
     })
     this.tweens.add({
-      targets: b.sprite,
+      targets: b.pot,
       x: ax,
       duration: def.swapTime,
       ease: 'Sine.easeInOut',
     })
   }
 
-  private chooseTrialThreePot(pot: { id: number; sprite: Phaser.GameObjects.Image }) {
+  // 开盖 → 苹果飞出来 → 停一会儿 → 苹果落回锅里 → 盖回去。
+  // 锅身始终不动，只有锅盖和苹果在动。
+  private revealTrialThreeApple(
+    pot: { pot: Phaser.GameObjects.Container; lid: Phaser.GameObjects.Image },
+    hold: number,
+    onComplete?: () => void
+  ) {
+    const def = this.level.trialThree
+    const apple = this.trialThreeApple
+
+    if (!def || !apple) {
+      onComplete?.()
+      return
+    }
+
+    const groundY = def.area.groundY
+    const insideY = groundY - 12
+    const outY = groundY - 54
+
+    this.tweens.killTweensOf(pot.lid)
+    pot.lid.setPosition(0, -27).setAngle(0)
+
+    this.tweens.add({
+      targets: pot.lid,
+      x: 7,
+      y: -37,
+      angle: -24,
+      duration: 180,
+      ease: 'Quad.easeOut',
+      onComplete: () => {
+        apple
+          .setPosition(pot.pot.x, insideY)
+          .setScale(0.7)
+          .setAngle(0)
+          .setAlpha(1)
+          .setVisible(true)
+
+        this.tweens.add({
+          targets: apple,
+          x: pot.pot.x + 5,
+          y: outY,
+          scaleX: 1.15,
+          scaleY: 1.15,
+          angle: 10,
+          duration: 320,
+          ease: 'Back.easeOut',
+          onComplete: () => {
+            this.time.delayedCall(hold, () => {
+              this.tweens.add({
+                targets: apple,
+                x: pot.pot.x,
+                y: insideY,
+                scaleX: 1,
+                scaleY: 1,
+                angle: 0,
+                duration: 300,
+                ease: 'Sine.easeIn',
+                onComplete: () => {
+                  apple.setVisible(false).setAlpha(1)
+                  this.tweens.add({
+                    targets: pot.lid,
+                    x: 0,
+                    y: -27,
+                    angle: 0,
+                    duration: 180,
+                    ease: 'Quad.easeIn',
+                    onComplete: () => onComplete?.(),
+                  })
+                },
+              })
+            })
+          },
+        })
+      },
+    })
+  }
+
+  private chooseTrialThreePot(pot: {
+    id: number
+    pot: Phaser.GameObjects.Container
+    lid: Phaser.GameObjects.Image
+  }) {
     const def = this.level.trialThree
 
     if (!def || this.trialThreeDone || this.trialThreePhase !== 'choose') {
@@ -5126,19 +5194,7 @@ export class GameScene extends Phaser.Scene {
       `第三重  ${this.trialThreeRound}/${def.rounds}  ·  猜中 ${this.trialThreeCorrect}`
     )
 
-    this.tweens.add({
-      targets: pot.sprite,
-      y: def.area.groundY - 30,
-      duration: 220,
-      hold: 500,
-      yoyo: true,
-      ease: 'Sine.easeInOut',
-    })
-
     if (correct) {
-      this.trialThreeApple
-        ?.setPosition(pot.sprite.x, def.area.groundY - 2)
-        .setVisible(true)
       playSfx(this, 'sfx-gem', 0.5)
       this.cameras.main.flash(140, 120, 220, 150)
       this.showMessage('猜对了')
@@ -5146,25 +5202,12 @@ export class GameScene extends Phaser.Scene {
       playSfx(this, 'sfx-land', 0.28)
       this.cameras.main.flash(140, 220, 90, 90)
       this.showMessage('猜错了')
-
-      const applePot = this.trialThreePots[this.trialThreeApplePot]
-
-      this.time.delayedCall(300, () => {
-        this.trialThreeApple
-          ?.setPosition(applePot.sprite.x, def.area.groundY - 2)
-          .setVisible(true)
-        this.tweens.add({
-          targets: applePot.sprite,
-          y: def.area.groundY - 30,
-          duration: 220,
-          hold: 420,
-          yoyo: true,
-          ease: 'Sine.easeInOut',
-        })
-      })
     }
 
-    this.time.delayedCall(1500, () => {
+    // 猜对就开自己这口锅，猜错就开真正藏着苹果的那口
+    const revealPot = correct ? pot : this.trialThreePots[this.trialThreeApplePot]
+
+    this.revealTrialThreeApple(revealPot, 650, () => {
       this.trialThreeApple?.setVisible(false)
 
       if (this.trialThreeRound >= def.rounds) {
@@ -5223,8 +5266,8 @@ export class GameScene extends Phaser.Scene {
 
   private clearTrialThree() {
     this.trialThreePots.forEach((pot) => {
-      this.tweens.killTweensOf(pot.sprite)
-      pot.sprite.destroy()
+      this.tweens.killTweensOf(pot.pot)
+      pot.pot.destroy()
     })
     this.trialThreePots = []
 
@@ -12862,7 +12905,7 @@ export class GameScene extends Phaser.Scene {
       this.trialThreePhase === 'choose'
     ) {
       for (const pot of this.trialThreePots) {
-        if (Math.abs(this.slime.x - pot.sprite.x) < 36) {
+        if (Math.abs(this.slime.x - pot.pot.x) < 36) {
           prompt = this.interactPrefix() + '选这口锅'
           action = () => this.chooseTrialThreePot(pot)
           break
