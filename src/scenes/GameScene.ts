@@ -4229,7 +4229,7 @@ export class GameScene extends Phaser.Scene {
       duration: 280,
       onComplete: () => {
         const point = this.startData.returnPoint ?? { x: 1960, y: 446, element: 'rock' as ElementKey }
-        this.scene.restart({ checkpoint: point })
+        this.scene.restart({ checkpoint: point, domain: false })
       },
     })
   }
@@ -11197,6 +11197,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   private die(cause: string) {
+    // 秘境里任何一次死亡都按仙家试炼失败处理：淡出回第九关山顶，
+    // 不弹普通死亡界面（那个界面的“重开本关”会带着 domain 数据重新进秘境）
+    if (this.domainMode) {
+      this.failDomain()
+      return
+    }
+
     // 无敌帧不挡「摔出世界」：雷闪能穿过障碍、能顶掉岩刺，但救不了掉下去
     if (this.dying || (this.invulnTimer > 0 && cause !== 'fall')) {
       return
