@@ -440,9 +440,12 @@ export type HazardDef = {
 export type AmberDef = {
   x: number
   y: number                                  // 底面那条线（贴地摆）
-  loot?: 'gem' | 'boar' | 'npc'              // 里面冻着什么（不写＝gem）
+  key?: string                               // 贴图，不写＝amber（第十关的矿壳用 ore-shell）
+  stand?: boolean                            // 底下垫不垫那堆土（不写＝垫）
+  loot?: 'gem' | 'boar' | 'npc' | 'material' // 里面冻着什么（不写＝gem）
   text?: string                              // npc 那一句
   gemIndex?: number                          // loot 是 gem 时用它当"第几颗原石"（0 起）
+  item?: { key: string; label: string }      // loot 是 material 时给的那件东西
 }
 
 export type MonumentDef = {
@@ -1526,11 +1529,31 @@ export const LEVELS: LevelDef[] = [
     hazards: [],
     monuments: [],
 
-    // 送仙典仪的三样供品：纯拾取，三样齐了才能进往生堂
+    // 戒严：香铺门口两个千岩军在来回巡逻 —— 永生香就摆在他们的眼皮底下。
+    // 趁他们背身溜进去，或者岩化后站着不动（他不认石头）。
+    // 视野 / 疑惑 / 追击和第八关是同一套
+    guards: [
+      { x: 2520, y: 1160, range: 80, speed: 22, facing: -1, vision: 150 },
+      { x: 2705, y: 1160, range: 55, speed: 26, facing: 1, vision: 150 },
+    ],
+
+    // 送仙典仪的三样供品：两样摆在外面（纯拾取），夜泊石封在码头的矿壳里
     materials: [
-      { x: 760, y: 1160, key: 'item-noctilocus', label: '夜泊石' },
       { x: 1780, y: 1160, key: 'item-silkflower', label: '霓裳花' },
       { x: 2580, y: 1160, key: 'item-incense', label: '永生香' },
+    ],
+
+    // 夜泊石：封在码头那只矿壳里。岩柱的岩共鸣 / 跳上去踩碎（岩化跳砸范围更大）都能砸开，
+    // 砸开以后它才掉出来，和别的供品一样走过去按 F 收
+    ambers: [
+      {
+        x: 760,
+        y: 1160,
+        key: 'ore-shell',
+        stand: false,
+        loot: 'material',
+        item: { key: 'item-noctilocus', label: '夜泊石' },
+      },
     ],
 
     // 陆地多层楼打包：两段 920 宽，交替铺满整条街
@@ -1557,9 +1580,10 @@ export const LEVELS: LevelDef[] = [
 
     hints: [
       { x: 100, y: 1085, text: '向右走，去往生堂找客卿' },
-      { x: 760, y: 1085, text: '夜泊石在码头的货箱旁' },
+      { x: 760, y: 1085, text: '夜泊石封在码头的矿壳里' },
       { x: 1780, y: 1085, text: '霓裳花在街边的花摊' },
       { x: 2580, y: 1085, text: '永生香在香铺门口' },
+      { x: 2360, y: 1085, text: '香铺前有千岩军 · 岩化静止可避开视线' },
       { x: 2070, y: 1085, text: '往生堂' },
       { x: 4880, y: 1085, text: '玉京台 · 送仙典仪' },
     ],

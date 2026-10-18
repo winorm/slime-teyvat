@@ -191,6 +191,7 @@ export class BootScene extends Phaser.Scene {
     this.makeRiteProps()
     this.makeCloudRetainerCrane()
     this.makeAmber()
+    this.makeOreShell()
     this.makeAmberBoar()
     this.makeAmberNpc()
     this.makeSpeedCharm()
@@ -6201,6 +6202,65 @@ export class BootScene extends Phaser.Scene {
     g.fillEllipse(31, 50, 56, 5)
 
     g.generateTexture('amber', 64, 52)
+    g.destroy()
+  }
+
+  // ── 矿壳（44x38）：第十关码头上封着夜泊石的那块石头 ────────────────
+  //   和琥珀同一套交互（岩共鸣 / 跳砸都能砸开），只是外观换成"一块带青蓝矿脉的石头"，
+  //   底下不垫琥珀那种土台 —— 它是直接卧在码头地面上的
+  private makeOreShell() {
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    // 石头外形：上窄下宽、左边有个缺口，别做成规规矩矩的方块
+    const outline = [
+      P(4, 36),
+      P(2, 22),
+      P(9, 12),
+      P(20, 6),
+      P(31, 9),
+      P(40, 18),
+      P(42, 30),
+      P(36, 36),
+    ]
+
+    g.fillStyle(0x2e2e36, 1)
+    g.fillPoints(outline.map((p) => P(p.x, p.y + 1)), true)
+    g.fillStyle(0x6b6b73, 1)
+    g.fillPoints(outline, true)
+
+    // 受光面（左上）和背光面（右下）
+    g.fillStyle(0x8a8a94, 1)
+    g.fillPoints([P(4, 26), P(9, 12), P(20, 6), P(26, 20), P(12, 30)], true)
+    g.fillStyle(0x4e4e57, 1)
+    g.fillPoints([P(26, 20), P(40, 18), P(42, 30), P(36, 36), P(24, 34)], true)
+
+    // 石缝
+    g.lineStyle(1, 0x3a3a42, 0.9)
+    g.lineBetween(20, 8, 24, 20)
+    g.lineBetween(24, 20, 18, 33)
+    g.lineBetween(26, 20, 38, 27)
+
+    // 露出来的青蓝矿脉：两片棱角分明的晶体，压深色描边 + 一道高光
+    g.fillStyle(0x1d3a4a, 1)
+    g.fillPoints([P(22, 22), P(29, 9), P(34, 21)], true)
+    g.fillStyle(0x3f93c4, 1)
+    g.fillPoints([P(23.5, 21), P(29, 11), P(32.5, 20.5)], true)
+    g.fillStyle(0x9adcf5, 1)
+    g.fillPoints([P(27, 18), P(29, 12), P(30, 18)], true)
+
+    g.fillStyle(0x1d3a4a, 1)
+    g.fillPoints([P(12, 26), P(17, 15), P(21, 27)], true)
+    g.fillStyle(0x2f7ea8, 1)
+    g.fillPoints([P(13.5, 25.5), P(17, 17), P(19.8, 26.5)], true)
+    g.fillStyle(0x7fcfea, 1)
+    g.fillRect(16, 20, 1, 3)
+
+    // 贴地那一道暗影
+    g.fillStyle(0x1a1a22, 0.35)
+    g.fillEllipse(22, 37, 40, 4)
+
+    g.generateTexture('ore-shell', 44, 38)
     g.destroy()
   }
 

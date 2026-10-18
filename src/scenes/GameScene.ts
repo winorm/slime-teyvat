@@ -1738,6 +1738,8 @@ export class GameScene extends Phaser.Scene {
     sprite: Phaser.GameObjects.Image
     label: string
     taken: boolean
+    // 封在矿壳里的那一件：还没砸开时先占着名额（"还差几样"要算上它），但看不见也拾取不到
+    hidden?: boolean
   }[] = []
   private speedItems: { sprite: Phaser.GameObjects.Image; def: SpeedItemDef; taken: boolean }[] = []
   private speedBoostTimer = 0
@@ -3344,6 +3346,26 @@ export class GameScene extends Phaser.Scene {
       })
 
       this.materialList.push({ sprite, label: def.label, taken: false })
+    })
+
+    // 矿壳里封着的供品：先占一个名额（看不见、拾取不到），砸开矿壳才显形
+    ;(this.level.ambers ?? []).forEach((def) => {
+      if (def.loot !== 'material' || !def.item) {
+        return
+      }
+
+      const sprite = this.add
+        .image(def.x, def.y - 2, def.item.key)
+        .setOrigin(0.5, 1)
+        .setDepth(14)
+        .setVisible(false)
+
+      this.materialList.push({
+        sprite,
+        label: def.item.label,
+        taken: false,
+        hidden: true,
+      })
     })
 
     ;(this.level.repairs ?? []).forEach((def) => {
@@ -8491,11 +8513,13 @@ export class GameScene extends Phaser.Scene {
 
     ;(this.level.ambers ?? []).forEach((def) => {
       // 坐台先摆（砸碎了也留着），琥珀坐在它上面
-      this.add.image(def.x, def.y, 'amber-stand').setOrigin(0.5, 1).setDepth(4)
+      if (def.stand !== false) {
+        this.add.image(def.x, def.y, 'amber-stand').setOrigin(0.5, 1).setDepth(4)
+      }
 
       const sprite = this.add
         // 贴近地面（用户 2026/10/17 定）：底边只离地 4 像素，埋在土堆里
-        .image(def.x, def.y - 4, 'amber')
+        .image(def.x, def.y - 4, def.key ?? 'amber')
         .setDepth(5)
         .setOrigin(0.5, 1)
       // 用户 2026/10/17 定：**琥珀不要做动态**，就静静凝在那儿
@@ -8978,6 +9002,39 @@ export class GameScene extends Phaser.Scene {
 
     const loot = amber.def.loot ?? 'gem'
 
+    if (loot === 'material') {
+      // 矿壳里封着的供品：砸开后掉在原地，和关卡里摆着的供品是同一套（走过去按 F 收）
+      const item = amber.def.item
+
+      if (item) {
+        // 建关时已经占了一个隐形名额，这里把它显出来（找不到才新建，保险）
+        const entry = this.materialList.find((one) => one.hidden && one.label === item.label)
+
+        if (entry) {
+          entry.hidden = false
+          entry.sprite.setPosition(x, y - 2).setVisible(true)
+        } else {
+          const sprite = this.add.image(x, y - 2, item.key).setOrigin(0.5, 1).setDepth(14)
+
+          this.materialList.push({ sprite, label: item.label, taken: false })
+        }
+
+        const sprite = entry?.sprite ?? this.materialList[this.materialList.length - 1].sprite
+        const baseY = sprite.y
+
+        this.tweens.add({
+          targets: sprite,
+          y: baseY - 3,
+          duration: 900,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        })
+        this.showMessage(`矿壳碎了，里面是${item.label}`)
+      }
+      return
+    }
+
     if (loot === 'gem') {
       // 一颗"额外的"原石：index 用一个空位，捡了会亮 HUD、也算进这一关的收集
       const gem = this.gems.create(x, y + 2, 'gem') as Phaser.Physics.Arcade.Sprite
@@ -9159,8 +9216,8 @@ export class GameScene extends Phaser.Scene {
         continue
       }
 
-      // 琥珀贴图 64x52，底边在 def.y - 4，所以顶边是 def.y - 56
-      const top = amber.def.y - 56
+      // 顶边跟着贴图走：琥珀 64x52，矿壳 44x38，底边都在 def.y - 4
+      const top = amber.sprite.y - amber.sprite.displayHeight
 
       if (feet < top - 6 || feet > top + 26) {
         continue
@@ -9221,7 +9278,11 @@ export class GameScene extends Phaser.Scene {
     }
 
     markHintSeen(AMBER_HINT_FLAG)
-    this.showMessage('琥珀：用岩柱的岩共鸣震开，或跳上去踩碎；岩化后跳砸范围更大')
+    const isOre = (this.level.ambers?.[0]?.key ?? 'amber') !== 'amber'
+
+    this.showMessage(
+      `${isOre ? '矿壳' : '琥珀'}：用岩柱的岩共鸣震开，或跳上去踩碎；岩化后跳砸范围更大`
+    )
   }
 
   // 每帧的贴地：人在弧的 x 范围内、脚底贴着弧面，就把脚底按到曲线上。
@@ -13706,7 +13767,7 @@ export class GameScene extends Phaser.Scene {
     // 第十关的三样供品：走近拾取，三样齐了才能进往生堂
     if (!prompt) {
       for (const item of this.materialList) {
-        if (item.taken) {
+        if (item.taken || item.hidden) {
           continue
         }
 
