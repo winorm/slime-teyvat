@@ -1437,6 +1437,8 @@ export class GameScene extends Phaser.Scene {
   private domainMode = false
   private domainHearts = 3
   private domainHeartText: Phaser.GameObjects.Text | null = null
+  private combatHearts = 0
+  private combatHeartText: Phaser.GameObjects.Text | null = null
   private domainLeaving = false
   private craneNpc: Phaser.GameObjects.Image | null = null
   // 第一重试炼：浮石 / 安全台 / 仙家符箓
@@ -1804,6 +1806,8 @@ export class GameScene extends Phaser.Scene {
     this.domainMode = this.startData.domain === true
     this.domainHearts = 3
     this.domainHeartText = null
+    this.combatHearts = 0
+    this.combatHeartText = null
     this.domainLeaving = false
     this.craneNpc = null
     this.trialStones = []
@@ -3685,6 +3689,12 @@ export class GameScene extends Phaser.Scene {
       this.buildDomainHud()
     }
 
+    // 战斗关（第十一关起）：三颗心，扣完不判死，起立回一颗
+    if (this.level.combat) {
+      this.combatHearts = this.level.combat.hearts ?? 3
+      this.buildCombatHud()
+    }
+
     // 存档里"小龙已经救出来了"：方碑全亮、四道门全开、笼子空了、宝箱已经在塔中央。
     // 统一放在这儿补，而不是去各个创建处加分支 —— 这时候方碑 / 门 / 笼子 / 宝箱都已经建好了
     if (this.towerRestored) {
@@ -4287,6 +4297,83 @@ export class GameScene extends Phaser.Scene {
 
   private domainHeartString() {
     return this.domainHearts > 0 ? '♥ '.repeat(this.domainHearts).trim() : '♡'
+  }
+
+  // 战斗关的心：和秘境那条同一个样子，只是标题按关卡给
+  private buildCombatHud() {
+    this.combatHeartText = this.add
+      .text(240, 8, this.combatHeartString(), {
+        fontFamily: 'sans-serif',
+        fontSize: '15px',
+        color: '#e05a5a',
+      })
+      .setOrigin(0.5, 0)
+      .setScrollFactor(0)
+      .setDepth(HUD_DEPTH)
+
+    this.add
+      .text(240, 27, this.level.combat?.label ?? '战斗', {
+        fontFamily: 'sans-serif',
+        fontSize: '10px',
+        color: '#ffd54f',
+      })
+      .setOrigin(0.5, 0)
+      .setScrollFactor(0)
+      .setDepth(HUD_DEPTH)
+  }
+
+  private combatHeartString() {
+    return this.combatHearts > 0 ? '♥ '.repeat(this.combatHearts).trim() : '♡'
+  }
+
+  private refreshCombatHearts() {
+    this.combatHeartText?.setText(this.combatHeartString())
+  }
+
+  // 战斗关掉血：扣完不判死 —— 原地"心脏起立"，回一颗心、无敌 2 秒，可以一直磨
+  damageCombat(amount = 1) {
+    if (!this.level.combat || this.combatHearts <= 0 || this.invulnTimer > 0) {
+      return
+    }
+
+    this.combatHearts = Math.max(0, this.combatHearts - amount)
+    this.refreshCombatHearts()
+    this.cameras.main.shake(120, 0.005)
+
+    if (this.combatHeartText) {
+      this.tweens.killTweensOf(this.combatHeartText)
+      this.combatHeartText.setScale(1)
+      this.tweens.add({
+        targets: this.combatHeartText,
+        scaleX: 1.28,
+        scaleY: 1.28,
+        duration: 90,
+        yoyo: true,
+        ease: 'Quad.easeOut',
+      })
+    }
+
+    const art = this.slimeArt
+
+    art.setTint(0xff6b6b).setTintMode(Phaser.TintModes.FILL)
+    this.time.delayedCall(110, () => {
+      if (art.active) {
+        art.clearTint()
+      }
+    })
+
+    if (this.combatHearts <= 0) {
+      // 心脏起立：不弹死亡界面，原地回一颗
+      this.combatHearts = 1
+      this.refreshCombatHearts()
+      this.invulnTimer = 2
+      this.cameras.main.flash(260, 255, 220, 150)
+      this.showMessage('心脏起立！')
+      return
+    }
+
+    this.invulnTimer = 1.2
+    this.showMessage(`还剩 ${this.combatHearts} 颗心`)
   }
 
   private refreshDomainHearts() {

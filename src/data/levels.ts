@@ -263,6 +263,7 @@ export type BgTheme =
   | 'harbor'
   | 'harbor-land'
   | 'mountain'
+  | 'golden-house'
 
 export type ThemeColor = {
   ground: number
@@ -285,6 +286,8 @@ export const THEME_COLORS: Record<BgTheme, ThemeColor> = {
   'harbor-land': { ground: 0x8a6a4a, oneWay: 0xb09068, crumble: 0x9a5a44, hazard: 0x2f6f8f },
   // 高山：白天的岩土色，和第九关的山体填色同一套
   mountain: { ground: 0x8a6a4a, oneWay: 0xb09068, crumble: 0x9a5a44, hazard: 0x2f6f8f },
+  // 黄金屋：室内的金砖地面，比街面更暖、更亮
+  'golden-house': { ground: 0x7a5a24, oneWay: 0xb08a3a, crumble: 0x9a5a44, hazard: 0xb03a3a },
 }
 
 export type LevelDef = {
@@ -399,6 +402,8 @@ export type LevelDef = {
   // 玉京台上的送仙典仪（第十关）：x/y = 祭坛前玩家站的那条走线。
   // 祭坛、供品、香炉、凝光、围观的都按 2.5D 的深度往后排
   rite?: { x: number; y: number }
+  // 战斗关（第十一关起）：三颗心，扣完不判死亡，原地"心脏起立"回一颗、无敌 2 秒
+  combat?: { hearts?: number; label?: string }
   trunk?: { x: number; y: number; width: number; height: number; depth?: number }
   // 古树主干：竖着平铺树皮带，x/y 是中心点
   spindle?: { x: number; y: number; width: number; height: number; depth?: number }
@@ -1050,10 +1055,11 @@ export const LEVELS: LevelDef[] = [
 
     width: 6900,
     height: 1200,
-    // 岩是上一关带过来的；雷是本关新给的 —— **雷神像留到第 11 关才出现**（用户定的），
-    // 所以这一关不给神像，直接用 unlocks 把雷发下来
+    // 岩是上一关带过来的。**雷不再在这一关发**：2026/10/18 用户把主线排成
+    // 第十一关黄金屋（只有风、岩）→ 第十二关稻妻开局摸雷神像才解锁雷，
+    // 所以这里只补风；雷等第十二关的神像
     startElement: 'rock',
-    unlocks: ['wind', 'thunder'],
+    unlocks: ['wind'],
     spawn: { x: 60, y: 1120 },
     bg: 'harbor',
     // 宝箱摆在追击段最后一摞木箱（x 6737）最上面那一块上：箱顶 1028，宝箱中心压在上面
@@ -1647,6 +1653,51 @@ export const LEVELS: LevelDef[] = [
       { x: 2070, y: 1085, text: '往生堂' },
       { x: 3380, y: 1085, text: '街面塌了一截 · 踩木箱走屋檐' },
       { x: 3960, y: 1085, text: '玉京台 · 送仙典仪' },
+    ],
+  },
+
+  // ══ 第十一关 · 黄金屋（2026/10/18 开工）═══════════════════════════
+  // 送仙典仪之后：帝君的仙体被送进黄金屋，钟离带着旅行者去查看，
+  // 公子现身动手。这一关是"打不死"的战斗关（见 LevelDef.combat）：
+  // 三颗心，扣完原地起立回一颗、无敌 2 秒，一直磨下去。
+  // 黄金屋之后接群玉阁那半段（奥赛尔 + 愚人众 + 仙人助战），
+  // 目前先只搭出黄金屋的大厅和规则，公子的招式还在做。
+  {
+    name: '第十一关 · 黄金屋',
+    intro:
+      '送仙典仪之后，帝君的仙体被送进黄金屋。\n钟离说，该去看看了 —— 有些事，瞒不了多久。',
+
+    width: 2600,
+    height: 1200,
+    startElement: 'rock',
+    unlocks: ['wind'],
+    spawn: { x: 100, y: 1147 },
+    bg: 'golden-house',
+    bgFixedY: true,
+    // 黄金屋这一关还没收尾（公子打完是过场接群玉阁），宝箱先关着
+    goal: { x: 2480, y: 1146, kind: 'chest', prompt: '打开' },
+    goalDisabled: true,
+    combat: { hearts: 3, label: '黄金屋' },
+
+    platforms: [
+      // 一整条金砖地面（顶面 1160）
+      { x: 1300, y: 1180, width: 2600, height: 40, brick: true },
+    ],
+
+    orbs: [],
+    gems: [],
+    blessings: [],
+    hazards: [],
+    monuments: [],
+
+    decor: [
+      // 金库尽头的仙体：金龙像（先用正面那条龙的贴图立在金台上）
+      { x: 2200, y: 1160, key: 'dragon-ascend-front', scale: 1, depth: -5 },
+    ],
+
+    hints: [
+      { x: 170, y: 1085, text: '黄金屋 · 帝君的仙体停在里面' },
+      { x: 1900, y: 1085, text: '仙体就停在金台上' },
     ],
   },
 

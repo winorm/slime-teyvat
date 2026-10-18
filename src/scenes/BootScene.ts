@@ -183,6 +183,7 @@ export class BootScene extends Phaser.Scene {
     this.makeHarborProps()
     this.makeLandBuildings()
     this.makeWangShengTang()
+    this.makeGoldenHouseBg()
     this.makeEaveBridge()
     this.makeWallLedge()
     this.makeCanalGap()
@@ -4596,6 +4597,139 @@ export class BootScene extends Phaser.Scene {
     lantern(shop, 34, 92)
     shop.generateTexture('land-shop', 220, 150)
     shop.destroy()
+  }
+
+  // ── 黄金屋内部的两层背景（各 480x270，平铺）────────────────────────
+  //   照原作黄金屋画：深暖色的金库大厅、正面一道巨大的拱券、成排包金立柱、
+  //   柱间挂着红幡、墙脚堆着摩拉和宝箱。远层只有墙和拱，中层是柱子和金币堆
+  private makeGoldenHouseBg() {
+    const far = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    // 墙面：上暗下暖的竖向渐变
+    for (let y = 0; y < 270; y += 5) {
+      far.fillStyle(this.mixColor(0x170f0a, 0x3a2416, Math.min(1, y / 240)), 1)
+      far.fillRect(0, y, 480, 5)
+    }
+
+    // 正面大拱券：三层金线 + 拱里的暖光
+    far.fillStyle(0xd9a441, 0.06)
+    far.fillCircle(240, 210, 130)
+    ;[150, 136, 122].forEach((r, i) => {
+      far.lineStyle(7 - i * 2, 0x8a6a2f, 0.5 - i * 0.12)
+      far.beginPath()
+      far.arc(240, 220, r, Math.PI, Math.PI * 2)
+      far.strokePath()
+    })
+    // 拱脚的柱墩
+    ;[90, 390].forEach((x) => {
+      far.fillStyle(0x2a1a10, 1)
+      far.fillRect(x - 14, 130, 28, 140)
+      far.fillStyle(0x6b4a20, 1)
+      far.fillRect(x - 11, 130, 8, 140)
+      far.fillStyle(0xd9a441, 0.35)
+      far.fillRect(x - 14, 126, 28, 4)
+    })
+
+    // 拱顶垂下来的一排小灯
+    for (let x = 130; x <= 350; x += 44) {
+      far.fillStyle(0xd9a441, 0.8)
+      far.fillRect(x, 96, 1, 12)
+      far.fillStyle(0xffcf7a, 0.8)
+      far.fillEllipse(x, 112, 7, 9)
+      far.fillStyle(0xfff0bd, 0.5)
+      far.fillEllipse(x, 110, 3, 4)
+    }
+
+    // 地面那一道金线
+    far.fillStyle(0x8a6a2f, 0.5)
+    far.fillRect(0, 262, 480, 3)
+
+    far.generateTexture('bg-golden-house-far', 480, 270)
+    far.destroy()
+
+    const mid = this.add.graphics()
+
+    // 包金立柱：柱身三段受光 + 柱头 / 柱础 + 红幡
+    const pillar = (x: number) => {
+      mid.fillStyle(0x2a1a10, 1)
+      mid.fillRect(x - 19, 26, 38, 244)
+      mid.fillStyle(0x6b4a20, 1)
+      mid.fillRect(x - 16, 30, 32, 240)
+      mid.fillStyle(0xb08a3a, 1)
+      mid.fillRect(x - 16, 30, 11, 240)
+      mid.fillStyle(0x8a6a2f, 1)
+      mid.fillRect(x - 5, 30, 6, 240)
+      mid.fillStyle(0x4a3418, 1)
+      mid.fillRect(x + 7, 30, 9, 240)
+
+      // 柱头
+      mid.fillStyle(0x8a6a2f, 1)
+      mid.fillRect(x - 24, 20, 48, 12)
+      mid.fillStyle(0xd9a441, 1)
+      mid.fillRect(x - 24, 20, 48, 3)
+      mid.fillStyle(0x6b4a20, 1)
+      mid.fillRect(x - 20, 32, 40, 4)
+
+      // 柱础
+      mid.fillStyle(0x6b4a20, 1)
+      mid.fillRect(x - 26, 254, 52, 16)
+      mid.fillStyle(0x8a6a2f, 1)
+      mid.fillRect(x - 26, 254, 52, 3)
+
+      // 红幡（金边、下端燕尾）
+      mid.fillStyle(0x7a2e22, 1)
+      mid.fillPoints(
+        [
+          P(x - 7, 44),
+          P(x + 7, 44),
+          P(x + 7, 116),
+          P(x, 108),
+          P(x - 7, 116),
+        ],
+        true
+      )
+      mid.fillStyle(0xd9a441, 1)
+      mid.fillRect(x - 7, 44, 14, 2)
+      mid.fillStyle(0xc9a441, 1)
+      mid.fillRect(x - 2, 52, 4, 4)
+      mid.fillRect(x - 4, 62, 8, 2)
+    }
+
+    ;[60, 240, 420].forEach(pillar)
+
+    // 柱间的摩拉堆：一堆堆金币，顶上压着几枚立起来的
+    const pile = (x: number, w: number, h: number) => {
+      mid.fillStyle(0x8a6a2f, 1)
+      mid.fillEllipse(x, 268, w, h)
+      mid.fillStyle(0xd9a441, 1)
+      mid.fillEllipse(x, 266 - h * 0.1, w * 0.88, h * 0.7)
+      mid.fillStyle(0xf0d07a, 1)
+      mid.fillEllipse(x - w * 0.18, 264 - h * 0.15, w * 0.4, h * 0.34)
+      mid.fillStyle(0xb08a3a, 1)
+      mid.fillEllipse(x + w * 0.24, 264 - h * 0.05, w * 0.2, h * 0.16)
+    }
+
+    pile(150, 70, 26)
+    pile(330, 84, 30)
+    pile(468, 56, 22)
+
+    // 柱间挂的红灯笼
+    ;[150, 330].forEach((x) => {
+      mid.fillStyle(0x2a1a10, 1)
+      mid.fillRect(x, 70, 1, 10)
+      mid.fillStyle(0xd9a441, 1)
+      mid.fillRect(x - 4, 80, 9, 2)
+      mid.fillStyle(0xb03a2e, 1)
+      mid.fillEllipse(x, 90, 12, 14)
+      mid.fillStyle(0xe05a3a, 1)
+      mid.fillEllipse(x - 1, 89, 8, 10)
+      mid.fillStyle(0xd9a441, 1)
+      mid.fillRect(x - 4, 96, 9, 2)
+    })
+
+    mid.generateTexture('bg-golden-house-mid', 480, 270)
+    mid.destroy()
   }
 
   // ── 两座屋檐之间搭的木板桥（150x16）──────────────────────────────
