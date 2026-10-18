@@ -8527,8 +8527,8 @@ export class BootScene extends Phaser.Scene {
     ascend.destroy()
 
     // ⑦ 正面朝外的神体（150x230）：头在顶上**正对镜头**（闭着眼、低垂着），
-    //    身子是一条竖直的蛇形、尾巴在最下面。侧面的那条留着没删，
-    //    以后别的演出要用还能拿
+    //    身子是一条竖直的蛇形、尾巴在最下面。
+    //    **当前演出没用它**（用户最后选了侧面那条 dragon-ascend），先留着备着
     const front = this.add.graphics()
     const spine: Array<[number, number, number]> = [
       [74, 76, 13],

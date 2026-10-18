@@ -11226,10 +11226,10 @@ export class GameScene extends Phaser.Scene {
       }
     })
 
-    // 送仙时要升空的"神体"：正面朝外的竖姿（150x230）—— 头在顶上正对镜头、闭着眼，
-    // 身子竖直蛇形、尾巴在最下面。尾巴尖踩在祭坛上方一点
+    // 送仙时要升空的"神体"：竖姿（160x230）—— 脖子拱起、头在上方低垂、
+    // 身子弯下来、尾羽在最下面。尾巴尖踩在祭坛上方一点
     this.riteDragon = this.add
-      .image(altar.x, altar.y - 26, 'dragon-ascend-front')
+      .image(altar.x, altar.y - 26, 'dragon-ascend')
       .setOrigin(0.5, 1)
       .setScale(0.75)
       .setTint(0xfff0d0)
