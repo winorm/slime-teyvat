@@ -1749,6 +1749,12 @@ export class GameScene extends Phaser.Scene {
   private woods = 0
   private ritualCenser: Phaser.GameObjects.Image | null = null
   private ritualLit = false
+  // 第十关送仙：往生堂门口交接 → 玉京台祭坛行礼
+  private hutaoNpc: Phaser.GameObjects.Image | null = null
+  private zhongliNpc: Phaser.GameObjects.Image | null = null
+  private zhongliRite: Phaser.GameObjects.Image | null = null
+  private sendOffUnlocked = false
+  private sendOffDone = false
 
   private paperShowing = false
   private paperLayer: Phaser.GameObjects.Container | null = null
@@ -1827,6 +1833,11 @@ export class GameScene extends Phaser.Scene {
     this.trialThreeStartMarker = null
     this.ritualCenser = null
     this.ritualLit = false
+    this.hutaoNpc = null
+    this.zhongliNpc = null
+    this.zhongliRite = null
+    this.sendOffUnlocked = false
+    this.sendOffDone = false
     this.devLevel = !this.domainMode && DEV_LEVEL_MODE
     // 测试关卡是「大厅 + 展厅」：devRoom < 0 在大厅，其余去对应那间展厅。
     // 换房间走 scene.restart()，所以 devRoom 是在上一帧就定好的
@@ -3048,6 +3059,12 @@ export class GameScene extends Phaser.Scene {
       this.goalSprite.setVisible(false).setScale(0)
     }
 
+    // 第十关：宝箱要等玉京台的送仙典仪演完才出现
+    if (this.level.rite) {
+      this.goalReady = false
+      this.goalSprite.setVisible(false).setScale(0)
+    }
+
     // 支线做过的档：宝箱一开始就摆在阳台上（第七关的 goal.after 是 'xiao'，
     // 正常流程要等仙人走了才调 revealGoal）
     if (this.innRestored && !this.goalReady) {
@@ -3065,6 +3082,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.buildSendOffStage()
+    this.buildTerraceRite()
 
     this.slime = this.physics.add.sprite(spawnPoint.x, spawnPoint.y, 'slime-none')
     this.slime.setBounce(0.2)
@@ -10941,24 +10959,28 @@ export class GameScene extends Phaser.Scene {
   }
 
   // 第十关终点：往生堂门前的送仙典仪
-  // 门口先摆好两个活人：胡桃站左边、钟离站右边，门槛中间一只青铜香炉。
-  // 只有带供品的关（第十关）才有这段，别的关直接跳过
+  // 往生堂门口：胡桃站左边、钟离站右边。这里只接活备料 ——
+  // 三样供品交上来之后，正日子要回玉京台的祭坛办（原作就是这么走的）
   private buildSendOffStage() {
     if (!this.level.materials || this.level.materials.length === 0) {
       return
     }
 
-    const gx = this.level.goal.x
-    const gy = this.level.goal.y
+    const inn = this.level.decor?.find((piece) => piece.key === 'wang-sheng-tang')
+    const cx = inn?.x ?? 2070
+    const groundTop = this.level.platforms.reduce(
+      (lowest, item) => Math.max(lowest, item.y - item.height / 2),
+      Number.NEGATIVE_INFINITY
+    )
 
-    // 门洞是 2020~2160，两人分站左右，不挡中间那条「还差什么」的提示线
+    // 门洞是 2020~2160，两人分站左右，不挡中间那条进门线
     const hutao = this.add
-      .image(gx - 48, gy + 2, 'npc-hutao')
+      .image(cx - 48, groundTop - 2, 'npc-hutao')
       .setOrigin(0.5, 1)
       // 只比建筑（-5）靠前、比史莱姆（9）靠后：玩家走到门口时是从他们身前过
       .setDepth(0.9)
     const zhongli = this.add
-      .image(gx + 48, gy + 2, 'npc-zhongli')
+      .image(cx + 48, groundTop - 2, 'npc-zhongli')
       .setOrigin(0.5, 1)
       .setDepth(0.9)
       .setFlipX(true)
@@ -10974,10 +10996,75 @@ export class GameScene extends Phaser.Scene {
       })
     })
 
-    this.ritualCenser = this.add
-      .image(gx - 20, gy - 1, 'terrace-censer')
+    this.hutaoNpc = hutao
+    this.zhongliNpc = zhongli
+  }
+
+  // 玉京台的送仙典仪场：祭坛 + 供品 + 两只香炉 + 凝光、两个仆从、围观的。
+  // 全部照 2.5D 的规矩排 —— 越往后（z 越大）越小、越淡、层数越低，
+  // 走的还是玉京台那套 s(z) / y(z)，只是不再画整块广场
+  private buildTerraceRite() {
+    const rite = this.level.rite
+
+    if (!rite) {
+      return
+    }
+
+    const cx = rite.x
+    const top = rite.y
+    const horizonY = top - 180
+    const camDist = 900
+    const sOf = (z: number) => camDist / (z + camDist)
+    const yOf = (z: number) => horizonY + (top - horizonY) * sOf(z)
+    const depthAt = (z: number) => 0.3 + sOf(z) * 0.45
+    // dx 是离祭坛中线的世界距离，屏幕位置按同一个 s 往中线收
+    const seat = (dx: number, z: number, key: string, flip = false) =>
+      this.add
+        .image(cx + dx * sOf(z), yOf(z), key)
+        .setOrigin(0.5, 1)
+        .setScale(sOf(z))
+        .setFlipX(flip)
+        .setDepth(depthAt(z))
+
+    // 祭坛 + 坛上的供品
+    const altar = seat(0, 60, 'terrace-altar')
+
+    this.add
+      .image(altar.x, altar.y - 60 * sOf(60), 'terrace-offerings')
       .setOrigin(0.5, 1)
-      .setDepth(0.95)
+      .setScale(sOf(60))
+      .setDepth(depthAt(60) + 0.01)
+
+    // 围观的人：一圈，越深越小
+    ;[
+      [-160, 90, 'harbor-slime-a'],
+      [-100, 180, 'harbor-slime-c'],
+      [-60, 270, 'harbor-slime-b'],
+      [60, 270, 'harbor-slime-d'],
+      [100, 180, 'harbor-slime-a'],
+      [160, 90, 'harbor-slime-c'],
+      [-130, 40, 'harbor-slime-d'],
+      [130, 40, 'harbor-slime-b'],
+    ].forEach(([dx, z, key]) => {
+      seat(dx as number, z as number, key as string)
+    })
+
+    // 两个仆从 + 主事的凝光
+    seat(-70, 50, 'npc-attendant')
+    seat(70, 50, 'npc-attendant', true)
+    seat(0, 40, 'npc-ningguang')
+
+    // 祭坛两边的香炉（右边的这只就是典仪点起来的那只）
+    ;[-120, 120].forEach((dx, index) => {
+      const censer = seat(dx, 45, 'terrace-censer')
+
+      if (index === 1) {
+        this.ritualCenser = censer
+      }
+    })
+
+    // 钟离：交接之后才从往生堂"先过去"，所以先藏在这儿
+    this.zhongliRite = seat(-95, 55, 'npc-zhongli').setVisible(false)
   }
 
   // 点香：香炉烧起来，一缕缕白烟往上走（对话期间一直烧着，不跟着物理暂停）
@@ -11039,8 +11126,47 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
+  // 往生堂门口交供品：三样齐了胡桃才收，收完让你上玉京台
+  private handOverOfferings() {
+    if (this.finished || this.inputLocked || this.sendOffUnlocked) {
+      return
+    }
+
+    const missing = this.materialList.filter((item) => !item.taken).map((item) => item.label)
+
+    if (missing.length > 0) {
+      this.showMessage(`还差：${missing.join('、')}`)
+      return
+    }
+
+    this.inputLocked = true
+    this.slime.setVelocity(0, 0)
+
+    this.showDialogue(
+      '胡桃',
+      [
+        '三样都齐了？夜泊石、霓裳花、永生香——一样不少。',
+        '送仙典仪不在堂里办。要上玉京台，在请仙典仪那座祭坛前送。',
+      ],
+      () =>
+        this.showDialogue(
+          '钟离',
+          ['呈上供品，点香引路，余下的交给七星。', '我先过去候着。'],
+          () => {
+            this.sendOffUnlocked = true
+            this.inputLocked = false
+            // 钟离先去玉京台：门口这只收起来，祭坛边那只放出来
+            this.zhongliNpc?.setVisible(false)
+            this.zhongliRite?.setVisible(true)
+            this.showMessage('上玉京台，把供品献上')
+          }
+        )
+    )
+  }
+
+  // 玉京台祭坛前：点香、行礼、送仙
   private playSendOffRitual() {
-    if (this.finished || this.inputLocked) {
+    if (this.finished || this.inputLocked || this.sendOffDone) {
       return
     }
 
@@ -11049,22 +11175,14 @@ export class GameScene extends Phaser.Scene {
     this.lightRitualCenser()
 
     this.showDialogue(
-      '胡桃',
-      [
-        '客官，三样东西都齐了？夜泊石、霓裳花、永生香——一样不少。',
-        '往生堂办事，讲究的是把该送的送走，不留念想。',
-      ],
-      () => {
+      '钟离',
+      ['夜泊石引路，霓裳花为引，永生香……点上吧。', '送仙典仪，重在一个「送」字。'],
+      () =>
         this.showDialogue(
-          '钟离',
-          [
-            '送仙典仪，重在一个「送」字。',
-            '帝君之事，璃月自有公论。你做的已经够多了。',
-            '点香，引路吧。',
-          ],
+          '凝光',
+          ['帝君之事，璃月自有公论。', '起乐——送仙。'],
           () => this.playSendOffFx()
         )
-      }
     )
   }
 
@@ -11099,7 +11217,14 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.showMessage('送仙典仪结束')
-    this.time.delayedCall(1200, () => this.win())
+
+    // 典仪演完：宝箱在祭坛前浮现，玩家自己走过去开
+    this.sendOffDone = true
+    this.time.delayedCall(900, () => {
+      this.physics.world.resume()
+      this.inputLocked = false
+      this.revealGoal()
+    })
   }
 
   // 修楼梯：木板飞入 + 落地音 + 震屏，动画结束把这一跑重建（断口就补回来了）
@@ -13639,6 +13764,42 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    // 第十关：往生堂门口找胡桃交供品
+    if (!prompt && this.hutaoNpc && this.level.materials) {
+      const nearHutao =
+        Phaser.Math.Distance.Between(
+          this.slime.x,
+          this.slime.y,
+          this.hutaoNpc.x,
+          this.hutaoNpc.y - 24
+        ) < 72
+
+      if (nearHutao) {
+        const missing = this.materialList.filter((item) => !item.taken).map((item) => item.label)
+
+        if (this.sendOffUnlocked) {
+          prompt = this.interactPrefix() + '与胡桃交谈'
+          action = () => this.showMessage('快上玉京台吧，钟离先生在那儿候着。')
+        } else if (missing.length > 0) {
+          prompt = this.interactPrefix() + '还差' + missing.join('、')
+          action = () => this.showMessage(`还差：${missing.join('、')}`)
+        } else {
+          prompt = this.interactPrefix() + '把供品交给胡桃'
+          action = () => this.handOverOfferings()
+        }
+      }
+    }
+
+    // 第十关：玉京台祭坛前举行送仙典仪
+    if (!prompt && this.level.rite && this.sendOffUnlocked && !this.sendOffDone) {
+      const spot = this.level.rite
+
+      if (Math.abs(this.slime.x - spot.x) < 60 && Math.abs(this.slime.y - spot.y) < 26) {
+        prompt = this.interactPrefix() + '举行送仙典仪'
+        action = () => this.playSendOffRitual()
+      }
+    }
+
     if (!prompt) {
       const nearGoal =
         this.goalReady &&
@@ -13659,13 +13820,7 @@ export class GameScene extends Phaser.Scene {
           action = () => this.showMessage(`还差：${missing.join('、')}`)
         } else {
           prompt = this.interactPrefix() + this.level.goal.prompt
-          action = () => {
-            if (this.materialList.length > 0) {
-              this.playSendOffRitual()
-            } else {
-              this.win()
-            }
-          }
+          action = () => this.win()
         }
       }
     }
