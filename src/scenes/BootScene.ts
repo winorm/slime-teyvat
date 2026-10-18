@@ -4467,15 +4467,15 @@ export class BootScene extends Phaser.Scene {
     windowBox(two, 170, 190, 44, 24)
     windowBox(two, 270, 190, 44, 24)
 
-    // 二层墙与屋顶之间的阁楼墙：把屋顶接住，不能让它悬空
+    // 二层墙与屋顶之间的阁楼墙：一直顶到屋顶底边 104，不能留缝
     two.fillStyle(WALL, 1)
-    two.fillRect(50, 134, 280, 48)
+    two.fillRect(50, 104, 280, 78)
     two.fillStyle(WALL_SHADE, 1)
     two.fillRect(50, 176, 280, 6)
     two.fillStyle(TIMBER, 1)
-    two.fillRect(56, 134, 6, 46)
-    two.fillRect(318, 134, 6, 46)
-    two.fillRect(50, 154, 280, 4)
+    two.fillRect(56, 104, 6, 76)
+    two.fillRect(318, 104, 6, 76)
+    two.fillRect(50, 144, 280, 4)
     windowBox(two, 170, 142, 40, 22)
 
     // 二楼挑台：只留地板和一道矮边，不做高栅栏，免得把上层房子挡在外面
@@ -4487,7 +4487,7 @@ export class BootScene extends Phaser.Scene {
     two.fillRect(34, 171, 314, 3)
 
     roof(two, 16, 104, 348, 30)
-    roof(two, 36, 38, 308, 70)
+    roof(two, 36, 74, 308, 74)
     sign(two, 322, 196, 44)
     lantern(two, 48, 178)
     lantern(two, 336, 178)
@@ -4532,15 +4532,15 @@ export class BootScene extends Phaser.Scene {
     windowBox(three, 180, 202, 42, 26)
     windowBox(three, 278, 202, 42, 26)
 
-    // 三层墙与屋顶之间的阁楼墙
+    // 三层墙与屋顶之间的阁楼墙，一直顶到屋顶底边 104
     three.fillStyle(WALL, 1)
-    three.fillRect(58, 134, 284, 56)
+    three.fillRect(58, 104, 284, 86)
     three.fillStyle(WALL_SHADE, 1)
     three.fillRect(58, 184, 284, 6)
     three.fillStyle(TIMBER, 1)
-    three.fillRect(64, 134, 6, 54)
-    three.fillRect(330, 134, 6, 54)
-    three.fillRect(58, 156, 284, 4)
+    three.fillRect(64, 104, 6, 84)
+    three.fillRect(330, 104, 6, 84)
+    three.fillRect(58, 148, 284, 4)
     windowBox(three, 176, 142, 44, 24)
 
     three.fillStyle(TIMBER, 1)
@@ -4552,7 +4552,7 @@ export class BootScene extends Phaser.Scene {
     three.fillRect(44, 178, 314, 3)
 
     roof(three, 16, 104, 368, 30)
-    roof(three, 40, 36, 320, 70)
+    roof(three, 40, 74, 320, 74)
     sign(three, 340, 290, 54)
     lantern(three, 50, 276)
     lantern(three, 354, 276)
