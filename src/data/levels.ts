@@ -1478,18 +1478,18 @@ export const LEVELS: LevelDef[] = [
     intro:
       '回到璃月港，帝君遇刺后的戒严还没有解除。\n先去往生堂找那位客卿，问清送仙典仪的事。\n路上顺便把典仪要用的三样东西找齐吧。',
 
-    width: 3680,
+    width: 4140,
     height: 1200,
     startElement: 'rock',
     unlocks: ['wind'],
     spawn: { x: 60, y: 1147 },
     bg: 'harbor-land',
     bgFixedY: true,
-    goal: { x: 3220, y: 1146, kind: 'chest', prompt: '进入往生堂' },
+    goal: { x: 2070, y: 1146, kind: 'chest', prompt: '进入往生堂' },
 
     platforms: [
       // 一条平直的港口街道（顶面 1160）
-      { x: 1840, y: 1180, width: 3680, height: 40, brick: true },
+      { x: 2070, y: 1180, width: 4140, height: 40, brick: true },
     ],
 
     orbs: [],
@@ -1513,8 +1513,14 @@ export const LEVELS: LevelDef[] = [
     landBlocks: [
       { at: 0, kind: 'land-a' },
       { at: 920, kind: 'land-b' },
-      { at: 1840, kind: 'land-a' },
-      { at: 2760, kind: 'land-b' },
+      // 1840~2300 中间留空，画往生堂
+      { at: 2300, kind: 'land-a' },
+      { at: 3220, kind: 'land-b' },
+    ],
+
+    decor: [
+      // 地图中央的往生堂：独立建筑，左右各留 20 像素空当
+      { x: 2070, y: 1160, key: 'wang-sheng-tang', depth: -5 },
     ],
 
     hints: [
@@ -1522,6 +1528,7 @@ export const LEVELS: LevelDef[] = [
       { x: 760, y: 1085, text: '夜泊石在码头的货箱旁' },
       { x: 1780, y: 1085, text: '霓裳花在街边的花摊' },
       { x: 2580, y: 1085, text: '永生香在香铺门口' },
+      { x: 2070, y: 1085, text: '往生堂' },
     ],
   },
 

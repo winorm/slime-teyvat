@@ -546,7 +546,7 @@ const LAND_BLOCKS: Record<'land-a' | 'land-b', LandPack> = {
     decor: [
       { dx: 190, key: 'land-house-two' },
       { dx: 650, key: 'land-house-two' },
-      { dx: 420, key: 'harbor-lanterns', dy: -92, depth: -4 },
+      { dx: 420, key: 'harbor-lanterns', dy: -104, depth: -4 },
       { dx: 300, key: 'harbor-slime-a', depth: -4, randomScale: 0.1 },
       { dx: 830, key: 'harbor-slime-b', depth: -4, randomScale: 0.1 },
     ],
@@ -568,7 +568,7 @@ const LAND_BLOCKS: Record<'land-a' | 'land-b', LandPack> = {
     decor: [
       { dx: 200, key: 'land-house-three' },
       { dx: 700, key: 'land-house-three' },
-      { dx: 450, key: 'harbor-lanterns', dy: -206, depth: -4 },
+      { dx: 450, key: 'harbor-lanterns', dy: -224, depth: -4 },
       { dx: 450, key: 'harbor-slime-b', depth: -4, randomScale: 0.1 },
       { dx: 860, key: 'harbor-slime-c', depth: -4, randomScale: 0.1 },
     ],

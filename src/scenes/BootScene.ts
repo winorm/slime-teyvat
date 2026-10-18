@@ -182,6 +182,7 @@ export class BootScene extends Phaser.Scene {
     this.makeGuardMillelith()
     this.makeHarborProps()
     this.makeLandBuildings()
+    this.makeWangShengTang()
     this.makeTerraceHouses()
     this.makeTerracePlaza()
     this.makeTerraceGate()
@@ -4600,6 +4601,149 @@ export class BootScene extends Phaser.Scene {
     lantern(shop, 34, 92)
     shop.generateTexture('land-shop', 220, 150)
     shop.destroy()
+  }
+
+  // 往生堂（420x300）：地图中央的独立建筑，深色木构、白墙、黑门和纸灯笼。
+  private makeWangShengTang() {
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+    const ROOF = 0x2b3c3f
+    const ROOF_LIGHT = 0x3d5458
+    const WALL = 0xe8e0d0
+    const WALL_SHADE = 0xd2c6b2
+    const TIMBER = 0x3f2a1c
+    const TIMBER_DARK = 0x241811
+    const GOLD = 0xd9a441
+    const PAPER = 0xf6f0dc
+    const g = this.add.graphics()
+
+    const roof = (x: number, w: number, base: number, h: number) => {
+      g.fillStyle(TIMBER_DARK, 1)
+      g.fillPoints([P(x, base), P(x + 12, base - h), P(x + w - 12, base - h), P(x + w, base)], true)
+      g.fillStyle(ROOF, 1)
+      g.fillPoints([P(x + 3, base - 3), P(x + 14, base - h + 2), P(x + w - 14, base - h + 2), P(x + w - 3, base - 3)], true)
+      g.fillStyle(ROOF_LIGHT, 1)
+      g.fillRect(x + 18, base - h + 4, w - 36, 2)
+      g.fillTriangle(x, base, x - 12, base - 10, x + 18, base - 6)
+      g.fillTriangle(x + w, base, x + w + 12, base - 10, x + w - 18, base - 6)
+      g.lineStyle(1, 0x1c292c, 0.6)
+      for (let tx = x + 24; tx < x + w - 20; tx += 18) {
+        g.lineBetween(tx, base - h + 5, tx - 5, base - 4)
+      }
+    }
+
+    // 地基与台阶
+    g.fillStyle(0x4f453b, 1)
+    g.fillRect(10, 284, 400, 16)
+    g.fillStyle(0x6a5e52, 1)
+    g.fillRect(140, 284, 140, 6)
+    g.fillStyle(0x8a7c69, 1)
+    g.fillRect(146, 280, 128, 5)
+
+    // 一层白墙与木构
+    g.fillStyle(WALL, 1)
+    g.fillRect(30, 190, 360, 94)
+    g.fillStyle(WALL_SHADE, 1)
+    g.fillRect(30, 272, 360, 12)
+    g.fillStyle(TIMBER, 1)
+    g.fillRect(30, 190, 360, 8)
+    g.fillRect(30, 276, 360, 8)
+    ;[30, 90, 150, 270, 330, 390].forEach((x) => g.fillRect(x, 190, 8, 94))
+
+    // 侧面格窗
+    const windowBox = (x: number, y: number, w: number, h: number) => {
+      g.fillStyle(TIMBER_DARK, 1)
+      g.fillRect(x, y, w, h)
+      g.fillStyle(0xd9b978, 0.5)
+      g.fillRect(x + 2, y + 2, w - 4, h - 4)
+      g.lineStyle(1, TIMBER, 0.9)
+      for (let lx = x + 5; lx < x + w - 2; lx += 7) {
+        g.lineBetween(lx, y + 2, lx, y + h - 2)
+      }
+      g.lineBetween(x + 2, y + h / 2, x + w - 2, y + h / 2)
+    }
+
+    windowBox(56, 216, 62, 34)
+    windowBox(302, 216, 62, 34)
+
+    // 黑门与门钉
+    g.fillStyle(0x120e0a, 1)
+    g.fillRect(160, 210, 100, 74)
+    g.fillStyle(TIMBER_DARK, 1)
+    g.fillRect(160, 210, 100, 6)
+    g.fillStyle(0x2a2118, 1)
+    g.fillRect(164, 218, 44, 66)
+    g.fillRect(212, 218, 44, 66)
+    g.fillStyle(GOLD, 1)
+    g.fillRect(206, 218, 4, 66)
+    for (let row = 0; row < 4; row++) {
+      for (let col = 0; col < 2; col++) {
+        g.fillCircle(176 + col * 24, 228 + row * 15, 2)
+        g.fillCircle(224 + col * 24 - 24, 228 + row * 15, 2)
+      }
+    }
+
+    // 门上的黑底金框匾额
+    g.fillStyle(0x120e0a, 1)
+    g.fillRect(172, 194, 76, 18)
+    g.lineStyle(1, GOLD, 0.9)
+    g.strokeRect(172, 194, 76, 18)
+    g.fillStyle(GOLD, 1)
+    g.fillRect(180, 201, 10, 2)
+    g.fillRect(198, 201, 20, 2)
+    g.fillRect(226, 201, 10, 2)
+
+    // 门口两盏白纸灯笼
+    const paperLantern = (x: number) => {
+      g.fillStyle(TIMBER_DARK, 1)
+      g.fillRect(x, 190, 1, 18)
+      g.fillStyle(GOLD, 1)
+      g.fillRect(x - 5, 206, 11, 3)
+      g.fillStyle(PAPER, 1)
+      g.fillEllipse(x, 220, 18, 24)
+      g.fillStyle(0xffffff, 0.7)
+      g.fillEllipse(x - 2, 216, 10, 15)
+      g.fillStyle(GOLD, 1)
+      g.fillRect(x - 5, 232, 11, 3)
+    }
+
+    paperLantern(126)
+    paperLantern(294)
+
+    // 二层
+    g.fillStyle(WALL, 1)
+    g.fillRect(50, 100, 320, 90)
+    g.fillStyle(WALL_SHADE, 1)
+    g.fillRect(50, 180, 320, 10)
+    g.fillStyle(TIMBER, 1)
+    g.fillRect(50, 100, 320, 8)
+    ;[50, 120, 200, 280, 350].forEach((x) => g.fillRect(x, 100, 8, 90))
+    windowBox(74, 126, 56, 38)
+    windowBox(182, 126, 56, 38)
+    windowBox(290, 126, 56, 38)
+
+    // 二层外挑木台
+    g.fillStyle(TIMBER, 1)
+    g.fillRect(40, 180, 340, 9)
+    g.fillStyle(0x6b4a2c, 1)
+    g.fillRect(42, 182, 336, 3)
+    g.fillStyle(TIMBER_DARK, 1)
+    for (let x = 48; x <= 372; x += 24) {
+      g.fillRect(x, 160, 4, 22)
+    }
+    g.fillRect(44, 163, 328, 3)
+
+    // 屋顶
+    roof(36, 348, 104, 34)
+    roof(64, 292, 70, 70)
+
+    // 屋脊与两端小兽
+    g.fillStyle(TIMBER_DARK, 1)
+    g.fillRect(64, 36, 292, 5)
+    g.fillRect(58, 26, 10, 12)
+    g.fillRect(352, 26, 10, 12)
+
+    g.generateTexture('wang-sheng-tang', 420, 300)
+    g.destroy()
   }
 
   private makeSpikeLauncher() {
