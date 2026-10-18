@@ -2300,22 +2300,25 @@ export class GameScene extends Phaser.Scene {
     this.buildSummitLake()
 
     // 黄金屋：金砖大理石地板（平台本身只带一层平色，这里再铺一层带砖缝和菱纹的贴图），
-    // 沿口压一道亮金线。深度 0.12，在人（9）和背景（-5）之间
+    // 沿口压一道亮金线。深度 0.12，在人（9）和背景（-5）之间。
+    // 上下两层（1160 / 1900）都要铺
     if (this.level.bg === 'golden-house') {
-      const floorTop = this.level.platforms.reduce(
-        (highest, item) => Math.max(highest, item.y - item.height / 2),
-        Number.NEGATIVE_INFINITY
-      )
+      this.level.platforms
+        .filter((item) => (item.brick ?? false) && item.height >= 40)
+        .forEach((item) => {
+          const floorTop = item.y - item.height / 2
+          const left = item.x - item.width / 2
 
-      this.add
-        .tileSprite(0, floorTop, this.level.width, 40, 'golden-floor')
-        .setOrigin(0, 0)
-        .setDepth(0.12)
+          this.add
+            .tileSprite(left, floorTop, item.width, 40, 'golden-floor')
+            .setOrigin(0, 0)
+            .setDepth(0.12)
 
-      this.add
-        .rectangle(0, floorTop - 2, this.level.width, 2, 0xffe9a8, 0.55)
-        .setOrigin(0, 0)
-        .setDepth(0.13)
+          this.add
+            .rectangle(left, floorTop - 2, item.width, 2, 0xffe9a8, 0.55)
+            .setOrigin(0, 0)
+            .setDepth(0.13)
+        })
     }
 
     // 山顶的仙人：白鹤形态的留云借风真君，靠近后进入仙家试炼

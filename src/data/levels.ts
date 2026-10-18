@@ -1671,7 +1671,8 @@ export const LEVELS: LevelDef[] = [
       '送仙典仪之后，帝君的仙体被送进黄金屋。\n钟离说，该去看看了 —— 有些事，瞒不了多久。',
 
     width: 2600,
-    height: 1200,
+    // 上下两层金库：上层大厅 1160，第三阶段碎地之后掉到下层 1900
+    height: 2200,
     startElement: 'rock',
     unlocks: ['wind'],
     spawn: { x: 100, y: 1147 },
@@ -1686,6 +1687,8 @@ export const LEVELS: LevelDef[] = [
     platforms: [
       // 一整条金砖地面（顶面 1160）
       { x: 1300, y: 1180, width: 2600, height: 40, brick: true },
+      // 下层金库：碎地之后落在这里（顶面 1900），第三阶段就在这层打完
+      { x: 1300, y: 1920, width: 1200, height: 40, brick: true },
     ],
 
     orbs: [],
