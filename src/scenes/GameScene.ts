@@ -11226,11 +11226,14 @@ export class GameScene extends Phaser.Scene {
       }
     })
 
-    // 送仙时要升空的"神体"：一条闭着眼的龙，先藏在祭坛上方，典仪开始才浮出来
+    // 送仙时要升空的"神体"：一条闭着眼的龙，**竖起来、头朝下、身子弯着**往上走。
+    // 贴图用的是撞毁那条（240x140，头在左、尾在右），逆时针转 90° 就变成
+    // 头在下、尾在上、脊背弯向一侧的竖姿
     this.riteDragon = this.add
-      .image(altar.x, altar.y - 60, 'dragon-wreck')
-      .setOrigin(0.5, 1)
+      .image(altar.x, altar.y - 112, 'dragon-wreck')
+      .setOrigin(0.5, 0.5)
       .setScale(0.8)
+      .setAngle(-90)
       .setTint(0xfff0d0)
       .setDepth(2.6)
       .setVisible(false)
@@ -11384,11 +11387,11 @@ export class GameScene extends Phaser.Scene {
         : [{ x: this.goalSprite.x, y: this.goalSprite.y + 8 }]
 
     camera.flash(280, 255, 220, 150)
-    // 镜头慢慢推近祭坛，给这 5 秒的典仪一个仪式感
-    camera.zoomTo(1.18, 1800, 'Sine.easeInOut')
+    // 镜头轻轻推近祭坛，给这 5 秒的典仪一个仪式感
+    camera.zoomTo(1.05, 1800, 'Sine.easeInOut')
     // 再往上抬一点：升空的神体在上方，画面要留出位置
     camera.stopFollow()
-    camera.pan(this.slime.x, this.slime.y - 70, 1200, 'Sine.easeInOut')
+    camera.pan(this.slime.x, this.slime.y - 100, 1200, 'Sine.easeInOut')
 
     spots.forEach(({ x, y: baseY }) => {
       // ① 香炉上方升起一道金色光柱：先长出来、再淡掉
@@ -11506,7 +11509,7 @@ export class GameScene extends Phaser.Scene {
       this.time.delayedCall(1400, () => {
         this.tweens.add({
           targets: dragon,
-          y: riseFrom - 220,
+          y: riseFrom - 190,
           alpha: 0,
           scaleX: 0.92,
           scaleY: 0.92,
