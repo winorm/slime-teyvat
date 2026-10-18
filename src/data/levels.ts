@@ -472,6 +472,14 @@ const platformFill = (x: number, width: number, top: number, bottom: number, bas
   })
 }
 
+// 这一关一共几颗原石：摆在关卡里的 + 冻在琥珀里的（不写 loot 的琥珀默认就是原石）。
+// 关卡内 HUD、通关界面、存档里的原石总数都走这一个口径，避免第九关少算琥珀里那颗。
+export function levelGemTotal(level: LevelDef): number {
+  const inAmber = (level.ambers ?? []).filter((amber) => (amber.loot ?? 'gem') === 'gem').length
+
+  return level.gems.length + inAmber
+}
+
 export const LEVELS: LevelDef[] = [
   {
     name: '第一关 · 你好，提瓦特',

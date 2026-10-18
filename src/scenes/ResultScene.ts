@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { LEVELS } from '../data/levels'
+import { LEVELS, levelGemTotal } from '../data/levels'
 import { progress, saveProgress } from '../state/progress'
 import { queueAchievementToast } from '../state/achievements'
 
@@ -40,7 +40,7 @@ export class ResultScene extends Phaser.Scene {
     }
 
     this.add
-      .text(240, 132, '已收集 ' + gems.length + ' / ' + level.gems.length, {
+      .text(240, 132, '已收集 ' + gems.length + ' / ' + levelGemTotal(level), {
         fontFamily: 'sans-serif',
         fontSize: '14px',
         color: '#8fa3b8',

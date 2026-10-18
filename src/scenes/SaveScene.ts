@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { LEVELS } from '../data/levels'
+import { LEVELS, levelGemTotal } from '../data/levels'
 import {
   SLOT_COUNT,
   SAVE_HINT,
@@ -72,7 +72,7 @@ export class SaveScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
 
-    const totalGems = LEVELS.reduce((total, level) => total + level.gems.length, 0)
+    const totalGems = LEVELS.reduce((total, level) => total + levelGemTotal(level), 0)
 
     for (let index = 0; index < SLOT_COUNT; index++) {
       const y = 82 + index * 58

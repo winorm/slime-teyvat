@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { ELEMENTS, ELEMENT_ORDER, type ElementKey } from '../data/elements'
 import {
   LEVELS,
+  levelGemTotal,
   THEME_COLORS,
   type LevelDef,
   type DomeDef,
@@ -10546,9 +10547,7 @@ export class GameScene extends Phaser.Scene {
 
   // 这一关一共几颗原石：摆在关卡里的 + 冻在琥珀里的（不写 loot 的琥珀默认就是原石）
   private gemTotalCount() {
-    const inAmber = (this.level.ambers ?? []).filter((amber) => (amber.loot ?? 'gem') === 'gem').length
-
-    return this.level.gems.length + inAmber
+    return levelGemTotal(this.level)
   }
 
   private refreshGemHud() {
