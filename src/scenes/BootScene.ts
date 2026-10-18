@@ -4822,23 +4822,34 @@ export class BootScene extends Phaser.Scene {
     h.fillRect(25, 38, 2, 2)
     h.fillRect(25, 44, 2, 2)
 
-    // 眼睛：红梅色的点瞳，眼尾挑一点
-    h.fillStyle(outline, 1)
-    h.fillEllipse(18, 40, 7, 9)
-    h.fillEllipse(34, 40, 7, 9)
-    h.fillStyle(0xf2e6d0, 1)
-    h.fillEllipse(18, 40, 5, 7)
-    h.fillEllipse(34, 40, 5, 7)
-    h.fillStyle(RED, 1)
-    h.fillEllipse(18, 41, 3, 5)
-    h.fillEllipse(34, 41, 3, 5)
-    h.fillStyle(outline, 1)
-    h.fillEllipse(18, 41, 1.5, 3)
-    h.fillEllipse(34, 41, 1.5, 3)
-    // 眼尾那一抹红
-    h.fillStyle(RED_LIGHT, 1)
-    h.fillRect(21, 38, 2, 1)
-    h.fillRect(29, 38, 2, 1)
+    // 眼睛：和魈同一套画法 —— 深色眼窝里一颗红瞳，上眼睑从外侧压下来，
+    // 眼尾往上挑一点，看起来是笑着的；不再画"白眼球 + 黑瞳孔"（那种在 52 宽的图上会瞪人）
+    const hutaoEye = (cx: number, side: number) => {
+      h.fillStyle(outline, 1)
+      h.fillEllipse(cx, 40, 6.6, 5.2)
+
+      h.fillStyle(0xc0453f, 1)                 // 红瞳
+      h.fillEllipse(cx, 40.4, 4.4, 3.4)
+
+      h.fillStyle(0x6b1f24, 1)                 // 瞳孔压深一档
+      h.fillEllipse(cx, 40.6, 1.6, 2.6)
+
+      h.fillStyle(outline, 1)                  // 上眼睑：外侧高、内侧低，眼尾挑起
+      h.fillTriangle(
+        cx + 3.4 * side, 37.2,
+        cx - 2.6 * side, 38.6,
+        cx - 2.6 * side, 40.4
+      )
+
+      h.fillStyle(0xf7d9c4, 1)                 // 眼里一点湿光
+      h.fillRect(cx - 1.6 * side - 0.5, 39, 1.4, 1.2)
+
+      h.fillStyle(0xf08a7a, 0.55)              // 眼下的红晕
+      h.fillRect(cx - 1.5, 42.4, 3, 1)
+    }
+
+    hutaoEye(18, -1)
+    hutaoEye(34, 1)
     // 嘴：一个小弧，笑得有点坏
     h.fillStyle(0x2a1620, 1)
     h.fillRect(24, 47, 4, 1)
@@ -4998,22 +5009,33 @@ export class BootScene extends Phaser.Scene {
       true
     )
 
-    // 眼睛：琥珀色，眼尾一道红纹（帝君那抹红）
-    z.fillStyle(outline, 1)
-    z.fillEllipse(18, 40, 8, 8)
-    z.fillEllipse(34, 40, 8, 8)
-    z.fillStyle(0xf2e6d0, 1)
-    z.fillEllipse(18, 40, 6, 6)
-    z.fillEllipse(34, 40, 6, 6)
-    z.fillStyle(GOLD_Z, 1)
-    z.fillEllipse(18, 40, 4, 5)
-    z.fillEllipse(34, 40, 4, 5)
-    z.fillStyle(outline, 1)
-    z.fillEllipse(18, 40, 2, 4)
-    z.fillEllipse(34, 40, 2, 4)
-    z.fillStyle(0xc04a3a, 1)
-    z.fillRect(21, 37, 3, 1)
-    z.fillRect(29, 37, 3, 1)
+    // 眼睛：琥珀瞳 + 平直的上眼睑（比胡桃沉），眼尾一勾红纹
+    const zhongliEye = (cx: number, side: number) => {
+      z.fillStyle(outline, 1)
+      z.fillEllipse(cx, 40, 6.6, 5)
+
+      z.fillStyle(0xd2a244, 1)                 // 琥珀瞳
+      z.fillEllipse(cx, 40.2, 4.4, 3.2)
+
+      z.fillStyle(0x7a5622, 1)
+      z.fillEllipse(cx, 40.4, 1.6, 2.6)
+
+      z.fillStyle(outline, 1)                  // 上眼睑：一道平的，只往外侧微微抬起
+      z.fillTriangle(
+        cx + 3 * side, 38.4,
+        cx - 3 * side, 39,
+        cx - 3 * side, 40.6
+      )
+
+      z.fillStyle(0xf6e7c8, 1)                 // 眼里一点光
+      z.fillRect(cx - 1.6 * side - 0.5, 39.2, 1.4, 1.2)
+
+      z.fillStyle(0xc04a3a, 1)                 // 眼尾那道红纹
+      z.fillRect(cx + 3 * side - (side > 0 ? 0 : 2), 37.4, 2, 1)
+    }
+
+    zhongliEye(18, -1)
+    zhongliEye(34, 1)
     // 眉：平直的一笔，显得沉稳
     z.fillStyle(HAIR_Z, 1)
     z.fillRect(14, 35, 8, 1)
