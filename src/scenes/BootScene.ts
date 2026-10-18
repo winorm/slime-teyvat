@@ -4466,6 +4466,17 @@ export class BootScene extends Phaser.Scene {
     windowBox(two, 170, 190, 44, 24)
     windowBox(two, 270, 190, 44, 24)
 
+    // 二层墙与屋顶之间的阁楼墙：把屋顶接住，不能让它悬空
+    two.fillStyle(WALL, 1)
+    two.fillRect(50, 134, 280, 48)
+    two.fillStyle(WALL_SHADE, 1)
+    two.fillRect(50, 176, 280, 6)
+    two.fillStyle(TIMBER, 1)
+    two.fillRect(56, 134, 6, 46)
+    two.fillRect(318, 134, 6, 46)
+    two.fillRect(50, 154, 280, 4)
+    windowBox(two, 170, 142, 40, 22)
+
     // 二楼阳台：地板在 175~183，护栏 150~175
     two.fillStyle(TIMBER, 1)
     two.fillRect(28, 174, 324, 9)
@@ -4473,10 +4484,14 @@ export class BootScene extends Phaser.Scene {
     two.fillRect(30, 176, 320, 3)
     two.fillStyle(TIMBER_DARK, 1)
     for (let x = 38; x <= 342; x += 22) {
-      two.fillRect(x, 150, 4, 26)
+      if (x < 160 || x > 220) {
+        two.fillRect(x, 150, 4, 26)
+      }
     }
-    two.fillRect(34, 153, 314, 3)
-    two.fillRect(34, 163, 314, 3)
+    two.fillRect(34, 153, 126, 3)
+    two.fillRect(220, 153, 128, 3)
+    two.fillRect(34, 163, 126, 3)
+    two.fillRect(220, 163, 128, 3)
 
     roof(two, 16, 104, 348, 30)
     roof(two, 36, 38, 308, 70)
@@ -4514,10 +4529,14 @@ export class BootScene extends Phaser.Scene {
     three.fillRect(30, 274, 340, 3)
     three.fillStyle(TIMBER_DARK, 1)
     for (let x = 38; x <= 362; x += 22) {
-      three.fillRect(x, 250, 4, 24)
+      if (x < 170 || x > 230) {
+        three.fillRect(x, 250, 4, 24)
+      }
     }
-    three.fillRect(34, 253, 334, 3)
-    three.fillRect(34, 263, 334, 3)
+    three.fillRect(34, 253, 136, 3)
+    three.fillRect(230, 253, 138, 3)
+    three.fillRect(34, 263, 136, 3)
+    three.fillRect(230, 263, 138, 3)
 
     three.fillStyle(WALL, 1)
     three.fillRect(50, 190, 300, 60)
@@ -4526,16 +4545,32 @@ export class BootScene extends Phaser.Scene {
     windowBox(three, 82, 202, 42, 26)
     windowBox(three, 180, 202, 42, 26)
     windowBox(three, 278, 202, 42, 26)
+
+    // 三层墙与屋顶之间的阁楼墙
+    three.fillStyle(WALL, 1)
+    three.fillRect(58, 134, 284, 56)
+    three.fillStyle(WALL_SHADE, 1)
+    three.fillRect(58, 184, 284, 6)
+    three.fillStyle(TIMBER, 1)
+    three.fillRect(64, 134, 6, 54)
+    three.fillRect(330, 134, 6, 54)
+    three.fillRect(58, 156, 284, 4)
+    windowBox(three, 176, 142, 44, 24)
+
     three.fillStyle(TIMBER, 1)
     three.fillRect(38, 182, 324, 9)
     three.fillStyle(0x8a6a44, 1)
     three.fillRect(40, 184, 320, 3)
     three.fillStyle(TIMBER_DARK, 1)
     for (let x = 48; x <= 352; x += 22) {
-      three.fillRect(x, 160, 4, 24)
+      if (x < 170 || x > 230) {
+        three.fillRect(x, 160, 4, 24)
+      }
     }
-    three.fillRect(44, 163, 314, 3)
-    three.fillRect(44, 173, 314, 3)
+    three.fillRect(44, 163, 126, 3)
+    three.fillRect(230, 163, 128, 3)
+    three.fillRect(44, 173, 126, 3)
+    three.fillRect(230, 173, 128, 3)
 
     roof(three, 16, 104, 368, 30)
     roof(three, 40, 36, 320, 70)

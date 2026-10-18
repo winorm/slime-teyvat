@@ -545,9 +545,9 @@ const LAND_BLOCKS: Record<'land-a' | 'land-b', LandPack> = {
     width: 920,
     decor: [
       { dx: 190, key: 'land-house-two' },
-      { dx: 650, key: 'land-shop' },
-      { dx: 430, key: 'harbor-lanterns', dy: -92, depth: -4 },
-      { dx: 430, key: 'harbor-slime-a', depth: -4, randomScale: 0.1 },
+      { dx: 650, key: 'land-house-two' },
+      { dx: 420, key: 'harbor-lanterns', dy: -92, depth: -4 },
+      { dx: 300, key: 'harbor-slime-a', depth: -4, randomScale: 0.1 },
       { dx: 830, key: 'harbor-slime-b', depth: -4, randomScale: 0.1 },
     ],
     front: [],
@@ -556,7 +556,10 @@ const LAND_BLOCKS: Record<'land-a' | 'land-b', LandPack> = {
       { dx: 190, dy: -120, width: 300, oneWay: true },
       { dx: 190, dy: -190, width: 250, oneWay: true },
       { dx: 190, dy: -250, width: 210, oneWay: true },
-      { dx: 650, dy: -76, width: 180, oneWay: true },
+      { dx: 650, dy: -60, width: 240, oneWay: true },
+      { dx: 650, dy: -120, width: 300, oneWay: true },
+      { dx: 650, dy: -190, width: 250, oneWay: true },
+      { dx: 650, dy: -250, width: 210, oneWay: true },
     ],
   },
   // 三层客栈 + 两层茶楼，檐口和挑台连成一条可以往上爬的路线
@@ -564,8 +567,8 @@ const LAND_BLOCKS: Record<'land-a' | 'land-b', LandPack> = {
     width: 920,
     decor: [
       { dx: 200, key: 'land-house-three' },
-      { dx: 700, key: 'land-house-two' },
-      { dx: 455, key: 'harbor-lanterns', dy: -104, depth: -4 },
+      { dx: 700, key: 'land-house-three' },
+      { dx: 450, key: 'harbor-lanterns', dy: -206, depth: -4 },
       { dx: 450, key: 'harbor-slime-b', depth: -4, randomScale: 0.1 },
       { dx: 860, key: 'harbor-slime-c', depth: -4, randomScale: 0.1 },
     ],
@@ -577,9 +580,10 @@ const LAND_BLOCKS: Record<'land-a' | 'land-b', LandPack> = {
       { dx: 200, dy: -310, width: 240, oneWay: true },
       { dx: 200, dy: -370, width: 200, oneWay: true },
       { dx: 700, dy: -60, width: 230, oneWay: true },
-      { dx: 700, dy: -120, width: 260, oneWay: true },
-      { dx: 700, dy: -190, width: 230, oneWay: true },
-      { dx: 700, dy: -250, width: 180, oneWay: true },
+      { dx: 700, dy: -140, width: 300, oneWay: true },
+      { dx: 700, dy: -230, width: 280, oneWay: true },
+      { dx: 700, dy: -310, width: 240, oneWay: true },
+      { dx: 700, dy: -370, width: 200, oneWay: true },
     ],
   },
 }
@@ -2040,7 +2044,8 @@ export class GameScene extends Phaser.Scene {
             .setOrigin(0, 0)
             .setScrollFactor(0)
             .setDepth(def.depth),
-          k: def.k,
+          // 平地街景（第十关）把背景整幅钉在屏幕上，飞起来时楼房不会跟着上下飞
+          k: this.level.bgFixedY ? 0 : def.k,
         }))
     }
     // 「环树」系数：这关往上爬的时候，背景横向也一起流，做出绕着树转的感觉

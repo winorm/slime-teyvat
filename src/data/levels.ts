@@ -385,6 +385,8 @@ export type LevelDef = {
   cage?: CageDef
   music?: string
   bg?: BgTheme
+  // 背景整幅钉在屏幕上，不随镜头的上下移动（平地街景用，飞起来时背景楼房不会跟着飞）
+  bgFixedY?: boolean
   windmill?: { x: number; y: number }
   inn?: { x: number; y: number }          // 望舒客栈：画在背景里的地标，不参与碰撞
   decor?: DecorDef[]                      // 背景静物：破屋、矿山剪影
@@ -1482,6 +1484,7 @@ export const LEVELS: LevelDef[] = [
     unlocks: ['wind'],
     spawn: { x: 60, y: 1147 },
     bg: 'harbor-land',
+    bgFixedY: true,
     goal: { x: 3220, y: 1146, kind: 'chest', prompt: '进入往生堂' },
 
     platforms: [
