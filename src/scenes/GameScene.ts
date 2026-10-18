@@ -7991,7 +7991,8 @@ export class GameScene extends Phaser.Scene {
       record.hideAt = undefined
       record.reappearAt = undefined
       this.tweens.killTweensOf(record.visual)
-      record.sprite.setVisible(true).setAlpha(1)
+      // 这块是隐形的 48x12 碰撞箱，只恢复碰撞，永远不要显示成灰矩形
+      record.sprite.setVisible(false).setAlpha(1)
       record.visual.setVisible(true).setAlpha(1)
       record.glow.setVisible(true)
       ;(record.sprite.body as Phaser.Physics.Arcade.StaticBody).enable = true
@@ -8013,7 +8014,7 @@ export class GameScene extends Phaser.Scene {
       if (record.reappearAt !== undefined && this.time.now >= record.reappearAt) {
         record.triggered = false
         record.reappearAt = undefined
-        record.sprite.setVisible(true).setAlpha(1)
+        record.sprite.setVisible(false).setAlpha(1)
         record.visual.setVisible(true).setAlpha(1)
         record.glow.setVisible(true)
         ;(record.sprite.body as Phaser.Physics.Arcade.StaticBody).enable = true
