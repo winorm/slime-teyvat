@@ -184,6 +184,7 @@ export class BootScene extends Phaser.Scene {
     this.makeLandBuildings()
     this.makeWangShengTang()
     this.makeEaveBridge()
+    this.makeWallLedge()
     this.makeRitualNpcs()
     this.makeTerraceHouses()
     this.makeTerracePlaza()
@@ -4634,6 +4635,39 @@ export class BootScene extends Phaser.Scene {
     g.fillRect(146, 0, 4, 7)
 
     g.generateTexture('eave-bridge', 150, 16)
+    g.destroy()
+  }
+
+  // ── 墙上伸出来的木托架（64x14）─────────────────────────────────
+  //   第十关往屋顶爬的两级踏板：板面在贴图 0~6，下面两个斜撑钉进墙里。
+  //   碰撞箱是 62x6 的隐形单向平台，顶面压在板面上
+  private makeWallLedge() {
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+    const WOOD = 0x8a6034
+    const WOOD_LIGHT = 0xa8794a
+    const WOOD_DARK = 0x5f4224
+
+    // 板面
+    g.fillStyle(WOOD_DARK, 1)
+    g.fillRect(0, 0, 64, 6)
+    g.fillStyle(WOOD, 1)
+    g.fillRect(0, 1, 64, 4)
+    g.fillStyle(WOOD_LIGHT, 1)
+    g.fillRect(0, 1, 64, 1)
+
+    // 两个斜撑 + 铁钉
+    g.fillStyle(WOOD_DARK, 1)
+    g.fillPoints([P(8, 5), P(20, 5), P(20, 14)], true)
+    g.fillPoints([P(44, 5), P(56, 5), P(44, 14)], true)
+    g.fillStyle(WOOD, 1)
+    g.fillPoints([P(10, 6), P(18, 6), P(18, 12)], true)
+    g.fillPoints([P(46, 6), P(54, 6), P(46, 12)], true)
+    g.fillStyle(0x3a3226, 1)
+    g.fillCircle(6, 3, 1)
+    g.fillCircle(58, 3, 1)
+
+    g.generateTexture('wall-ledge', 64, 14)
     g.destroy()
   }
 

@@ -1517,6 +1517,12 @@ export const LEVELS: LevelDef[] = [
       // 免得刚好卡在两块单向平台的接缝上漏下去
       // overlay：别让它被 harborGroundAt 当成"落脚线"，否则整段打包建筑会被抬高 56
       { x: 1370, y: 1107, width: 148, height: 6, oneWay: true, hidden: true, overlay: true },
+
+      // ── 从屋檐往屋顶爬的两级木托架 ─────────────────────────────────
+      // 1104（屋檐）→ 1058 → 1012（二层挑台，打包里自带）→ 964 → 922（阁楼檐口）
+      // → 874（屋顶，霓裳花摆在上面）
+      { x: 1520, y: 1061, width: 62, height: 6, oneWay: true, hidden: true, overlay: true },
+      { x: 1580, y: 967, width: 62, height: 6, oneWay: true, hidden: true, overlay: true },
     ],
 
     // 玉京台的楼梯：从左往右上，一跑直接上台面（25 步，每级 20×11.7）
@@ -1550,8 +1556,8 @@ export const LEVELS: LevelDef[] = [
 
     // 送仙典仪的三样供品：两样摆在外面（纯拾取），夜泊石封在码头的矿壳里
     materials: [
-      // 霓裳花摆在右边那栋楼的屋檐上：踩木箱上左楼屋檐，过木板桥到右楼屋檐才够得着
-      { x: 1770, y: 1104, key: 'item-silkflower', label: '霓裳花' },
+      // 霓裳花摆在右边那栋楼的屋顶上：踩木箱 → 过桥 → 再借两级木托架爬到屋顶
+      { x: 1500, y: 874, key: 'item-silkflower', label: '霓裳花' },
       { x: 2580, y: 1160, key: 'item-incense', label: '永生香' },
     ],
 
@@ -1559,7 +1565,7 @@ export const LEVELS: LevelDef[] = [
     // 砸开以后它才掉出来，和别的供品一样走过去按 F 收
     ambers: [
       {
-        x: 760,
+        x: 880,
         y: 1160,
         key: 'ore-shell',
         stand: false,
@@ -1587,6 +1593,9 @@ export const LEVELS: LevelDef[] = [
       { x: 6100, y: 884, key: 'terrace-hall', scale: 0.62, depth: -6 },
       // 两栋楼屋檐之间那条木板桥：画面在 y=1120（板面 1104），碰撞箱在上面
       { x: 1370, y: 1120, key: 'eave-bridge', depth: -4.9 },
+      // 墙上的两级木托架（板面 1058 / 964）
+      { x: 1520, y: 1072, key: 'wall-ledge', depth: -4.6 },
+      { x: 1580, y: 978, key: 'wall-ledge', depth: -4.6 },
     ],
 
     // 送仙典仪的祭坛（玉京台台面中心）。x 是玩家走的走线，祭坛/人群/凝光都排在这条线往后
@@ -1594,7 +1603,7 @@ export const LEVELS: LevelDef[] = [
 
     hints: [
       { x: 100, y: 1085, text: '向右走，去往生堂找客卿' },
-      { x: 760, y: 1085, text: '夜泊石封在码头的矿壳里' },
+      { x: 880, y: 1085, text: '夜泊石封在码头的矿壳里' },
       { x: 1210, y: 1085, text: '踩木箱上屋檐 · 沿屋檐过桥' },
       { x: 2580, y: 1085, text: '永生香在香铺门口' },
       { x: 2360, y: 1085, text: '香铺前有千岩军 · 岩化静止可避开视线' },
