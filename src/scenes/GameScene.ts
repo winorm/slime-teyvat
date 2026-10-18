@@ -5115,7 +5115,7 @@ export class GameScene extends Phaser.Scene {
 
     if (this.trialThreeSwapsLeft <= 0) {
       this.trialThreePhase = 'choose'
-      this.showMessage('苹果在哪口锅里？走近按 F 选')
+      this.showMessage('苹果在哪口锅里？')
       return
     }
 
