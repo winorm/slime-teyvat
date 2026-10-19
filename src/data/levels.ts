@@ -406,7 +406,9 @@ export type LevelDef = {
   // 祭坛、供品、香炉、凝光、围观的都按 2.5D 的深度往后排
   rite?: { x: number; y: number }
   // 战斗关（第十一关起）：三颗心，扣完不判死亡，原地"心脏起立"回一颗、无敌 2 秒
-  combat?: { hearts?: number; label?: string }
+  // revive：扣完是否"心脏起立"。黄金屋打公子时不允许无限复活（用户 2026/10/19 定），
+  // 群玉阁有仙人帮忙那半段才开
+  combat?: { hearts?: number; label?: string; revive?: boolean }
   // 关底 Boss（第十一关的公子）：x = 站在场上的位置；走到附近触发登场对话
   boss?: { kind: 'childe'; x: number }
   trunk?: { x: number; y: number; width: number; height: number; depth?: number }
@@ -1684,7 +1686,8 @@ export const LEVELS: LevelDef[] = [
     // 黄金屋这一关还没收尾（公子打完是过场接群玉阁），宝箱先关着
     goal: { x: 2480, y: 1146, kind: 'chest', prompt: '打开' },
     goalDisabled: true,
-    combat: { hearts: 3, label: '黄金屋' },
+    // 黄金屋打公子：三颗心扣完就是真死（不能无限起立）
+    combat: { hearts: 3, label: '黄金屋', revive: false },
     boss: { kind: 'childe', x: 1950 },
 
     platforms: [

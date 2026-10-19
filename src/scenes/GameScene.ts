@@ -4560,7 +4560,14 @@ export class GameScene extends Phaser.Scene {
     })
 
     if (this.combatHearts <= 0) {
-      // 心脏起立：不弹死亡界面，原地回一颗
+      // 黄金屋打公子：不允许无限复活 —— 心扣完就是真死
+      if (!this.level.combat?.revive) {
+        this.refreshCombatHearts()
+        this.die('childe')
+        return
+      }
+
+      // 群玉阁那半段：心脏起立，不弹死亡界面，原地回一颗
       this.combatHearts = 1
       this.refreshCombatHearts()
       this.invulnTimer = 2

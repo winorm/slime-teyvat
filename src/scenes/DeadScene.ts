@@ -29,6 +29,8 @@ export class DeadScene extends Phaser.Scene {
       title = '被魔物扑倒了……'
     } else if (this.cause === 'guard') {
       title = '被千岩军抓住了……'
+    } else if (this.cause === 'childe') {
+      title = '被公子打倒了……'
     }
     
     this.add.rectangle(0, 0, 480, 270, 0x000000).setOrigin(0, 0).setAlpha(0.75)
