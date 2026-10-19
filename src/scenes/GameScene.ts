@@ -1439,6 +1439,9 @@ export class GameScene extends Phaser.Scene {
   private domainHeartText: Phaser.GameObjects.Text | null = null
   private combatHearts = 0
   private combatHeartText: Phaser.GameObjects.Text | null = null
+  // 屏幕提示的堆叠（短时间内多条提示往上叠） + 拉远镜头时 HUD 的反补偿
+  private messageStack: Phaser.GameObjects.Text[] = []
+  private hudZoomActive = false
   // 第十一关：公子（黄金屋）
   private childe: Phaser.GameObjects.Image | null = null
   private bossState: 'idle' | 'intro' | 'fight' = 'idle'
@@ -2344,6 +2347,8 @@ export class GameScene extends Phaser.Scene {
     this.domainHeartText = null
     this.combatHearts = 0
     this.combatHeartText = null
+    this.messageStack = []
+    this.hudZoomActive = false
     this.childe = null
     this.bossState = 'idle'
     this.bossTimer = 0
@@ -12344,6 +12349,71 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  // 镜头拉远时把 HUD 反向补偿回来：屏幕上的东西保持原样大小、原样位置。
+  // 只处理 scrollFactor 0 且 depth ≥ 40 的（背景那几层 depth 是负的，跳过）。
+  // 代码主动挪过的对象（比如提示上移）会更新基准，不会被拉回去
+  private syncHudForZoom() {
+    const zoom = this.cameras.main.zoom
+
+    if (Math.abs(zoom - 1) < 0.001) {
+      if (!this.hudZoomActive) {
+        return
+      }
+
+      this.children.list.forEach((obj) => {
+        const ui = obj as Phaser.GameObjects.Text
+        const base = obj.getData('uiBase') as
+          | { x: number; y: number; sx: number; sy: number }
+          | null
+
+        if (!base) {
+          return
+        }
+
+        ui.setPosition(base.x, base.y)
+        ui.setScale(base.sx, base.sy)
+        obj.setData('uiBase', null)
+        obj.setData('uiApplied', null)
+      })
+
+      this.hudZoomActive = false
+      return
+    }
+
+    this.hudZoomActive = true
+
+    this.children.list.forEach((obj) => {
+      const anyObj = obj as Phaser.GameObjects.Text & {
+        scrollFactorX: number
+        depth: number
+        active: boolean
+      }
+
+      if (!anyObj.active || anyObj.scrollFactorX !== 0 || (anyObj.depth ?? 0) < 40) {
+        return
+      }
+
+      const applied = obj.getData('uiApplied') as
+        | { x: number; y: number; sx: number; sy: number }
+        | null
+      let base = obj.getData('uiBase') as
+        | { x: number; y: number; sx: number; sy: number }
+        | null
+
+      if (!base || (applied && (anyObj.x !== applied.x || anyObj.y !== applied.y))) {
+        base = { x: anyObj.x, y: anyObj.y, sx: anyObj.scaleX, sy: anyObj.scaleY }
+      }
+
+      const nx = 240 + (base.x - 240) / zoom
+      const ny = 135 + (base.y - 135) / zoom
+
+      anyObj.setPosition(nx, ny)
+      anyObj.setScale(base.sx / zoom, base.sy / zoom)
+      obj.setData('uiBase', base)
+      obj.setData('uiApplied', { x: nx, y: ny, sx: base.sx / zoom, sy: base.sy / zoom })
+    })
+  }
+
   private showMessage(text: string) {
     const message = this.add
       .text(240, 232, this.wrapCjk(text, 24).join('\n'), {
@@ -12358,6 +12428,32 @@ export class GameScene extends Phaser.Scene {
       .setDepth(HUD_MESSAGE_DEPTH)
       .setAlpha(0)
 
+    // 短时间内连着来几条提示：旧的往上让出一个身位，新的留在原位
+    this.messageStack = this.messageStack.filter((one) => one.active)
+
+    const step = message.height + 4
+
+    this.messageStack.forEach((one) => {
+      // 镜头拉远时 y 是补偿后的值，直接减会让补偿反复放大；
+      // 有 uiBase 就改基准，让 syncHudForZoom 重新算
+      const base = one.getData('uiBase') as
+        | { x: number; y: number; sx: number; sy: number }
+        | null
+
+      if (base) {
+        one.setData('uiBase', { ...base, y: base.y - step })
+      } else {
+        one.y -= step
+      }
+    })
+
+    this.messageStack.push(message)
+
+    // 最多同时留三条，更早的直接收掉
+    while (this.messageStack.length > 3) {
+      this.messageStack.shift()?.destroy()
+    }
+
     this.tweens.add({
       targets: message,
       alpha: 1,
@@ -12366,6 +12462,7 @@ export class GameScene extends Phaser.Scene {
       yoyo: true,
       onComplete: () => {
         message.destroy()
+        this.messageStack = this.messageStack.filter((one) => one !== message)
       },
     })
   }
@@ -14111,6 +14208,8 @@ export class GameScene extends Phaser.Scene {
         })
       }
     }
+
+    this.syncHudForZoom()
 
     if (this.windmillBlades) {
       // 正角度在屏幕坐标里就是顺时针
