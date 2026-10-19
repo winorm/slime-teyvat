@@ -14093,6 +14093,25 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    // 战斗镜头拉远（zoom < 1）时，背景是 scrollFactor 0 的屏幕贴图，会跟着缩小。
+    // 按 1/zoom 放大、并把左上角贴回屏幕，背景看起来就和平时一样大、铺满画面
+    if (this.bossState === 'fight') {
+      const bgLayers = [this.bgFar, this.bgMid, this.bgNear].filter(
+        (layer): layer is Phaser.GameObjects.TileSprite => layer !== null
+      )
+
+      if (bgLayers.length > 0) {
+        const zoom = Math.max(0.2, camera.zoom)
+        const cx = 240
+        const cy = 135
+
+        bgLayers.forEach((layer) => {
+          layer.setScale(1 / zoom)
+          layer.setPosition(cx - cx / zoom, cy - cy / zoom)
+        })
+      }
+    }
+
     if (this.windmillBlades) {
       // 正角度在屏幕坐标里就是顺时针
       this.windmillBlades.rotation += (delta / 1000) * 1.2
