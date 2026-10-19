@@ -1911,22 +1911,43 @@ export class GameScene extends Phaser.Scene {
       repeat: 2,
     })
 
-    this.time.delayedCall(1100, () => {
+    // 蓄力：一头水鲸悬在落点上空，慢慢鼓起来、上下浮动
+    const charge = this.add
+      .image(targetX, groundTop - 170, 'whale-charge')
+      .setDepth(8)
+      .setScale(0.55)
+      .setAlpha(0)
+
+    this.tweens.add({ targets: charge, alpha: 0.95, scaleX: 0.95, scaleY: 0.95, duration: 700, ease: 'Sine.easeOut' })
+    this.tweens.add({
+      targets: charge,
+      y: groundTop - 190,
+      duration: 420,
+      yoyo: true,
+      repeat: 4,
+      ease: 'Sine.easeInOut',
+    })
+
+    this.time.delayedCall(2200, () => {
       arrow.destroy()
       ring.destroy()
+      charge.destroy()
 
       const dir = childe.x > targetX ? -1 : 1
-      const whale = this.add
-        .image(targetX + dir * 60, groundTop - 300, 'whale-strike')
-        .setDepth(8)
-        .setScale(1.1)
-        .setAlpha(0.95)
+      const fromX = targetX + dir * 110
+      const fromY = groundTop - 250
+      const whale = this.add.image(fromX, fromY, 'whale-strike').setDepth(8).setScale(1.05)
+
+      // 鱼头朝向左下（贴图头在左边），所以朝向要再转 180°
+      whale.setRotation(
+        Phaser.Math.Angle.Between(fromX, fromY, targetX, groundTop - 26) + Math.PI
+      )
 
       this.tweens.add({
         targets: whale,
         x: targetX,
         y: groundTop - 26,
-        duration: 380,
+        duration: 420,
         ease: 'Quad.easeIn',
         onComplete: () => {
           whale.destroy()
@@ -14859,6 +14880,13 @@ export class GameScene extends Phaser.Scene {
 
       this.repositionBoss(true)
       this.showMessage('公子：还没完呢。')
+
+      // 镜头跟着落到下层金库
+      const arena = this.bossArena()
+      const camera = this.cameras.main
+
+      camera.zoomTo(0.6, 500, 'Sine.easeInOut')
+      camera.pan((arena.left + arena.right) / 2, 1900 - 220, 700, 'Sine.easeInOut')
     }
 
     if (this.pillarCooldown > 0) {

@@ -191,7 +191,7 @@ export class BootScene extends Phaser.Scene {
     this.makeHydroBlade()
     this.makeWarnArrow()
     this.makeElectroSpear()
-    this.makeWhaleStrike()
+    this.makeWhalePoses()
     this.makeEaveBridge()
     this.makeWallLedge()
     this.makeCanalGap()
@@ -5531,55 +5531,171 @@ export class BootScene extends Phaser.Scene {
     g.destroy()
   }
 
-  // ── 鲸影（140x90）：公子第三阶段从天上砸下来的水鲸剪影 ─────────────
-  //   深紫蓝的躯体、尾鳍和背鳍都是棱面，眼睛一点紫光，周身一圈水汽
-  private makeWhaleStrike() {
-    const g = this.add.graphics()
+  // ── 水鲸的两个姿态（各 150x120，头都朝左）────────────────────────
+  //   ① whale-charge：蓄力，头高高抬起、上下颚张开，头顶喷水，周身绕着水汽
+  //   ② whale-strike：扑击，头朝左下俯冲、双颚大张，鳍往后掠，身后拖速度线
+  //   分多层画：描边 → 躯体 → 背脊受光 → 腹部 → 鳍（各自再分层）→ 眼 / 牙 / 水汽
+  private makeWhalePoses() {
     const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
     const INK = 0x120c1c
-    const DEEP = 0x2d2050
     const BODY = 0x4a3578
-    const LIGHT = 0x7a5ac8
+    const LIGHT = 0x8a6ad0
+    const BELLY = 0xc2b0ee
     const GLOW = 0xb07cff
 
-    // 水汽：外面一圈淡紫
-    g.fillStyle(0x8a5ac8, 0.18)
-    g.fillPoints([P(10, 50), P(30, 18), P(80, 10), P(118, 30), P(126, 56), P(96, 76), P(40, 78)], true)
+    // ① 蓄力姿态：头高高抬起、双颚张开，头顶喷水，周身绕水汽
+    const charge = this.add.graphics()
 
-    // 躯体
-    g.fillStyle(INK, 1)
-    g.fillPoints([P(8, 50), P(26, 22), P(70, 12), P(108, 26), P(122, 50), P(100, 72), P(46, 78), P(18, 66)], true)
-    g.fillStyle(BODY, 1)
-    g.fillPoints([P(12, 50), P(28, 26), P(70, 17), P(104, 29), P(116, 50), P(96, 68), P(48, 73), P(22, 63)], true)
-    // 背脊受光
-    g.fillStyle(LIGHT, 1)
-    g.fillPoints([P(24, 34), P(66, 19), P(96, 30), P(70, 30), P(40, 42)], true)
-    // 腹部压深
-    g.fillStyle(DEEP, 1)
-    g.fillPoints([P(26, 60), P(96, 62), P(90, 68), P(48, 72)], true)
+    charge.lineStyle(3, 0x8a5ac8, 0.35)
+    charge.beginPath()
+    charge.arc(72, 66, 52, Math.PI * 0.35, Math.PI * 1.25)
+    charge.strokePath()
+    charge.lineStyle(2, 0xb07cff, 0.25)
+    charge.beginPath()
+    charge.arc(72, 66, 60, Math.PI * 0.3, Math.PI * 1.2)
+    charge.strokePath()
 
     // 尾鳍
-    g.fillStyle(INK, 1)
-    g.fillPoints([P(112, 44), P(138, 22), P(132, 46), P(140, 70), P(112, 56)], true)
-    g.fillStyle(BODY, 1)
-    g.fillPoints([P(114, 45), P(134, 27), P(129, 46), P(135, 66), P(113, 55)], true)
+    charge.fillStyle(INK, 1)
+    charge.fillPoints([P(116, 54), P(146, 30), P(138, 54), P(148, 76), P(116, 66)], true)
+    charge.fillStyle(BODY, 1)
+    charge.fillPoints([P(118, 55), P(141, 35), P(134, 55), P(143, 71), P(118, 64)], true)
+    charge.fillStyle(LIGHT, 1)
+    charge.fillPoints([P(120, 56), P(136, 40), P(132, 56)], true)
+
+    // 躯体
+    charge.fillStyle(INK, 1)
+    charge.fillPoints(
+      [P(16, 66), P(14, 46), P(30, 30), P(58, 24), P(88, 28), P(110, 40),
+       P(120, 56), P(112, 70), P(88, 80), P(52, 82), P(26, 76)],
+      true
+    )
+    charge.fillStyle(BODY, 1)
+    charge.fillPoints(
+      [P(20, 64), P(18, 48), P(32, 34), P(58, 29), P(86, 32), P(106, 42),
+       P(116, 56), P(108, 67), P(86, 76), P(52, 78), P(28, 72)],
+      true
+    )
+    charge.fillStyle(LIGHT, 1)
+    charge.fillPoints([P(30, 40), P(60, 30), P(92, 34), P(70, 38), P(44, 50)], true)
+    charge.fillStyle(BELLY, 0.5)
+    charge.fillPoints([P(30, 70), P(86, 74), P(60, 78), P(34, 74)], true)
 
     // 背鳍
-    g.fillStyle(INK, 1)
-    g.fillPoints([P(58, 16), P(70, 2), P(80, 16)], true)
-    g.fillStyle(LIGHT, 1)
-    g.fillPoints([P(61, 15), P(70, 5), P(77, 15)], true)
+    charge.fillStyle(INK, 1)
+    charge.fillPoints([P(56, 26), P(64, 6), P(80, 24)], true)
+    charge.fillStyle(LIGHT, 1)
+    charge.fillPoints([P(59, 25), P(64, 10), P(76, 23)], true)
 
-    // 眼：一点紫光
-    g.fillStyle(INK, 1)
-    g.fillCircle(38, 44, 5)
-    g.fillStyle(GLOW, 1)
-    g.fillCircle(38, 44, 3)
-    g.fillStyle(0xe4ccff, 1)
-    g.fillCircle(37, 43, 1.2)
+    // 胸鳍
+    charge.fillStyle(INK, 1)
+    charge.fillPoints([P(58, 74), P(52, 98), P(76, 82)], true)
+    charge.fillStyle(BODY, 1)
+    charge.fillPoints([P(59, 76), P(55, 94), P(73, 81)], true)
 
-    g.generateTexture('whale-strike', 142, 90)
-    g.destroy()
+    // 头：上下颚张开
+    charge.fillStyle(INK, 1)
+    charge.fillPoints([P(6, 40), P(26, 32), P(34, 46), P(22, 50)], true)
+    charge.fillPoints([P(8, 68), P(26, 64), P(34, 54), P(20, 56)], true)
+    charge.fillStyle(BODY, 1)
+    charge.fillPoints([P(9, 41), P(25, 34), P(31, 45), P(21, 48)], true)
+    charge.fillPoints([P(11, 66), P(25, 62), P(31, 55), P(20, 57)], true)
+    charge.fillStyle(0x2a1030, 1)
+    charge.fillPoints([P(20, 50), P(31, 46), P(31, 54), P(19, 56)], true)
+    charge.fillStyle(0xe8e0f5, 1)
+    for (let i = 0; i < 3; i++) {
+      charge.fillTriangle(12 + i * 5, 45 + i * 1.6, 15 + i * 5, 45 + i * 1.6, 13 + i * 5, 50 + i * 1.4)
+    }
+
+    // 眼 + 头顶喷水
+    charge.fillStyle(INK, 1)
+    charge.fillCircle(34, 40, 5)
+    charge.fillStyle(GLOW, 1)
+    charge.fillCircle(34, 40, 3)
+    charge.fillStyle(0xe4ccff, 1)
+    charge.fillCircle(33, 39, 1.2)
+    ;([
+      [30, 18, 3],
+      [36, 10, 2],
+      [24, 24, 2],
+    ] as Array<[number, number, number]>).forEach(([x, y, r]) => {
+      charge.fillStyle(0x9adcf5, 0.8)
+      charge.fillCircle(x, y, r)
+    })
+
+    charge.generateTexture('whale-charge', 150, 120)
+    charge.destroy()
+
+    // ② 扑击姿态：头朝左下俯冲、双颚大张，鳍往后掠，身后拖速度线
+    const strike = this.add.graphics()
+
+    strike.lineStyle(2, 0x8a5ac8, 0.35)
+    strike.lineBetween(4, 44, 40, 36)
+    strike.lineBetween(2, 64, 38, 56)
+    strike.lineBetween(6, 84, 42, 76)
+
+    strike.fillStyle(INK, 1)
+    strike.fillPoints([P(112, 40), P(146, 20), P(136, 44), P(148, 66), P(112, 56)], true)
+    strike.fillStyle(BODY, 1)
+    strike.fillPoints([P(114, 41), P(141, 25), P(132, 45), P(143, 61), P(114, 54)], true)
+
+    strike.fillStyle(INK, 1)
+    strike.fillPoints(
+      [P(12, 92), P(18, 72), P(40, 52), P(70, 38), P(100, 36), P(118, 48),
+       P(112, 66), P(86, 78), P(54, 90), P(28, 98)],
+      true
+    )
+    strike.fillStyle(BODY, 1)
+    strike.fillPoints(
+      [P(16, 90), P(22, 74), P(42, 56), P(70, 42), P(98, 40), P(113, 49),
+       P(108, 63), P(84, 74), P(52, 86), P(28, 94)],
+      true
+    )
+    strike.fillStyle(LIGHT, 1)
+    strike.fillPoints([P(44, 58), P(72, 44), P(102, 42), P(80, 50), P(56, 66)], true)
+    strike.fillStyle(BELLY, 0.45)
+    strike.fillPoints([P(30, 92), P(84, 76), P(60, 88)], true)
+
+    // 背鳍后掠 / 胸鳍
+    strike.fillStyle(INK, 1)
+    strike.fillPoints([P(62, 40), P(86, 18), P(92, 40)], true)
+    strike.fillStyle(LIGHT, 1)
+    strike.fillPoints([P(65, 39), P(85, 22), P(89, 39)], true)
+    strike.fillStyle(INK, 1)
+    strike.fillPoints([P(54, 84), P(40, 106), P(70, 92)], true)
+    strike.fillStyle(BODY, 1)
+    strike.fillPoints([P(55, 86), P(44, 102), P(67, 91)], true)
+
+    // 头朝左下
+    strike.fillStyle(INK, 1)
+    strike.fillPoints([P(4, 84), P(26, 76), P(30, 92), P(12, 96)], true)
+    strike.fillPoints([P(2, 104), P(24, 96), P(30, 80), P(20, 90)], true)
+    strike.fillStyle(BODY, 1)
+    strike.fillPoints([P(7, 85), P(25, 78), P(28, 90), P(12, 94)], true)
+    strike.fillPoints([P(5, 101), P(23, 94), P(27, 84), P(18, 91)], true)
+    strike.fillStyle(0x2a1030, 1)
+    strike.fillPoints([P(10, 92), P(27, 86), P(26, 94), P(8, 99)], true)
+    strike.fillStyle(0xe8e0f5, 1)
+    ;[0, 1, 2].forEach((i) => {
+      strike.fillTriangle(13 + i * 4, 90 + i, 16 + i * 4, 90 + i, 14 + i * 4, 95 + i)
+    })
+    strike.fillStyle(INK, 1)
+    strike.fillCircle(34, 82, 5)
+    strike.fillStyle(GLOW, 1)
+    strike.fillCircle(34, 82, 3)
+    strike.fillStyle(0xe4ccff, 1)
+    strike.fillCircle(33, 81, 1.2)
+    ;([
+      [16, 70, 2.4],
+      [24, 58, 1.8],
+      [10, 54, 1.4],
+    ] as Array<[number, number, number]>).forEach(([x, y, r]) => {
+      strike.fillStyle(0x9adcf5, 0.7)
+      strike.fillCircle(x, y, r)
+    })
+
+    strike.generateTexture('whale-strike', 150, 120)
+    strike.destroy()
   }
 
   private makeRitualNpcs() {
