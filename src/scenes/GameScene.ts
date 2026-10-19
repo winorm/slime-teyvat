@@ -1448,6 +1448,8 @@ export class GameScene extends Phaser.Scene {
   private bossTimer = 0
   private bossPhase = 1
   private bossAttacks = 0
+  private bossLastSide: -1 | 0 | 1 = 0
+  private bossSideStreak = 0
   private bossDash: { dir: number; speed: number; timer: number } | null = null
   private bossBlades: { sprite: Phaser.GameObjects.Image; vx: number }[] = []
   // 黄金屋的 Boss 场：钟离站在门口、公子立在仙体前面
@@ -1697,25 +1699,54 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // 战斗中随机换位：紫光一闪，人换到另一个位置
-  private repositionBoss(force = false) {
+  // 战斗中换位：**一定换**，随机落在玩家的左边或右边，不出场地；
+  // 连续两次落在同一侧时，下一次强制去另一侧（用户 2026/10/19 定）
+  private repositionBoss(_force = true) {
     const childe = this.childe
 
     if (!childe || this.bossState !== 'fight') {
       return
     }
 
-    if (!force && Math.random() > 0.5) {
-      return
+    const { left, right } = this.bossArena()
+    const playerX = this.slime.x
+    const gap = 180
+
+    // 左右两侧可落脚的区间
+    const leftLo = left + 100
+    const leftHi = playerX - gap
+    const rightLo = playerX + gap
+    const rightHi = right - 60
+    const canLeft = leftHi > leftLo
+    const canRight = rightHi > rightLo
+
+    let side: -1 | 1
+
+    if (!canLeft) {
+      side = 1
+    } else if (!canRight) {
+      side = -1
+    } else if (this.bossSideStreak >= 2 && this.bossLastSide !== 0) {
+      // 连着两次同侧 → 这次必须换边
+      side = this.bossLastSide === 1 ? -1 : 1
+    } else {
+      side = Math.random() < 0.5 ? -1 : 1
     }
 
-    const { left, right } = this.bossArena()
-    const lo = left + 160
-    const hi = right - 100
-    let x = Phaser.Math.Between(lo, hi)
+    if ((side === -1 && !canLeft) || (side === 1 && !canRight)) {
+      side = side === 1 ? -1 : 1
+    }
 
-    if (Math.abs(x - this.slime.x) < 280) {
-      x = this.slime.x < (lo + hi) / 2 ? hi : lo
+    const x =
+      side === -1
+        ? Phaser.Math.Between(leftLo, leftHi)
+        : Phaser.Math.Between(rightLo, rightHi)
+
+    if (side === this.bossLastSide) {
+      this.bossSideStreak += 1
+    } else {
+      this.bossLastSide = side
+      this.bossSideStreak = 1
     }
 
     const puff = this.add
@@ -2357,6 +2388,8 @@ export class GameScene extends Phaser.Scene {
     this.bossTimer = 0
     this.bossPhase = 1
     this.bossAttacks = 0
+    this.bossLastSide = 0
+    this.bossSideStreak = 0
     this.bossDash = null
     this.bossBlades = []
     this.domainLeaving = false
