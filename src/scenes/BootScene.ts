@@ -187,6 +187,7 @@ export class BootScene extends Phaser.Scene {
     this.makeGoldenFloor()
     this.makeGoldPedestal()
     this.makeChildeNpc()
+    this.makeChildeFoul()
     this.makeHydroBlade()
     this.makeEaveBridge()
     this.makeWallLedge()
@@ -5319,6 +5320,151 @@ export class BootScene extends Phaser.Scene {
     })
 
     g.generateTexture('hydro-blade', 56, 20)
+    g.destroy()
+  }
+
+  // ── 魔王武装形态（70x86）：公子第二、三阶段的形态 ───────────────────
+  //   深紫黑的甲壳史莱姆：披风、肩甲、胸甲、胸口的雷元素核心、一对弯角、
+  //   发紫光的眼缝，身上绕着几道青紫色的电弧
+  private makeChildeFoul() {
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+    const INK = 0x120c1c
+    const CAPE = 0x1a1226
+    const VOID = 0x241a33
+    const VOID_LIGHT = 0x3a2a52
+    const VIOLET = 0x6b3fa0
+    const ELECTRO = 0xb07cff
+    const ELECTRO_LIGHT = 0xdfc2ff
+    const CYAN = 0x7fe6ff
+
+    // ① 背后破碎的披风
+    g.fillStyle(CAPE, 1)
+    g.fillPoints(
+      [
+        P(6, 44), P(20, 32), P(50, 32), P(64, 44), P(62, 78),
+        P(52, 70), P(44, 82), P(35, 72), P(26, 82), P(18, 70), P(8, 78),
+      ],
+      true
+    )
+
+    // ② 甲壳本体（史莱姆团，多棱圆角、底部坐平）
+    const bodyShape = [
+      P(10, 66), P(6, 52), P(12, 42), P(22, 36), P(48, 36), P(58, 42),
+      P(64, 52), P(60, 66), P(54, 78), P(44, 82), P(26, 82), P(16, 78),
+    ]
+    const inset = (pts: Phaser.Math.Vector2[], k: number) =>
+      pts.map((p) => P(35 + (p.x - 35) * k, 60 + (p.y - 60) * k))
+
+    g.fillStyle(INK, 1)
+    g.fillPoints(bodyShape, true)
+    g.fillStyle(VOID_LIGHT, 1)
+    g.fillPoints(inset(bodyShape, 0.94), true)
+
+    // ③ 肩甲（左右两块棱面）
+    g.fillStyle(VOID, 1)
+    g.fillPoints([P(10, 46), P(28, 43), P(30, 55), P(12, 58)], true)
+    g.fillPoints([P(60, 46), P(42, 43), P(40, 55), P(58, 58)], true)
+    g.fillStyle(VIOLET, 1)
+    g.fillPoints([P(12, 47), P(27, 44.6), P(27.6, 48), P(12.6, 50.4)], true)
+    g.fillPoints([P(58, 47), P(43, 44.6), P(42.4, 48), P(57.4, 50.4)], true)
+
+    // ④ 胸甲 + 胸口雷元素核心
+    g.fillStyle(VOID, 1)
+    g.fillPoints([P(24, 52), P(46, 52), P(44, 70), P(26, 70)], true)
+    g.fillStyle(VIOLET, 1)
+    g.fillRect(35, 52, 2, 18)
+    g.fillStyle(INK, 1)
+    g.fillPoints([P(35, 53), P(41, 60), P(35, 67), P(29, 60)], true)
+    g.fillStyle(ELECTRO, 1)
+    g.fillPoints([P(35, 55), P(39, 60), P(35, 65), P(31, 60)], true)
+    g.fillStyle(ELECTRO_LIGHT, 1)
+    g.fillPoints([P(35, 57), P(37, 60), P(35, 63), P(33, 60)], true)
+
+    // ⑤ 腰带 / 下摆甲片
+    g.fillStyle(INK, 1)
+    g.fillPoints([P(19, 70), P(51, 70), P(49, 78), P(21, 78)], true)
+    g.fillStyle(VOID, 1)
+    g.fillPoints([P(21, 71), P(49, 71), P(47, 76), P(23, 76)], true)
+
+    // ⑥ 面具：一对发光的眼缝 + 锯齿嘴
+    g.fillStyle(INK, 1)
+    g.fillPoints([P(22, 38), P(48, 38), P(46, 51), P(24, 51)], true)
+    g.fillStyle(VOID_LIGHT, 1)
+    g.fillPoints([P(23.4, 39), P(46.6, 39), P(45, 50), P(25, 50)], true)
+    g.fillStyle(ELECTRO, 1)
+    g.fillPoints([P(26, 43), P(33, 41.6), P(32.4, 44.6), P(26.4, 45.6)], true)
+    g.fillPoints([P(44, 43), P(37, 41.6), P(37.6, 44.6), P(43.6, 45.6)], true)
+    g.fillStyle(ELECTRO_LIGHT, 1)
+    g.fillRect(27.6, 42.6, 4, 1.2)
+    g.fillRect(38.4, 42.6, 4, 1.2)
+    // 嘴：锯齿
+    g.fillStyle(INK, 1)
+    g.fillPoints(
+      [P(28, 47), P(32, 46.2), P(34, 48), P(36, 46.2), P(42, 47), P(40, 49.4), P(30, 49.4)],
+      true
+    )
+
+    // ⑦ 弯角：左右各一只，先粗后细
+    const horn = (fromX: number, dir: number) => {
+      g.lineStyle(7, INK, 1)
+      g.beginPath()
+      g.moveTo(fromX, 39)
+      g.lineTo(fromX + dir * 8, 26)
+      g.lineTo(fromX + dir * 5, 12)
+      g.strokePath()
+      g.lineStyle(4, VOID, 1)
+      g.beginPath()
+      g.moveTo(fromX, 39)
+      g.lineTo(fromX + dir * 8, 26)
+      g.lineTo(fromX + dir * 5, 12)
+      g.strokePath()
+      g.lineStyle(1.6, VIOLET, 1)
+      g.beginPath()
+      g.moveTo(fromX - dir * 1.4, 38)
+      g.lineTo(fromX + dir * 6.6, 26)
+      g.strokePath()
+    }
+
+    horn(20, -1)
+    horn(50, 1)
+
+    // ⑧ 爪子：两侧露出的黑色利爪
+    ;[
+      [12, 74, -1],
+      [58, 74, 1],
+    ].forEach(([cx, cy, dir]) => {
+      for (let i = -1; i <= 1; i++) {
+        g.lineStyle(4.6, INK, 1)
+        g.lineBetween(cx, cy, cx + dir * 9, cy + 4 + i * 4)
+        g.lineStyle(2.2, VIOLET, 1)
+        g.lineBetween(cx, cy, cx + dir * 8, cy + 3.6 + i * 4)
+      }
+    })
+
+    // ⑨ 身上的电弧：几道青紫色折线
+    g.lineStyle(2, CYAN, 0.9)
+    g.beginPath()
+    g.moveTo(12, 60)
+    g.lineTo(18, 56)
+    g.lineTo(15, 50)
+    g.lineTo(21, 46)
+    g.strokePath()
+    g.lineStyle(2, ELECTRO, 0.9)
+    g.beginPath()
+    g.moveTo(58, 62)
+    g.lineTo(52, 58)
+    g.lineTo(55, 51)
+    g.lineTo(49, 47)
+    g.strokePath()
+    g.lineStyle(1.6, CYAN, 0.7)
+    g.beginPath()
+    g.moveTo(6, 54)
+    g.lineTo(10, 52)
+    g.lineTo(7, 48)
+    g.strokePath()
+
+    g.generateTexture('npc-childe-foul', 70, 86)
     g.destroy()
   }
 

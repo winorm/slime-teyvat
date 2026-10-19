@@ -1535,9 +1535,7 @@ export class GameScene extends Phaser.Scene {
       this.castElectroDash(childe)
 
       if (this.bossAttacks >= 3) {
-        this.bossPhase = 3
-        this.bossAttacks = 0
-        this.showMessage('公子的气息变了 —— 小心头顶！')
+        this.enterBossPhase(3)
       }
       return
     }
@@ -1546,9 +1544,7 @@ export class GameScene extends Phaser.Scene {
     this.bossAttacks += 1
 
     if (this.bossAttacks >= 3 && this.bossPhase === 1) {
-      this.bossPhase = 2
-      this.bossAttacks = 0
-      this.showMessage('公子：热身结束了 —— 换我了。')
+      this.enterBossPhase(2)
     }
 
     // 预警：公子身上闪一下青光，地面上拉一条水线
@@ -1576,6 +1572,45 @@ export class GameScene extends Phaser.Scene {
 
       this.bossBlades.push({ sprite, vx: dir * 320 })
     })
+  }
+
+  // 阶段切换：第二阶段起换成"魔王武装"形态（用户 2026/10/19 定）
+  private enterBossPhase(phase: number) {
+    this.bossPhase = phase
+    this.bossAttacks = 0
+
+    const childe = this.childe
+
+    if (!childe) {
+      return
+    }
+
+    if (phase === 2) {
+      this.cameras.main.flash(320, 120, 70, 190)
+
+      const burst = this.add
+        .image(childe.x, childe.y - 40, 'shock-ring')
+        .setTint(0xb07cff)
+        .setDepth(7)
+        .setScale(0.4)
+        .setAlpha(0.9)
+
+      this.tweens.add({
+        targets: burst,
+        scaleX: 3,
+        scaleY: 2,
+        alpha: 0,
+        duration: 600,
+        onComplete: () => burst.destroy(),
+      })
+
+      childe.setTexture('npc-childe-foul')
+      childe.setOrigin(0.5, 1)
+      this.showMessage('公子：魔王武装 —— 这才算认真。')
+      return
+    }
+
+    this.showMessage('公子的气息变了 —— 小心头顶！')
   }
 
   // 第二阶段：雷突刺 —— 蓄力后朝玩家横冲，撞到岩柱会停、岩化能硬吃一次
