@@ -1693,8 +1693,9 @@ export const LEVELS: LevelDef[] = [
     boss: { kind: 'childe', x: 1800 },
 
     platforms: [
-      // 金砖地面（顶面 1160）分三段：中间 1500~1900 那一段是第三阶段会被砸塌的
-      { x: 1300, y: 1180, width: 400, height: 40, brick: true },
+      // 金砖地面（顶面 1160）整条铺满，只把中间 1500~1900 那一段标记成可塌的：
+      // 出生点在 x=100，地板不能只铺场地那一截，不然一开局就掉下去
+      { x: 750, y: 1180, width: 1500, height: 40, brick: true },
       { x: 1700, y: 1180, width: 400, height: 40, brick: true, breakable: true },
       { x: 2050, y: 1180, width: 300, height: 40, brick: true },
       // 下层金库：碎地之后落在这里（顶面 1900），第三阶段就在这层打完
