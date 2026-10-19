@@ -2010,9 +2010,9 @@ export class GameScene extends Phaser.Scene {
     overlay?.sprite.destroy()
     overlay?.line.destroy()
 
-    for (let i = 0; i < 18; i++) {
+    for (let i = 0; i < 26; i++) {
       const shard = this.add
-        .image(1500 + Math.random() * 400, 1152 - Math.random() * 8, 'pixel')
+        .image(1400 + Math.random() * 650, 1152 - Math.random() * 8, 'pixel')
         .setDisplaySize(Phaser.Math.Between(6, 14), Phaser.Math.Between(5, 10))
         .setTint(i % 3 === 0 ? 0xe6c06a : 0x8a6528)
         .setDepth(9)
@@ -2031,6 +2031,15 @@ export class GameScene extends Phaser.Scene {
 
     this.cameras.main.shake(500, 0.014)
     this.showMessage('地面塌了！')
+
+    // 不靠自由落体：塌下去之后强制把人送到下层金库
+    this.time.delayedCall(450, () => {
+      const arena = this.bossArena()
+      const body = this.slime.body as Phaser.Physics.Arcade.Body
+
+      body.reset((arena.left + arena.right) / 2, 1887)
+      this.cameras.main.flash(220, 120, 70, 190)
+    })
   }
 
   private castElectroDash(childe: Phaser.GameObjects.Image) {
