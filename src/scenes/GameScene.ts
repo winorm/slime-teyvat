@@ -1450,6 +1450,16 @@ export class GameScene extends Phaser.Scene {
   private bossAttacks = 0
   private bossLastSide: -1 | 0 | 1 = 0
   private bossSideStreak = 0
+  private bossGroundY = 1160
+  private bossSlamCount = 0
+  private breakableFloor: Phaser.Physics.Arcade.Sprite | null = null
+  private floorOverlays: {
+    item: { x: number; y: number; width: number; height: number; breakable?: boolean }
+    sprite: Phaser.GameObjects.TileSprite
+    line: Phaser.GameObjects.Rectangle
+  }[] = []
+  private floorBroken = false
+  private bossDropped = false
   private bossDash: { dir: number; speed: number; timer: number } | null = null
   private bossBlades: { sprite: Phaser.GameObjects.Image; vx: number }[] = []
   // 黄金屋的 Boss 场：钟离站在门口、公子立在仙体前面
@@ -1464,6 +1474,8 @@ export class GameScene extends Phaser.Scene {
       (top, item) => Math.min(top, item.y - item.height / 2),
       Number.POSITIVE_INFINITY
     )
+
+    this.bossGroundY = groundTop === Number.POSITIVE_INFINITY ? 1160 : groundTop
 
     this.add
       .image(220, (groundTop === Number.POSITIVE_INFINITY ? 1160 : groundTop) - 2, 'npc-zhongli')
@@ -1545,6 +1557,12 @@ export class GameScene extends Phaser.Scene {
 
     // 起手就把冷却顶住：预警 / 冲刺那一秒多里 update 还会每帧跑，
     // 不先压住 bossTimer 就会连续起手几十次（实测 attacks 会飙到一百多）
+    if (this.bossPhase >= 3) {
+      this.bossTimer = 3.8
+      this.castWhaleSlam(childe)
+      return
+    }
+
     if (this.bossPhase >= 2) {
       this.bossTimer = 3.4
       this.bossAttacks += 1
@@ -1573,10 +1591,7 @@ export class GameScene extends Phaser.Scene {
     childe.setTint(0x7fd4ff)
     this.time.delayedCall(220, () => childe.clearTint())
 
-    const groundTop = this.level.platforms.reduce(
-      (top, item) => Math.min(top, item.y - item.height / 2),
-      Number.POSITIVE_INFINITY
-    )
+    const groundTop = this.bossGroundY
     const warn = this.add
       .rectangle(childe.x, groundTop - 20, 440, 8, 0x39a8e8, 0.95)
       .setDepth(5)
@@ -1787,7 +1802,7 @@ export class GameScene extends Phaser.Scene {
 
   // 天降雷枪：先在玩家脚下点出落点，再从公子那一侧的空中斜着扎下来
   private castSkySpear(childe: Phaser.GameObjects.Image) {
-    const groundTop = this.levelGroundTop()
+    const groundTop = this.bossGroundY
     const arena = this.bossArena()
     const targetX = Phaser.Math.Clamp(this.slime.x, arena.left + 40, arena.right - 40)
 
@@ -1865,12 +1880,141 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
+  // 第三阶段：鲸影砸地 —— 落点预警后一头水鲸从天而降，连砸三次把大厅正中砸塌
+  private castWhaleSlam(childe: Phaser.GameObjects.Image) {
+    const groundTop = this.bossGroundY
+    const arena = this.bossArena()
+    const targetX = Phaser.Math.Clamp(this.slime.x, arena.left + 60, arena.right - 60)
+
+    const arrow = this.add
+      .image(targetX, groundTop - 14, 'warn-arrow')
+      .setTint(0x8a5ac8)
+      .setScale(2)
+      .setAngle(90)
+      .setDepth(5.4)
+
+    const ring = this.add
+      .image(targetX, groundTop - 2, 'shock-ring')
+      .setTint(0x8a5ac8)
+      .setScale(0.7)
+      .setAlpha(0.7)
+      .setDepth(5.3)
+
+    this.tweens.add({ targets: arrow, alpha: { from: 1, to: 0.25 }, duration: 180, yoyo: true, repeat: 5 })
+    this.tweens.add({
+      targets: ring,
+      scaleX: 1.8,
+      scaleY: 0.9,
+      alpha: 0.2,
+      duration: 340,
+      yoyo: true,
+      repeat: 2,
+    })
+
+    this.time.delayedCall(1100, () => {
+      arrow.destroy()
+      ring.destroy()
+
+      const dir = childe.x > targetX ? -1 : 1
+      const whale = this.add
+        .image(targetX + dir * 60, groundTop - 300, 'whale-strike')
+        .setDepth(8)
+        .setScale(1.1)
+        .setAlpha(0.95)
+
+      this.tweens.add({
+        targets: whale,
+        x: targetX,
+        y: groundTop - 26,
+        duration: 380,
+        ease: 'Quad.easeIn',
+        onComplete: () => {
+          whale.destroy()
+          this.cameras.main.shake(300, 0.011)
+          this.hydroSplash(targetX, groundTop - 10, 0x8a5ac8)
+
+          for (let i = 0; i < 3; i++) {
+            this.hydroSplash(
+              targetX + Phaser.Math.Between(-40, 40),
+              groundTop - 8,
+              0x6a4a98
+            )
+          }
+
+          this.addFloorCrack(targetX, groundTop)
+
+          if (Math.abs(this.slime.x - targetX) < 70) {
+            this.damageCombat(1)
+          }
+
+          this.bossSlamCount += 1
+
+          if (this.bossSlamCount >= 3) {
+            this.breakBossFloor()
+          }
+        },
+      })
+    })
+  }
+
+  private addFloorCrack(x: number, groundY: number) {
+    const g = this.add.graphics().setDepth(0.14)
+
+    g.lineStyle(3, 0x2a1a10, 0.9)
+    g.beginPath()
+    g.moveTo(x - 30, groundY - 2)
+    g.lineTo(x - 10, groundY + 4)
+    g.lineTo(x + 6, groundY - 3)
+    g.lineTo(x + 28, groundY + 3)
+    g.strokePath()
+  }
+
+  // 砸塌大厅正中：关掉这块地板的碰撞和地砖，碎砖往下掉，人跟着落到下层金库
+  private breakBossFloor() {
+    if (this.floorBroken) {
+      return
+    }
+
+    this.floorBroken = true
+
+    const floor = this.breakableFloor
+
+    if (floor) {
+      ;(floor.body as Phaser.Physics.Arcade.StaticBody).enable = false
+      floor.setVisible(false)
+    }
+
+    const overlay = this.floorOverlays.find((one) => one.item.breakable)
+
+    overlay?.sprite.destroy()
+    overlay?.line.destroy()
+
+    for (let i = 0; i < 18; i++) {
+      const shard = this.add
+        .image(1500 + Math.random() * 400, 1152 - Math.random() * 8, 'pixel')
+        .setDisplaySize(Phaser.Math.Between(6, 14), Phaser.Math.Between(5, 10))
+        .setTint(i % 3 === 0 ? 0xe6c06a : 0x8a6528)
+        .setDepth(9)
+
+      this.tweens.add({
+        targets: shard,
+        y: shard.y + 620,
+        x: shard.x + Phaser.Math.Between(-40, 40),
+        angle: Phaser.Math.Between(-200, 200),
+        alpha: 0,
+        duration: 900 + i * 25,
+        ease: 'Quad.easeIn',
+        onComplete: () => shard.destroy(),
+      })
+    }
+
+    this.cameras.main.shake(500, 0.014)
+    this.showMessage('地面塌了！')
+  }
+
   private castElectroDash(childe: Phaser.GameObjects.Image) {
     childe.setTint(0xb07cff)
-    const groundTop = this.level.platforms.reduce(
-      (top, item) => Math.min(top, item.y - item.height / 2),
-      Number.POSITIVE_INFINITY
-    )
+    const groundTop = this.bossGroundY
     const warn = this.add
       .rectangle(childe.x, groundTop - 20, 380, 8, 0x9a5cff, 0.95)
       .setDepth(5)
@@ -2390,6 +2534,12 @@ export class GameScene extends Phaser.Scene {
     this.bossAttacks = 0
     this.bossLastSide = 0
     this.bossSideStreak = 0
+    this.bossGroundY = 1160
+    this.bossSlamCount = 0
+    this.breakableFloor = null
+    this.floorOverlays = []
+    this.floorBroken = false
+    this.bossDropped = false
     this.bossDash = null
     this.bossBlades = []
     this.domainLeaving = false
@@ -2893,15 +3043,18 @@ export class GameScene extends Phaser.Scene {
           const floorTop = item.y - item.height / 2
           const left = item.x - item.width / 2
 
-          this.add
+          const sprite = this.add
             .tileSprite(left, floorTop, item.width, 40, 'golden-floor')
             .setOrigin(0, 0)
             .setDepth(0.12)
 
-          this.add
+          const line = this.add
             .rectangle(left, floorTop - 2, item.width, 2, 0xffe9a8, 0.55)
             .setOrigin(0, 0)
             .setDepth(0.13)
+
+          // 记下来：第三阶段砸塌中间那块地板时，要把对应的地砖贴图一起收掉
+          this.floorOverlays.push({ item, sprite, line })
         })
     }
 
@@ -3330,6 +3483,11 @@ export class GameScene extends Phaser.Scene {
       platform.refreshBody()
       // 分层：古树的后层楼梯给 1（会被树干挡住），前层给 3；不写就是原来的 0
       platform.setDepth(def.depth ?? 0)
+
+      // 第三阶段会被砸塌的那块地板
+      if (def.breakable) {
+        this.breakableFloor = platform
+      }
 
       // 只碰撞不画的台面（秘境云台）：碰撞体照旧，画面交给下面的云朵
       if (def.hidden) {
@@ -14689,6 +14847,19 @@ export class GameScene extends Phaser.Scene {
     this.updateBoss(dt)
     this.updateBossBlades(dt)
     this.clampToArena()
+
+    // 地板塌了、人落到下层：公子跟着下去，之后的招式按 1900 那层算
+    if (this.floorBroken && !this.bossDropped && this.slime.y > 1500) {
+      this.bossDropped = true
+      this.bossGroundY = 1900
+
+      if (this.childe) {
+        this.childe.y = 1898
+      }
+
+      this.repositionBoss(true)
+      this.showMessage('公子：还没完呢。')
+    }
 
     if (this.pillarCooldown > 0) {
       this.pillarCooldown = Math.max(0, this.pillarCooldown - dt)

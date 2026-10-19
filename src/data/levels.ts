@@ -7,6 +7,8 @@ export type PlatformDef = {
   height: number
   oneWay?: boolean
   crumble?: boolean
+  // 会被剧情砸碎的地板（第十一关第三阶段：鲸影砸三次后整块塌掉）
+  breakable?: boolean
   water?: boolean   // 顶面叠一层浅水（只做画面，不参与碰撞）
   grass?: boolean   // 顶面叠一层草（只做画面，不参与碰撞）
   brick?: boolean   // 表面盖一层砖石（村庄断墙用，同样只做画面）
@@ -1691,10 +1693,12 @@ export const LEVELS: LevelDef[] = [
     boss: { kind: 'childe', x: 1800 },
 
     platforms: [
-      // 一整条金砖地面（顶面 1160）—— 场地不用太大，进战后还会锁活动范围
-      { x: 1100, y: 1180, width: 2200, height: 40, brick: true },
+      // 金砖地面（顶面 1160）分三段：中间 1500~1900 那一段是第三阶段会被砸塌的
+      { x: 1300, y: 1180, width: 400, height: 40, brick: true },
+      { x: 1700, y: 1180, width: 400, height: 40, brick: true, breakable: true },
+      { x: 2050, y: 1180, width: 300, height: 40, brick: true },
       // 下层金库：碎地之后落在这里（顶面 1900），第三阶段就在这层打完
-      { x: 1100, y: 1920, width: 1200, height: 40, brick: true },
+      { x: 1650, y: 1920, width: 1100, height: 40, brick: true },
     ],
 
     orbs: [],

@@ -191,6 +191,7 @@ export class BootScene extends Phaser.Scene {
     this.makeHydroBlade()
     this.makeWarnArrow()
     this.makeElectroSpear()
+    this.makeWhaleStrike()
     this.makeEaveBridge()
     this.makeWallLedge()
     this.makeCanalGap()
@@ -5527,6 +5528,57 @@ export class BootScene extends Phaser.Scene {
     g.fillPoints([P(8, 72), P(13, 66), P(8, 76), P(3, 66)], true)
 
     g.generateTexture('electro-spear', 16, 80)
+    g.destroy()
+  }
+
+  // ── 鲸影（140x90）：公子第三阶段从天上砸下来的水鲸剪影 ─────────────
+  //   深紫蓝的躯体、尾鳍和背鳍都是棱面，眼睛一点紫光，周身一圈水汽
+  private makeWhaleStrike() {
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+    const INK = 0x120c1c
+    const DEEP = 0x2d2050
+    const BODY = 0x4a3578
+    const LIGHT = 0x7a5ac8
+    const GLOW = 0xb07cff
+
+    // 水汽：外面一圈淡紫
+    g.fillStyle(0x8a5ac8, 0.18)
+    g.fillPoints([P(10, 50), P(30, 18), P(80, 10), P(118, 30), P(126, 56), P(96, 76), P(40, 78)], true)
+
+    // 躯体
+    g.fillStyle(INK, 1)
+    g.fillPoints([P(8, 50), P(26, 22), P(70, 12), P(108, 26), P(122, 50), P(100, 72), P(46, 78), P(18, 66)], true)
+    g.fillStyle(BODY, 1)
+    g.fillPoints([P(12, 50), P(28, 26), P(70, 17), P(104, 29), P(116, 50), P(96, 68), P(48, 73), P(22, 63)], true)
+    // 背脊受光
+    g.fillStyle(LIGHT, 1)
+    g.fillPoints([P(24, 34), P(66, 19), P(96, 30), P(70, 30), P(40, 42)], true)
+    // 腹部压深
+    g.fillStyle(DEEP, 1)
+    g.fillPoints([P(26, 60), P(96, 62), P(90, 68), P(48, 72)], true)
+
+    // 尾鳍
+    g.fillStyle(INK, 1)
+    g.fillPoints([P(112, 44), P(138, 22), P(132, 46), P(140, 70), P(112, 56)], true)
+    g.fillStyle(BODY, 1)
+    g.fillPoints([P(114, 45), P(134, 27), P(129, 46), P(135, 66), P(113, 55)], true)
+
+    // 背鳍
+    g.fillStyle(INK, 1)
+    g.fillPoints([P(58, 16), P(70, 2), P(80, 16)], true)
+    g.fillStyle(LIGHT, 1)
+    g.fillPoints([P(61, 15), P(70, 5), P(77, 15)], true)
+
+    // 眼：一点紫光
+    g.fillStyle(INK, 1)
+    g.fillCircle(38, 44, 5)
+    g.fillStyle(GLOW, 1)
+    g.fillCircle(38, 44, 3)
+    g.fillStyle(0xe4ccff, 1)
+    g.fillCircle(37, 43, 1.2)
+
+    g.generateTexture('whale-strike', 142, 90)
     g.destroy()
   }
 
