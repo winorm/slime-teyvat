@@ -1887,7 +1887,7 @@ export class GameScene extends Phaser.Scene {
 
     if (pillar && Math.abs(childe.x - pillar.x) < 30) {
       this.hydroSplash(childe.x, childe.y - 30)
-      this.showMessage('公子撞在岩柱上，退开了')
+      this.breakPillar('公子撞碎了岩柱（5 秒后恢复）')
       this.endBossDash()
       return
     }
@@ -1946,6 +1946,7 @@ export class GameScene extends Phaser.Scene {
       ) {
         this.hydroSplash(sprite.x, sprite.y)
         sprite.destroy()
+        this.breakPillar('岩柱被水刃击碎了（5 秒后恢复）')
         return false
       }
 
@@ -2118,6 +2119,8 @@ export class GameScene extends Phaser.Scene {
   private armorCooldown = 0
   private invulnTimer = 0
   private rockPillar: Phaser.Physics.Arcade.Sprite | null = null
+  // 岩柱挡下一击后碎掉、进入 5 秒冷却
+  private pillarCooldown = 0
   private pillarGhost: Phaser.GameObjects.Image | null = null
   private pillarMark: Phaser.GameObjects.Rectangle | null = null
   private pillarCharging = false
@@ -4228,6 +4231,7 @@ export class GameScene extends Phaser.Scene {
     this.armorCooldown = 0
     this.invulnTimer = 0
     this.rockPillar = null
+    this.pillarCooldown = 0
 
     // 关卡自带的元素也要登记进解锁表：不然它不在表里，Q/E 一转就把它丢了
     unlockElement(this.level.startElement)
@@ -5377,13 +5381,7 @@ export class GameScene extends Phaser.Scene {
 
     // 岩柱挡一道就碎：连柱脚土圈一起收掉，免得看着还有根柱子立着
     if (pillar && pillar.active && Math.abs(pillar.x - spike.x) < 22) {
-      this.pillarFoot?.destroy()
-      this.pillarFoot = null
-      pillar.destroy()
-      this.rockPillar = null
-      playSfx(this, 'sfx-land', 0.4)
-      this.cameras.main.shake(180, 0.006)
-      this.showMessage('岩柱替你挡下了一道岩脊')
+      this.breakPillar('岩柱替你挡下了一道岩脊（5 秒后恢复）')
       return
     }
 
@@ -6751,6 +6749,12 @@ export class GameScene extends Phaser.Scene {
 
   // 落柱：合法就砸下来并返回 true，不合法就提示一声
   private castPillar(): boolean {
+    // 柱子被打碎后要冷却 5 秒才能再立
+    if (this.pillarCooldown > 0) {
+      this.showMessage(`岩柱还在恢复（${Math.ceil(this.pillarCooldown)} 秒）`)
+      return false
+    }
+
     const target = this.pillarTarget()
 
     if (!target.valid) {
@@ -8517,6 +8521,11 @@ export class GameScene extends Phaser.Scene {
       duration: Phaser.Math.Clamp(Math.sqrt((2 * fall) / 600) * 1000, 180, 900),
       ease: 'Quad.easeIn',
       onComplete: () => {
+        // 柱子还没落地就被打碎：tween 结束时它已经销毁了，别再碰 body
+        if (!pillar.active) {
+          return
+        }
+
         pillar.enableBody()
         pillar.refreshBody()
         playSfx(this, 'sfx-land', 0.4)
@@ -8537,6 +8546,48 @@ export class GameScene extends Phaser.Scene {
 
       pillar.destroy()
     })
+  }
+
+  // 岩柱替人挡下一击：碎成几块、扬起尘土，然后进入 5 秒冷却
+  private breakPillar(reason: string) {
+    const pillar = this.rockPillar
+
+    if (!pillar || !pillar.active) {
+      return
+    }
+
+    const x = pillar.x
+    const y = pillar.y
+
+    for (let i = 0; i < 10; i++) {
+      const shard = this.add
+        .image(x + Phaser.Math.Between(-10, 10), y + Phaser.Math.Between(-18, 18), 'pixel')
+        .setDisplaySize(Phaser.Math.Between(4, 9), Phaser.Math.Between(4, 9))
+        .setTint(i % 3 === 0 ? 0xc79a22 : 0x8a7c69)
+        .setDepth(8)
+
+      this.tweens.add({
+        targets: shard,
+        x: shard.x + Phaser.Math.Between(-60, 60),
+        y: shard.y + Phaser.Math.Between(-40, 30),
+        angle: Phaser.Math.Between(-180, 180),
+        alpha: 0,
+        duration: Phaser.Math.Between(380, 620),
+        ease: 'Quad.easeOut',
+        onComplete: () => shard.destroy(),
+      })
+    }
+
+    this.spawnPillarDust(x, y + pillar.displayHeight / 2)
+    pillar.destroy()
+    this.pillarFoot?.destroy()
+    this.pillarFoot = null
+    this.rockPillar = null
+    this.pillarCooldown = 5
+
+    playSfx(this, 'sfx-land', 0.45)
+    this.cameras.main.shake(200, 0.007)
+    this.showMessage(reason)
   }
 
   // 柱脚常驻的一圈泥：柱子压在弧面上时（就相当于地面是斜的），底边总有一侧会露出缝，
@@ -14605,6 +14656,10 @@ export class GameScene extends Phaser.Scene {
     this.updateBoss(dt)
     this.updateBossBlades(dt)
     this.clampToArena()
+
+    if (this.pillarCooldown > 0) {
+      this.pillarCooldown = Math.max(0, this.pillarCooldown - dt)
+    }
     // 秘境第一重试炼：分段安全台、浮石消失、掉段扣心
     if (this.domainMode) {
       this.updateTrialStones()
