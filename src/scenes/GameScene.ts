@@ -1495,6 +1495,19 @@ export class GameScene extends Phaser.Scene {
                 this.inputLocked = false
                 this.bossTimer = 1.4
                 this.showMessage('公子动手了！')
+
+                // 进战之后把镜头拉到能看见整个可行动范围
+                const arena = this.bossArena()
+                const camera = this.cameras.main
+
+                camera.stopFollow()
+                camera.zoomTo(0.6, 700, 'Sine.easeInOut')
+                camera.pan(
+                  (arena.left + arena.right) / 2,
+                  this.levelGroundTop() - 220,
+                  700,
+                  'Sine.easeInOut'
+                )
               }
             )
         )
@@ -1560,7 +1573,7 @@ export class GameScene extends Phaser.Scene {
       Number.POSITIVE_INFINITY
     )
     const warn = this.add
-      .rectangle(childe.x, groundTop - 20, 420, 3, 0x66ccff, 0.75)
+      .rectangle(childe.x, groundTop - 20, 440, 8, 0x39a8e8, 0.95)
       .setDepth(5)
 
     this.tweens.add({ targets: warn, alpha: 0.15, duration: 160, yoyo: true, repeat: 3 })
@@ -1576,6 +1589,7 @@ export class GameScene extends Phaser.Scene {
       const sprite = this.add
         .image(childe.x, groundTop - 22, 'hydro-blade')
         .setDepth(6)
+        .setScale(1.35)
         .setFlipX(dir > 0)
 
       this.bossBlades.push({ sprite, vx: dir * 320 })
@@ -1628,7 +1642,7 @@ export class GameScene extends Phaser.Scene {
     const x = this.level.boss?.x ?? this.slime.x
 
     return {
-      left: Math.max(60, x - 700),
+      left: Math.max(60, x - 400),
       right: Math.min(this.level.width - 40, x + 400),
     }
   }
@@ -1664,6 +1678,7 @@ export class GameScene extends Phaser.Scene {
         .image(x + dir * i * 44, y, 'warn-arrow')
         .setTint(tint)
         .setDepth(5.4)
+        .setScale(1.35)
         .setFlipX(dir < 0)
         .setAlpha(0)
 
@@ -1746,13 +1761,14 @@ export class GameScene extends Phaser.Scene {
       .image(targetX, groundTop - 12, 'warn-arrow')
       .setTint(0xb07cff)
       .setDepth(5.4)
+      .setScale(1.6)
       .setAngle(90)
 
     const ring = this.add
       .image(targetX, groundTop - 2, 'shock-ring')
       .setTint(0xb07cff)
       .setDepth(5.3)
-      .setScale(0.35)
+      .setScale(0.55)
       .setAlpha(0.6)
 
     this.tweens.add({ targets: arrow, alpha: { from: 1, to: 0.3 }, duration: 170, yoyo: true, repeat: 4 })
@@ -1773,7 +1789,15 @@ export class GameScene extends Phaser.Scene {
       const dir = childe.x > targetX ? -1 : 1
       const fromX = targetX + dir * 150
       const fromY = groundTop - 230
-      const spear = this.add.image(fromX, fromY, 'electro-spear').setDepth(7)
+      const spear = this.add.image(fromX, fromY, 'electro-spear').setDepth(7).setScale(1.3)
+
+      // 枪身后拖一团紫光，落下来像一道雷
+      const glow = this.add
+        .image(fromX, fromY, 'blessing')
+        .setTint(0x9a5cff)
+        .setScale(1.3)
+        .setAlpha(0.7)
+        .setDepth(6.9)
 
       spear.setRotation(
         Phaser.Math.Angle.Between(fromX, fromY, targetX, groundTop - 10) + Math.PI / 2
@@ -1790,10 +1814,19 @@ export class GameScene extends Phaser.Scene {
           this.hydroSplash(targetX, groundTop - 12, 0xc9a6ff)
           this.cameras.main.shake(120, 0.004)
 
-          if (Math.abs(this.slime.x - targetX) < 42) {
+          if (Math.abs(this.slime.x - targetX) < 46) {
             this.damageCombat(1)
           }
         },
+      })
+
+      this.tweens.add({
+        targets: glow,
+        x: targetX,
+        y: groundTop - 10,
+        duration: 480,
+        ease: 'Quad.easeIn',
+        onComplete: () => glow.destroy(),
       })
     })
   }
@@ -1805,7 +1838,7 @@ export class GameScene extends Phaser.Scene {
       Number.POSITIVE_INFINITY
     )
     const warn = this.add
-      .rectangle(childe.x, groundTop - 20, 360, 3, 0xb07cff, 0.8)
+      .rectangle(childe.x, groundTop - 20, 380, 8, 0x9a5cff, 0.95)
       .setDepth(5)
 
     this.tweens.add({ targets: warn, alpha: 0.1, duration: 140, yoyo: true, repeat: 2 })
@@ -1893,7 +1926,7 @@ export class GameScene extends Phaser.Scene {
 
       // 打到人
       if (
-        Math.abs(sprite.x - this.slime.x) < 26 &&
+        Math.abs(sprite.x - this.slime.x) < 32 &&
         Math.abs(sprite.y - (this.slime.y - 6)) < 24
       ) {
         this.damageCombat(1)
