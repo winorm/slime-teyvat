@@ -1461,6 +1461,7 @@ export class GameScene extends Phaser.Scene {
   }[] = []
   private floorBroken = false
   private bossDropped = false
+  private bossChest: Phaser.GameObjects.Sprite | null = null
   private bossDash: { dir: number; speed: number; timer: number } | null = null
   private bossBlades: { sprite: Phaser.GameObjects.Image; vx: number }[] = []
   // 黄金屋的 Boss 场：钟离站在门口、公子立在仙体前面
@@ -2128,9 +2129,47 @@ export class GameScene extends Phaser.Scene {
           this.showDialogue(
             '凝光',
             ['黄金屋先封了。跟我上群玉阁 —— 海里的东西要上来了。'],
-            () => this.win()
+            () => this.showBossChest()
           )
       )
+    })
+  }
+
+  // 对话完出现宝箱：镜头推近强调一下，之后由玩家自己走过去决定开不开
+  private showBossChest() {
+    const arena = this.bossArena()
+    const x = Math.min(arena.right - 80, arena.left + 260)
+    const y = 1900 - 14
+
+    const chest = this.add.sprite(x, y, 'chest').setDepth(5).setScale(0)
+
+    this.bossChest = chest
+    this.inputLocked = false
+
+    const ring = this.add.image(x, y + 12, 'blessing').setTint(0xffd54f).setDepth(4).setScale(0.6)
+
+    this.tweens.add({
+      targets: ring,
+      scaleX: 3,
+      scaleY: 3,
+      alpha: 0,
+      duration: 620,
+      onComplete: () => ring.destroy(),
+    })
+
+    this.tweens.add({ targets: chest, scale: 1, duration: 420, ease: 'Back.easeOut' })
+
+    // 镜头强调宝箱，停一会儿再交还
+    const camera = this.cameras.main
+
+    camera.stopFollow()
+    camera.zoomTo(1.5, 500, 'Sine.easeInOut')
+    camera.pan(x, y - 24, 500, 'Sine.easeInOut')
+
+    this.time.delayedCall(1500, () => {
+      camera.zoomTo(1, 500, 'Sine.easeInOut')
+      camera.startFollow(this.slime, true, 0.12, 0.12)
+      this.showMessage('宝箱出现了 —— 想收尾就过去打开它')
     })
   }
 
@@ -2727,6 +2766,7 @@ export class GameScene extends Phaser.Scene {
     this.floorOverlays = []
     this.floorBroken = false
     this.bossDropped = false
+    this.bossChest = null
     this.bossDash = null
     this.bossBlades = []
     this.domainLeaving = false
@@ -15412,6 +15452,17 @@ export class GameScene extends Phaser.Scene {
       if (Math.abs(this.slime.x - spot.x) < 60 && Math.abs(this.slime.y - spot.y) < 26) {
         prompt = this.interactPrefix() + '举行送仙典仪'
         action = () => this.playSendOffRitual()
+      }
+    }
+
+    // 第十一关：公子认输后出现的宝箱，由玩家决定开不开
+    if (!prompt && this.bossChest) {
+      if (
+        Math.abs(this.slime.x - this.bossChest.x) < 48 &&
+        Math.abs(this.slime.y - this.bossChest.y) < 64
+      ) {
+        prompt = this.interactPrefix() + '打开'
+        action = () => this.win()
       }
     }
 
