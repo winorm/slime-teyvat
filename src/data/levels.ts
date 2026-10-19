@@ -407,6 +407,8 @@ export type LevelDef = {
   rite?: { x: number; y: number }
   // 战斗关（第十一关起）：三颗心，扣完不判死亡，原地"心脏起立"回一颗、无敌 2 秒
   combat?: { hearts?: number; label?: string }
+  // 关底 Boss（第十一关的公子）：x = 站在场上的位置；走到附近触发登场对话
+  boss?: { kind: 'childe'; x: number }
   trunk?: { x: number; y: number; width: number; height: number; depth?: number }
   // 古树主干：竖着平铺树皮带，x/y 是中心点
   spindle?: { x: number; y: number; width: number; height: number; depth?: number }
@@ -1683,6 +1685,7 @@ export const LEVELS: LevelDef[] = [
     goal: { x: 2480, y: 1146, kind: 'chest', prompt: '打开' },
     goalDisabled: true,
     combat: { hearts: 3, label: '黄金屋' },
+    boss: { kind: 'childe', x: 1950 },
 
     platforms: [
       // 一整条金砖地面（顶面 1160）

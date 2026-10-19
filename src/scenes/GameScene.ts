@@ -1439,6 +1439,175 @@ export class GameScene extends Phaser.Scene {
   private domainHeartText: Phaser.GameObjects.Text | null = null
   private combatHearts = 0
   private combatHeartText: Phaser.GameObjects.Text | null = null
+  // 第十一关：公子（黄金屋）
+  private childe: Phaser.GameObjects.Image | null = null
+  private bossState: 'idle' | 'intro' | 'fight' = 'idle'
+  private bossTimer = 0
+  private bossBlades: { sprite: Phaser.GameObjects.Image; vx: number }[] = []
+  // 黄金屋的 Boss 场：钟离站在门口、公子立在仙体前面
+  private buildBossStage() {
+    const def = this.level.boss
+
+    if (!def) {
+      return
+    }
+
+    const groundTop = this.level.platforms.reduce(
+      (top, item) => Math.min(top, item.y - item.height / 2),
+      Number.POSITIVE_INFINITY
+    )
+
+    this.add
+      .image(220, (groundTop === Number.POSITIVE_INFINITY ? 1160 : groundTop) - 2, 'npc-zhongli')
+      .setOrigin(0.5, 1)
+      .setDepth(1)
+
+    this.childe = this.add
+      .image(def.x, (groundTop === Number.POSITIVE_INFINITY ? 1160 : groundTop) - 2, 'npc-childe')
+      .setOrigin(0.5, 1)
+      .setDepth(1)
+      .setFlipX(true)
+  }
+
+  // 走到公子跟前：锁操作、两段对话，然后开打
+  private startBossIntro() {
+    this.bossState = 'intro'
+    this.inputLocked = true
+    this.slime.setVelocity(0, 0)
+
+    this.showDialogue(
+      '公子',
+      ['没想到吧？在这儿等你的，不是钟离——是我。', '神之心，我要定了。'],
+      () =>
+        this.showDialogue(
+          '钟离',
+          ['这里是黄金屋，不是你能撒野的地方。'],
+          () =>
+            this.showDialogue(
+              '公子',
+              ['那就别废话了 —— 让我看看，你凭什么走到这里。'],
+              () => {
+                this.bossState = 'fight'
+                this.inputLocked = false
+                this.bossTimer = 1.4
+                this.showMessage('公子动手了！')
+              }
+            )
+        )
+    )
+  }
+
+  // Boss 的攻击循环（第一阶段：水刃横扫）
+  private updateBoss(dt: number) {
+    if (this.bossState !== 'fight' || this.dialogueShowing || this.inputLocked) {
+      return
+    }
+
+    this.bossTimer -= dt
+
+    if (this.bossTimer > 0) {
+      return
+    }
+
+    const childe = this.childe
+
+    if (!childe) {
+      return
+    }
+
+    // 预警：公子身上闪一下青光，地面上拉一条水线
+    childe.setTint(0x7fd4ff)
+    this.time.delayedCall(220, () => childe.clearTint())
+
+    const groundTop = this.level.platforms.reduce(
+      (top, item) => Math.min(top, item.y - item.height / 2),
+      Number.POSITIVE_INFINITY
+    )
+    const warn = this.add
+      .rectangle(childe.x, groundTop - 20, 420, 3, 0x66ccff, 0.75)
+      .setDepth(5)
+
+    this.tweens.add({ targets: warn, alpha: 0.15, duration: 160, yoyo: true, repeat: 3 })
+
+    this.time.delayedCall(700, () => {
+      warn.destroy()
+
+      const dir = this.slime.x < childe.x ? -1 : 1
+      const sprite = this.add
+        .image(childe.x, groundTop - 22, 'hydro-blade')
+        .setDepth(6)
+        .setFlipX(dir > 0)
+
+      this.bossBlades.push({ sprite, vx: dir * 320 })
+      this.bossTimer = 2.8
+    })
+  }
+
+  private updateBossBlades(dt: number) {
+    if (this.bossBlades.length === 0) {
+      return
+    }
+
+    const pillar = this.rockPillar
+
+    this.bossBlades = this.bossBlades.filter(({ sprite, vx }) => {
+      if (!sprite.active) {
+        return false
+      }
+
+      sprite.x += vx * dt
+
+      // 打到人
+      if (
+        Math.abs(sprite.x - this.slime.x) < 26 &&
+        Math.abs(sprite.y - (this.slime.y - 6)) < 24
+      ) {
+        this.damageCombat(1)
+        this.hydroSplash(sprite.x, sprite.y)
+        sprite.destroy()
+        return false
+      }
+
+      // 岩柱挡住
+      if (
+        pillar &&
+        Math.abs(sprite.x - pillar.x) < 26 &&
+        Math.abs(sprite.y - (pillar.y - 24)) < 48
+      ) {
+        this.hydroSplash(sprite.x, sprite.y)
+        sprite.destroy()
+        return false
+      }
+
+      if (sprite.x < -80 || sprite.x > this.level.width + 80) {
+        sprite.destroy()
+        return false
+      }
+
+      return true
+    })
+  }
+
+  private hydroSplash(x: number, y: number) {
+    for (let i = 0; i < 6; i++) {
+      const drop = this.add
+        .image(x, y, 'pixel')
+        .setDisplaySize(3, 3)
+        .setTint(0x8fd8f0)
+        .setAlpha(0.9)
+        .setDepth(7)
+
+      this.tweens.add({
+        targets: drop,
+        x: x + Phaser.Math.Between(-22, 22),
+        y: y - Phaser.Math.Between(6, 26),
+        alpha: 0,
+        duration: 380,
+        ease: 'Quad.easeOut',
+        onComplete: () => drop.destroy(),
+      })
+    }
+  }
   private domainLeaving = false
   private craneNpc: Phaser.GameObjects.Image | null = null
   // 第一重试炼：浮石 / 安全台 / 仙家符箓
@@ -1808,6 +1977,10 @@ export class GameScene extends Phaser.Scene {
     this.domainHeartText = null
     this.combatHearts = 0
     this.combatHeartText = null
+    this.childe = null
+    this.bossState = 'idle'
+    this.bossTimer = 0
+    this.bossBlades = []
     this.domainLeaving = false
     this.craneNpc = null
     this.trialStones = []
@@ -2320,6 +2493,8 @@ export class GameScene extends Phaser.Scene {
             .setDepth(0.13)
         })
     }
+
+    this.buildBossStage()
 
     // 山顶的仙人：白鹤形态的留云借风真君，靠近后进入仙家试炼
     if (this.level.crane) {
@@ -13913,6 +14088,19 @@ export class GameScene extends Phaser.Scene {
     this.updateAmberHint()
     // 按住 F 读条取供品（永生香）：一松手 / 一动就断
     this.updateHoldPickup(dt)
+    // 第十一关：走到公子跟前触发登场，之后跑 Boss 的攻击循环
+    if (
+      this.level.boss &&
+      this.bossState === 'idle' &&
+      !this.introShowing &&
+      !this.inputLocked &&
+      this.slime.x > this.level.boss.x - 170
+    ) {
+      this.startBossIntro()
+    }
+
+    this.updateBoss(dt)
+    this.updateBossBlades(dt)
     // 秘境第一重试炼：分段安全台、浮石消失、掉段扣心
     if (this.domainMode) {
       this.updateTrialStones()

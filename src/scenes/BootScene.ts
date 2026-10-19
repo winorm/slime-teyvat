@@ -186,6 +186,8 @@ export class BootScene extends Phaser.Scene {
     this.makeGoldenHouseBg()
     this.makeGoldenFloor()
     this.makeGoldPedestal()
+    this.makeChildeNpc()
+    this.makeHydroBlade()
     this.makeEaveBridge()
     this.makeWallLedge()
     this.makeCanalGap()
@@ -5133,6 +5135,145 @@ export class BootScene extends Phaser.Scene {
   // 往生堂门口送仙典仪的两位：胡桃、钟离。
   // 和老板娘的画法一致 —— 黑描边 + 平色史莱姆身子，靠帽子 / 衣饰 / 发色区分，
   // 不画人脸五官以外的东西（这个游戏的 NPC 全是史莱姆）
+  // ── 公子（56x70）：愚人众执行官 · 达达利亚 ─────────────────────────
+  //   橙色短碎发、深灰外套压红围巾、腰上一颗水元素神之眼；笑脸、眼神有点挑衅
+  private makeChildeNpc() {
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+    const outline = 0x14141f
+    const coat = 0x39404d
+    const coatLight = 0x4b5566
+    const red = 0x9a2f2f
+    const redLight = 0xc0483c
+    const hair = 0xd2762f
+    const hairLight = 0xe8a05a
+    const skin = 0xf0ddc4
+    const hydro = 0x4aa3d8
+
+    // 身子（深灰外套的史莱姆）
+    g.fillStyle(outline, 1)
+    g.fillEllipse(28, 50, 46, 36)
+    g.fillStyle(coat, 1)
+    g.fillEllipse(28, 50, 43, 33)
+    g.fillStyle(coatLight, 1)
+    g.fillEllipse(23, 46, 24, 16)
+
+    // 下摆：暗红内衬 + 金边
+    g.fillStyle(0x6b2222, 1)
+    g.fillEllipse(28, 62, 38, 10)
+    g.fillStyle(red, 1)
+    g.fillEllipse(28, 61, 35, 8)
+    g.fillStyle(0xd9a441, 1)
+    g.fillRect(11, 61, 34, 1)
+
+    // 脸：比外套浅一档的正面
+    g.fillStyle(outline, 1)
+    g.fillEllipse(28, 40, 34, 24)
+    g.fillStyle(coatLight, 1)
+    g.fillEllipse(28, 40, 31, 21)
+    g.fillStyle(skin, 0.28)
+    g.fillEllipse(28, 41, 27, 16)
+
+    // 红色围巾（脸下面一圈 + 右边垂下来的一截）
+    g.fillStyle(red, 1)
+    g.fillRect(12, 50, 32, 5)
+    g.fillStyle(redLight, 1)
+    g.fillRect(12, 50, 32, 2)
+    g.fillStyle(red, 1)
+    g.fillRect(41, 52, 5, 11)
+    g.fillStyle(redLight, 1)
+    g.fillRect(41, 52, 5, 1)
+
+    // 水元素神之眼（围巾下面一颗）
+    g.fillStyle(0x1d3a4a, 1)
+    g.fillPoints([P(25, 59), P(28, 55.5), P(31, 59), P(28, 62.5)], true)
+    g.fillStyle(hydro, 1)
+    g.fillPoints([P(26, 59), P(28, 56.5), P(30, 59), P(28, 61.5)], true)
+    g.fillStyle(0xa8e0ff, 1)
+    g.fillPoints([P(27.4, 58.6), P(28, 57.4), P(28.6, 58.6), P(28, 59.8)], true)
+
+    // 眼睛：橙金色，眼尾上挑（坏笑）
+    const eye = (cx: number, side: number) => {
+      g.fillStyle(outline, 1)
+      g.fillEllipse(cx, 40, 7, 6)
+      g.fillStyle(0xe8a05a, 1)
+      g.fillEllipse(cx, 40.4, 4.6, 3.8)
+      g.fillStyle(outline, 1)
+      g.fillEllipse(cx, 40.6, 1.8, 3)
+      g.fillStyle(0xfff2d0, 1)
+      g.fillRect(cx - 1.6 * side - 0.5, 39, 1.3, 1.2)
+      g.lineStyle(1.6, outline, 1)
+      g.lineBetween(cx - 3 * side, 36.4, cx + 3 * side, 35.6)
+    }
+
+    eye(19, -1)
+    eye(37, 1)
+
+    // 嘴：一道上扬的弧
+    g.lineStyle(1.6, 0x7a3a2a, 1)
+    g.beginPath()
+    g.moveTo(24, 47)
+    g.lineTo(28, 48.6)
+    g.lineTo(32, 47)
+    g.strokePath()
+
+    // 头发：一撮撮尖起来的橙发
+    const spikes: Array<[number, number]> = [
+      [7, 36],
+      [9, 20],
+      [15, 27],
+      [18, 12],
+      [24, 24],
+      [28, 6],
+      [33, 22],
+      [38, 11],
+      [43, 26],
+      [47, 18],
+      [49, 36],
+    ]
+    g.fillStyle(outline, 1)
+    g.fillPoints(spikes.map(([x, y]) => P(x, y + 2)), true)
+    g.fillStyle(hair, 1)
+    g.fillPoints(spikes.map(([x, y]) => P(x, y)), true)
+    g.fillStyle(hairLight, 1)
+    g.fillPoints(
+      [P(18, 16), P(23, 24), P(28, 10), P(31, 22), P(26, 28), P(21, 28)],
+      true
+    )
+
+    g.generateTexture('npc-childe', 56, 70)
+    g.destroy()
+  }
+
+  // ── 水刃（56x20）：公子的横扫水刃，青色月牙 + 白芯 + 几滴水 ──────────
+  private makeHydroBlade() {
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    // 月牙主体
+    g.fillStyle(0x1d5a7a, 0.9)
+    g.fillPoints(
+      [P(4, 16), P(16, 4), P(44, 2), P(54, 10), P(44, 18), P(14, 18)],
+      true
+    )
+    g.fillStyle(0x4aa3d8, 1)
+    g.fillPoints(
+      [P(8, 14), P(18, 6), P(42, 4), P(50, 10), P(42, 15), P(16, 15)],
+      true
+    )
+    g.fillStyle(0xa8e0ff, 1)
+    g.fillPoints([P(14, 12), P(22, 8), P(40, 7), P(30, 12)], true)
+
+    // 拖尾的水滴
+    ;[2, 12, 24].forEach((dx, i) => {
+      g.fillStyle(0x7fc9e8, 0.8 - i * 0.2)
+      g.fillEllipse(50 + dx, 10 + (i % 2) * 3, 5 - i, 4 - i)
+    })
+
+    g.generateTexture('hydro-blade', 56, 20)
+    g.destroy()
+  }
+
   private makeRitualNpcs() {
     const outline = 0x14141f
 
