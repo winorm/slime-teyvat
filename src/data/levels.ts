@@ -1674,7 +1674,7 @@ export const LEVELS: LevelDef[] = [
     intro:
       '送仙典仪之后，帝君的仙体被送进黄金屋。\n钟离说，该去看看了 —— 有些事，瞒不了多久。',
 
-    width: 2600,
+    width: 2200,
     // 上下两层金库：上层大厅 1160，第三阶段碎地之后掉到下层 1900
     height: 2200,
     startElement: 'rock',
@@ -1684,17 +1684,17 @@ export const LEVELS: LevelDef[] = [
     // 背景要跟着镜头横向走，看着像绕着金库走了一圈
     bgTiled: true,
     // 黄金屋这一关还没收尾（公子打完是过场接群玉阁），宝箱先关着
-    goal: { x: 2480, y: 1146, kind: 'chest', prompt: '打开' },
+    goal: { x: 2100, y: 1146, kind: 'chest', prompt: '打开' },
     goalDisabled: true,
     // 黄金屋打公子：三颗心扣完就是真死（不能无限起立）
     combat: { hearts: 3, label: '黄金屋', revive: false },
-    boss: { kind: 'childe', x: 1950 },
+    boss: { kind: 'childe', x: 1800 },
 
     platforms: [
-      // 一整条金砖地面（顶面 1160）
-      { x: 1300, y: 1180, width: 2600, height: 40, brick: true },
+      // 一整条金砖地面（顶面 1160）—— 场地不用太大，进战后还会锁活动范围
+      { x: 1100, y: 1180, width: 2200, height: 40, brick: true },
       // 下层金库：碎地之后落在这里（顶面 1900），第三阶段就在这层打完
-      { x: 1300, y: 1920, width: 1200, height: 40, brick: true },
+      { x: 1100, y: 1920, width: 1200, height: 40, brick: true },
     ],
 
     orbs: [],
@@ -1705,13 +1705,13 @@ export const LEVELS: LevelDef[] = [
 
     decor: [
       // 金库尽头的仙体：侧卧的金龙（闭着眼），底下垫三级金台
-      { x: 2200, y: 1160, key: 'gold-pedestal', depth: -5 },
-      { x: 2200, y: 1132, key: 'dragon-wreck', scale: 1.05, depth: -4.9 },
+      { x: 2000, y: 1160, key: 'gold-pedestal', depth: -5 },
+      { x: 2000, y: 1132, key: 'dragon-wreck', scale: 1.05, depth: -4.9 },
     ],
 
     hints: [
       { x: 170, y: 1085, text: '黄金屋 · 帝君的仙体停在里面' },
-      { x: 1900, y: 1085, text: '仙体就停在金台上' },
+      { x: 1700, y: 1085, text: '仙体就停在金台上' },
     ],
   },
 

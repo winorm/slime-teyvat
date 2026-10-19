@@ -189,6 +189,8 @@ export class BootScene extends Phaser.Scene {
     this.makeChildeNpc()
     this.makeChildeFoul()
     this.makeHydroBlade()
+    this.makeWarnArrow()
+    this.makeElectroSpear()
     this.makeEaveBridge()
     this.makeWallLedge()
     this.makeCanalGap()
@@ -5465,6 +5467,66 @@ export class BootScene extends Phaser.Scene {
     g.strokePath()
 
     g.generateTexture('npc-childe-foul', 70, 86)
+    g.destroy()
+  }
+
+  // ── 预警箭头（28x20，默认朝右）────────────────────────────────
+  //   压在场景里的"立体箭头"：箭身是个带厚度的平行四边形（顶面亮、立面暗），
+  //   箭头是个三角棱面。用法：tint 成青色 / 紫色，setAngle 转朝向
+  private makeWarnArrow() {
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    // 箭身：顶面（亮）+ 前立面（暗）
+    g.fillStyle(0xffffff, 0.95)
+    g.fillPoints([P(1, 6), P(17, 6), P(17, 12), P(1, 12)], true)
+    g.fillStyle(0x9a9a9a, 0.9)
+    g.fillPoints([P(1, 12), P(17, 12), P(17, 16), P(1, 16)], true)
+
+    // 箭头：三角棱面（上面亮、下面暗）
+    g.fillStyle(0xffffff, 0.95)
+    g.fillPoints([P(16, 1), P(27, 9), P(16, 9)], true)
+    g.fillStyle(0x8a8a8a, 0.9)
+    g.fillPoints([P(16, 9), P(27, 9), P(16, 18)], true)
+
+    g.generateTexture('warn-arrow', 28, 20)
+    g.destroy()
+  }
+
+  // ── 雷枪（16x76，枪尖朝上）：从天上斜着扎下来的紫色长枪 ────────────
+  private makeElectroSpear() {
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+    const INK = 0x120c1c
+    const SHAFT = 0x4a3566
+    const VIOLET = 0x8a5ac8
+    const ELECTRO = 0xb07cff
+    const LIGHT = 0xe4ccff
+
+    // 枪尖：菱形棱面
+    g.fillStyle(INK, 1)
+    g.fillPoints([P(8, 0), P(15, 18), P(8, 30), P(1, 18)], true)
+    g.fillStyle(ELECTRO, 1)
+    g.fillPoints([P(8, 3), P(13, 18), P(8, 27), P(3, 18)], true)
+    g.fillStyle(LIGHT, 1)
+    g.fillPoints([P(8, 5), P(10.6, 17), P(8, 24), P(5.4, 17)], true)
+
+    // 枪杆
+    g.fillStyle(INK, 1)
+    g.fillRect(5, 28, 6, 44)
+    g.fillStyle(SHAFT, 1)
+    g.fillRect(6, 28, 4, 44)
+    g.fillStyle(VIOLET, 1)
+    g.fillRect(6, 28, 1.4, 44)
+    // 缠绳 / 尾羽
+    for (let y = 36; y < 66; y += 10) {
+      g.fillStyle(VIOLET, 1)
+      g.fillRect(5, y, 6, 2)
+    }
+    g.fillStyle(ELECTRO, 0.85)
+    g.fillPoints([P(8, 72), P(13, 66), P(8, 76), P(3, 66)], true)
+
+    g.generateTexture('electro-spear', 16, 80)
     g.destroy()
   }
 

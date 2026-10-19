@@ -1445,7 +1445,6 @@ export class GameScene extends Phaser.Scene {
   private bossTimer = 0
   private bossPhase = 1
   private bossAttacks = 0
-  private bossHomeX = 0
   private bossDash: { dir: number; speed: number; timer: number } | null = null
   private bossBlades: { sprite: Phaser.GameObjects.Image; vx: number }[] = []
   // 黄金屋的 Boss 场：钟离站在门口、公子立在仙体前面
@@ -1472,7 +1471,6 @@ export class GameScene extends Phaser.Scene {
       .setDepth(1)
       .setFlipX(true)
 
-    this.bossHomeX = def.x
   }
 
   // 走到公子跟前：锁操作、两段对话，然后开打
@@ -1529,12 +1527,18 @@ export class GameScene extends Phaser.Scene {
 
     // 起手就把冷却顶住：预警 / 冲刺那一秒多里 update 还会每帧跑，
     // 不先压住 bossTimer 就会连续起手几十次（实测 attacks 会飙到一百多）
-    if (this.bossPhase === 2) {
-      this.bossTimer = 3.2
+    if (this.bossPhase >= 2) {
+      this.bossTimer = 3.4
       this.bossAttacks += 1
-      this.castElectroDash(childe)
 
-      if (this.bossAttacks >= 3) {
+      // 二、三阶段：闪身突刺和天降雷枪交替来
+      if (this.bossAttacks % 2 === 1) {
+        this.castElectroDash(childe)
+      } else {
+        this.castSkySpear(childe)
+      }
+
+      if (this.bossAttacks >= 3 && this.bossPhase === 2) {
         this.enterBossPhase(3)
       }
       return
@@ -1561,6 +1565,10 @@ export class GameScene extends Phaser.Scene {
 
     this.tweens.add({ targets: warn, alpha: 0.15, duration: 160, yoyo: true, repeat: 3 })
 
+    const sweepDir = this.slime.x < childe.x ? -1 : 1
+
+    this.showWarnArrows(childe.x + sweepDir * 26, groundTop - 14, sweepDir, 0x66ccff, 4)
+
     this.time.delayedCall(700, () => {
       warn.destroy()
 
@@ -1571,6 +1579,7 @@ export class GameScene extends Phaser.Scene {
         .setFlipX(dir > 0)
 
       this.bossBlades.push({ sprite, vx: dir * 320 })
+      this.repositionBoss()
     })
   }
 
@@ -1614,6 +1623,181 @@ export class GameScene extends Phaser.Scene {
   }
 
   // 第二阶段：雷突刺 —— 蓄力后朝玩家横冲，撞到岩柱会停、岩化能硬吃一次
+  // 战斗场地：以公子站位为中心左右各留一段，进战后玩家被锁在这个范围里
+  private bossArena() {
+    const x = this.level.boss?.x ?? this.slime.x
+
+    return {
+      left: Math.max(60, x - 700),
+      right: Math.min(this.level.width - 40, x + 400),
+    }
+  }
+
+  private levelGroundTop() {
+    return this.level.platforms.reduce(
+      (top, item) => Math.min(top, item.y - item.height / 2),
+      Number.POSITIVE_INFINITY
+    )
+  }
+
+  private clampToArena() {
+    if (this.bossState !== 'fight') {
+      return
+    }
+
+    const { left, right } = this.bossArena()
+    const body = this.slime.body as Phaser.Physics.Arcade.Body
+
+    if (this.slime.x < left) {
+      this.slime.x = left
+      body.velocity.x = Math.max(0, body.velocity.x)
+    } else if (this.slime.x > right) {
+      this.slime.x = right
+      body.velocity.x = Math.min(0, body.velocity.x)
+    }
+  }
+
+  // 地面预警箭头：一排压在地上的立体箭头，指向攻击来的方向
+  private showWarnArrows(x: number, y: number, dir: number, tint: number, count = 3) {
+    for (let i = 0; i < count; i++) {
+      const arrow = this.add
+        .image(x + dir * i * 44, y, 'warn-arrow')
+        .setTint(tint)
+        .setDepth(5.4)
+        .setFlipX(dir < 0)
+        .setAlpha(0)
+
+      this.tweens.add({
+        targets: arrow,
+        alpha: { from: 0.2, to: 0.85 },
+        duration: 170,
+        yoyo: true,
+        repeat: 3,
+        delay: i * 50,
+        onComplete: () => arrow.destroy(),
+      })
+    }
+  }
+
+  // 战斗中随机换位：紫光一闪，人换到另一个位置
+  private repositionBoss(force = false) {
+    const childe = this.childe
+
+    if (!childe || this.bossState !== 'fight') {
+      return
+    }
+
+    if (!force && Math.random() > 0.5) {
+      return
+    }
+
+    const { left, right } = this.bossArena()
+    const lo = left + 160
+    const hi = right - 100
+    let x = Phaser.Math.Between(lo, hi)
+
+    if (Math.abs(x - this.slime.x) < 280) {
+      x = this.slime.x < (lo + hi) / 2 ? hi : lo
+    }
+
+    const puff = this.add
+      .image(childe.x, childe.y - 40, 'shock-ring')
+      .setTint(0xb07cff)
+      .setDepth(7)
+      .setScale(0.3)
+      .setAlpha(0.85)
+
+    this.tweens.add({
+      targets: puff,
+      scaleX: 1.6,
+      scaleY: 1.2,
+      alpha: 0,
+      duration: 360,
+      onComplete: () => puff.destroy(),
+    })
+
+    childe.x = x
+    childe.setFlipX(this.slime.x < x)
+
+    const arrive = this.add
+      .image(x, childe.y - 40, 'shock-ring')
+      .setTint(0xb07cff)
+      .setDepth(7)
+      .setScale(0.2)
+      .setAlpha(0.9)
+
+    this.tweens.add({
+      targets: arrive,
+      scaleX: 1.2,
+      scaleY: 0.9,
+      alpha: 0,
+      duration: 300,
+      onComplete: () => arrive.destroy(),
+    })
+  }
+
+  // 天降雷枪：先在玩家脚下点出落点，再从公子那一侧的空中斜着扎下来
+  private castSkySpear(childe: Phaser.GameObjects.Image) {
+    const groundTop = this.levelGroundTop()
+    const arena = this.bossArena()
+    const targetX = Phaser.Math.Clamp(this.slime.x, arena.left + 40, arena.right - 40)
+
+    const arrow = this.add
+      .image(targetX, groundTop - 12, 'warn-arrow')
+      .setTint(0xb07cff)
+      .setDepth(5.4)
+      .setAngle(90)
+
+    const ring = this.add
+      .image(targetX, groundTop - 2, 'shock-ring')
+      .setTint(0xb07cff)
+      .setDepth(5.3)
+      .setScale(0.35)
+      .setAlpha(0.6)
+
+    this.tweens.add({ targets: arrow, alpha: { from: 1, to: 0.3 }, duration: 170, yoyo: true, repeat: 4 })
+    this.tweens.add({
+      targets: ring,
+      scaleX: 0.9,
+      scaleY: 0.45,
+      alpha: 0.2,
+      duration: 300,
+      yoyo: true,
+      repeat: 2,
+    })
+
+    this.time.delayedCall(900, () => {
+      arrow.destroy()
+      ring.destroy()
+
+      const dir = childe.x > targetX ? -1 : 1
+      const fromX = targetX + dir * 150
+      const fromY = groundTop - 230
+      const spear = this.add.image(fromX, fromY, 'electro-spear').setDepth(7)
+
+      spear.setRotation(
+        Phaser.Math.Angle.Between(fromX, fromY, targetX, groundTop - 10) + Math.PI / 2
+      )
+
+      this.tweens.add({
+        targets: spear,
+        x: targetX,
+        y: groundTop - 10,
+        duration: 480,
+        ease: 'Quad.easeIn',
+        onComplete: () => {
+          spear.destroy()
+          this.hydroSplash(targetX, groundTop - 12, 0xc9a6ff)
+          this.cameras.main.shake(120, 0.004)
+
+          if (Math.abs(this.slime.x - targetX) < 42) {
+            this.damageCombat(1)
+          }
+        },
+      })
+    })
+  }
+
   private castElectroDash(childe: Phaser.GameObjects.Image) {
     childe.setTint(0xb07cff)
     const groundTop = this.level.platforms.reduce(
@@ -1625,6 +1809,10 @@ export class GameScene extends Phaser.Scene {
       .setDepth(5)
 
     this.tweens.add({ targets: warn, alpha: 0.1, duration: 140, yoyo: true, repeat: 2 })
+
+    const dashDir = this.slime.x < childe.x ? -1 : 1
+
+    this.showWarnArrows(childe.x + dashDir * 24, groundTop - 14, dashDir, 0xb07cff, 3)
 
     this.time.delayedCall(600, () => {
       warn.destroy()
@@ -1684,8 +1872,7 @@ export class GameScene extends Phaser.Scene {
         return
       }
 
-      childe.x = this.bossHomeX
-      childe.setFlipX(true)
+      this.repositionBoss(true)
       this.bossTimer = 2.4
     })
   }
@@ -1735,12 +1922,12 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
-  private hydroSplash(x: number, y: number) {
+  private hydroSplash(x: number, y: number, tint = 0x8fd8f0) {
     for (let i = 0; i < 6; i++) {
       const drop = this.add
         .image(x, y, 'pixel')
         .setDisplaySize(3, 3)
-        .setTint(0x8fd8f0)
+        .setTint(tint)
         .setAlpha(0.9)
         .setDepth(7)
 
@@ -2129,7 +2316,6 @@ export class GameScene extends Phaser.Scene {
     this.bossTimer = 0
     this.bossPhase = 1
     this.bossAttacks = 0
-    this.bossHomeX = 0
     this.bossDash = null
     this.bossBlades = []
     this.domainLeaving = false
@@ -14267,6 +14453,7 @@ export class GameScene extends Phaser.Scene {
 
     this.updateBoss(dt)
     this.updateBossBlades(dt)
+    this.clampToArena()
     // 秘境第一重试炼：分段安全台、浮石消失、掉段扣心
     if (this.domainMode) {
       this.updateTrialStones()
