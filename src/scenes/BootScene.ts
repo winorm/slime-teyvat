@@ -192,6 +192,7 @@ export class BootScene extends Phaser.Scene {
     this.makeWarnArrow()
     this.makeElectroSpear()
     this.makeWhalePoses()
+    this.makeSlashArc()
     this.makeEaveBridge()
     this.makeWallLedge()
     this.makeCanalGap()
@@ -5696,6 +5697,28 @@ export class BootScene extends Phaser.Scene {
 
     strike.generateTexture('whale-strike', 150, 120)
     strike.destroy()
+  }
+
+  // ── 斩击弧光（64x26）：魔王武装近身连斩的一刀 ─────────────────────
+  //   月牙形：紫边包白芯，尾端带几粒溅开的电光
+  private makeSlashArc() {
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    g.fillStyle(0x6b3fa0, 0.85)
+    g.fillPoints([P(2, 22), P(16, 6), P(44, 2), P(60, 8), P(46, 16), P(14, 24)], true)
+    g.fillStyle(0xb07cff, 1)
+    g.fillPoints([P(6, 20), P(18, 8), P(44, 4), P(56, 9), P(44, 14), P(16, 22)], true)
+    g.fillStyle(0xf2e6ff, 1)
+    g.fillPoints([P(12, 17), P(22, 10), P(42, 6), P(30, 12)], true)
+
+    // 尾端电光
+    g.fillStyle(0x7fe6ff, 0.9)
+    g.fillRect(58, 6, 4, 2)
+    g.fillRect(54, 14, 3, 2)
+
+    g.generateTexture('slash-arc', 64, 26)
+    g.destroy()
   }
 
   private makeRitualNpcs() {

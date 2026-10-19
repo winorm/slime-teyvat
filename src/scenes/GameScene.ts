@@ -1444,7 +1444,7 @@ export class GameScene extends Phaser.Scene {
   private hudZoomActive = false
   // 第十一关：公子（黄金屋）
   private childe: Phaser.GameObjects.Image | null = null
-  private bossState: 'idle' | 'intro' | 'fight' = 'idle'
+  private bossState: 'idle' | 'intro' | 'fight' | 'down' = 'idle'
   private bossTimer = 0
   private bossPhase = 1
   private bossAttacks = 0
@@ -1452,6 +1452,7 @@ export class GameScene extends Phaser.Scene {
   private bossSideStreak = 0
   private bossGroundY = 1160
   private bossSlamCount = 0
+  private bossLowerAttacks = 0
   private breakableFloor: Phaser.Physics.Arcade.Sprite | null = null
   private floorOverlays: {
     item: { x: number; y: number; width: number; height: number; breakable?: boolean }
@@ -1558,6 +1559,23 @@ export class GameScene extends Phaser.Scene {
     // 起手就把冷却顶住：预警 / 冲刺那一秒多里 update 还会每帧跑，
     // 不先压住 bossTimer 就会连续起手几十次（实测 attacks 会飙到一百多）
     if (this.bossPhase >= 3) {
+      // 掉到下层之后：闪身连斩和鲸影交替，打够四轮就收尾
+      if (this.bossDropped) {
+        this.bossTimer = 3.4
+        this.bossLowerAttacks += 1
+
+        if (this.bossLowerAttacks % 2 === 1) {
+          this.castBlinkSlash(childe)
+        } else {
+          this.castWhaleSlam(childe)
+        }
+
+        if (this.bossLowerAttacks >= 4) {
+          this.time.delayedCall(2400, () => this.defeatChilde())
+        }
+        return
+      }
+
       this.bossTimer = 3.8
       this.castWhaleSlam(childe)
       return
@@ -1976,6 +1994,132 @@ export class GameScene extends Phaser.Scene {
         },
       })
     })
+  }
+
+  // 下层专用：闪身到玩家身边，蓄力一圈后连斩（范围有限，跑出去就安全）
+  private castBlinkSlash(childe: Phaser.GameObjects.Image) {
+    const groundTop = this.bossGroundY
+    const arena = this.bossArena()
+    const side = this.slime.x < childe.x ? -1 : 1
+    const landX = Phaser.Math.Clamp(this.slime.x + side * 46, arena.left + 40, arena.right - 40)
+
+    // 闪身过去
+    const vanish = this.add
+      .image(childe.x, childe.y - 40, 'shock-ring')
+      .setTint(0xb07cff)
+      .setDepth(7)
+      .setScale(0.35)
+      .setAlpha(0.9)
+
+    this.tweens.add({
+      targets: vanish,
+      scaleX: 1.4,
+      scaleY: 1,
+      alpha: 0,
+      duration: 300,
+      onComplete: () => vanish.destroy(),
+    })
+
+    childe.setPosition(landX, groundTop - 2)
+    childe.setFlipX(this.slime.x < landX)
+
+    const arrive = this.add
+      .image(landX, childe.y - 40, 'shock-ring')
+      .setTint(0xb07cff)
+      .setDepth(7)
+      .setScale(0.2)
+      .setAlpha(0.95)
+
+    this.tweens.add({
+      targets: arrive,
+      scaleX: 1.3,
+      scaleY: 0.9,
+      alpha: 0,
+      duration: 280,
+      onComplete: () => arrive.destroy(),
+    })
+
+    // 蓄力圈：范围里就是要挨刀的地方
+    const radius = 120
+    const zone = this.add.graphics().setDepth(5)
+
+    zone.fillStyle(0xb07cff, 0.14)
+    zone.fillEllipse(landX, groundTop - 6, radius * 2, radius * 0.9)
+    zone.lineStyle(3, 0xb07cff, 0.9)
+    zone.strokeEllipse(landX, groundTop - 6, radius * 2, radius * 0.9)
+    zone.setAlpha(0.4)
+
+    this.tweens.add({ targets: zone, alpha: 1, duration: 220, yoyo: true, repeat: 5 })
+
+    // 蓄力 1.4 秒后连斩
+    this.time.delayedCall(1400, () => {
+      zone.destroy()
+
+      for (let i = 0; i < 5; i++) {
+        const angle = -0.7 + i * 0.35
+        const slash = this.add
+          .image(
+            landX + Math.cos(angle) * 34,
+            groundTop - 34 + Math.sin(angle) * 14,
+            'slash-arc'
+          )
+          .setDepth(8)
+          .setRotation(angle)
+          .setScale(1.2)
+          .setAlpha(0.95)
+
+        this.tweens.add({
+          targets: slash,
+          scaleX: 1.6,
+          scaleY: 1.6,
+          alpha: 0,
+          duration: 260,
+          delay: i * 70,
+          ease: 'Quad.easeOut',
+          onComplete: () => slash.destroy(),
+        })
+      }
+
+      this.cameras.main.shake(180, 0.006)
+      playSfx(this, 'sfx-land', 0.35)
+
+      if (Math.abs(this.slime.x - landX) < radius) {
+        this.damageCombat(1)
+      }
+    })
+  }
+
+  // 公子认输：神之心不在仙体里，凝光接手，黄金屋这段结束
+  private defeatChilde() {
+    if (this.bossState === 'down') {
+      return
+    }
+
+    this.bossState = 'down'
+    this.inputLocked = true
+    this.slime.setVelocity(0, 0)
+
+    const childe = this.childe
+
+    if (childe) {
+      this.tweens.add({
+        targets: childe,
+        alpha: 0,
+        duration: 600,
+        onComplete: () => childe.setVisible(false),
+      })
+    }
+
+    this.showDialogue(
+      '公子',
+      ['……神之心根本不在仙体里。', '这场算你赢，下次再打过。'],
+      () =>
+        this.showDialogue(
+          '凝光',
+          ['黄金屋先封了。跟我上群玉阁 —— 海里的东西要上来了。'],
+          () => this.win()
+        )
+    )
   }
 
   private addFloorCrack(x: number, groundY: number) {
@@ -2566,6 +2710,7 @@ export class GameScene extends Phaser.Scene {
     this.bossSideStreak = 0
     this.bossGroundY = 1160
     this.bossSlamCount = 0
+    this.bossLowerAttacks = 0
     this.breakableFloor = null
     this.floorOverlays = []
     this.floorBroken = false
