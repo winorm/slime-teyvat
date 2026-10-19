@@ -5217,29 +5217,50 @@ export class BootScene extends Phaser.Scene {
     g.lineTo(32, 47)
     g.strokePath()
 
-    // 头发：一撮撮尖起来的橙发
-    const spikes: Array<[number, number]> = [
-      [7, 36],
-      [9, 20],
-      [15, 27],
-      [18, 12],
-      [24, 24],
-      [28, 6],
-      [33, 22],
-      [38, 11],
-      [43, 26],
-      [47, 18],
-      [49, 36],
-    ]
-    g.fillStyle(outline, 1)
-    g.fillPoints(spikes.map(([x, y]) => P(x, y + 2)), true)
+    // 头发（2026/10/19 重画）：不要"一圈三角尖"（那像火影忍者），
+    // 改成有进深的几束：后脑一大团暗色打底 → 头顶圆盖受光 → 前面五束刘海
+    // 一束压着一束（每束都是暗底 + 本体 + 一侧受光边），侧面再垂两缕
+    // 后脑只包到眉线以上（38），别盖住眼睛
+    g.fillStyle(0x6f3a15, 1)
+    g.fillEllipse(28, 26, 48, 26)
     g.fillStyle(hair, 1)
-    g.fillPoints(spikes.map(([x, y]) => P(x, y)), true)
+    g.fillEllipse(28, 23, 43, 23)
+    // 头顶受光面（偏左上，做出圆盖的体积）
     g.fillStyle(hairLight, 1)
-    g.fillPoints(
-      [P(18, 16), P(23, 24), P(28, 10), P(31, 22), P(26, 28), P(21, 28)],
-      true
-    )
+    g.fillEllipse(24, 18, 24, 12)
+    g.fillStyle(0xf3c07a, 0.75)
+    g.fillEllipse(22, 15, 13, 6)
+
+    // 一束刘海：暗底 → 本体 → 左侧受光
+    const lock = (rx: number, ry: number, tx: number, ty: number, w: number) => {
+      g.fillStyle(0x6f3a15, 1)
+      g.fillPoints(
+        [P(rx - w / 2, ry), P(rx + w / 2, ry), P(tx + w * 0.2, ty - 4), P(tx, ty)],
+        true
+      )
+      g.fillStyle(hair, 1)
+      g.fillPoints(
+        [P(rx - w * 0.36, ry + 1), P(rx + w * 0.36, ry + 1), P(tx + w * 0.06, ty - 3), P(tx, ty - 1)],
+        true
+      )
+      g.fillStyle(hairLight, 1)
+      g.fillPoints(
+        [P(rx - w * 0.32, ry + 2), P(rx - w * 0.08, ry + 2), P(tx - w * 0.04, ty - 5), P(tx - 1, ty - 1)],
+        true
+      )
+    }
+
+    // 五束刘海：从发际线垂到眉上，中间两束最长、两侧收短
+    lock(11, 22, 7, 34, 11)
+    lock(19, 19, 15, 36, 13)
+    lock(28, 18, 27, 37, 13)
+    lock(37, 19, 41, 36, 13)
+    lock(45, 22, 49, 33, 11)
+
+    // 侧面垂下来的两缕（把脸框住，增加前后层次）
+    g.fillStyle(0x6f3a15, 1)
+    g.fillPoints([P(6, 28), P(12, 28), P(9, 45)], true)
+    g.fillPoints([P(44, 28), P(50, 28), P(47, 45)], true)
 
     g.generateTexture('npc-childe', 56, 70)
     g.destroy()
