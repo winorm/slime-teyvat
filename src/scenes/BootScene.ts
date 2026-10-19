@@ -5151,7 +5151,6 @@ export class BootScene extends Phaser.Scene {
     const hair = 0xd2762f
     const hairDark = 0x8a4a1e
     const hairLight = 0xe8a05a
-    const skin = 0xf0ddc4
     const hydro = 0x4aa3d8
 
     // ① 后层头发（在脸后面）：锯齿剪影，两侧垂到下颌
@@ -5164,66 +5163,64 @@ export class BootScene extends Phaser.Scene {
       true
     )
 
-    // ② 外套主体：六边形（不再用椭圆做身子）
+    // ② 史莱姆本体：一整团（多棱圆角、底部坐平）—— 上半天是脸，下半身披外套
+    const bodyShape = [
+      P(10, 62), P(6, 50), P(8, 38), P(14, 31), P(22, 27), P(38, 27),
+      P(46, 31), P(52, 38), P(54, 50), P(50, 64), P(44, 70), P(16, 70),
+    ]
+    const inset = (pts: Phaser.Math.Vector2[], k: number) =>
+      pts.map((p) => P(30 + (p.x - 30) * k, 48 + (p.y - 48) * k))
+
     g.fillStyle(outline, 1)
-    g.fillPoints([P(8, 52), P(52, 52), P(55, 64), P(48, 70), P(12, 70), P(5, 64)], true)
-    g.fillStyle(coat, 1)
-    g.fillPoints(
-      [P(10, 53), P(50, 53), P(52.5, 63.5), P(46.5, 68), P(13.5, 68), P(7.5, 63.5)],
-      true
-    )
-
-    // ③ 左右两片翻领（浅一档）+ 中间的开襟暗缝
+    g.fillPoints(bodyShape, true)
     g.fillStyle(coatLight, 1)
-    g.fillPoints([P(12, 53), P(26, 53), P(27, 64), P(11, 64)], true)
-    g.fillPoints([P(34, 53), P(48, 53), P(49, 64), P(33, 64)], true)
-    g.fillStyle(coatDark, 1)
-    g.fillPoints([P(26, 53), P(28, 53), P(28, 64), P(27, 64)], true)
-    g.fillPoints([P(32, 53), P(34, 53), P(33, 64), P(32, 64)], true)
+    g.fillPoints(inset(bodyShape, 0.94), true)
 
-    // ④ 白衬衫的 V 领
+    // 左上受光（棱面，不用椭圆）
+    g.fillStyle(0x5f6a7c, 0.5)
+    g.fillPoints([P(14, 41), P(22, 31), P(33, 28), P(31, 34), P(19, 45)], true)
+
+    // ③ 外套：盖住下半身，贴着史莱姆底部的轮廓
+    g.fillStyle(coat, 1)
+    g.fillPoints([P(9, 52), P(51, 52), P(49, 64), P(44, 69), P(16, 69), P(11, 64)], true)
+
+    // ④ 左右翻领 + 开襟暗缝 + 白衬衫
+    g.fillStyle(coatLight, 1)
+    g.fillPoints([P(12, 52), P(26, 52), P(27, 62), P(11, 62)], true)
+    g.fillPoints([P(34, 52), P(48, 52), P(49, 62), P(33, 62)], true)
+    g.fillStyle(coatDark, 1)
+    g.fillPoints([P(26, 52), P(28, 52), P(28, 63), P(27, 63)], true)
+    g.fillPoints([P(32, 52), P(34, 52), P(33, 63), P(32, 63)], true)
     g.fillStyle(shirt, 1)
-    g.fillPoints([P(26, 53), P(34, 53), P(32, 61), P(30, 64), P(28, 61)], true)
+    g.fillPoints([P(26, 52), P(34, 52), P(32, 59), P(30, 62), P(28, 59)], true)
 
-    // ⑤ 腰带 + 金扣
+    // ⑤ 腰带 + 金扣（贴着底部）
     g.fillStyle(coatDark, 1)
-    g.fillRect(10, 64, 40, 4)
+    g.fillPoints([P(12, 62), P(48, 62), P(47, 66), P(13, 66)], true)
     g.fillStyle(gold, 1)
-    g.fillRect(27, 64, 6, 4)
+    g.fillRect(27, 62, 6, 4)
     g.fillStyle(coatDark, 1)
-    g.fillRect(29, 65, 2, 2)
+    g.fillRect(29, 63, 2, 2)
 
     // ⑥ 下摆：暗红内衬
     g.fillStyle(red, 1)
-    g.fillPoints([P(14, 68), P(46, 68), P(44, 71), P(16, 71)], true)
+    g.fillPoints([P(15, 66), P(45, 66), P(43, 70), P(17, 70)], true)
 
-    // ⑦ 红围巾（脖子一圈 + 右侧垂下来的一截）
+    // ⑦ 红围巾（脸下面一圈 + 右侧垂下来的一截）
     g.fillStyle(red, 1)
-    g.fillPoints([P(14, 46), P(46, 46), P(45, 51), P(15, 51)], true)
+    g.fillPoints([P(13, 46), P(47, 46), P(46, 52), P(14, 52)], true)
     g.fillStyle(redLight, 1)
-    g.fillPoints([P(14, 46), P(46, 46), P(45.6, 48), P(14.4, 48)], true)
+    g.fillPoints([P(13, 46), P(47, 46), P(46.6, 48), P(13.4, 48)], true)
     g.fillStyle(red, 1)
-    g.fillPoints([P(40, 49), P(46, 49), P(45, 62), P(42, 58)], true)
+    g.fillPoints([P(41, 50), P(47, 50), P(46, 62), P(43, 58)], true)
 
     // ⑧ 水元素神之眼（腰侧一颗菱形）
     g.fillStyle(0x1d3a4a, 1)
-    g.fillPoints([P(44, 63), P(48, 67), P(44, 71), P(40, 67)], true)
+    g.fillPoints([P(44, 56), P(48, 60), P(44, 64), P(40, 60)], true)
     g.fillStyle(hydro, 1)
-    g.fillPoints([P(44, 64.2), P(47, 67), P(44, 69.8), P(41, 67)], true)
+    g.fillPoints([P(44, 57.2), P(47, 60), P(44, 62.8), P(41, 60)], true)
     g.fillStyle(0xb6e6ff, 1)
-    g.fillPoints([P(44, 65.4), P(45.6, 67), P(44, 68.6), P(42.4, 67)], true)
-
-    // ⑨ 脸：六边形面板（上宽下收，少用椭圆）
-    g.fillStyle(outline, 1)
-    g.fillPoints([P(16, 27), P(44, 27), P(46, 40), P(38, 47), P(22, 47), P(14, 40)], true)
-    g.fillStyle(skin, 1)
-    g.fillPoints(
-      [P(17.5, 28.5), P(42.5, 28.5), P(44.2, 39.5), P(37, 45.5), P(23, 45.5), P(15.8, 39.5)],
-      true
-    )
-    // 下颌阴影
-    g.fillStyle(0xd0b899, 0.55)
-    g.fillPoints([P(23, 45.5), P(37, 45.5), P(35, 43), P(25, 43)], true)
+    g.fillPoints([P(44, 58.4), P(45.6, 60), P(44, 61.6), P(42.4, 60)], true)
 
     // ⑩ 眼睛：海蓝色、眼尾上挑（棱面，不用椭圆）
     const eye = (cx: number, side: number) => {
