@@ -2122,6 +2122,10 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.time.delayedCall(750, () => {
+      // 兜底：把镜头补偿过的 HUD 全部复原，再刷一遍元素栏（左上角那几个图标）
+      this.resetHudZoom()
+      this.refreshHud()
+
       this.showDialogue(
         '公子',
         ['……神之心根本不在仙体里。', '这场算你赢，下次再打过。'],
@@ -2169,6 +2173,12 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(1500, () => {
       camera.zoomTo(1, 500, 'Sine.easeInOut')
       camera.startFollow(this.slime, true, 0.12, 0.12)
+
+      this.time.delayedCall(600, () => {
+        this.resetHudZoom()
+        this.refreshHud()
+      })
+
       this.showMessage('宝箱出现了 —— 想收尾就过去打开它')
     })
   }
@@ -4781,6 +4791,19 @@ export class GameScene extends Phaser.Scene {
       this.time.delayedCall(120, () => this.startTrialThree())
     }
 
+    ;(window as unknown as Record<string, unknown>).__icons = () => ({
+      zoom: Number(this.cameras.main.zoom.toFixed(2)),
+      icons: this.elementIcons.map((icon) => ({
+        x: Math.round(icon.x),
+        y: Math.round(icon.y),
+        sx: Number(icon.scaleX.toFixed(2)),
+        vis: icon.visible,
+        active: icon.active,
+      })),
+    })
+    ;(window as unknown as Record<string, unknown>).__zoomTo = (value: number) => {
+      this.cameras.main.setZoom(value)
+    }
   }
 
   // 关卡提示统一长这样：一块深色底 + 一行浅字，和交互提示、独白是同一套配色
@@ -12821,6 +12844,28 @@ export class GameScene extends Phaser.Scene {
   // 镜头拉远时把 HUD 反向补偿回来：屏幕上的东西保持原样大小、原样位置。
   // 只处理 scrollFactor 0 且 depth ≥ 40 的（背景那几层 depth 是负的，跳过）。
   // 代码主动挪过的对象（比如提示上移）会更新基准，不会被拉回去
+  // 强制把所有被镜头补偿过的 HUD 复原（战斗结束、镜头归位时兜底用）
+  private resetHudZoom() {
+    this.children.list.forEach((obj) => {
+      const base = obj.getData('uiBase') as
+        | { x: number; y: number; sx: number; sy: number }
+        | null
+
+      if (!base) {
+        return
+      }
+
+      const ui = obj as Phaser.GameObjects.Text
+
+      ui.setPosition(base.x, base.y)
+      ui.setScale(base.sx, base.sy)
+      obj.setData('uiBase', null)
+      obj.setData('uiApplied', null)
+    })
+
+    this.hudZoomActive = false
+  }
+
   private syncHudForZoom() {
     const zoom = this.cameras.main.zoom
 
