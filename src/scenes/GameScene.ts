@@ -2055,28 +2055,31 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(1400, () => {
       zone.destroy()
 
-      for (let i = 0; i < 5; i++) {
-        const angle = -0.7 + i * 0.35
-        const slash = this.add
-          .image(
-            landX + Math.cos(angle) * 34,
-            groundTop - 34 + Math.sin(angle) * 14,
-            'slash-arc'
-          )
-          .setDepth(8)
-          .setRotation(angle)
-          .setScale(1.2)
-          .setAlpha(0.95)
+      // 连斩：范围里横过一道道细长的斩线，错开闪出来
+      for (let i = 0; i < 9; i++) {
+        this.time.delayedCall(i * 55, () => {
+          const line = this.add.graphics().setDepth(8)
+          const angle = Math.random() * Math.PI
+          const len = radius * 1.5
+          const cx = landX
+          const cy = groundTop - 26
 
-        this.tweens.add({
-          targets: slash,
-          scaleX: 1.6,
-          scaleY: 1.6,
-          alpha: 0,
-          duration: 260,
-          delay: i * 70,
-          ease: 'Quad.easeOut',
-          onComplete: () => slash.destroy(),
+          line.lineStyle(
+            i % 3 === 0 ? 3 : 2,
+            i % 3 === 0 ? 0xf2e6ff : 0xb07cff,
+            0.95
+          )
+          line.beginPath()
+          line.moveTo(cx - Math.cos(angle) * len * 0.5, cy - Math.sin(angle) * len * 0.32)
+          line.lineTo(cx + Math.cos(angle) * len * 0.5, cy + Math.sin(angle) * len * 0.32)
+          line.strokePath()
+
+          this.tweens.add({
+            targets: line,
+            alpha: 0,
+            duration: 260,
+            onComplete: () => line.destroy(),
+          })
         })
       }
 
@@ -2099,6 +2102,13 @@ export class GameScene extends Phaser.Scene {
     this.inputLocked = true
     this.slime.setVelocity(0, 0)
 
+    // 先让镜头归位（跟随玩家、zoom 回 1；背景和 HUD 的反补偿在 update 里会跟着复原），
+    // 等镜头稳下来再弹对话
+    const camera = this.cameras.main
+
+    camera.zoomTo(1, 600, 'Sine.easeInOut')
+    camera.startFollow(this.slime, true, 0.12, 0.12)
+
     const childe = this.childe
 
     if (childe) {
@@ -2110,16 +2120,18 @@ export class GameScene extends Phaser.Scene {
       })
     }
 
-    this.showDialogue(
-      '公子',
-      ['……神之心根本不在仙体里。', '这场算你赢，下次再打过。'],
-      () =>
-        this.showDialogue(
-          '凝光',
-          ['黄金屋先封了。跟我上群玉阁 —— 海里的东西要上来了。'],
-          () => this.win()
-        )
-    )
+    this.time.delayedCall(750, () => {
+      this.showDialogue(
+        '公子',
+        ['……神之心根本不在仙体里。', '这场算你赢，下次再打过。'],
+        () =>
+          this.showDialogue(
+            '凝光',
+            ['黄金屋先封了。跟我上群玉阁 —— 海里的东西要上来了。'],
+            () => this.win()
+          )
+      )
+    })
   }
 
   private addFloorCrack(x: number, groundY: number) {
@@ -14607,9 +14619,9 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // 战斗镜头拉远（zoom < 1）时，背景是 scrollFactor 0 的屏幕贴图，会跟着缩小。
-    // 按 1/zoom 放大、并把左上角贴回屏幕，背景看起来就和平时一样大、铺满画面
-    if (this.bossState === 'fight') {
+    // 镜头缩放（zoom ≠ 1）时，背景是 scrollFactor 0 的屏幕贴图，会跟着缩小。
+    // 按 1/zoom 放大、并把左上角贴回屏幕；zoom 回到 1 就刚好复原
+    {
       const bgLayers = [this.bgFar, this.bgMid, this.bgNear].filter(
         (layer): layer is Phaser.GameObjects.TileSprite => layer !== null
       )
