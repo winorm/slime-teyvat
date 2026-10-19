@@ -1443,6 +1443,10 @@ export class GameScene extends Phaser.Scene {
   private childe: Phaser.GameObjects.Image | null = null
   private bossState: 'idle' | 'intro' | 'fight' = 'idle'
   private bossTimer = 0
+  private bossPhase = 1
+  private bossAttacks = 0
+  private bossHomeX = 0
+  private bossDash: { dir: number; speed: number; timer: number } | null = null
   private bossBlades: { sprite: Phaser.GameObjects.Image; vx: number }[] = []
   // 黄金屋的 Boss 场：钟离站在门口、公子立在仙体前面
   private buildBossStage() {
@@ -1467,6 +1471,8 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(0.5, 1)
       .setDepth(1)
       .setFlipX(true)
+
+    this.bossHomeX = def.x
   }
 
   // 走到公子跟前：锁操作、两段对话，然后开打
@@ -1497,9 +1503,15 @@ export class GameScene extends Phaser.Scene {
     )
   }
 
-  // Boss 的攻击循环（第一阶段：水刃横扫）
+  // Boss 的攻击循环：第一阶段水刃横扫，第二阶段雷突刺
   private updateBoss(dt: number) {
     if (this.bossState !== 'fight' || this.dialogueShowing || this.inputLocked) {
+      return
+    }
+
+    // 冲刺进行中：先跑冲刺
+    if (this.bossDash) {
+      this.updateBossDash(dt)
       return
     }
 
@@ -1513,6 +1525,30 @@ export class GameScene extends Phaser.Scene {
 
     if (!childe) {
       return
+    }
+
+    // 起手就把冷却顶住：预警 / 冲刺那一秒多里 update 还会每帧跑，
+    // 不先压住 bossTimer 就会连续起手几十次（实测 attacks 会飙到一百多）
+    if (this.bossPhase === 2) {
+      this.bossTimer = 3.2
+      this.bossAttacks += 1
+      this.castElectroDash(childe)
+
+      if (this.bossAttacks >= 3) {
+        this.bossPhase = 3
+        this.bossAttacks = 0
+        this.showMessage('公子的气息变了 —— 小心头顶！')
+      }
+      return
+    }
+
+    this.bossTimer = 3.2
+    this.bossAttacks += 1
+
+    if (this.bossAttacks >= 3 && this.bossPhase === 1) {
+      this.bossPhase = 2
+      this.bossAttacks = 0
+      this.showMessage('公子：热身结束了 —— 换我了。')
     }
 
     // 预警：公子身上闪一下青光，地面上拉一条水线
@@ -1539,7 +1575,83 @@ export class GameScene extends Phaser.Scene {
         .setFlipX(dir > 0)
 
       this.bossBlades.push({ sprite, vx: dir * 320 })
-      this.bossTimer = 2.8
+    })
+  }
+
+  // 第二阶段：雷突刺 —— 蓄力后朝玩家横冲，撞到岩柱会停、岩化能硬吃一次
+  private castElectroDash(childe: Phaser.GameObjects.Image) {
+    childe.setTint(0xb07cff)
+    const groundTop = this.level.platforms.reduce(
+      (top, item) => Math.min(top, item.y - item.height / 2),
+      Number.POSITIVE_INFINITY
+    )
+    const warn = this.add
+      .rectangle(childe.x, groundTop - 20, 360, 3, 0xb07cff, 0.8)
+      .setDepth(5)
+
+    this.tweens.add({ targets: warn, alpha: 0.1, duration: 140, yoyo: true, repeat: 2 })
+
+    this.time.delayedCall(600, () => {
+      warn.destroy()
+      childe.clearTint()
+
+      const dir = this.slime.x < childe.x ? -1 : 1
+
+      childe.setFlipX(dir < 0)
+      this.bossDash = { dir, speed: 520, timer: 0.85 }
+    })
+  }
+
+  private updateBossDash(dt: number) {
+    const dash = this.bossDash
+    const childe = this.childe
+
+    if (!dash || !childe) {
+      return
+    }
+
+    childe.x += dash.dir * dash.speed * dt
+    dash.timer -= dt
+
+    // 撞到人
+    if (
+      Math.abs(childe.x - this.slime.x) < 30 &&
+      Math.abs(childe.y - this.slime.y) < 44
+    ) {
+      this.damageCombat(1)
+      this.endBossDash()
+      return
+    }
+
+    // 撞到岩柱：停下、退开
+    const pillar = this.rockPillar
+
+    if (pillar && Math.abs(childe.x - pillar.x) < 30) {
+      this.hydroSplash(childe.x, childe.y - 30)
+      this.showMessage('公子撞在岩柱上，退开了')
+      this.endBossDash()
+      return
+    }
+
+    if (dash.timer <= 0 || childe.x < 70 || childe.x > this.level.width - 70) {
+      this.endBossDash()
+    }
+  }
+
+  private endBossDash() {
+    this.bossDash = null
+    this.childe?.clearTint()
+
+    this.time.delayedCall(520, () => {
+      const childe = this.childe
+
+      if (!childe) {
+        return
+      }
+
+      childe.x = this.bossHomeX
+      childe.setFlipX(true)
+      this.bossTimer = 2.4
     })
   }
 
@@ -1980,6 +2092,10 @@ export class GameScene extends Phaser.Scene {
     this.childe = null
     this.bossState = 'idle'
     this.bossTimer = 0
+    this.bossPhase = 1
+    this.bossAttacks = 0
+    this.bossHomeX = 0
+    this.bossDash = null
     this.bossBlades = []
     this.domainLeaving = false
     this.craneNpc = null
@@ -4530,6 +4646,14 @@ export class GameScene extends Phaser.Scene {
   // 战斗关掉血：扣完不判死 —— 原地"心脏起立"，回一颗心、无敌 2 秒，可以一直磨
   damageCombat(amount = 1) {
     if (!this.level.combat || this.combatHearts <= 0 || this.invulnTimer > 0) {
+      return
+    }
+
+    // 岩化能硬吃一次伤害（和别处的"岩壳挡一击"一致）
+    if (this.armored) {
+      this.setArmored(false)
+      this.invulnTimer = 1.2
+      this.showMessage('岩壳替你挡下了一击')
       return
     }
 
