@@ -65,6 +65,13 @@
         color: #8fa3b8;
         margin-bottom: 16px;
       }
+      #rotate .status{
+        min-height: 18px;
+        margin: -4px 0 12px;
+        font-size: 11px;
+        line-height: 1.6;
+        color: #ffd54f;
+      }
       #rotate button{
         display: block;
         width: 210px;
@@ -92,11 +99,12 @@
         <div class="title">把手机横过来玩</div>
         <div class="note">
           这个游戏是按横屏做的。<br />
-          点下面的按钮会试着锁定横屏；<br />
-          如果你的浏览器本身不支持转屏，也可以先竖着玩。
+          点下面的按钮会请求全屏并尝试锁定横屏。<br />
+          如果浏览器不允许自动旋转，请关闭系统竖屏锁定后手动横置手机。
         </div>
-        <button id="rotate-go">转成横屏</button>
-        <button id="rotate-skip">先这样玩</button>
+        <div class="status" id="rotate-status"></div>
+        <button id="rotate-go">自动切换横屏</button>
+        <button id="rotate-skip">先竖屏进入</button>
       </div>
     </div>
 
@@ -108,42 +116,69 @@
         var box = document.getElementById('rotate')
         var go = document.getElementById('rotate-go')
         var skip = document.getElementById('rotate-skip')
-        var touch = navigator.maxTouchPoints > 0 || 'ontouchstart' in window
+        var status = document.getElementById('rotate-status')
+        var params = new URLSearchParams(location.search)
+        var touch =
+          navigator.maxTouchPoints > 0 ||
+          'ontouchstart' in window ||
+          (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+          params.get('touch') === '1'
         var skipped = false
 
         function isPortrait() {
-          return window.matchMedia('(orientation: portrait)').matches
+          if (window.matchMedia) {
+            return window.matchMedia('(orientation: portrait)').matches
+          }
+
+          return window.innerHeight > window.innerWidth
         }
 
         function refresh() {
           box.style.display = touch && isPortrait() && !skipped ? 'flex' : 'none'
         }
 
-        function tryLock() {
+        async function tryLock() {
+          go.disabled = true
+          go.textContent = '正在切换…'
+          status.textContent = ''
+
           try {
             var root = document.documentElement
-            var request = root.requestFullscreen || root.webkitRequestFullscreen
-            var full = request ? request.call(root) : null
+            var request =
+              root.requestFullscreen ||
+              root.webkitRequestFullscreen ||
+              root.mozRequestFullScreen ||
+              root.msRequestFullscreen
 
-            var lock = function () {
-              try {
-                if (screen.orientation && screen.orientation.lock) {
-                  screen.orientation.lock('landscape').catch(function () {})
-                }
-              } catch (error) {}
-            }
-
-            if (full && full.then) {
-              full.then(lock).catch(function () {})
-            } else {
-              lock()
+            if (request && !document.fullscreenElement) {
+              await request.call(root, { navigationUI: 'hide' })
             }
           } catch (error) {}
+
+          try {
+            if (screen.orientation && screen.orientation.lock) {
+              await screen.orientation.lock('landscape')
+            }
+          } catch (error) {}
+
+          window.setTimeout(function () {
+            go.disabled = false
+            go.textContent = '再次尝试横屏'
+
+            if (!isPortrait()) {
+              status.textContent = ''
+              refresh()
+              return
+            }
+
+            status.textContent =
+              '浏览器未允许自动旋转。请关闭手机的“竖屏锁定”，再手动横置手机。'
+            refresh()
+          }, 600)
         }
 
         go.addEventListener('click', function () {
           tryLock()
-          window.setTimeout(refresh, 400)
         })
 
         skip.addEventListener('click', function () {
@@ -153,6 +188,11 @@
 
         window.addEventListener('resize', refresh)
         window.addEventListener('orientationchange', refresh)
+
+        if (screen.orientation && screen.orientation.addEventListener) {
+          screen.orientation.addEventListener('change', refresh)
+        }
+
         refresh()
       })()
     </script>
