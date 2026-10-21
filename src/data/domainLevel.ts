@@ -12,10 +12,12 @@ export const DOMAIN_LEVEL: LevelDef = {
   unlocks: [],
   spawn: { x: 80, y: 787 },
   bg: 'mountain',
+  music: 'music-trial',
   cameraBias: 0,
   crane: { x: 800, y: 800 },
   goal: { x: 1520, y: 786, kind: 'chest', prompt: '打开' },
   goalDisabled: true,
+  gemTotalBonus: 3,
   platforms: [
     // 秘境底层：隐形碰撞箱，画面由下面的云团铺出来
     { x: 1140, y: 820, width: 2280, height: 40, tint: 0x6a5e52, hidden: true },

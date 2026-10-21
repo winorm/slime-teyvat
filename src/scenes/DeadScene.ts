@@ -62,7 +62,7 @@ export class DeadScene extends Phaser.Scene {
 
     this.makeButton(155, '重开本关', () => {
       this.scene.stop('game')
-      this.scene.start('game')
+      this.scene.start('game', { domain: false, collectedGems: [] })
     })
     this.makeButton(189, '回到选择界面', () => {
       this.scene.stop('game')
@@ -79,7 +79,7 @@ export class DeadScene extends Phaser.Scene {
       }
 
       this.scene.stop('game')
-      this.scene.start('game')
+      this.scene.start('game', { domain: false, collectedGems: [] })
     })
   }
 

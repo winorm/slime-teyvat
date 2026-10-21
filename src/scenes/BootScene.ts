@@ -1,4 +1,4 @@
-import Phaser from 'phaser'
+﻿import Phaser from 'phaser'
 import { ELEMENTS, ELEMENT_ORDER, type ElementKey } from '../data/elements'
 import { DEV_LEVEL_MODE } from '../data/devLevel'
 import { LEVELS } from '../data/levels'
@@ -101,6 +101,14 @@ export class BootScene extends Phaser.Scene {
     this.load.audio('music-field', 'bgm/field.wav')
     this.load.audio('music-tower', 'bgm/tower.wav')
     this.load.audio('music-chase', 'bgm/chase.wav')
+    this.load.audio('music-wind-land', 'bgm/wind-land.wav')
+    this.load.audio('music-liyue', 'bgm/liyue.wav')
+    this.load.audio('music-harbor', 'bgm/harbor.wav')
+    this.load.audio('music-mountain', 'bgm/mountain.wav')
+    this.load.audio('music-trial', 'bgm/trial.wav')
+    this.load.audio('music-rite', 'bgm/rite.wav')
+    this.load.audio('music-golden-house', 'bgm/golden-house.wav')
+    this.load.audio('music-osial', 'bgm/osial.wav')
   }
 
   create() {
@@ -189,6 +197,7 @@ export class BootScene extends Phaser.Scene {
     this.makeChildeNpc()
     this.makeChildeFoul()
     this.makeHydroBlade()
+    this.makeWaterMirror()
     this.makeWarnArrow()
     this.makeElectroSpear()
     this.makeWhalePoses()
@@ -293,6 +302,7 @@ export class BootScene extends Phaser.Scene {
     this.makeGear()
 
     this.makeBackgrounds()
+    this.makeJadeChamberParts()
     this.makeWindmill()
     this.makeWindmillBlades()
     this.makeInn()
@@ -5327,6 +5337,40 @@ export class BootScene extends Phaser.Scene {
     g.destroy()
   }
 
+  // ── 水镜（44x60）：铜金外框 + 水面镜心，顶上一个挂环 ───────────────
+  private makeWaterMirror() {
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+    const INK = 0x1a1020
+    const FRAME = 0xc9a441
+    const FRAME_LIGHT = 0xf0d07a
+    const WATER = 0x4a8fc8
+    const WATER_LIGHT = 0xa8e0ff
+
+    g.fillStyle(INK, 1)
+    g.fillEllipse(22, 32, 40, 52)
+    g.fillStyle(FRAME, 1)
+    g.fillEllipse(22, 32, 36, 48)
+    g.fillStyle(FRAME_LIGHT, 1)
+    g.fillEllipse(20, 28, 30, 40)
+
+    g.fillStyle(INK, 1)
+    g.fillEllipse(22, 32, 28, 40)
+    g.fillStyle(WATER, 1)
+    g.fillEllipse(22, 32, 25, 37)
+    g.fillStyle(WATER_LIGHT, 0.6)
+    g.fillEllipse(18, 24, 12, 15)
+
+    g.fillStyle(0xffffff, 0.7)
+    g.fillPoints([P(14, 20), P(19, 16), P(16, 32), P(12, 34)], true)
+
+    g.fillStyle(FRAME, 1)
+    g.fillRect(20, 2, 4, 8)
+
+    g.generateTexture('water-mirror', 44, 60)
+    g.destroy()
+  }
+
   // ── 魔王武装形态（70x86）：公子第二、三阶段的形态 ───────────────────
   //   深紫黑的甲壳史莱姆：披风、肩甲、胸甲、胸口的雷元素核心、一对弯角、
   //   发紫光的眼缝，身上绕着几道青紫色的电弧
@@ -10246,6 +10290,1288 @@ export class BootScene extends Phaser.Scene {
     this.makeLiyueBackground()
     this.makeHarborLandBackground()
     this.makeMountainFoothill()
+    this.makeJadeChamberBackground()
+  }
+
+  // 第十一关后半段·群玉阁：灰暗风暴、海面、以及一块由仙家法阵凝成的平台。
+  private makeJadeChamberBackground() {
+    const far = this.add.graphics()
+
+    this.paintGradient(far, 480, 270, 0x26313d, 0x8c9a9d)
+
+    far.fillStyle(0x394653, 0.42)
+    far.fillEllipse(70, 62, 280, 70)
+    far.fillEllipse(340, 48, 250, 58)
+    far.fillEllipse(220, 96, 340, 54)
+
+    far.fillStyle(0x2c464c, 0.92)
+    far.fillRect(0, 168, 480, 102)
+    far.fillStyle(0x9aa7a7, 0.18)
+    far.fillRect(0, 168, 480, 2)
+
+    this.drawRidge(far, 480, 270, 0x385b61, [2, 3, 5], 4, 174, 0.9)
+    this.drawRidge(far, 480, 270, 0x243f49, [3, 5, 7], 3, 190, 0.92)
+
+    far.generateTexture('bg-jade-far', 480, 270)
+    far.destroy()
+
+    const mid = this.add.graphics()
+
+    mid.fillStyle(0x4a5661, 0.38)
+    mid.fillEllipse(40, 92, 260, 42)
+    mid.fillEllipse(360, 108, 300, 46)
+    mid.fillStyle(0x9eaaad, 0.16)
+    mid.fillEllipse(200, 138, 340, 34)
+
+    mid.lineStyle(1, 0xb9c6c8, 0.14)
+
+    for (let i = 0; i < 46; i++) {
+      const x = (i * 37) % 480
+      const y = 110 + ((i * 53) % 130)
+
+      mid.beginPath()
+      mid.moveTo(x, y)
+      mid.lineTo(x - 6, y + 18)
+      mid.strokePath()
+    }
+
+    mid.generateTexture('bg-jade-mid', 480, 270)
+    mid.destroy()
+  }
+
+  private makeJadeChamberParts() {
+    this.makeFatuiAgent()
+    this.makeFatuiHydro()
+    this.makeFatuiPyro()
+    this.makeFatuiElectro()
+    this.makeEnemyPortal()
+    this.makeOsialTentacle()
+    this.makeMountainShaperCrane()
+    this.makeMoonCarverDeer()
+    const hallFloor = this.add.graphics()
+
+    hallFloor.fillStyle(0x405b58, 1)
+    hallFloor.fillRect(0, 0, 48, 40)
+    hallFloor.fillStyle(0x4d6a65, 1)
+    hallFloor.fillRect(0, 0, 48, 3)
+    hallFloor.lineStyle(1, 0x2b3f3d, 0.9)
+    hallFloor.strokeRect(0.5, 0.5, 47, 39)
+    hallFloor.lineStyle(1, 0xd8c77a, 0.28)
+    hallFloor.beginPath()
+    hallFloor.moveTo(0, 20)
+    hallFloor.lineTo(48, 20)
+    hallFloor.strokePath()
+
+    hallFloor.generateTexture('jade-hall-floor', 48, 40)
+    hallFloor.destroy()
+
+    const deck = this.add.graphics()
+
+    deck.fillStyle(0x315154, 1)
+    deck.fillRect(0, 0, 48, 40)
+    deck.fillStyle(0x46706e, 0.55)
+    deck.fillRect(0, 0, 48, 3)
+    deck.lineStyle(1, 0x6fa9a0, 0.28)
+    deck.strokeRect(0.5, 0.5, 47, 39)
+    deck.lineStyle(1, 0xd8c77a, 0.16)
+    deck.beginPath()
+    deck.moveTo(0, 20)
+    deck.lineTo(48, 20)
+    deck.strokePath()
+
+    deck.generateTexture('jade-deck', 48, 40)
+    deck.destroy()
+
+
+    // 拆分后的奥赛尔：身体、单根脖子、单个头、可旋转水涡
+    const BODY_DEEP = 0x1a3a44
+    const BODY_MID = 0x2f7f86
+    const BODY_LIGHT = 0x6fd0c8
+    const BODY_GLOW = 0xbff8ee
+    const EDGE = 0x9fe8e0
+    const EYE = 0xb58cff
+
+    const osialBody = this.add.graphics()
+
+    osialBody.fillStyle(BODY_DEEP, 0.75)
+    osialBody.fillEllipse(240, 118, 440, 44)
+    osialBody.fillStyle(BODY_MID, 0.55)
+    osialBody.fillEllipse(210, 108, 300, 36)
+    osialBody.fillStyle(BODY_DEEP, 0.55)
+    osialBody.fillEllipse(298, 114, 240, 32)
+    osialBody.fillStyle(BODY_LIGHT, 0.18)
+    osialBody.fillEllipse(250, 98, 220, 26)
+
+    osialBody.fillStyle(BODY_MID, 0.75)
+    osialBody.fillTriangle(72, 98, 38, 64, 84, 76)
+    osialBody.fillTriangle(122, 88, 94, 50, 138, 66)
+    osialBody.fillTriangle(358, 90, 392, 54, 350, 70)
+    osialBody.fillTriangle(406, 100, 438, 68, 396, 80)
+
+    osialBody.lineStyle(1, BODY_GLOW, 0.35)
+    osialBody.lineBetween(72, 98, 38, 64)
+    osialBody.lineBetween(122, 88, 94, 50)
+    osialBody.lineBetween(358, 90, 392, 54)
+    osialBody.lineBetween(406, 100, 438, 68)
+
+    osialBody.fillStyle(BODY_MID, 0.6)
+    osialBody.fillTriangle(30, 114, 0, 78, 42, 98)
+    osialBody.fillTriangle(450, 114, 480, 78, 438, 98)
+
+    osialBody.lineStyle(1, EDGE, 0.22)
+
+    for (let i = 0; i < 9; i++) {
+      const x = 84 + i * 34
+      const y = 110 + (i % 2) * 6
+
+      osialBody.beginPath()
+      osialBody.arc(x, y, 12, 0.1, Math.PI - 0.1)
+      osialBody.strokePath()
+    }
+
+    osialBody.generateTexture('osial-body', 480, 140)
+    osialBody.destroy()
+
+    const osialNeck = this.add.graphics()
+    const neckPoints: [number, number][] = [
+      [40, 215],
+      [32, 170],
+      [48, 110],
+      [40, 28],
+    ]
+    const neckSegments = neckPoints.length - 1
+    const neckStepsPerSegment = 8
+    const neckSteps = neckSegments * neckStepsPerSegment
+
+    for (let i = 0; i <= neckSteps; i++) {
+      const t = i / neckSteps
+      const seg = Math.min(neckSegments - 1, Math.floor(t * neckSegments))
+      const local = t * neckSegments - seg
+      const x = neckPoints[seg][0] + (neckPoints[seg + 1][0] - neckPoints[seg][0]) * local
+      const y = neckPoints[seg][1] + (neckPoints[seg + 1][1] - neckPoints[seg][1]) * local
+      const r = 15 * (1 - t) + 4 * t
+
+      osialNeck.fillStyle(BODY_DEEP, 0.85)
+      osialNeck.fillCircle(x, y, r + 1.5)
+    }
+
+    for (let i = 0; i <= neckSteps; i++) {
+      const t = i / neckSteps
+      const seg = Math.min(neckSegments - 1, Math.floor(t * neckSegments))
+      const local = t * neckSegments - seg
+      const x = neckPoints[seg][0] + (neckPoints[seg + 1][0] - neckPoints[seg][0]) * local
+      const y = neckPoints[seg][1] + (neckPoints[seg + 1][1] - neckPoints[seg][1]) * local
+      const r = 15 * (1 - t) + 4 * t
+
+      osialNeck.fillStyle(BODY_MID, 0.85)
+      osialNeck.fillCircle(x, y, r)
+    }
+
+    for (let i = 0; i <= neckSteps; i++) {
+      const t = i / neckSteps
+      const seg = Math.min(neckSegments - 1, Math.floor(t * neckSegments))
+      const local = t * neckSegments - seg
+      const x = neckPoints[seg][0] + (neckPoints[seg + 1][0] - neckPoints[seg][0]) * local
+      const y = neckPoints[seg][1] + (neckPoints[seg + 1][1] - neckPoints[seg][1]) * local
+      const r = 15 * (1 - t) + 4 * t
+
+      osialNeck.fillStyle(BODY_LIGHT, 0.16)
+      osialNeck.fillCircle(x - r * 0.35, y - r * 0.25, r * 0.35)
+    }
+
+    osialNeck.generateTexture('osial-neck', 80, 220)
+    osialNeck.destroy()
+
+    const osialHead = this.add.graphics()
+    const hx = 70
+    const hy = 66
+    const H = (dx: number, dy: number) => new Phaser.Math.Vector2(hx + dx, hy + dy)
+
+    // 头后鳍和鳃鳍
+    osialHead.fillStyle(BODY_DEEP, 0.8)
+    osialHead.fillPoints([H(-40, -15), H(-58, -32), H(-32, -24), H(-24, -8)], true)
+    osialHead.fillPoints([H(-38, -2), H(-56, 14), H(-24, 8), H(-16, -2)], true)
+
+    // 下颚
+    osialHead.fillStyle(BODY_DEEP, 0.9)
+    osialHead.fillPoints([H(-24, 4), H(36, 6), H(26, 20), H(-30, 14)], true)
+
+    // 头骨
+    osialHead.fillStyle(BODY_MID, 0.9)
+    osialHead.fillPoints(
+      [
+        H(-26, -8),
+        H(-18, -22),
+        H(0, -26),
+        H(20, -18),
+        H(34, -6),
+        H(32, 6),
+        H(14, 14),
+        H(-8, 12),
+        H(-24, 2),
+      ],
+      true
+    )
+
+    // 长吻
+    osialHead.fillStyle(BODY_LIGHT, 0.72)
+    osialHead.fillPoints([H(18, -10), H(50, -2), H(44, 6), H(16, 4)], true)
+
+    // 眉脊和颊甲
+    osialHead.fillStyle(BODY_LIGHT, 0.5)
+    osialHead.fillPoints([H(-6, -16), H(16, -14), H(24, -8), H(4, -10)], true)
+    osialHead.fillPoints([H(-14, 0), H(0, 2), H(-4, 12), H(-20, 8)], true)
+
+    // 角
+    osialHead.fillStyle(BODY_GLOW, 0.62)
+    osialHead.fillPoints([H(-8, -18), H(-22, -36), H(-18, -40), H(-4, -24)], true)
+    osialHead.fillPoints([H(2, -20), H(-2, -42), H(4, -44), H(10, -24)], true)
+
+    // 眼窝和眼睛
+    osialHead.fillStyle(0x081014, 0.9)
+    osialHead.fillPoints([H(2, -8), H(18, -6), H(20, 0), H(6, 2)], true)
+    osialHead.fillStyle(EYE, 0.9)
+    osialHead.fillPoints([H(6, -6), H(15, -5), H(16, -1), H(6, 0)], true)
+    osialHead.fillStyle(0xeaffff, 0.85)
+    osialHead.fillCircle(hx + 9, hy - 3, 1.2)
+
+    // 牙
+    osialHead.fillStyle(BODY_GLOW, 0.7)
+    osialHead.fillTriangle(hx + 20, hy + 8, hx + 24, hy + 16, hx + 28, hy + 8)
+    osialHead.fillTriangle(hx + 30, hy + 8, hx + 34, hy + 15, hx + 38, hy + 8)
+
+    // 吻端和鼻孔
+    osialHead.fillStyle(BODY_DEEP, 0.8)
+    osialHead.fillPoints([H(42, -2), H(50, 1), H(46, 5), H(40, 5)], true)
+    osialHead.fillStyle(0x081014, 0.8)
+    osialHead.fillCircle(hx + 42, hy + 1, 1.2)
+
+    // 头部轮廓光
+    osialHead.lineStyle(1, EDGE, 0.45)
+    osialHead.beginPath()
+    osialHead.moveTo(hx - 24, hy + 2)
+    osialHead.lineTo(hx - 18, hy - 22)
+    osialHead.lineTo(hx, hy - 26)
+    osialHead.lineTo(hx + 20, hy - 18)
+    osialHead.lineTo(hx + 34, hy - 6)
+    osialHead.strokePath()
+
+    osialHead.beginPath()
+    osialHead.moveTo(hx + 18, hy - 10)
+    osialHead.lineTo(hx + 50, hy - 2)
+    osialHead.lineTo(hx + 44, hy + 6)
+    osialHead.strokePath()
+
+    // 脖子连接处
+    osialHead.fillStyle(BODY_DEEP, 0.9)
+    osialHead.fillCircle(hx - 26, hy, 7)
+
+    osialHead.generateTexture('osial-head', 160, 120)
+    osialHead.destroy()
+
+    const osialVortex = this.add.graphics()
+    const vxSpin = 210
+    const vySpin = 210
+
+    for (let i = 0; i < 6; i++) {
+      const r = 36 + i * 28
+
+      osialVortex.lineStyle(
+        i === 0 ? 4 : 2,
+        i % 2 === 0 ? BODY_MID : BODY_DEEP,
+        Math.max(0.12, 0.55 - i * 0.07)
+      )
+      osialVortex.strokeEllipse(vxSpin, vySpin, r * 2, r * 2)
+    }
+
+    for (let i = 0; i < 12; i++) {
+      const angle = (Math.PI * 2 * i) / 12
+      const r1 = 44
+      const r2 = 178
+
+      osialVortex.lineStyle(1, EDGE, 0.2)
+      osialVortex.beginPath()
+      osialVortex.moveTo(
+        vxSpin + Math.cos(angle) * r1,
+        vySpin + Math.sin(angle) * r1
+      )
+      osialVortex.lineTo(
+        vxSpin + Math.cos(angle + 0.35) * r2,
+        vySpin + Math.sin(angle + 0.35) * r2
+      )
+      osialVortex.strokePath()
+    }
+
+    osialVortex.fillStyle(BODY_DEEP, 0.35)
+    osialVortex.fillCircle(vxSpin, vySpin, 24)
+
+    osialVortex.generateTexture('osial-vortex-spin', 420, 420)
+    osialVortex.destroy()
+
+    const ballista = this.add.graphics()
+
+    // 归终机：圆形玉座 + 厚重弩身 + 上下展开的弓臂 + 中央青玉核心
+    ballista.fillStyle(0x14201f, 0.45)
+    ballista.fillEllipse(86, 134, 144, 8)
+    ballista.fillStyle(0x3f5a56, 1)
+    ballista.fillEllipse(86, 126, 128, 20)
+    ballista.lineStyle(3, 0xd8b85a, 0.95)
+    ballista.strokeEllipse(86, 126, 128, 20)
+    ballista.lineStyle(1, 0x8fe8d0, 0.45)
+    ballista.strokeEllipse(86, 126, 104, 13)
+
+    ballista.fillStyle(0x8fe8d0, 0.5)
+    ballista.fillCircle(62, 126, 3)
+    ballista.fillCircle(86, 126, 4)
+    ballista.fillCircle(110, 126, 3)
+
+    // 底座支架
+    ballista.lineStyle(7, 0x3a2c1e, 1)
+    ballista.beginPath()
+    ballista.moveTo(46, 122)
+    ballista.lineTo(70, 82)
+    ballista.strokePath()
+    ballista.beginPath()
+    ballista.moveTo(126, 122)
+    ballista.lineTo(102, 82)
+    ballista.strokePath()
+    ballista.lineStyle(2, 0xd8b85a, 0.65)
+    ballista.beginPath()
+    ballista.moveTo(46, 122)
+    ballista.lineTo(70, 82)
+    ballista.strokePath()
+    ballista.beginPath()
+    ballista.moveTo(126, 122)
+    ballista.lineTo(102, 82)
+    ballista.strokePath()
+
+    // 中央立柱
+    ballista.fillStyle(0x3a2c1e, 1)
+    ballista.fillRect(80, 62, 12, 62)
+    ballista.fillStyle(0xd8b85a, 0.8)
+    ballista.fillRect(80, 76, 12, 3)
+    ballista.fillRect(80, 96, 12, 3)
+
+    // 主弩身
+    ballista.fillStyle(0x2f2a24, 1)
+    ballista.fillRect(20, 62, 136, 12)
+    ballista.fillStyle(0x4f3a26, 1)
+    ballista.fillRect(20, 62, 136, 4)
+    ballista.lineStyle(2, 0xd8b85a, 0.85)
+    ballista.strokeRect(20, 62, 136, 12)
+
+    // 尾部配重与绞盘
+    ballista.fillStyle(0x2f2a24, 1)
+    ballista.fillCircle(30, 68, 14)
+    ballista.lineStyle(2, 0xd8b85a, 0.9)
+    ballista.strokeCircle(30, 68, 14)
+    ballista.fillStyle(0x8fe8d0, 0.8)
+    ballista.fillCircle(30, 68, 5)
+
+    // 弓臂：先画深色外轮廓，再压青玉和金色云纹
+    const drawLimb = (width: number, color: number, alpha = 1) => {
+      ballista.lineStyle(width, color, alpha)
+      ballista.beginPath()
+      ballista.moveTo(124, 18)
+      ballista.lineTo(136, 42)
+      ballista.lineTo(152, 68)
+      ballista.lineTo(136, 94)
+      ballista.lineTo(124, 118)
+      ballista.strokePath()
+    }
+
+    drawLimb(12, 0x24413b)
+    drawLimb(6, 0x4f8f7f)
+    drawLimb(2, 0xd8b85a, 0.9)
+
+    ballista.fillStyle(0xd8b85a, 0.95)
+    ballista.fillCircle(124, 18, 5)
+    ballista.fillCircle(124, 118, 5)
+    ballista.fillStyle(0x8fe8d0, 0.9)
+    ballista.fillCircle(124, 18, 2)
+    ballista.fillCircle(124, 118, 2)
+
+    // 弓弦
+    ballista.lineStyle(1, 0xe8f4ef, 0.8)
+    ballista.beginPath()
+    ballista.moveTo(124, 18)
+    ballista.lineTo(124, 118)
+    ballista.strokePath()
+
+    // 弓臂与弩身的连接座
+    ballista.fillStyle(0x3a2c1e, 1)
+    ballista.fillRect(148, 58, 8, 20)
+    ballista.lineStyle(2, 0xd8b85a, 0.9)
+    ballista.strokeRect(148, 58, 8, 20)
+
+    // 能量弩矢
+    ballista.fillStyle(0x8fe8d0, 0.95)
+    ballista.fillRect(72, 64, 104, 8)
+    ballista.fillStyle(0xd8b85a, 0.9)
+    ballista.fillRect(72, 66, 104, 2)
+    ballista.fillStyle(0xbff8ee, 0.95)
+    ballista.fillTriangle(176, 58, 198, 68, 176, 78)
+    ballista.fillStyle(0xd8b85a, 0.95)
+    ballista.fillTriangle(188, 62, 202, 68, 188, 74)
+
+    // 中央青玉核心：外金环、内玉珠、底部一点高光
+    ballista.fillStyle(0x2a1f14, 1)
+    ballista.fillCircle(84, 68, 15)
+    ballista.lineStyle(3, 0xd8b85a, 1)
+    ballista.strokeCircle(84, 68, 15)
+    ballista.fillStyle(0x4f8f7f, 1)
+    ballista.fillCircle(84, 68, 10)
+    ballista.fillStyle(0xbff8ee, 0.95)
+    ballista.fillCircle(81, 65, 5)
+    ballista.fillStyle(0xffffff, 0.7)
+    ballista.fillCircle(80, 64, 2)
+
+    // 核心向前延伸的灵纹
+    ballista.lineStyle(1, 0x8fe8d0, 0.75)
+    ballista.beginPath()
+    ballista.moveTo(99, 68)
+    ballista.lineTo(176, 68)
+    ballista.strokePath()
+    ballista.beginPath()
+    ballista.moveTo(84, 53)
+    ballista.lineTo(110, 62)
+    ballista.strokePath()
+    ballista.beginPath()
+    ballista.moveTo(84, 83)
+    ballista.lineTo(110, 74)
+    ballista.strokePath()
+
+    // 弩身下方的金红流苏
+    ballista.fillStyle(0x7a3b32, 1)
+    ballista.fillRect(62, 74, 3, 16)
+    ballista.fillStyle(0xd8b85a, 0.9)
+    ballista.fillCircle(63, 92, 3)
+
+    ballista.generateTexture('jade-ballista', 204, 140)
+    ballista.destroy()
+
+    const gate = this.add.graphics()
+
+    // 侧墙：整座殿往左延伸，门开在靠平台的一端
+    gate.fillStyle(0x3f5a56, 1)
+    gate.fillRect(0, 132, 760, 228)
+    gate.fillStyle(0x4e6d66, 1)
+    gate.fillRect(0, 132, 760, 8)
+
+    // 屋顶：只画朝向镜头这一侧的坡面，左边继续延伸出画
+    gate.fillStyle(0x2f4f4a, 1)
+    gate.fillPoints(
+      [
+        new Phaser.Math.Vector2(0, 104),
+        new Phaser.Math.Vector2(560, 80),
+        new Phaser.Math.Vector2(706, 142),
+        new Phaser.Math.Vector2(742, 126),
+        new Phaser.Math.Vector2(700, 172),
+        new Phaser.Math.Vector2(0, 158),
+      ],
+      true
+    )
+
+    gate.lineStyle(1, 0x466b63, 0.75)
+
+    for (let x = 8; x < 700; x += 22) {
+      const top = 80 + Math.max(0, (560 - x) * 0.043)
+
+      gate.beginPath()
+      gate.moveTo(x, top)
+      gate.lineTo(x + 8, 158)
+      gate.strokePath()
+    }
+
+    gate.lineStyle(5, 0xd8c77a, 0.9)
+    gate.beginPath()
+    gate.moveTo(0, 104)
+    gate.lineTo(560, 80)
+    gate.lineTo(706, 142)
+    gate.strokePath()
+
+    // 侧面敞开的门洞：远侧门柱薄、近侧门柱厚，门内是暖色内厅
+    gate.fillStyle(0x15100c, 1)
+    gate.fillPoints(
+      [
+        new Phaser.Math.Vector2(636, 190),
+        new Phaser.Math.Vector2(744, 182),
+        new Phaser.Math.Vector2(744, 338),
+        new Phaser.Math.Vector2(636, 338),
+      ],
+      true
+    )
+
+    gate.fillStyle(0x2a1e16, 1)
+    gate.fillRect(650, 200, 84, 126)
+    gate.fillStyle(0xffd98a, 0.14)
+    gate.fillRect(660, 210, 64, 106)
+    gate.fillStyle(0x6a4a32, 1)
+    gate.fillRect(650, 326, 84, 12)
+
+    gate.fillStyle(0x5a2e27, 1)
+    gate.fillRect(628, 192, 8, 146)
+    gate.fillStyle(0x7a3b32, 1)
+    gate.fillRect(744, 178, 16, 160)
+
+    gate.lineStyle(3, 0xd8c77a, 0.8)
+    gate.beginPath()
+    gate.moveTo(636, 190)
+    gate.lineTo(744, 182)
+    gate.strokePath()
+
+    // 圆形玉徽
+    gate.fillStyle(0x7fe0c8, 0.9)
+    gate.fillCircle(600, 156, 34)
+    gate.lineStyle(4, 0xd8c77a, 1)
+    gate.strokeCircle(600, 156, 34)
+    gate.fillStyle(0x2f4f4a, 1)
+    gate.fillCircle(600, 156, 20)
+
+    // 门两侧灯笼
+    gate.fillStyle(0x7a3b32, 1)
+    gate.fillRect(616, 206, 12, 18)
+    gate.fillRect(762, 206, 12, 18)
+    gate.fillStyle(0xe8b85a, 0.9)
+    gate.fillEllipse(622, 232, 18, 26)
+    gate.fillEllipse(768, 232, 18, 26)
+
+    // 门前两级玉阶
+    gate.fillStyle(0x5a6f68, 1)
+    gate.fillRect(610, 330, 150, 12)
+    gate.fillRect(630, 342, 130, 12)
+
+    gate.generateTexture('jade-chamber-gate', 760, 360)
+    gate.destroy()
+  }
+
+  private makeOsialTentacle() {
+    const g = this.add.graphics()
+    const DEEP = 0x1a3a44
+    const MID = 0x2f7f86
+    const LIGHT = 0x6fd0c8
+    const GLOW = 0xbff8ee
+
+    // 底部连接处
+    g.fillStyle(DEEP, 0.8)
+    g.fillEllipse(40, 176, 44, 10)
+
+    const points: [number, number][] = [
+      [40, 176],
+      [26, 140],
+      [48, 100],
+      [34, 58],
+      [40, 18],
+    ]
+    const segments = points.length - 1
+    const stepsPerSegment = 8
+    const totalSteps = segments * stepsPerSegment
+
+    // 外轮廓
+    for (let i = 0; i <= totalSteps; i++) {
+      const t = i / totalSteps
+      const seg = Math.min(segments - 1, Math.floor(t * segments))
+      const local = t * segments - seg
+      const x = points[seg][0] + (points[seg + 1][0] - points[seg][0]) * local
+      const y = points[seg][1] + (points[seg + 1][1] - points[seg][1]) * local
+      const r = 12 * (1 - t) + 3 * t
+
+      g.fillStyle(DEEP, 0.9)
+      g.fillCircle(x, y, r + 1.5)
+    }
+
+    // 主体
+    for (let i = 0; i <= totalSteps; i++) {
+      const t = i / totalSteps
+      const seg = Math.min(segments - 1, Math.floor(t * segments))
+      const local = t * segments - seg
+      const x = points[seg][0] + (points[seg + 1][0] - points[seg][0]) * local
+      const y = points[seg][1] + (points[seg + 1][1] - points[seg][1]) * local
+      const r = 12 * (1 - t) + 3 * t
+
+      g.fillStyle(MID, 0.9)
+      g.fillCircle(x, y, r)
+    }
+
+    // 迎光面
+    for (let i = 0; i <= totalSteps; i++) {
+      const t = i / totalSteps
+      const seg = Math.min(segments - 1, Math.floor(t * segments))
+      const local = t * segments - seg
+      const x = points[seg][0] + (points[seg + 1][0] - points[seg][0]) * local
+      const y = points[seg][1] + (points[seg + 1][1] - points[seg][1]) * local
+      const r = 12 * (1 - t) + 3 * t
+
+      g.fillStyle(LIGHT, 0.22)
+      g.fillCircle(x - r * 0.35, y - r * 0.2, r * 0.35)
+    }
+
+    // 吸盘
+    g.fillStyle(GLOW, 0.6)
+    g.fillCircle(48, 124, 4)
+    g.fillCircle(35, 95, 3.5)
+    g.fillCircle(47, 68, 3)
+    g.fillCircle(34, 44, 2.5)
+
+    // 侧鳍
+    g.fillStyle(MID, 0.75)
+    g.fillTriangle(22, 138, 4, 126, 24, 122)
+    g.fillTriangle(50, 104, 70, 92, 48, 88)
+    g.fillTriangle(32, 68, 14, 56, 34, 52)
+
+    // 尖端高光
+    g.fillStyle(GLOW, 0.4)
+    g.fillCircle(40, 20, 4)
+
+    g.generateTexture('osial-tentacle', 80, 180)
+    g.destroy()
+  }
+
+  private makeFatuiAgent() {
+    const g = this.add.graphics()
+
+    // 腿和靴
+    g.fillStyle(0x2a2630, 1)
+    g.fillRect(13, 34, 6, 10)
+    g.fillRect(25, 34, 6, 10)
+    g.fillStyle(0x4a3a2a, 1)
+    g.fillRect(11, 44, 9, 4)
+    g.fillRect(24, 44, 9, 4)
+
+    // 外套
+    g.fillStyle(0x353544, 1)
+    g.fillPoints(
+      [
+        new Phaser.Math.Vector2(10, 12),
+        new Phaser.Math.Vector2(34, 12),
+        new Phaser.Math.Vector2(38, 36),
+        new Phaser.Math.Vector2(6, 36),
+      ],
+      true
+    )
+
+    // 红色腰带
+    g.fillStyle(0x7a2e2e, 1)
+    g.fillRect(10, 24, 24, 4)
+
+    // 手臂和手
+    g.fillStyle(0x2a2630, 1)
+    g.fillRect(6, 14, 6, 18)
+    g.fillRect(32, 14, 6, 18)
+    g.fillStyle(0xd0b090, 1)
+    g.fillCircle(9, 33, 3)
+    g.fillCircle(35, 33, 3)
+
+    // 头、兜帽、面具
+    g.fillStyle(0x24202a, 1)
+    g.fillTriangle(4, 8, 22, 0, 40, 8)
+    g.fillEllipse(22, 9, 16, 13)
+    g.fillStyle(0xe8e0d0, 1)
+    g.fillEllipse(22, 9, 10, 7)
+    g.fillStyle(0x7a2e2e, 1)
+    g.fillCircle(19, 9, 1.7)
+    g.fillCircle(25, 9, 1.7)
+
+    // 金色绶带
+    g.lineStyle(2, 0xd8b85a, 0.8)
+    g.lineBetween(12, 16, 32, 34)
+
+    g.generateTexture('fatui-agent', 44, 48)
+    g.destroy()
+  }
+
+  private makeFatuiHydro() {
+    const g = this.add.graphics()
+
+    // 地面投影
+    g.fillStyle(0x0b141b, 0.55)
+    g.fillEllipse(32, 59, 50, 7)
+
+    // 短靴
+    g.fillStyle(0x202e3b, 1)
+    g.fillRect(20, 49, 9, 9)
+    g.fillRect(36, 49, 9, 9)
+    g.fillStyle(0x4e6c78, 1)
+    g.fillRect(17, 56, 14, 4)
+    g.fillRect(34, 56, 14, 4)
+
+    // 圆胖身体
+    g.fillStyle(0x172b3a, 1)
+    g.fillEllipse(32, 35, 52, 42)
+    g.fillStyle(0x28516a, 1)
+    g.fillEllipse(32, 32, 44, 36)
+    g.fillStyle(0x4d8ca2, 0.75)
+    g.fillEllipse(25, 24, 15, 19)
+
+    // 金属腹甲和腰带
+    g.fillStyle(0x263844, 1)
+    g.fillRect(15, 28, 34, 6)
+    g.fillStyle(0xd8b85a, 0.9)
+    g.fillRect(15, 34, 34, 2)
+    g.fillStyle(0x6ba7b8, 1)
+    g.fillRect(29, 21, 6, 15)
+
+    // 两侧水罐
+    g.fillStyle(0x152b3a, 1)
+    g.fillEllipse(9, 35, 13, 25)
+    g.fillEllipse(55, 35, 13, 25)
+    g.lineStyle(2, 0x8fd8e8, 0.7)
+    g.strokeEllipse(9, 35, 13, 25)
+    g.strokeEllipse(55, 35, 13, 25)
+
+    // 软管
+    g.lineStyle(3, 0x88b8c8, 0.9)
+    g.beginPath()
+    g.moveTo(13, 24)
+    g.lineTo(19, 18)
+    g.lineTo(24, 20)
+    g.strokePath()
+    g.beginPath()
+    g.moveTo(51, 24)
+    g.lineTo(45, 18)
+    g.lineTo(40, 20)
+    g.strokePath()
+
+    // 头盔和面具
+    g.fillStyle(0x17222c, 1)
+    g.fillEllipse(32, 14, 28, 22)
+    g.fillStyle(0xd8e3df, 1)
+    g.fillEllipse(32, 14, 20, 13)
+    g.fillStyle(0x163646, 1)
+    g.fillTriangle(24, 12, 40, 12, 32, 23)
+    g.fillStyle(0x63e6ef, 1)
+    g.fillCircle(27, 13, 2)
+    g.fillCircle(37, 13, 2)
+
+    g.generateTexture('fatui-hydro', 64, 62)
+    g.destroy()
+  }
+
+  private makeFatuiPyro() {
+    const g = this.add.graphics()
+
+    // 地面投影
+    g.fillStyle(0x180d0b, 0.55)
+    g.fillEllipse(34, 61, 47, 7)
+
+    // 长大衣下摆
+    g.fillStyle(0x3e1715, 1)
+    g.fillPoints(
+      [
+        new Phaser.Math.Vector2(24, 22),
+        new Phaser.Math.Vector2(45, 22),
+        new Phaser.Math.Vector2(53, 55),
+        new Phaser.Math.Vector2(16, 55),
+      ],
+      true
+    )
+    g.fillStyle(0x6b2920, 1)
+    g.fillTriangle(18, 31, 5, 55, 25, 50)
+
+    // 腿和靴
+    g.fillStyle(0x272126, 1)
+    g.fillRect(23, 48, 7, 11)
+    g.fillRect(37, 48, 7, 11)
+    g.fillStyle(0x6d5a3a, 1)
+    g.fillRect(20, 57, 11, 4)
+    g.fillRect(36, 57, 11, 4)
+
+    // 身体和外甲
+    g.fillStyle(0x31242a, 1)
+    g.fillRect(23, 21, 22, 27)
+    g.fillStyle(0x8a3428, 1)
+    g.fillRect(25, 25, 18, 5)
+    g.fillStyle(0xd8b85a, 0.9)
+    g.fillRect(31, 30, 6, 15)
+
+    // 长枪枪身
+    g.lineStyle(7, 0x261b1b, 1)
+    g.lineBetween(14, 38, 65, 20)
+    g.lineStyle(3, 0xc58c4e, 1)
+    g.lineBetween(17, 37, 62, 21)
+
+    // 枪托和扳机
+    g.fillStyle(0x4b2d23, 1)
+    g.fillTriangle(12, 36, 20, 34, 17, 46)
+    g.lineStyle(2, 0xd8b85a, 0.85)
+    g.strokeCircle(31, 33, 5)
+
+    // 枪口火焰
+    g.fillStyle(0xff7a32, 0.9)
+    g.fillTriangle(64, 17, 72, 20, 64, 24)
+    g.fillStyle(0xffd36b, 1)
+    g.fillCircle(65, 20, 2.5)
+
+    // 头部、帽檐和面具
+    g.fillStyle(0x20191d, 1)
+    g.fillEllipse(34, 14, 22, 17)
+    g.fillStyle(0x5b221d, 1)
+    g.fillTriangle(22, 9, 46, 9, 34, 1)
+    g.fillStyle(0xe0d8cc, 1)
+    g.fillEllipse(34, 15, 15, 10)
+    g.fillStyle(0x9e3928, 1)
+    g.fillCircle(30, 14, 1.8)
+    g.fillCircle(38, 14, 1.8)
+
+    g.generateTexture('fatui-pyro', 72, 64)
+    g.destroy()
+  }
+
+  private makeFatuiElectro() {
+    const g = this.add.graphics()
+
+    // 地面投影
+    g.fillStyle(0x120d1a, 0.55)
+    g.fillEllipse(34, 69, 54, 8)
+
+    // 重靴
+    g.fillStyle(0x262237, 1)
+    g.fillRect(20, 57, 11, 10)
+    g.fillRect(38, 57, 11, 10)
+    g.fillStyle(0x574d70, 1)
+    g.fillRect(16, 65, 17, 4)
+    g.fillRect(36, 65, 18, 4)
+
+    // 宽厚躯干
+    g.fillStyle(0x241d35, 1)
+    g.fillPoints(
+      [
+        new Phaser.Math.Vector2(17, 19),
+        new Phaser.Math.Vector2(51, 19),
+        new Phaser.Math.Vector2(56, 48),
+        new Phaser.Math.Vector2(13, 48),
+      ],
+      true
+    )
+
+    // 紫色胸甲
+    g.fillStyle(0x513b79, 1)
+    g.fillRect(21, 25, 26, 19)
+    g.fillStyle(0x8c6bc4, 0.75)
+    g.fillRect(25, 27, 8, 14)
+    g.fillStyle(0xd8b85a, 0.9)
+    g.fillRect(29, 21, 10, 5)
+
+    // 肩甲
+    g.fillStyle(0x372a52, 1)
+    g.fillEllipse(14, 28, 18, 14)
+    g.fillEllipse(54, 28, 18, 14)
+    g.lineStyle(2, 0xb596ef, 0.7)
+    g.strokeEllipse(14, 28, 18, 14)
+    g.strokeEllipse(54, 28, 18, 14)
+
+    // 雷锤长柄
+    g.lineStyle(8, 0x2b2238, 1)
+    g.lineBetween(20, 48, 54, 11)
+    g.lineStyle(3, 0x9b7ad6, 1)
+    g.lineBetween(22, 46, 54, 12)
+
+    // 锤头
+    g.fillStyle(0x332548, 1)
+    g.fillPoints(
+      [
+        new Phaser.Math.Vector2(44, 4),
+        new Phaser.Math.Vector2(63, 1),
+        new Phaser.Math.Vector2(69, 12),
+        new Phaser.Math.Vector2(56, 23),
+        new Phaser.Math.Vector2(42, 16),
+      ],
+      true
+    )
+    g.fillStyle(0x8c62d6, 1)
+    g.fillRect(48, 7, 14, 5)
+    g.fillStyle(0xe2caff, 1)
+    g.fillCircle(65, 7, 2)
+    g.fillCircle(67, 14, 1.5)
+
+    // 头部和尖角头盔
+    g.fillStyle(0x21182e, 1)
+    g.fillEllipse(34, 14, 24, 18)
+    g.fillStyle(0x584078, 1)
+    g.fillTriangle(23, 10, 27, 0, 32, 10)
+    g.fillTriangle(36, 10, 42, 0, 46, 10)
+    g.fillStyle(0xe3d8ef, 1)
+    g.fillEllipse(34, 15, 16, 10)
+    g.fillStyle(0xb58cff, 1)
+    g.fillCircle(30, 14, 2)
+    g.fillCircle(38, 14, 2)
+
+    g.generateTexture('fatui-electro', 70, 72)
+    g.destroy()
+  }
+
+  private makeEnemyPortal() {
+    const g = this.add.graphics()
+    const cx = 60
+    const cy = 92
+
+    // 地面投影
+    g.fillStyle(0x120e16, 0.5)
+    g.fillEllipse(cx, 174, 104, 14)
+
+    // 外层暗红边
+    g.fillStyle(0x221018, 0.95)
+    g.fillEllipse(cx, cy, 112, 168)
+    g.lineStyle(4, 0x7a2e2e, 0.95)
+    g.strokeEllipse(cx, cy, 112, 168)
+
+    // 中层深色门框
+    g.fillStyle(0x141826, 0.98)
+    g.fillEllipse(cx, cy, 94, 146)
+
+    // 内部水面/深渊
+    g.fillStyle(0x1e3a4a, 0.95)
+    g.fillEllipse(cx, cy, 66, 116)
+    g.fillStyle(0x3f7f86, 0.35)
+    g.fillEllipse(cx, cy, 44, 88)
+
+    // 金边和青玉内圈
+    g.lineStyle(2, 0xd8b85a, 0.85)
+    g.strokeEllipse(cx, cy, 100, 152)
+    g.lineStyle(1, 0x8fe8d0, 0.55)
+    g.strokeEllipse(cx, cy, 72, 122)
+
+    // 中央竖缝
+    g.lineStyle(2, 0xbfeee4, 0.7)
+    g.beginPath()
+    g.moveTo(cx, 16)
+    g.lineTo(cx, 168)
+    g.strokePath()
+
+    g.lineStyle(1, 0xffffff, 0.35)
+    g.beginPath()
+    g.moveTo(cx, 26)
+    g.lineTo(cx, 158)
+    g.strokePath()
+
+    // 上下左右四枚符钉
+    g.fillStyle(0xd8b85a, 0.9)
+    g.fillTriangle(56, 16, 60, 8, 64, 16)
+    g.fillTriangle(56, 168, 60, 176, 64, 168)
+    g.fillTriangle(12, 88, 20, 92, 12, 96)
+    g.fillTriangle(108, 88, 100, 92, 108, 96)
+
+    // 底部法阵圈
+    g.lineStyle(2, 0x8fe8d0, 0.5)
+    g.strokeEllipse(cx, 174, 96, 14)
+
+    g.generateTexture('enemy-portal', 120, 180)
+    g.destroy()
+  }
+  // 理水叠山真君：鹤形，棕金羽、深褐翼羽、米白长颈和红冠，体态比留云更厚重
+  private makeMountainShaperCrane() {
+    const BODY = 0x8a5a32
+    const BODY_DEEP = 0x624022
+    const CREAM = 0xf0e6d2
+    const SHADE = 0xd8c8a8
+    const PLUME = 0x3f2b1e
+    const PLUME_DARK = 0x2a1c14
+    const GOLD = 0xd9a441
+    const CROWN = 0xb04a2e
+    const CROWN_LIGHT = 0xd06a45
+    const BEAK = 0x6a5a3a
+    const BEAK_DARK = 0x4a3c24
+    const LEG = 0x8a6a3a
+    const LEG_DARK = 0x5a4630
+    const INK = 0x1e1813
+
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    g.fillStyle(LEG_DARK, 1)
+    g.fillRect(71, 100, 3, 43)
+    g.fillRect(66, 141, 12, 3)
+    g.fillRect(73, 143, 8, 3)
+
+    g.fillStyle(LEG, 1)
+    g.fillRect(58, 96, 3, 47)
+    g.fillCircle(59, 120, 2.6)
+    g.fillRect(53, 142, 11, 3)
+    g.fillRect(56, 145, 6, 2)
+    g.fillRect(61, 143, 8, 3)
+    g.fillStyle(GOLD, 1)
+    g.fillRect(56, 126, 8, 3)
+
+    // 长而厚重的深褐尾羽
+    g.fillStyle(PLUME, 1)
+    g.fillPoints([P(48, 86), P(20, 108), P(16, 132), P(40, 124), P(56, 100)], true)
+    g.fillStyle(PLUME_DARK, 1)
+    g.fillPoints([P(28, 112), P(17, 130), P(36, 132), P(42, 116)], true)
+    g.lineStyle(1, 0x120c08, 1)
+    g.lineBetween(44, 90, 28, 128)
+    g.lineBetween(50, 94, 38, 130)
+
+    g.fillStyle(INK, 1)
+    g.fillEllipse(66, 88, 70, 38)
+    g.fillStyle(BODY, 1)
+    g.fillEllipse(66, 87, 66, 34)
+    g.fillStyle(BODY_DEEP, 1)
+    g.fillEllipse(62, 96, 50, 14)
+
+    // 收起的翅膀：金色翼前缘 + 深褐羽纹 + 一枚金色云纹
+    g.fillStyle(BODY, 1)
+    g.fillPoints([P(88, 72), P(100, 88), P(88, 102), P(50, 102), P(42, 84)], true)
+    g.lineStyle(2, GOLD, 1)
+    g.lineBetween(88, 72, 46, 82)
+    g.lineStyle(1, 0x3a2416, 1)
+    g.lineBetween(88, 84, 56, 92)
+    g.lineBetween(86, 94, 60, 100)
+    g.lineStyle(2, GOLD, 0.9)
+    g.beginPath()
+    g.arc(72, 86, 10, 0.1, Math.PI * 1.45)
+    g.strokePath()
+    g.lineStyle(1, 0xf0d88a, 0.7)
+    g.beginPath()
+    g.arc(72, 86, 6, 0.3, Math.PI * 1.3)
+    g.strokePath()
+
+    const neck = (t: number) => ({
+      x: (1 - t) * (1 - t) * 92 + 2 * (1 - t) * t * 82 + t * t * 106,
+      y: (1 - t) * (1 - t) * 86 + 2 * (1 - t) * t * 54 + t * t * 36,
+    })
+
+    for (let i = 0; i <= 22; i++) {
+      const t = i / 22
+      const p = neck(t)
+      const r = 7.2 - t * 3
+
+      g.fillStyle(INK, 1)
+      g.fillCircle(p.x, p.y, r + 1.3)
+    }
+
+    for (let i = 0; i <= 22; i++) {
+      const t = i / 22
+      const p = neck(t)
+      const r = 7.2 - t * 3
+
+      g.fillStyle(CREAM, 1)
+      g.fillCircle(p.x, p.y, r)
+    }
+
+    for (let i = 0; i <= 22; i++) {
+      const t = i / 22
+      const p = neck(t)
+      const r = 7.2 - t * 3
+
+      g.fillStyle(SHADE, 0.55)
+      g.fillCircle(p.x - r * 0.42, p.y, r * 0.42)
+    }
+
+    g.fillStyle(INK, 1)
+    g.fillEllipse(106, 33, 19, 17)
+    g.fillStyle(CREAM, 1)
+    g.fillEllipse(106, 33, 16, 14)
+    g.fillStyle(BODY_DEEP, 0.75)
+    g.fillEllipse(101, 39, 10, 7)
+
+    g.fillStyle(BEAK, 1)
+    g.fillPoints([P(112, 30), P(128, 38), P(112, 38)], true)
+    g.fillStyle(BEAK_DARK, 1)
+    g.fillPoints([P(113, 34), P(127, 39), P(113, 37)], true)
+
+    const feather = (x: number, y: number, len: number, lean: number) => {
+      g.fillStyle(CROWN, 1)
+      g.fillPoints(
+        [P(x - 3, y), P(x + 3, y), P(x + lean + 1.5, y - len), P(x + lean - 1.5, y - len)],
+        true
+      )
+      g.fillStyle(CROWN_LIGHT, 1)
+      g.fillPoints(
+        [P(x - 1, y - 1), P(x + 1.4, y - 1), P(x + lean, y - len + 2), P(x + lean - 1, y - len + 2)],
+        true
+      )
+    }
+
+    g.fillStyle(CROWN, 1)
+    g.fillEllipse(105, 28, 14, 5)
+    feather(99, 28, 8, -3)
+    feather(105, 27, 13, -2)
+    feather(111, 28, 7, -1)
+    g.fillStyle(CREAM, 1)
+    g.fillEllipse(111, 30, 7, 6)
+
+    g.lineStyle(1, GOLD, 0.85)
+    g.lineBetween(101, 27, 110, 28)
+    g.fillStyle(INK, 1)
+    g.fillCircle(108, 31, 2)
+
+    g.generateTexture('npc-mountain-shaper-crane', 130, 152)
+    g.destroy()
+  }
+
+  // 削月筑阳真君：深棕鹿身、米白胸腹、大型金玉鹿角，额头有月纹
+  private makeMoonCarverDeer() {
+    const FUR = 0x5a4030
+    const FUR_DEEP = 0x3e2a1e
+    const CREAM = 0xe8dcc4
+    const CREAM_DEEP = 0xcdbd9f
+    const GOLD = 0xd9a441
+    const JADE = 0x8fe8d0
+    const INK = 0x1e1813
+
+    const g = this.add.graphics()
+    const P = (x: number, y: number) => new Phaser.Math.Vector2(x, y)
+
+    g.fillStyle(0x14201f, 0.35)
+    g.fillEllipse(82, 146, 112, 8)
+
+    // 远侧的腿
+    g.fillStyle(FUR_DEEP, 1)
+    g.fillRect(56, 100, 7, 34)
+    g.fillRect(112, 100, 7, 34)
+    g.fillStyle(GOLD, 1)
+    g.fillRect(56, 140, 7, 6)
+    g.fillRect(112, 140, 7, 6)
+
+    // 尾巴和浅色臀斑
+    g.fillStyle(CREAM, 0.7)
+    g.fillEllipse(40, 84, 13, 17)
+    g.fillStyle(CREAM, 1)
+    g.fillPoints([P(42, 82), P(28, 78), P(30, 98), P(44, 98)], true)
+
+    // 躯干：前胸深、腰腹收、后胯圆，不是等宽圆角矩形
+    g.fillStyle(INK, 1)
+    g.fillPoints(
+      [
+        P(34, 80),
+        P(54, 66),
+        P(92, 66),
+        P(116, 74),
+        P(122, 88),
+        P(118, 106),
+        P(96, 110),
+        P(72, 104),
+        P(52, 100),
+        P(38, 92),
+      ],
+      true
+    )
+
+    g.fillStyle(FUR, 1)
+    g.fillPoints(
+      [
+        P(36, 80),
+        P(56, 68),
+        P(90, 68),
+        P(113, 76),
+        P(119, 89),
+        P(115, 103),
+        P(95, 107),
+        P(72, 101),
+        P(52, 97),
+        P(40, 90),
+      ],
+      true
+    )
+
+    g.fillStyle(CREAM, 1)
+    g.fillPoints(
+      [P(60, 96), P(76, 102), P(98, 104), P(112, 99), P(104, 105), P(80, 104), P(62, 99)],
+      true
+    )
+
+    g.fillStyle(FUR_DEEP, 0.6)
+    g.fillPoints([P(48, 78), P(88, 72), P(104, 75), P(98, 80), P(62, 84)], true)
+
+    // 脖子：基部粗、向头部收细，整体斜向上
+    g.fillStyle(INK, 1)
+    g.fillPoints([P(94, 90), P(100, 54), P(116, 58), P(110, 94)], true)
+    g.fillStyle(FUR, 1)
+    g.fillPoints([P(96, 89), P(102, 56), P(114, 59), P(108, 92)], true)
+
+    // 鹿角：金色主干，青玉高光
+    const antler = (points: [number, number][]) => {
+      g.lineStyle(4, GOLD, 0.95)
+      g.beginPath()
+      g.moveTo(points[0][0], points[0][1])
+
+      for (let i = 1; i < points.length; i++) {
+        g.lineTo(points[i][0], points[i][1])
+      }
+
+      g.strokePath()
+
+      g.lineStyle(1, JADE, 0.65)
+      g.beginPath()
+      g.moveTo(points[0][0], points[0][1])
+
+      for (let i = 1; i < points.length; i++) {
+        g.lineTo(points[i][0], points[i][1])
+      }
+
+      g.strokePath()
+
+      const [x, y] = points[points.length - 1]
+      g.fillStyle(GOLD, 1)
+      g.fillCircle(x, y, 3)
+      g.fillStyle(JADE, 0.8)
+      g.fillCircle(x, y, 1.2)
+    }
+
+    antler([[102, 42], [86, 24], [68, 8]])
+    antler([[86, 24], [70, 28], [58, 20]])
+    antler([[78, 16], [62, 16], [52, 10]])
+    antler([[112, 40], [126, 20], [140, 10]])
+    antler([[126, 20], [116, 6], [108, 2]])
+    antler([[120, 28], [138, 30], [148, 24]])
+
+    // 头与耳朵
+    g.fillStyle(INK, 1)
+    g.fillEllipse(108, 48, 30, 20)
+    g.fillStyle(FUR, 1)
+    g.fillEllipse(108, 48, 27, 17)
+    g.fillStyle(CREAM, 1)
+    g.fillEllipse(121, 53, 15, 10)
+
+    g.fillStyle(FUR, 1)
+    g.fillTriangle(98, 40, 90, 22, 104, 34)
+    g.fillTriangle(116, 38, 126, 22, 124, 42)
+    g.fillStyle(CREAM_DEEP, 1)
+    g.fillTriangle(99, 38, 93, 26, 103, 34)
+    g.fillTriangle(117, 37, 123, 27, 122, 41)
+
+    // 近侧的后腿：大腿厚一点，向下收成细腿
+    g.fillStyle(FUR, 1)
+    g.fillPoints([P(44, 88), P(58, 88), P(56, 116), P(48, 116)], true)
+    g.fillRect(48, 112, 6, 28)
+    g.fillCircle(51, 112, 3)
+
+    // 近侧前腿
+    g.fillRect(100, 100, 7, 40)
+    g.fillCircle(103, 112, 3)
+
+    g.fillStyle(GOLD, 1)
+    g.fillRect(48, 140, 6, 6)
+    g.fillRect(100, 140, 7, 6)
+
+    // 月纹：金色圆压掉一块深棕，留出月牙
+    g.fillStyle(GOLD, 0.95)
+    g.fillCircle(102, 43, 6)
+    g.fillStyle(FUR, 1)
+    g.fillCircle(104, 41, 5)
+
+    // 眼睛与鼻
+    g.fillStyle(GOLD, 1)
+    g.fillCircle(114, 47, 2.2)
+    g.fillStyle(INK, 1)
+    g.fillCircle(114, 47, 1)
+    g.fillStyle(INK, 1)
+    g.fillEllipse(127, 54, 3, 2)
+
+    // 胸前金色云纹
+    g.lineStyle(2, GOLD, 0.8)
+    g.beginPath()
+    g.moveTo(104, 76)
+    g.lineTo(114, 82)
+    g.lineTo(106, 88)
+    g.strokePath()
+    g.lineStyle(1, GOLD, 0.35)
+    g.beginPath()
+    g.arc(98, 92, 12, 0.2, Math.PI * 1.1)
+    g.strokePath()
+
+    g.generateTexture('npc-moon-carver-deer', 160, 150)
+    g.destroy()
   }
 
   // 第一关·沙滩：天上一个太阳，远处海面，近处沙丘。

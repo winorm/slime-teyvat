@@ -23,6 +23,7 @@ import {
   saveProgress,
   hasSeenHint,
   markHintSeen,
+  DEV_MODE,
 } from '../state/progress'
 import { playMusic, playSfx, setLoop, stopAllLoops } from '../state/audio'
 import { queueAchievementToast } from '../state/achievements'
@@ -36,6 +37,104 @@ type GameSceneStartData = {
   domain?: boolean
   returnPoint?: SceneCheckpoint
   checkpoint?: SceneCheckpoint
+  collectedGems?: number[]
+}
+
+type RockPillarRef = {
+  sprite: Phaser.Physics.Arcade.Sprite
+  foot: Phaser.GameObjects.Graphics | null
+  slot: number
+  resonanceTimer: number
+}
+
+type DamageableRef = {
+  sprite: Phaser.GameObjects.Image
+  hp: number
+  maxHp: number
+  bar: Phaser.GameObjects.Graphics
+  tags: string[]
+  onDestroyed: () => void
+}
+
+type OsialTentacleRef = {
+  sprite: Phaser.GameObjects.Image
+  body: Phaser.Physics.Arcade.Sprite
+  active: boolean
+  damageable: DamageableRef | null
+}
+
+type FatuiType = 'hydro' | 'pyro' | 'electro'
+
+const FATUI_TYPE_CONFIG: Record<
+  FatuiType,
+  {
+    texture: string
+    maxHp: number
+    speed: number
+    scale: number
+    tint: number
+  }
+> = {
+  hydro: {
+    texture: 'fatui-hydro',
+    maxHp: 7,
+    speed: 32,
+    scale: 0.95,
+    tint: 0xffffff,
+  },
+  pyro: {
+    texture: 'fatui-pyro',
+    maxHp: 3,
+    speed: 48,
+    scale: 0.9,
+    tint: 0xffffff,
+  },
+  electro: {
+    texture: 'fatui-electro',
+    maxHp: 5.5,
+    speed: 38,
+    scale: 0.92,
+    tint: 0xffffff,
+  },
+}
+
+type FatuiRef = {
+  sprite: Phaser.GameObjects.Image
+  targetX: number
+  targetBallista: number
+  type: FatuiType
+  speed: number
+  baseSpeed: number
+  dir: 1 | -1
+  active: boolean
+  damageable: DamageableRef | null
+  baseMaxHp: number
+  hydroHpBonus: number
+  electroSpeedBonus: number
+}
+
+type BallistaRef = {
+  x: number
+  barY: number
+  charge: number
+  baseChargeTime: number
+  sabotageStacks: number
+  bar: Phaser.GameObjects.Graphics
+}
+
+const OSIAL_STAGE_CONFIG: Record<
+  1 | 2 | 3 | 4,
+  {
+    chargeTime: number
+    spawnEvery: number
+    spawnCount: number
+    attackPeriod: number
+  }
+> = {
+  1: { chargeTime: 7, spawnEvery: 8, spawnCount: 1, attackPeriod: 10 },
+  2: { chargeTime: 6, spawnEvery: 7, spawnCount: 3, attackPeriod: 9 },
+  3: { chargeTime: 5.5, spawnEvery: 6, spawnCount: 5, attackPeriod: 7 },
+  4: { chargeTime: 5, spawnEvery: 5, spawnCount: 5, attackPeriod: 5 },
 }
 
 const HOVER = {
@@ -1383,15 +1482,21 @@ export class GameScene extends Phaser.Scene {
   // 上一帧的脚底 y：判断"这一帧是不是从弧面上方跨到了下方"要用它 ——
   // 掉得快的时候一帧就跨过整条吸附带，只看当前这一帧会当成"人在弧底下"而漏接（见「踩过的坑」）
   private slopePrevFeet = 0
-  // 柱脚常驻的那一圈泥（跟着柱子一起消失）
-  private pillarFoot: Phaser.GameObjects.Graphics | null = null
+  private rockPillars: RockPillarRef[] = []
+  private pillarCharges: number[] = [1, 1]
+  private pillarRecharge: number[] = [0, 0]
+  private pillarChargeDots: Phaser.GameObjects.Arc[] = []
   // ── 琥珀 + 岩共鸣（2026/10/17）────────────────────────────────────
   // 琥珀摆在转角平台上，里头冻着原石 / 野猪 / 人；**只有岩柱的岩共鸣震得开**。
   // 岩柱站着的时候，脚下每隔一会儿就往外扩一圈金色光圈，光圈扫到谁就算"共鸣到"谁。
   private ambers: { sprite: Phaser.GameObjects.Image; def: AmberDef; broken: boolean }[] = []
   private resonanceGfx: Phaser.GameObjects.Graphics | null = null
-  private resonanceTimer = 0
-  private resonanceRings: { x: number; y: number; r: number }[] = []
+  private resonanceRings: {
+    x: number
+    y: number
+    r: number
+    hits: DamageableRef[]
+  }[] = []
   private stairCamTime = 0
 
   private element: ElementKey = 'none'
@@ -1439,6 +1544,7 @@ export class GameScene extends Phaser.Scene {
   private domainHeartText: Phaser.GameObjects.Text | null = null
   private combatHearts = 0
   private combatHeartText: Phaser.GameObjects.Text | null = null
+  private combatLabelText: Phaser.GameObjects.Text | null = null
   // 屏幕提示的堆叠（短时间内多条提示往上叠） + 拉远镜头时 HUD 的反补偿
   private messageStack: Phaser.GameObjects.Text[] = []
   private hudZoomActive = false
@@ -1447,12 +1553,19 @@ export class GameScene extends Phaser.Scene {
   private bossState: 'idle' | 'intro' | 'fight' | 'down' = 'idle'
   private bossTimer = 0
   private bossPhase = 1
+  private bossPendingPhase: 0 | 2 | 3 = 0
   private bossAttacks = 0
   private bossLastSide: -1 | 0 | 1 = 0
   private bossSideStreak = 0
   private bossGroundY = 1160
   private bossSlamCount = 0
   private bossLowerAttacks = 0
+  private mirrorStepPlatforms: Phaser.Physics.Arcade.Sprite[] = []
+  private mirrorStepArt: Phaser.GameObjects.Image[] = []
+  private bossBlocks = 0
+  private bossDodges = 0
+  private bossObjectiveTitle: Phaser.GameObjects.Text | null = null
+  private bossObjectiveText: Phaser.GameObjects.Text | null = null
   private breakableFloor: Phaser.Physics.Arcade.Sprite | null = null
   private floorOverlays: {
     item: { x: number; y: number; width: number; height: number; breakable?: boolean }
@@ -1461,7 +1574,43 @@ export class GameScene extends Phaser.Scene {
   }[] = []
   private floorBroken = false
   private bossDropped = false
-  private bossChest: Phaser.GameObjects.Sprite | null = null
+  private jadeGuide: Phaser.GameObjects.Image | null = null
+  private jadeMode = false
+  private jadeBuilt = false
+  private jadeWideCamera = false
+  private enemyPortalLeft: Phaser.GameObjects.Image | null = null
+  private enemyPortalRight: Phaser.GameObjects.Image | null = null
+  private fatuiAgents: FatuiRef[] = []
+  private osialHp = 50
+  private osialStage: 1 | 2 | 3 | 4 = 1
+  private osialAttackPeriod = 10
+  private osialSpawnTimer = 0
+  private osialSpawnCursor = 0
+  private xiaoAssist = false
+  private xiaoHasteEvent: Phaser.Time.TimerEvent | null = null
+  private ganyuAssist = false
+  private extraCombatHeart = 0
+  private pogoAssist = false
+  private pogoShockwaveCooldown = 0
+  private osialMaxHp = 50
+  private osialHpBar: Phaser.GameObjects.Graphics | null = null
+  private osialHpText: Phaser.GameObjects.Text | null = null
+  private ballistae: BallistaRef[] = []
+  private osialRoot: Phaser.GameObjects.Container | null = null
+  private osialCenterNeck: Phaser.GameObjects.Container | null = null
+  private osialCenterHead: Phaser.GameObjects.Image | null = null
+  private osialLeftNeck: Phaser.GameObjects.Container | null = null
+  private osialLeftHead: Phaser.GameObjects.Image | null = null
+  private osialRightNeck: Phaser.GameObjects.Container | null = null
+  private osialRightHead: Phaser.GameObjects.Image | null = null
+  private osialRoaring = false
+  private osialAttackIndex = 0
+  private osialAttackRunning = false
+  private osialTentacles: OsialTentacleRef[] = []
+  private osialTentacleHintShown = false
+  private damageables: DamageableRef[] = []
+  private combatRevive = false
+  private waterMirrors: { sprite: Phaser.GameObjects.Image; broken: boolean; x: number }[] = []
   private bossDash: { dir: number; speed: number; timer: number } | null = null
   private bossBlades: { sprite: Phaser.GameObjects.Image; vx: number }[] = []
   // 黄金屋的 Boss 场：钟离站在门口、公子立在仙体前面
@@ -1472,7 +1621,7 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
-    const groundTop = this.level.platforms.reduce(
+    const groundTop = this.level.platforms.filter((item) => !item.oneWay).reduce(
       (top, item) => Math.min(top, item.y - item.height / 2),
       Number.POSITIVE_INFINITY
     )
@@ -1489,7 +1638,6 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(0.5, 1)
       .setDepth(1)
       .setFlipX(true)
-
   }
 
   // 走到公子跟前：锁操作、两段对话，然后开打
@@ -1513,6 +1661,7 @@ export class GameScene extends Phaser.Scene {
                 this.bossState = 'fight'
                 this.inputLocked = false
                 this.bossTimer = 1.4
+                this.showBossObjective()
                 this.showMessage('公子动手了！')
 
                 // 进战之后把镜头拉到能看见整个可行动范围
@@ -1560,7 +1709,7 @@ export class GameScene extends Phaser.Scene {
     // 起手就把冷却顶住：预警 / 冲刺那一秒多里 update 还会每帧跑，
     // 不先压住 bossTimer 就会连续起手几十次（实测 attacks 会飙到一百多）
     if (this.bossPhase >= 3) {
-      // 掉到下层之后：闪身连斩和鲸影交替，打够四轮就收尾
+      // 掉到下层之后：闪身连斩和鲸影交替；胜利由躲避计数决定
       if (this.bossDropped) {
         this.bossTimer = 3.4
         this.bossLowerAttacks += 1
@@ -1568,11 +1717,7 @@ export class GameScene extends Phaser.Scene {
         if (this.bossLowerAttacks % 2 === 1) {
           this.castBlinkSlash(childe)
         } else {
-          this.castWhaleSlam(childe)
-        }
-
-        if (this.bossLowerAttacks >= 4) {
-          this.time.delayedCall(2400, () => this.defeatChilde())
+          this.castWhaleSlam(childe, true)
         }
         return
       }
@@ -1586,25 +1731,17 @@ export class GameScene extends Phaser.Scene {
       this.bossTimer = 3.4
       this.bossAttacks += 1
 
-      // 二、三阶段：闪身突刺和天降雷枪交替来
+      // 第二阶段：闪身突刺和天降雷枪交替来
       if (this.bossAttacks % 2 === 1) {
         this.castElectroDash(childe)
       } else {
         this.castSkySpear(childe)
-      }
-
-      if (this.bossAttacks >= 3 && this.bossPhase === 2) {
-        this.enterBossPhase(3)
       }
       return
     }
 
     this.bossTimer = 3.2
     this.bossAttacks += 1
-
-    if (this.bossAttacks >= 3 && this.bossPhase === 1) {
-      this.enterBossPhase(2)
-    }
 
     // 预警：公子身上闪一下青光，地面上拉一条水线
     childe.setTint(0x7fd4ff)
@@ -1641,8 +1778,16 @@ export class GameScene extends Phaser.Scene {
     this.bossPhase = phase
     this.bossAttacks = 0
 
-    const childe = this.childe
+    if (phase === 3) {
+      this.bossSlamCount = 0
+      this.bossDodges = 0
+      this.bossLowerAttacks = 0
+      this.clearMirrorSteps()
+    }
 
+    this.updateBossObjective()
+
+    const childe = this.childe
     if (!childe) {
       return
     }
@@ -1669,10 +1814,131 @@ export class GameScene extends Phaser.Scene {
       childe.setTexture('npc-childe-foul')
       childe.setOrigin(0.5, 1)
       this.showMessage('公子：魔王武装 —— 这才算认真。')
+      this.summonWaterMirrors()
       return
     }
 
-    this.showMessage('公子的气息变了 —— 小心头顶！')
+  }
+  private buildMirrorSteps() {
+    if (this.mirrorStepPlatforms.length > 0) {
+      return
+    }
+
+    const steps = [
+      { x: 1680, y: 1119, artY: 1130 },
+      { x: 1725, y: 1075, artY: 1086 },
+      { x: 1700, y: 1031, artY: 1042 },
+      { x: 1780, y: 1031, artY: 1042 },
+      { x: 1860, y: 1031, artY: 1042 },
+    ]
+
+    steps.forEach((step) => {
+      const platform = this.platforms.create(
+        step.x,
+        step.y,
+        'pixel'
+      ) as Phaser.Physics.Arcade.Sprite
+
+      platform.setDisplaySize(70, 6)
+      platform.setVisible(false)
+      platform.refreshBody()
+
+      const body = platform.body as Phaser.Physics.Arcade.StaticBody
+
+      body.checkCollision.down = false
+      body.checkCollision.left = false
+      body.checkCollision.right = false
+
+      this.mirrorStepPlatforms.push(platform)
+      this.mirrorStepArt.push(
+        this.add
+          .image(step.x, step.artY, 'wall-ledge')
+          .setOrigin(0.5, 1)
+          .setDepth(-4.6)
+      )
+    })
+  }
+
+  private clearMirrorSteps() {
+    this.mirrorStepPlatforms.forEach((platform) => platform.destroy())
+    this.mirrorStepArt.forEach((art) => art.destroy())
+    this.mirrorStepPlatforms = []
+    this.mirrorStepArt = []
+  }
+  // 二阶段开场：公子抬手召出三面水镜（左右各一 + 高空一面）
+  private summonWaterMirrors() {
+    this.buildMirrorSteps()
+    const spots = [
+      { x: 1430, y: 1160 },
+      { x: 2130, y: 1160 },
+      { x: 1780, y: 1028 },
+    ]
+
+    this.waterMirrors = spots.map((spot, index) => {
+      const sprite = this.add
+        .image(spot.x, spot.y, 'water-mirror')
+        .setOrigin(0.5, 1)
+        .setDepth(3)
+        .setScale(0)
+        .setAlpha(0)
+
+      const ring = this.add
+        .image(spot.x, spot.y - 30, 'shock-ring')
+        .setTint(0x8fd8f0)
+        .setDepth(2.9)
+        .setScale(0.3)
+        .setAlpha(0.9)
+
+      this.tweens.add({
+        targets: ring,
+        scaleX: 1.6,
+        scaleY: 1.2,
+        alpha: 0,
+        duration: 500,
+        delay: index * 140,
+        onComplete: () => ring.destroy(),
+      })
+
+      this.tweens.add({
+        targets: sprite,
+        scale: 1,
+        alpha: 1,
+        duration: 420,
+        delay: index * 140,
+        ease: 'Back.easeOut',
+      })
+
+      return { sprite, broken: false, x: spot.x }
+    })
+    this.updateBossObjective()
+    // 公子召唤的动作：抬身一下、身上泛水光
+    const childe = this.childe
+
+    if (childe) {
+      const fromY = childe.y
+
+      this.tweens.add({
+        targets: childe,
+        y: fromY - 12,
+        duration: 260,
+        yoyo: true,
+        ease: 'Sine.easeOut',
+      })
+      childe.setTint(0x8fd8f0)
+      this.time.delayedCall(600, () => childe.clearTint())
+    }
+  }
+
+  // 当前阶段的技能全部消失之后才真正换阶段
+  private resolvePendingPhase() {
+    if (this.bossPendingPhase === 0) {
+      return
+    }
+
+    const next = this.bossPendingPhase
+
+    this.bossPendingPhase = 0
+    this.enterBossPhase(next)
   }
 
   // 第二阶段：雷突刺 —— 蓄力后朝玩家横冲，撞到岩柱会停、岩化能硬吃一次
@@ -1687,7 +1953,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private levelGroundTop() {
-    return this.level.platforms.reduce(
+return this.level.platforms.filter((item) => !item.oneWay).reduce(
       (top, item) => Math.min(top, item.y - item.height / 2),
       Number.POSITIVE_INFINITY
     )
@@ -1820,7 +2086,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   // 天降雷枪：先在玩家脚下点出落点，再从公子那一侧的空中斜着扎下来
-  private castSkySpear(childe: Phaser.GameObjects.Image) {
+  private castSkySpear(childe: Phaser.GameObjects.Image, fast = false) {
     const groundTop = this.bossGroundY
     const arena = this.bossArena()
     const targetX = Phaser.Math.Clamp(this.slime.x, arena.left + 40, arena.right - 40)
@@ -1850,7 +2116,7 @@ export class GameScene extends Phaser.Scene {
       repeat: 2,
     })
 
-    this.time.delayedCall(900, () => {
+    this.time.delayedCall(fast ? 600 : 900, () => {
       arrow.destroy()
       ring.destroy()
 
@@ -1882,9 +2148,25 @@ export class GameScene extends Phaser.Scene {
           this.hydroSplash(targetX, groundTop - 12, 0xc9a6ff)
           this.cameras.main.shake(120, 0.004)
 
-          if (Math.abs(this.slime.x - targetX) < 46) {
+          const body = this.slime.body as Phaser.Physics.Arcade.Body
+          const hitLeft = targetX - 32
+          const hitRight = targetX + 32
+          const hitTop = groundTop - 38
+          const hitBottom = groundTop + 4
+
+          // 雷枪扎在地面上：只有玩家碰撞盒与落点这一小块区域相交才受伤。
+          // 不能只比 x，否则站在空中平台、恰好和落点同列的玩家也会被误判。
+          const inImpactZone =
+            body.right > hitLeft &&
+            body.left < hitRight &&
+            body.bottom > hitTop &&
+            body.top < hitBottom
+
+          if (inImpactZone) {
             this.damageCombat(1)
           }
+
+          this.resolvePendingPhase()
         },
       })
 
@@ -1900,7 +2182,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   // 第三阶段：鲸影砸地 —— 落点预警后一头水鲸从天而降，连砸三次把大厅正中砸塌
-  private castWhaleSlam(childe: Phaser.GameObjects.Image) {
+  private castWhaleSlam(
+    childe: Phaser.GameObjects.Image,
+    countsForDodge = false
+  ) {
     const groundTop = this.bossGroundY
     const arena = this.bossArena()
     const targetX = Phaser.Math.Clamp(this.slime.x, arena.left + 60, arena.right - 60)
@@ -1983,14 +2268,19 @@ export class GameScene extends Phaser.Scene {
 
           this.addFloorCrack(targetX, groundTop)
 
-          if (Math.abs(this.slime.x - targetX) < 70) {
+          const dodged = Math.abs(this.slime.x - targetX) >= 70
+
+          if (!dodged) {
             this.damageCombat(1)
           }
 
           this.bossSlamCount += 1
 
-          if (this.bossSlamCount >= 3) {
+          if (this.bossPhase >= 3 && !this.bossDropped && this.bossSlamCount >= 3) {
             this.breakBossFloor()
+          }
+          if (countsForDodge) {
+            this.registerBossDodge(dodged)
           }
         },
       })
@@ -2100,6 +2390,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.bossState = 'down'
+    this.hideBossObjective()
     this.inputLocked = true
     this.slime.setVelocity(0, 0)
 
@@ -2133,42 +2424,50 @@ export class GameScene extends Phaser.Scene {
           this.showDialogue(
             '凝光',
             ['黄金屋先封了。跟我上群玉阁 —— 海里的东西要上来了。'],
-            () => this.showBossChest()
+            () => this.showZhongliJade()
           )
       )
     })
   }
 
-  // 对话完出现宝箱：镜头推近强调一下，之后由玩家自己走过去决定开不开
-  private showBossChest() {
+  // 公子认输后：钟离出现在原先宝箱的位置，等他带路上群玉阁
+  private showZhongliJade() {
     const arena = this.bossArena()
     const x = Math.min(arena.right - 80, arena.left + 260)
-    const y = 1900 - 14
+    const y = 1900 - 2
 
-    const chest = this.add.sprite(x, y, 'chest').setDepth(5).setScale(0)
+    const guide = this.add
+      .image(x, y, 'npc-zhongli')
+      .setOrigin(0.5, 1)
+      .setDepth(5)
+      .setScale(0.2)
+      .setAlpha(0)
 
-    this.bossChest = chest
+    this.jadeGuide = guide
     this.inputLocked = false
 
-    const ring = this.add.image(x, y + 12, 'blessing').setTint(0xffd54f).setDepth(4).setScale(0.6)
+    const ring = this.add
+      .image(x, y - 30, 'shock-ring')
+      .setTint(0xffd54f)
+      .setDepth(4)
+      .setScale(0.5)
 
     this.tweens.add({
       targets: ring,
-      scaleX: 3,
-      scaleY: 3,
+      scaleX: 2.4,
+      scaleY: 1.6,
       alpha: 0,
-      duration: 620,
+      duration: 600,
       onComplete: () => ring.destroy(),
     })
 
-    this.tweens.add({ targets: chest, scale: 1, duration: 420, ease: 'Back.easeOut' })
+    this.tweens.add({ targets: guide, scale: 1, alpha: 1, duration: 420, ease: 'Back.easeOut' })
 
-    // 镜头强调宝箱，停一会儿再交还
     const camera = this.cameras.main
 
     camera.stopFollow()
     camera.zoomTo(1.5, 500, 'Sine.easeInOut')
-    camera.pan(x, y - 24, 500, 'Sine.easeInOut')
+    camera.pan(x, y - 40, 500, 'Sine.easeInOut')
 
     this.time.delayedCall(1500, () => {
       camera.zoomTo(1, 500, 'Sine.easeInOut')
@@ -2179,8 +2478,1747 @@ export class GameScene extends Phaser.Scene {
         this.refreshHud()
       })
 
-      this.showMessage('宝箱出现了 —— 想收尾就过去打开它')
+      this.showMessage('钟离在那儿等你')
     })
+  }
+
+  private talkToZhongliJade() {
+    if (this.jadeMode || this.inputLocked) {
+      return
+    }
+
+    this.inputLocked = true
+
+    this.showDialogue(
+      '钟离',
+      ['奥赛尔被放出来了。', '凝光在群玉阁上撑着，归终机还需要人守。', '跟我来 —— 上群玉阁。'],
+      () => this.enterJadeChamber()
+    )
+  }
+
+  // 黑屏上群玉阁：背景换成天空，复活规则改成"心脏起立"
+  private enterJadeChamber() {
+    this.jadeMode = true
+    this.combatRevive = true
+    this.inputLocked = true
+
+    const camera = this.cameras.main
+
+    camera.fadeOut(500, 0, 0, 0)
+
+    this.time.delayedCall(600, () => {
+      const body = this.slime.body as Phaser.Physics.Arcade.Body
+
+      body.reset(2990, 1147)
+      this.bossGroundY = 1160
+
+      if (this.bgFar) {
+        this.bgFar.setTexture('bg-jade-far')
+      }
+
+      if (this.bgMid) {
+        this.bgMid.setTexture('bg-jade-mid')
+      }
+
+      playMusic(this, 'music-osial')
+      this.buildJadeChamber()
+      this.combatLabelText?.setText('群玉阁')
+      this.showJadeObjective()
+      camera.fadeIn(500, 0, 0, 0)
+      this.inputLocked = false
+      this.showMessage('群玉阁')
+    })
+  }
+
+  private buildJadeChamber() {
+    if (this.jadeBuilt) {
+      return
+    }
+
+    this.jadeBuilt = true
+
+    const groundY = 1160
+    const deckLeft = 3060
+    const deckRight = 4500
+
+    // 群玉阁石基：只画右半边的圆柱体，向平台方向延伸
+    const stoneBase = this.add.graphics().setDepth(-5.8)
+    // 平台阵纹左焦点约 x=2707；石基右边缘设到 3200，确保压过焦点
+    // 圆台中轴线对齐玩家脚底 y=1160
+    const stoneX = 2650
+    const stoneY = 1160
+    const stoneRx = 550
+    const stoneRy = 45
+    const stoneDepth = 40
+
+    const ellipseArc = (
+      baseY: number,
+      from: number,
+      to: number,
+      rxScale = 1,
+      ryScale = 1
+    ) => {
+      const points: Phaser.Math.Vector2[] = []
+      const steps = 24
+
+      for (let i = 0; i <= steps; i++) {
+        const angle = from + ((to - from) * i) / steps
+
+        points.push(
+          new Phaser.Math.Vector2(
+            stoneX + Math.cos(angle) * stoneRx * rxScale,
+            baseY + Math.sin(angle) * stoneRy * ryScale
+          )
+        )
+      }
+
+      return points
+    }
+
+    const topArc = ellipseArc(stoneY, -Math.PI / 2, Math.PI / 2)
+    const bottomArc = ellipseArc(stoneY + stoneDepth, Math.PI / 2, -Math.PI / 2)
+
+    // 圆柱侧壁：先用实体矩形兜底，再铺右半圆弧，避免接缝透出背景
+    stoneBase.fillStyle(0x2a3f3d, 1)
+    stoneBase.fillRect(stoneX, stoneY, stoneRx, stoneDepth)
+    stoneBase.fillPoints([...topArc, ...bottomArc], true)
+
+    // 右半圆柱的切面
+    stoneBase.fillStyle(0x223a37, 1)
+    stoneBase.fillRect(stoneX, stoneY - stoneRy, 6, stoneRy * 2 + stoneDepth)
+
+    // 顶面：只铺右半边
+    stoneBase.fillStyle(0x5f7f78, 1)
+    stoneBase.fillPoints(topArc, true)
+
+    // 顶面内圈石纹
+    stoneBase.lineStyle(1, 0xbfeee4, 0.3)
+    stoneBase.strokePoints(ellipseArc(stoneY, -Math.PI / 2 + 0.12, Math.PI / 2 - 0.12, 0.8, 0.7))
+
+    // 顶沿金边
+    stoneBase.lineStyle(3, 0xd8c77a, 0.75)
+    stoneBase.strokePoints(topArc)
+
+    // 底面暗弧与右侧端面
+    stoneBase.lineStyle(3, 0x1f3331, 0.85)
+    stoneBase.strokePoints(ellipseArc(stoneY + stoneDepth, -Math.PI / 2, Math.PI / 2))
+    stoneBase.lineStyle(2, 0xd8c77a, 0.45)
+    stoneBase.lineBetween(
+      stoneX + stoneRx,
+      stoneY,
+      stoneX + stoneRx,
+      stoneY + stoneDepth
+    )
+    // 法阵：外圈金阵、内圈玉纹，中轴线从殿门一直穿到前端归终机
+    const deck = this.add.graphics().setDepth(-6.1)
+
+    deck.lineStyle(5, 0xf4df9a, 0.5)
+    deck.strokeEllipse(3600, groundY - 10, 1800, 230)
+    deck.lineStyle(2, 0xbfeee4, 0.28)
+    deck.strokeEllipse(3600, groundY - 10, 1500, 170)
+    deck.lineStyle(1, 0xf4df9a, 0.22)
+    deck.strokeEllipse(3600, groundY - 10, 1180, 126)
+
+    deck.lineStyle(7, 0x8fd9d0, 0.07)
+    deck.beginPath()
+    deck.moveTo(deckLeft - 26, groundY - 1)
+    deck.lineTo(deckRight, groundY - 1)
+    deck.strokePath()
+    deck.lineStyle(1, 0xf4df9a, 0.32)
+    deck.beginPath()
+    deck.moveTo(deckLeft - 26, groundY - 1)
+    deck.lineTo(deckRight, groundY - 1)
+    deck.strokePath()
+
+    deck.lineStyle(1, 0xf4df9a, 0.12)
+
+    for (let i = 0; i < 8; i++) {
+      const angle = (Math.PI * 2 * i) / 8
+      const x = 3600 + Math.cos(angle) * 740
+      const y = groundY - 10 + Math.sin(angle) * 100
+
+      deck.beginPath()
+      deck.moveTo(3600, groundY - 10)
+      deck.lineTo(x, y)
+      deck.strokePath()
+    }
+
+    deck.setAlpha(0)
+    this.tweens.add({ targets: deck, alpha: 1, duration: 1100, ease: 'Sine.easeOut' })
+
+    // 大殿：侧面。门开在靠平台的一端，屋顶继续向左边延伸出画
+    this.add
+      .image(2680, groundY, 'jade-chamber-gate')
+      .setOrigin(0.5, 1)
+      .setDepth(-5.6)
+
+    const gateGlow = this.add.graphics().setDepth(-5.5)
+
+    gateGlow.fillStyle(0xffd98a, 0.1)
+    gateGlow.fillEllipse(2990, groundY - 62, 170, 110)
+    // 愚人众传送门：左端在圆台最右边，右端在平台边缘
+    const portalLeft = this.add
+      .image(3150, groundY, 'enemy-portal')
+      .setOrigin(0.5, 1)
+      .setDepth(4)
+      .setScale(0.82)
+      .setAlpha(0.7)
+
+    const portalRight = this.add
+      .image(4480, groundY, 'enemy-portal')
+      .setOrigin(0.5, 1)
+      .setDepth(4)
+      .setScale(0.82)
+      .setAlpha(0.7)
+
+    this.enemyPortalLeft = portalLeft
+    this.enemyPortalRight = portalRight
+
+    // 归终机的落脚点：法阵在这里凝成实体玉台
+    const dais = this.add.graphics().setDepth(0.146)
+    const frontDais = this.add.graphics().setDepth(11.3)
+
+    const seat = (
+      target: Phaser.GameObjects.Graphics,
+      x: number,
+      y: number,
+      width: number,
+      height: number
+    ) => {
+      target.fillStyle(0x5f817a, 0.92)
+      target.fillEllipse(x, y, width, height)
+      target.lineStyle(1, 0xd8c77a, 0.55)
+      target.strokeEllipse(x, y, width, height)
+      target.lineStyle(1, 0xbfeee4, 0.25)
+      target.strokeEllipse(x, y, width * 0.72, height * 0.62)
+    }
+
+    seat(dais, 3480, 1072, 104, 24)
+    seat(frontDais, 3720, 1222, 136, 30)
+    seat(dais, 4250, 1158, 122, 28)
+
+    // 三台归终机：远侧、近侧、前端，全部朝右
+    this.add
+      .image(3480, groundY - 88, 'jade-ballista')
+      .setOrigin(0.5, 1)
+      .setScale(0.84)
+      .setDepth(1.4)
+
+    this.add
+      .image(3720, groundY + 62, 'jade-ballista')
+      .setOrigin(0.5, 1)
+      .setScale(1.08)
+      .setDepth(11.4)
+
+    this.add
+      .image(4250, groundY - 2, 'jade-ballista')
+      .setOrigin(0.5, 1)
+      .setScale(1)
+      .setDepth(2)
+
+    this.ballistae = [
+      { x: 3480, barY: 1100 },
+      { x: 3720, barY: 1250 },
+      { x: 4250, barY: 1186 },
+    ].map((item) => ({
+      x: item.x,
+      barY: item.barY,
+      charge: 0,
+      baseChargeTime: 7,
+      sabotageStacks: 0,
+      bar: this.add.graphics().setDepth(12),
+    }))
+    this.osialHpBar = this.add
+      .graphics()
+      .setScrollFactor(0)
+      .setDepth(HUD_DEPTH)
+
+    this.osialHpText = this.add
+      .text(240, 88, '奥赛尔 50/50', {
+        fontFamily: 'sans-serif',
+        fontSize: '10px',
+        color: '#8fe8d0',
+      })
+      .setOrigin(0.5, 0)
+      .setScrollFactor(0)
+      .setDepth(HUD_DEPTH)
+
+    this.drawOsialHpBar()
+    // 三位仙人：两鹤一鹿，站在各自机关左侧
+    this.add
+      .image(3330, groundY - 90, 'npc-cloud-retainer-crane')
+      .setOrigin(0.5, 1)
+      .setScale(0.7)
+      .setTint(0xd8f0ff)
+      .setDepth(1.2)
+
+    this.add
+      .image(3540, groundY + 58, 'npc-mountain-shaper-crane')
+      .setOrigin(0.5, 1)
+      .setScale(0.76)
+      .setDepth(11.2)
+
+    this.add
+      .image(4050, groundY - 2, 'npc-moon-carver-deer')
+      .setOrigin(0.5, 1)
+      .setScale(0.9)
+      .setDepth(1.8)
+
+    const ningX = 3000
+    const ningY = 1060
+
+    const glow = this.add
+      .ellipse(ningX, ningY, 58, 78, 0xffd98a, 0.12)
+      .setDepth(3.7)
+
+    this.tweens.add({
+      targets: glow,
+      alpha: 0.2,
+      scaleX: 1.1,
+      scaleY: 1.06,
+      duration: 1400,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    const aura = this.add
+      .image(ningX, ningY, 'shock-ring')
+      .setTint(0xffd98a)
+      .setAlpha(0.28)
+      .setScale(1.15)
+      .setDepth(3.8)
+
+    this.tweens.add({
+      targets: aura,
+      scaleX: 1.5,
+      scaleY: 1.3,
+      alpha: 0.08,
+      duration: 1600,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    const ning = this.add
+      .image(ningX, ningY, 'npc-ningguang')
+      .setScale(1.2)
+      .setDepth(4)
+
+    this.tweens.add({
+      targets: ning,
+      y: ningY - 9,
+      duration: 1500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    // 奥赛尔：水涡只旋转，身体静止，脖子和头分开摆动
+    const osialRoot = this.add.container(0, 0).setScrollFactor(0).setDepth(-18)
+
+    this.osialRoot = osialRoot
+
+    const vortex = this.add
+      .image(360, 300, 'osial-vortex-spin')
+      .setScrollFactor(0)
+      .setDepth(-18.5)
+      .setScale(0.8)
+      .setAlpha(0.45)
+
+    osialRoot.add(vortex)
+
+    this.tweens.add({
+      targets: vortex,
+      angle: 360,
+      duration: 24000,
+      repeat: -1,
+      ease: 'Linear',
+    })
+
+    const body = this.add
+      .image(360, 280, 'osial-body')
+      .setOrigin(0.5, 1)
+      .setScrollFactor(0)
+      .setDepth(-18)
+      .setScale(0.9)
+      .setAlpha(0.85)
+
+    osialRoot.add(body)
+
+    const makeNeck = (
+      x: number,
+      y: number,
+      scale: number,
+      angle: number,
+      alpha: number,
+      depth: number,
+      sway: number,
+      swayTime: number,
+      headSway: number,
+      headTime: number
+    ) => {
+      const container = this.add
+        .container(x, y)
+        .setScrollFactor(0)
+        .setDepth(depth)
+        .setScale(scale)
+        .setAlpha(alpha)
+        .setAngle(angle)
+
+      const neck = this.add.image(0, 0, 'osial-neck').setOrigin(0.5, 1)
+      const head = this.add
+        .image(0, -192, 'osial-head')
+        .setOrigin(0.28, 0.55)
+
+      container.add([neck, head])
+      osialRoot.add(container)
+
+      this.tweens.add({
+        targets: container,
+        angle: angle + sway,
+        duration: swayTime,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      })
+
+      this.tweens.add({
+        targets: head,
+        angle: headSway,
+        y: -195,
+        duration: headTime,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      })
+      return { container, head }
+    }
+
+    // 两个藏在后面的暗头
+    makeNeck(330, 266, 0.58, -4, 0.42, -18.0, 1.4, 3000, 2, 2100)
+    makeNeck(390, 266, 0.58, 4, 0.42, -18.0, -1.4, 3000, -2, 2300)
+    // 三个主头：中间最高，左右摆幅不同
+    const leftNeck = makeNeck(300, 272, 0.82, -7, 1, -17.8, 3.2, 3200, 3, 2400)
+    const centerNeck = makeNeck(360, 280, 1, 0, 1, -17.9, 1.2, 4200, 2, 2600)
+    const rightNeck = makeNeck(420, 272, 0.82, 7, 1, -17.7, -3.2, 3800, 3, 2500)
+
+    this.osialLeftNeck = leftNeck.container
+    this.osialLeftHead = leftNeck.head
+    this.osialCenterNeck = centerNeck.container
+    this.osialCenterHead = centerNeck.head
+    this.osialRightNeck = rightNeck.container
+    this.osialRightHead = rightNeck.head
+  }
+  private playOsialRoar() {
+    const centerNeck = this.osialCenterNeck
+    const centerHead = this.osialCenterHead
+    const leftNeck = this.osialLeftNeck
+    const leftHead = this.osialLeftHead
+    const rightNeck = this.osialRightNeck
+    const rightHead = this.osialRightHead
+
+    if (
+      !centerNeck ||
+      !centerHead ||
+      !leftNeck ||
+      !leftHead ||
+      !rightNeck ||
+      !rightHead ||
+      this.osialRoaring
+    ) {
+      return
+    }
+
+    this.osialRoaring = true
+
+    const roarNeck = (
+      neck: Phaser.GameObjects.Container,
+      head: Phaser.GameObjects.Image,
+      roarAngle: number,
+      roarHeadAngle: number,
+      roarHeadY: number,
+      restoreNeckAngle: number,
+      restoreNeckTime: number,
+      restoreHeadAngle: number,
+      restoreHeadTime: number,
+      delay: number
+    ) => {
+      this.tweens.killTweensOf(neck)
+      this.tweens.killTweensOf(head)
+
+      this.tweens.add({
+        targets: neck,
+        angle: roarAngle,
+        duration: 300,
+        delay,
+        yoyo: true,
+        hold: 300,
+        ease: 'Sine.easeOut',
+        onComplete: () => {
+          this.tweens.add({
+            targets: neck,
+            angle: restoreNeckAngle,
+            duration: restoreNeckTime,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut',
+          })
+        },
+      })
+
+      this.tweens.add({
+        targets: head,
+        angle: roarHeadAngle,
+        y: roarHeadY,
+        duration: 320,
+        delay,
+        yoyo: true,
+        hold: 520,
+        ease: 'Sine.easeOut',
+        onComplete: () => {
+          this.tweens.add({
+            targets: head,
+            angle: restoreHeadAngle,
+            y: -195,
+            duration: restoreHeadTime,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut',
+          })
+        },
+      })
+    }
+
+    // 中间先吼，左右两侧稍微晚一点向外张开
+    roarNeck(centerNeck, centerHead, -8, -10, -198, 1.2, 2100, 2, 1300, 0)
+    roarNeck(leftNeck, leftHead, -14, -7, -196, -3.8, 1600, 3, 1200, 60)
+    roarNeck(rightNeck, rightHead, 14, 7, -196, 3.8, 1900, 3, 1250, 90)
+
+    this.cameras.main.shake(260, 0.006)
+
+    const ring = this.add
+      .image(360, 280, 'shock-ring')
+      .setScrollFactor(0)
+      .setDepth(-17.6)
+      .setTint(0x8fe8d0)
+      .setScale(0.3)
+      .setAlpha(0.85)
+
+    this.tweens.add({
+      targets: ring,
+      scaleX: 2.2,
+      scaleY: 1.4,
+      alpha: 0,
+      duration: 700,
+      ease: 'Sine.easeOut',
+      onComplete: () => ring.destroy(),
+    })
+
+    this.time.delayedCall(1000, () => {
+      this.osialRoaring = false
+    })
+  }
+
+  private playOsialTentacle(x: number) {
+    if (!this.jadeMode || this.jadeVictoryStarted) {
+      return
+    }
+
+    const groundY = 1160
+    const warn = this.add
+      .image(x, groundY, 'shock-ring')
+      .setTint(0x8fe8d0)
+      .setDepth(5)
+      .setScale(0.4)
+      .setAlpha(0.8)
+
+    this.tweens.add({
+      targets: warn,
+      scaleX: 1.8,
+      scaleY: 0.9,
+      alpha: 0.1,
+      duration: 650,
+      ease: 'Sine.easeOut',
+      onComplete: () => warn.destroy(),
+    })
+
+    this.cameras.main.shake(180, 0.004)
+
+    this.time.delayedCall(260, () => {
+      const tentacle = this.add
+        .image(x, groundY + 8, 'osial-tentacle')
+        .setOrigin(0.5, 1)
+        .setScale(1, 0.06)
+        .setDepth(11.6)
+        .setAlpha(0.95)
+
+      const body = this.blockers.create(
+        x,
+        groundY - 60,
+        'pixel'
+      ) as Phaser.Physics.Arcade.Sprite
+
+      body.setVisible(false)
+      body.setDisplaySize(44, 120)
+      body.refreshBody()
+
+      const entry: OsialTentacleRef = {
+        sprite: tentacle,
+        body,
+        active: true,
+        damageable: null,
+      }
+
+      this.osialTentacles.push(entry)
+
+      entry.damageable = this.registerDamageable(
+        tentacle,
+        1.5,
+        ['rock', 'rock-resonance'],
+        () => this.destroyOsialTentacle(entry)
+      )
+
+      this.hydroSplash(x, groundY, 0x8fe8d0)
+
+      this.tweens.add({
+        targets: tentacle,
+        scaleY: 1,
+        duration: 360,
+        ease: 'Back.easeOut',
+      })
+
+      this.tweens.add({
+        targets: tentacle,
+        angle: 5,
+        duration: 380,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      })
+
+      this.time.delayedCall(10000, () => {
+        this.destroyOsialTentacle(entry)
+      })
+    })
+  }
+
+  private registerDamageable(
+    sprite: Phaser.GameObjects.Image,
+    maxHp: number,
+    tags: string[],
+    onDestroyed: () => void
+  ) {
+    const bar = this.add.graphics().setDepth(12)
+    const entry: DamageableRef = {
+      sprite,
+      hp: maxHp,
+      maxHp,
+      bar,
+      tags,
+      onDestroyed,
+    }
+
+    this.damageables.push(entry)
+    return entry
+  }
+
+  private removeDamageable(entry: DamageableRef | null) {
+    if (!entry) {
+      return
+    }
+
+    if (entry.bar.active) {
+      entry.bar.destroy()
+    }
+
+    this.damageables = this.damageables.filter((one) => one !== entry)
+  }
+
+  private hitDamageable(entry: DamageableRef, amount: number) {
+    if (entry.hp <= 0 || !entry.sprite.active) {
+      return
+    }
+
+    entry.hp = Math.max(0, entry.hp - amount)
+    const top = entry.sprite.getTopCenter()
+    this.showDamageFeedback(top.x, top.y - 6, amount)
+    entry.sprite.setTint(0xffffff)
+
+    this.time.delayedCall(90, () => {
+      if (entry.sprite.active) {
+        entry.sprite.clearTint()
+      }
+    })
+
+    if (entry.hp <= 0) {
+      this.removeDamageable(entry)
+      entry.onDestroyed()
+    }
+  }
+  private formatDamage(amount: number) {
+    return Number(amount.toFixed(1)).toString()
+  }
+
+  private showDamageFeedback(
+    x: number,
+    y: number,
+    amount: number,
+    color = '#ff6b6b'
+  ) {
+    const text = this.add
+      .text(x, y, `-${this.formatDamage(amount)}`, {
+        fontFamily: 'sans-serif',
+        fontSize: '11px',
+        color,
+        stroke: '#1a1010',
+        strokeThickness: 2,
+      })
+      .setOrigin(0.5, 1)
+      .setDepth(30)
+
+    this.tweens.add({
+      targets: text,
+      y: y - 18,
+      alpha: 0,
+      duration: 650,
+      ease: 'Sine.easeOut',
+      onComplete: () => text.destroy(),
+    })
+  }
+
+  private showHudDamageFeedback(amount: number) {
+    const text = this.add
+      .text(240, 62, `-${this.formatDamage(amount)}`, {
+        fontFamily: 'sans-serif',
+        fontSize: '10px',
+        color: '#ffe9a8',
+        stroke: '#1a1010',
+        strokeThickness: 2,
+      })
+      .setOrigin(0.5, 0)
+      .setScrollFactor(0)
+      .setDepth(HUD_DEPTH + 1)
+
+    this.tweens.add({
+      targets: text,
+      y: 50,
+      alpha: 0,
+      duration: 600,
+      ease: 'Sine.easeOut',
+      onComplete: () => text.destroy(),
+    })
+  }
+
+  private drawOsialHpBar() {
+    const bar = this.osialHpBar
+
+    if (!bar) {
+      return
+    }
+
+    const left = 115
+    const top = 104
+    const cellWidth = 4
+    const gap = 1
+    const height = 6
+    const totalWidth = 50 * cellWidth + 49 * gap
+
+    bar.clear()
+    bar.fillStyle(0x101820, 0.85)
+    bar.fillRect(left - 2, top - 2, totalWidth + 4, height + 4)
+
+    for (let i = 0; i < this.osialMaxHp; i++) {
+      bar.fillStyle(i < this.osialHp ? 0x8fe8d0 : 0x2a2a3a, i < this.osialHp ? 1 : 0.8)
+      bar.fillRect(left + i * (cellWidth + gap), top, cellWidth, height)
+    }
+
+    bar.lineStyle(1, 0xffe9a8, 0.7)
+    bar.strokeRect(left - 2, top - 2, totalWidth + 4, height + 4)
+
+    this.osialHpText?.setText(`奥赛尔 ${this.osialHp}/${this.osialMaxHp}`)
+  }
+
+  private getOsialStage(hp: number): 1 | 2 | 3 | 4 {
+    if (hp > 40) {
+      return 1
+    }
+
+    if (hp > 30) {
+      return 2
+    }
+
+    if (hp > 20) {
+      return 3
+    }
+
+    return 4
+  }
+
+  private refreshOsialStage() {
+    const next = this.getOsialStage(this.osialHp)
+
+    if (next === this.osialStage) {
+      return
+    }
+
+    this.osialStage = next
+    const config = OSIAL_STAGE_CONFIG[next]
+
+    this.osialAttackPeriod = config.attackPeriod
+    this.osialSpawnTimer = config.spawnEvery
+    this.ballistae.forEach((ballista) => {
+      ballista.baseChargeTime = config.chargeTime
+    })
+
+    this.showMessage(`奥赛尔进入第${next}阶段`)
+  }
+
+  private showJadeObjective() {
+    this.bossObjectiveTitle
+      ?.setText('击退奥赛尔')
+      .setVisible(true)
+
+    this.bossObjectiveText?.setVisible(true)
+    this.updateJadeObjective()
+  }
+
+  private updateJadeObjective() {
+    if (
+      !this.jadeMode ||
+      this.jadeVictoryStarted ||
+      !this.bossObjectiveTitle ||
+      !this.bossObjectiveText
+    ) {
+      return
+    }
+
+    const stageHints = [
+      '守住三台归终机，阻止愚人众接近',
+      '魈已助阵：疾风符每15秒出现在场地中央',
+      '甘雨已护佑：敌人获得强化，继续守住归终机',
+      '萍姥姥已助阵：岩柱、岩共鸣与踩头伤害翻倍',
+    ]
+
+    this.bossObjectiveTitle.setText(
+      `击退奥赛尔 · ${this.osialHp}/${this.osialMaxHp}`
+    )
+    this.bossObjectiveText.setText(
+      `第${this.osialStage}阶段 · ${stageHints[this.osialStage - 1]}`
+    )
+  }
+
+  private checkJadeAssists() {
+    if (!this.jadeMode) {
+      return
+    }
+
+    if (!this.xiaoAssist && this.osialHp <= 40) {
+      this.grantXiaoAssist()
+    }
+    if (!this.ganyuAssist && this.osialHp <= 30) {
+      this.grantGanyuAssist()
+    }
+    if (!this.pogoAssist && this.osialHp <= 20) {
+      this.grantPogoAssist()
+    }
+  }
+
+  private grantXiaoAssist() {
+    if (this.xiaoAssist) {
+      return
+    }
+
+    this.xiaoAssist = true
+    this.showMessage('魈：速度太慢。借你一缕风。')
+    this.showMessage('仙人助力·魈：常态移速提高，场地中央每15秒出现一枚疾风符。')
+
+    this.spawnJadeHasteCharm()
+
+    this.xiaoHasteEvent = this.time.addEvent({
+      delay: 15000,
+      loop: true,
+      callback: () => this.spawnJadeHasteCharm(),
+    })
+  }
+
+  private grantGanyuAssist() {
+    if (this.ganyuAssist) {
+      return
+    }
+
+    this.ganyuAssist = true
+    this.showMessage('甘雨：请收下这份护佑，愿你平安归来。')
+    this.showMessage('仙人助力·甘雨：恢复2颗心，满出的1颗可额外存储。')
+
+    const missing = Math.max(0, 3 - this.combatHearts)
+    const healed = Math.min(2, missing)
+    const overflow = 2 - healed
+
+    this.combatHearts = Math.min(3, this.combatHearts + healed)
+    this.extraCombatHeart = Math.min(1, this.extraCombatHeart + overflow)
+    this.refreshCombatHearts()
+    this.cameras.main.flash(260, 180, 230, 255)
+  }
+
+  private grantPogoAssist() {
+    if (this.pogoAssist) {
+      return
+    }
+
+    this.pogoAssist = true
+    this.showMessage('萍姥姥：孩子，让我也来搭把手！')
+    this.showMessage(
+      '仙人助力·萍姥姥：岩柱、岩共鸣和踩头伤害翻倍；武器命中时释放10格冲击波，冷却7秒。'
+    )
+  }
+
+  private updatePogoAssist(dt: number) {
+    if (this.pogoShockwaveCooldown > 0) {
+      this.pogoShockwaveCooldown = Math.max(
+        0,
+        this.pogoShockwaveCooldown - dt
+      )
+    }
+  }
+
+  private triggerPogoShockwave(x: number, y: number) {
+    if (
+      !this.pogoAssist ||
+      this.pogoShockwaveCooldown > 0 ||
+      this.osialHp <= 0
+    ) {
+      return
+    }
+
+    this.pogoShockwaveCooldown = 7
+
+    const ring = this.add
+      .image(x, y, 'shock-ring')
+      .setTint(0xffd76a)
+      .setDepth(13)
+      .setScale(0.25)
+      .setAlpha(0.95)
+
+    this.tweens.add({
+      targets: ring,
+      scaleX: 2.6,
+      scaleY: 1.5,
+      alpha: 0,
+      duration: 520,
+      ease: 'Sine.easeOut',
+      onComplete: () => ring.destroy(),
+    })
+
+    this.cameras.main.shake(120, 0.004)
+    this.damageOsial(10)
+  }
+
+  private spawnJadeHasteCharm() {
+    if (!this.jadeMode || !this.xiaoAssist || this.osialHp <= 0) {
+      return
+    }
+
+    const def: SpeedItemDef = {
+      x: 3780,
+      y: 1160,
+      duration: 10,
+      multiplier: 1.6,
+    }
+
+    const sprite = this.add
+      .image(def.x, def.y - 10, 'speed-charm')
+      .setOrigin(0.5, 1)
+      .setDepth(12)
+
+    this.tweens.add({
+      targets: sprite,
+      y: sprite.y - 5,
+      duration: 650,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    this.speedItems.push({ sprite, def, taken: false })
+  }
+
+  private damageOsial(amount: number) {
+    if (this.osialHp <= 0 || this.jadeVictoryStarted) {
+      return
+    }
+
+    this.osialHp = Math.max(0, this.osialHp - amount)
+    this.drawOsialHpBar()
+    this.showHudDamageFeedback(amount)
+    this.refreshOsialStage()
+    this.checkJadeAssists()
+    this.updateJadeObjective()
+
+    if (this.osialHp <= 0) {
+      this.defeatOsial()
+    }
+  }
+
+  private defeatOsial() {
+    if (this.jadeVictoryStarted || !this.jadeMode) {
+      return
+    }
+
+    this.jadeVictoryStarted = true
+    this.osialAttackRunning = false
+    this.inputLocked = true
+    this.slime.setVelocity(0, 0)
+    this.physics.world.pause()
+
+    const camera = this.cameras.main
+
+    this.jadeWideCamera = false
+    camera.stopFollow()
+    camera.zoomTo(1, 500, 'Sine.easeInOut')
+    camera.startFollow(this.slime, true, 0.12, 0.12)
+
+    this.time.delayedCall(520, () => {
+      this.resetHudZoom()
+      this.refreshHud()
+    })
+
+    this.hideBossObjective()
+    this.xiaoHasteEvent?.remove(false)
+    this.xiaoHasteEvent = null
+
+    this.speedItems.forEach((item) => item.sprite.destroy())
+    this.speedItems = []
+
+    this.fatuiAgents.slice().forEach((entry) => this.destroyFatui(entry))
+    this.osialTentacles
+      .slice()
+      .forEach((entry) => this.destroyOsialTentacle(entry))
+
+    this.enemyPortalLeft?.setAlpha(0.25)
+    this.enemyPortalRight?.setAlpha(0.25)
+    this.osialHpBar?.setVisible(false)
+    this.osialHpText?.setVisible(false)
+
+    this.ballistae.forEach((ballista) => {
+      ballista.charge = 0
+      ballista.bar.clear().setVisible(false)
+    })
+
+    const root = this.osialRoot
+
+    if (root) {
+      this.tweens.add({
+        targets: root,
+        y: 60,
+        scaleX: 0.9,
+        scaleY: 0.9,
+        alpha: 0,
+        duration: 2200,
+        ease: 'Sine.easeIn',
+      })
+    }
+
+    const burst = this.add
+      .image(240, 90, 'shock-ring')
+      .setScrollFactor(0)
+      .setTint(0xbff8ee)
+      .setScale(0.5)
+      .setDepth(22)
+
+    this.tweens.add({
+      targets: burst,
+      scaleX: 4,
+      scaleY: 2.2,
+      alpha: 0,
+      duration: 900,
+      ease: 'Sine.easeOut',
+      onComplete: () => burst.destroy(),
+    })
+
+    this.cameras.main.flash(320, 190, 235, 255)
+    this.cameras.main.shake(500, 0.008)
+
+    this.time.delayedCall(1200, () => {
+      this.showDialogue(
+        '凝光',
+        [
+          '奥赛尔退了，群玉阁守住了。',
+          '多谢你们出手。这份功劳，我会替诸位记下。',
+        ],
+        () => this.prepareJadeVictoryChest()
+      )
+    })
+  }
+
+  private prepareJadeVictoryChest() {
+    const groundY = 1160
+
+    this.goalSprite
+      .setPosition(3920, groundY - 14)
+      .setVisible(false)
+      .setScale(0)
+
+    this.goalSprite.refreshBody()
+    this.goalReady = false
+    this.revealGoal()
+
+    this.physics.world.resume()
+    this.inputLocked = false
+    this.showMessage('奥赛尔已被击退 —— 打开宝箱完成本关')
+  }
+
+  private damageDamageablesNear(
+    x: number,
+    y: number,
+    radius: number,
+    amount: number,
+    weaponTag: string
+  ) {
+    let hits = 0
+
+    this.damageables.slice().forEach((entry) => {
+      if (!entry.sprite.active || !entry.tags.includes(weaponTag)) {
+        return
+      }
+
+      const distance = Math.hypot(entry.sprite.x - x, entry.sprite.y - y)
+
+      if (distance <= radius) {
+        hits += 1
+        this.hitDamageable(entry, amount)
+      }
+    })
+
+    return hits
+  }
+
+  private updateDamageableBars() {
+    this.damageables.forEach((entry) => {
+      if (!entry.sprite.active) {
+        return
+      }
+
+      const bar = entry.bar
+      const top = entry.sprite.getTopCenter()
+      const width = 48
+      const height = 4
+      const x = top.x - width / 2
+      const y = top.y - 12
+      const near = Math.abs(entry.sprite.x - this.slime.x) < 180
+
+      bar.clear()
+      bar.setVisible(entry.hp < entry.maxHp || near)
+
+      if (!bar.visible) {
+        return
+      }
+
+      bar.fillStyle(0x101820, 0.85)
+      bar.fillRect(x - 2, y - 2, width + 4, height + 4)
+      bar.fillStyle(0x4a2020, 1)
+      bar.fillRect(x, y, width, height)
+      bar.fillStyle(0xd84a4a, 1)
+      bar.fillRect(x, y, width * (entry.hp / entry.maxHp), height)
+
+      bar.lineStyle(1, 0xffe9a8, 0.75)
+
+      for (let i = 1; i < entry.maxHp; i++) {
+        const tickX = x + width * (i / entry.maxHp)
+        bar.lineBetween(tickX, y, tickX, y + height)
+      }
+    })
+  }
+
+  private destroyOsialTentacle(entry: OsialTentacleRef) {
+    if (!entry.active) {
+      return
+    }
+
+    entry.active = false
+    this.removeDamageable(entry.damageable)
+    entry.damageable = null
+
+    if (entry.body.active) {
+      entry.body.destroy()
+    }
+
+    this.tweens.killTweensOf(entry.sprite)
+    this.hydroSplash(entry.sprite.x, 1160, 0x8fe8d0)
+    this.cameras.main.shake(160, 0.005)
+
+    this.tweens.add({
+      targets: entry.sprite,
+      scaleY: 0.06,
+      alpha: 0,
+      duration: 260,
+      ease: 'Sine.easeIn',
+      onComplete: () => {
+        entry.sprite.destroy()
+        this.osialTentacles = this.osialTentacles.filter((one) => one !== entry)
+      },
+    })
+  }
+
+  private updateOsialTentacles() {
+    if (this.osialTentacleHintShown) {
+      return
+    }
+
+    const near = this.osialTentacles.some(
+      (entry) =>
+        entry.active &&
+        Math.abs(entry.sprite.x - this.slime.x) < 120 &&
+        Math.abs(this.slime.y - 1147) < 110
+    )
+
+    if (near) {
+      this.osialTentacleHintShown = true
+      this.showMessage('触手挡路了 —— 在它旁边立岩柱，用岩柱和岩共鸣削掉血条')
+    }
+  }
+
+  private openEnemyPortal(
+    portal: Phaser.GameObjects.Image,
+    onSpawn: () => void,
+    holdMs = 220
+  ) {
+    this.tweens.killTweensOf(portal)
+    portal.setScale(0.82, 0.06).setAlpha(0.45)
+
+    this.tweens.add({
+      targets: portal,
+      scaleY: 0.82,
+      alpha: 0.95,
+      duration: 450,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        onSpawn()
+
+        this.time.delayedCall(holdMs, () => {
+          this.tweens.add({
+            targets: portal,
+            scaleY: 0.06,
+            alpha: 0.45,
+            duration: 320,
+            ease: 'Sine.easeIn',
+            onComplete: () => portal.setAlpha(0.7),
+          })
+        })
+      },
+    })
+  }
+
+  private spawnFatui(
+    x: number,
+    targetX: number,
+    targetBallista = 0,
+    type?: FatuiType
+  ) {
+    const types: FatuiType[] = ['hydro', 'pyro', 'electro']
+    const fatuiType =
+      type ?? types[Phaser.Math.Between(0, types.length - 1)]
+    const config = FATUI_TYPE_CONFIG[fatuiType]
+
+    const sprite = this.add
+      .image(x, 1158, config.texture)
+      .setOrigin(0.5, 1)
+      .setScale(config.scale)
+      .setTint(config.tint)
+      .setDepth(9)
+
+    const entry: FatuiRef = {
+      sprite,
+      targetX,
+      targetBallista,
+      type: fatuiType,
+      speed: config.speed,
+      dir: targetX >= x ? 1 : -1,
+      active: true,
+      damageable: null,
+      baseSpeed: config.speed,
+      baseMaxHp: config.maxHp,
+      hydroHpBonus: 0,
+      electroSpeedBonus: 0,
+    }
+
+    entry.damageable = this.registerDamageable(
+      sprite,
+      config.maxHp,
+      ['stomp', 'rock-resonance'],
+      () => this.destroyFatui(entry)
+    )
+
+    this.fatuiAgents.push(entry)
+  }
+
+  private destroyFatui(entry: FatuiRef) {
+    if (!entry.active) {
+      return
+    }
+
+    entry.active = false
+    this.removeDamageable(entry.damageable)
+    entry.damageable = null
+    this.fatuiAgents = this.fatuiAgents.filter((one) => one !== entry)
+
+    this.tweens.add({
+      targets: entry.sprite,
+      alpha: 0,
+      scaleX: 0.8,
+      duration: 200,
+      onComplete: () => entry.sprite.destroy(),
+    })
+  }
+
+  private refreshFatuiAuras() {
+    const enhanced = this.osialStage >= 3
+    const auraRange = 150
+
+    this.fatuiAgents.forEach((entry) => {
+      const inRange = (source: FatuiRef) =>
+        source.active &&
+        Math.abs(source.sprite.x - entry.sprite.x) <= auraRange
+
+      const hydroLayers = enhanced
+        ? Math.min(
+            2,
+            this.fatuiAgents.filter(
+              (source) => source.type === 'hydro' && inRange(source)
+            ).length
+          )
+        : 0
+
+      const electroLayers = enhanced
+        ? Math.min(
+            2,
+            this.fatuiAgents.filter(
+              (source) => source.type === 'electro' && inRange(source)
+            ).length
+          )
+        : 0
+
+      entry.hydroHpBonus = hydroLayers * 2
+      entry.electroSpeedBonus = electroLayers * 0.2
+      entry.speed = entry.baseSpeed * (1 + entry.electroSpeedBonus)
+
+      if (!entry.damageable) {
+        return
+      }
+
+      const nextMaxHp = entry.baseMaxHp + entry.hydroHpBonus
+      const gainedMaxHp = nextMaxHp - entry.damageable.maxHp
+
+      if (gainedMaxHp > 0) {
+        entry.damageable.hp += gainedMaxHp
+      }
+
+      entry.damageable.maxHp = nextMaxHp
+      entry.damageable.hp = Math.min(entry.damageable.hp, nextMaxHp)
+    })
+  }
+
+  private updateFatuiAgents(dt: number) {
+    this.refreshFatuiAuras()
+    const playerBody = this.slime.body as Phaser.Physics.Arcade.Body
+    const feet = playerBody.bottom
+
+    this.fatuiAgents.forEach((entry) => {
+      if (!entry.active) {
+        return
+      }
+
+      const headTop = entry.sprite.y - entry.sprite.displayHeight
+
+      // 玩家从上方踩头：-2.5 格
+      if (
+        playerBody.velocity.y > 20 &&
+        Math.abs(this.slime.x - entry.sprite.x) < 28 &&
+        feet >= headTop - 10 &&
+        feet <= headTop + 22
+      ) {
+        if (entry.damageable) {
+          this.hitDamageable(
+            entry.damageable,
+            this.pogoAssist ? 5 : 2.5
+          )
+          this.triggerPogoShockwave(
+            entry.sprite.x,
+            entry.sprite.y - entry.sprite.displayHeight
+          )
+        }
+
+        this.slime.setVelocityY(-220)
+        this.cameras.main.shake(100, 0.004)
+        return
+      }
+
+      // 岩柱挡住移动
+      const blocked = this.rockPillars.some((ref) => {
+        const pillar = ref.sprite
+        const pillarBody = pillar.body as
+          | Phaser.Physics.Arcade.StaticBody
+          | undefined
+
+        return (
+          pillar.active &&
+          pillarBody?.enable === true &&
+          Math.abs(entry.sprite.x - pillar.x) < 32 &&
+          Math.abs(pillar.y + pillar.displayHeight / 2 - 1160) < 16
+        )
+      })
+
+      if (blocked) {
+        return
+      }
+
+      const dx = entry.targetX - entry.sprite.x
+
+      if (Math.abs(dx) > 26) {
+        entry.dir = dx > 0 ? 1 : -1
+        entry.sprite.x += entry.dir * entry.speed * dt
+        entry.sprite.setFlipX(entry.dir < 0)
+      }
+    })
+  }
+
+  private updateBallistaCharge(dt: number) {
+    if (!this.jadeMode || this.jadeVictoryStarted) {
+      return
+    }
+
+    this.ballistae.forEach((ballista, index) => {
+      const arrivedAgents = this.fatuiAgents.filter(
+        (entry) =>
+          entry.active &&
+          entry.targetBallista === index &&
+          Math.abs(entry.sprite.x - ballista.x) < 45
+      )
+
+      ballista.sabotageStacks = Math.min(10, arrivedAgents.length)
+
+      const pyroBonus =
+        this.osialStage >= 3
+          ? arrivedAgents.filter((entry) => entry.type === 'pyro').length * 0.1
+          : 0
+
+      const sabotageRate = Math.min(
+        1,
+        arrivedAgents.length * 0.1 + pyroBonus
+      )
+      const slow = 1 + sabotageRate
+      const chargeTime = ballista.baseChargeTime * slow
+
+      ballista.charge = Math.min(1, ballista.charge + dt / chargeTime)
+
+      if (ballista.charge >= 1) {
+        ballista.charge = 0
+        this.fireTestBallistaBeam(ballista.x)
+      }
+
+      this.drawBallistaChargeBar(ballista)
+    })
+  }
+
+  private drawBallistaChargeBar(ballista: BallistaRef) {
+    const bar = ballista.bar
+    const width = 64
+    const height = 6
+    const bx = ballista.x - width / 2
+    const by = ballista.barY
+
+    bar.clear()
+    bar.fillStyle(0x101820, 0.85)
+    bar.fillRect(bx - 2, by - 2, width + 4, height + 4)
+    bar.fillStyle(0x2a2a3a, 1)
+    bar.fillRect(bx, by, width, height)
+    bar.fillStyle(
+      ballista.sabotageStacks > 0 ? 0xd84a4a : 0x8fe8d0,
+      0.95
+    )
+    bar.fillRect(bx, by, width * ballista.charge, height)
+    bar.lineStyle(1, 0xffe9a8, 0.75)
+    bar.strokeRect(bx, by, width, height)
+  }
+
+  private spawnOsialWave(count: number) {
+    const groups: {
+      left: { targetX: number; targetBallista: number }[]
+      right: { targetX: number; targetBallista: number }[]
+    } = {
+      left: [],
+      right: [],
+    }
+
+    for (let i = 0; i < count; i++) {
+      const side = Math.random() < 0.5 ? 'left' : 'right'
+      const targetBallista = this.osialSpawnCursor % 3
+      const targetX = this.ballistae[targetBallista]?.x ?? 3480
+
+      this.osialSpawnCursor += 1
+      groups[side].push({ targetX, targetBallista })
+    }
+
+    const spawnGroup = (
+      side: 'left' | 'right',
+      list: { targetX: number; targetBallista: number }[]
+    ) => {
+      if (list.length === 0) {
+        return
+      }
+
+      const portal =
+        side === 'left' ? this.enemyPortalLeft : this.enemyPortalRight
+
+      if (!portal) {
+        return
+      }
+
+      const holdMs = 220 + (list.length - 1) * 180
+
+      this.openEnemyPortal(
+        portal,
+        () => {
+          list.forEach((item, index) => {
+            this.time.delayedCall(index * 180, () => {
+              this.spawnFatui(portal.x, item.targetX, item.targetBallista)
+            })
+          })
+        },
+        holdMs
+      )
+    }
+
+    spawnGroup('left', groups.left)
+    spawnGroup('right', groups.right)
+  }
+
+  private updateOsialSpawner(dt: number) {
+    if (
+      !this.jadeMode ||
+      !this.jadeWideCamera ||
+      this.osialHp <= 0
+    ) {
+      return
+    }
+
+    this.osialSpawnTimer -= dt
+
+    if (this.osialSpawnTimer > 0) {
+      return
+    }
+
+    const config = OSIAL_STAGE_CONFIG[this.osialStage]
+    this.osialSpawnTimer = config.spawnEvery
+    this.spawnOsialWave(config.spawnCount)
+  }
+
+  private fireTestBallistaBeam(x: number) {
+    this.damageOsial(1)
+    const beam = this.add.graphics().setDepth(11.8)
+
+    beam.lineStyle(12, 0xffe9a8, 0.2)
+    beam.lineBetween(x, 1060, 4600, 820)
+    beam.lineStyle(5, 0xffffff, 0.9)
+    beam.lineBetween(x, 1060, 4600, 820)
+
+    this.cameras.main.shake(140, 0.004)
+
+    this.tweens.add({
+      targets: beam,
+      alpha: 0,
+      duration: 400,
+      ease: 'Sine.easeIn',
+      onComplete: () => beam.destroy(),
+    })
+  }
+
+  private playOsialLaser(targetX: number) {
+    if (!this.jadeMode || this.jadeVictoryStarted) {
+      return
+    }
+
+    const camera = this.cameras.main
+    const view = camera.worldView
+    const zoom = camera.zoom
+
+    // 平台上的目标点换算成屏幕坐标
+    const tx = (targetX - view.x) * zoom
+    const ty = (1160 - view.y) * zoom
+
+    // 中间头的嘴部大概位置
+    const ox = this.jadeWideCamera ? 370 : 430
+    const oy = this.jadeWideCamera ? 65 : 88
+
+    const head = this.osialCenterHead
+
+    if (head) {
+      this.tweens.killTweensOf(head)
+      this.tweens.add({
+        targets: head,
+        angle: 8,
+        y: -188,
+        duration: 420,
+        yoyo: true,
+        hold: 500,
+        ease: 'Sine.easeOut',
+        onComplete: () => {
+          this.tweens.add({
+            targets: head,
+            angle: 2,
+            y: -195,
+            duration: 1300,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut',
+          })
+        },
+      })
+    }
+
+    // 预警线
+    const warn = this.add.graphics().setScrollFactor(0).setDepth(20)
+
+    warn.lineStyle(2, 0x8fe8d0, 0.35)
+    warn.lineBetween(ox, oy, tx, ty)
+
+    this.tweens.add({
+      targets: warn,
+      alpha: 0.1,
+      duration: 120,
+      yoyo: true,
+      repeat: 5,
+      ease: 'Sine.easeInOut',
+    })
+
+    // 嘴前充能球
+    const orb = this.add
+      .image(ox, oy, 'shock-ring')
+      .setScrollFactor(0)
+      .setDepth(21)
+      .setTint(0x8fe8d0)
+      .setScale(0.25)
+      .setAlpha(0.4)
+
+    this.tweens.add({
+      targets: orb,
+      scaleX: 0.8,
+      scaleY: 0.8,
+      alpha: 0.95,
+      duration: 900,
+      ease: 'Sine.easeOut',
+    })
+
+    this.time.delayedCall(350, () => {
+      this.showMessage(
+        this.touchMode
+          ? '激光锁定了 —— 开岩化硬挡'
+          : '激光锁定了 —— 按 X 开岩化硬挡'
+      )
+    })
+
+    this.time.delayedCall(900, () => {
+      warn.destroy()
+      orb.destroy()
+
+      const beam = this.add.graphics().setScrollFactor(0).setDepth(22)
+
+      beam.lineStyle(18, 0x8fe8d0, 0.2)
+      beam.lineBetween(ox, oy, tx, ty)
+      beam.lineStyle(8, 0xbff8ee, 0.8)
+      beam.lineBetween(ox, oy, tx, ty)
+      beam.lineStyle(3, 0xffffff, 1)
+      beam.lineBetween(ox, oy, tx, ty)
+
+      this.cameras.main.shake(260, 0.008)
+
+      if (!this.jadeVictoryStarted) {
+        this.damageCombat(1)
+      }
+
+      const hit = this.add
+        .image(tx, ty, 'shock-ring')
+        .setScrollFactor(0)
+        .setDepth(22)
+        .setTint(0x8fe8d0)
+        .setScale(0.4)
+        .setAlpha(0.9)
+
+      this.tweens.add({
+        targets: hit,
+        scaleX: 2,
+        scaleY: 1.2,
+        alpha: 0,
+        duration: 500,
+        ease: 'Sine.easeOut',
+        onComplete: () => hit.destroy(),
+      })
+
+      this.tweens.add({
+        targets: beam,
+        alpha: 0,
+        delay: 220,
+        duration: 500,
+        ease: 'Sine.easeIn',
+        onComplete: () => beam.destroy(),
+      })
+    })
+  }
+
+  private startOsialAttackLoop() {
+    if (this.osialAttackRunning) {
+      return
+    }
+
+    this.osialAttackRunning = true
+    this.osialAttackIndex = 0
+
+    this.time.delayedCall(
+      Math.max(1000, (this.osialAttackPeriod - 4) * 1000),
+      () => this.beginOsialRoar()
+    )
+  }
+
+  private beginOsialRoar() {
+    if (!this.jadeMode || this.jadeVictoryStarted) {
+      return
+    }
+
+    this.playOsialRoar()
+    this.time.delayedCall(1000, () => this.beginOsialAttack())
+  }
+
+  private beginOsialAttack() {
+    if (!this.jadeMode || this.jadeVictoryStarted) {
+      return
+    }
+
+    const targetX = Phaser.Math.Clamp(this.slime.x, 3200, 4400)
+
+    if (this.osialAttackIndex % 2 === 0) {
+      // 触手：三根依次升起
+      this.playOsialTentacle(3300)
+      this.time.delayedCall(180, () => this.playOsialTentacle(3900))
+      this.time.delayedCall(360, () => this.playOsialTentacle(4300))
+    } else {
+      // 激光：射向玩家当前位置
+      this.playOsialLaser(targetX)
+    }
+
+    this.osialAttackIndex += 1
+
+    // 招式阶段持续 3 秒，然后回待机
+    this.time.delayedCall(3000, () => this.beginOsialIdle())
+  }
+
+  private beginOsialIdle() {
+    if (!this.jadeMode || this.jadeVictoryStarted) {
+      return
+    }
+    this.time.delayedCall(
+      Math.max(1000, (this.osialAttackPeriod - 4) * 1000),
+      () => this.beginOsialRoar()
+    )
   }
 
   private addFloorCrack(x: number, groundY: number) {
@@ -2197,7 +4235,7 @@ export class GameScene extends Phaser.Scene {
 
   // 砸塌大厅正中：关掉这块地板的碰撞和地砖，碎砖往下掉，人跟着落到下层金库
   private breakBossFloor() {
-    if (this.floorBroken) {
+    if (this.floorBroken || this.bossPhase < 3) {
       return
     }
 
@@ -2293,11 +4331,25 @@ export class GameScene extends Phaser.Scene {
     }
 
     // 撞到岩柱：停下、退开
-    const pillar = this.rockPillar
+    const hitPillar = this.rockPillars.find((ref) => {
+      const pillar = ref.sprite
+      const body = pillar.body as
+        | Phaser.Physics.Arcade.StaticBody
+        | undefined
 
-    if (pillar && Math.abs(childe.x - pillar.x) < 30) {
+      return (
+        pillar.active &&
+        body?.enable === true &&
+        Math.abs(childe.x - pillar.x) < 30 &&
+        Math.abs(pillar.y + pillar.displayHeight / 2 - this.bossGroundY) < 16
+      )
+    })
+
+    if (hitPillar) {
       this.hydroSplash(childe.x, childe.y - 30)
-      this.breakPillar('公子撞碎了岩柱（5 秒后恢复）')
+      this.breakPillar('公子撞碎了岩柱', hitPillar.sprite)
+      this.registerBossBlock()
+      this.staggerBoss()
       this.endBossDash()
       return
     }
@@ -2320,6 +4372,12 @@ export class GameScene extends Phaser.Scene {
 
       this.repositionBoss(true)
       this.bossTimer = 2.4
+      this.resolvePendingPhase()
+      // 派生：突刺归位之后有概率立刻接一记快枪
+      if (this.bossPhase === 2 && Math.random() < 0.5) {
+        this.bossTimer = 3.6
+        this.castSkySpear(childe, true)
+      }
     })
   }
 
@@ -2327,8 +4385,6 @@ export class GameScene extends Phaser.Scene {
     if (this.bossBlades.length === 0) {
       return
     }
-
-    const pillar = this.rockPillar
 
     this.bossBlades = this.bossBlades.filter(({ sprite, vx }) => {
       if (!sprite.active) {
@@ -2349,17 +4405,28 @@ export class GameScene extends Phaser.Scene {
       }
 
       // 岩柱挡住
-      if (
-        pillar &&
-        Math.abs(sprite.x - pillar.x) < 26 &&
-        Math.abs(sprite.y - (pillar.y - 24)) < 48
-      ) {
+      const hitPillar = this.rockPillars.find((ref) => {
+        const pillar = ref.sprite
+        const body = pillar.body as
+          | Phaser.Physics.Arcade.StaticBody
+          | undefined
+
+        return (
+          pillar.active &&
+          body?.enable === true &&
+          Math.abs(sprite.x - pillar.x) < 26 &&
+          Math.abs(sprite.y - (pillar.y - 24)) < 48
+        )
+      })
+
+      if (hitPillar) {
         this.hydroSplash(sprite.x, sprite.y)
         sprite.destroy()
-        this.breakPillar('岩柱被水刃击碎了（5 秒后恢复）')
+        this.breakPillar('岩柱被水刃击碎了', hitPillar.sprite)
+        this.registerBossBlock()
+        this.staggerBoss()
         return false
       }
-
       if (sprite.x < -80 || sprite.x > this.level.width + 80) {
         sprite.destroy()
         return false
@@ -2367,6 +4434,60 @@ export class GameScene extends Phaser.Scene {
 
       return true
     })
+    if (this.bossBlades.length === 0) {
+      this.resolvePendingPhase()
+    }
+  }
+  // 岩柱落到水镜附近（横向 120、高度差 90 以内）就把镜子震碎
+  private updateWaterMirrors() {
+    if (this.bossState !== 'fight' || this.bossPhase < 2) {
+      return
+    }
+
+    for (const ref of this.rockPillars) {
+      const pillar = ref.sprite
+      const body = pillar.body as
+        | Phaser.Physics.Arcade.StaticBody
+        | undefined
+
+      if (!pillar.active || !body?.enable) {
+        continue
+      }
+
+      const pillarTop = pillar.y - pillar.displayHeight / 2
+
+      for (const mirror of this.waterMirrors) {
+        if (mirror.broken) {
+          continue
+        }
+
+        if (Math.abs(pillar.x - mirror.x) > 120) {
+          continue
+        }
+
+        if (Math.abs(pillarTop - (mirror.sprite.y - 30)) > 70) {
+          continue
+        }
+
+        const mirrorY = mirror.sprite.y - 30
+
+        mirror.broken = true
+        mirror.sprite.destroy()
+        this.hydroSplash(mirror.x, mirrorY, 0x8fd8f0)
+
+        const broken = this.waterMirrors.filter((one) => one.broken).length
+
+        this.updateBossObjective()
+
+        if (
+          broken >= 3 &&
+          this.bossPhase === 2 &&
+          this.bossPendingPhase === 0
+        ) {
+          this.bossPendingPhase = 3
+        }
+      }
+    }
   }
 
   private hydroSplash(x: number, y: number, tint = 0x8fd8f0) {
@@ -2529,8 +4650,7 @@ export class GameScene extends Phaser.Scene {
   private armorCooldown = 0
   private invulnTimer = 0
   private rockPillar: Phaser.Physics.Arcade.Sprite | null = null
-  // 岩柱挡下一击后碎掉、进入 5 秒冷却
-  private pillarCooldown = 0
+
   private pillarGhost: Phaser.GameObjects.Image | null = null
   private pillarMark: Phaser.GameObjects.Rectangle | null = null
   private pillarCharging = false
@@ -2741,6 +4861,7 @@ export class GameScene extends Phaser.Scene {
   private windTrails: Phaser.GameObjects.Image[] = []
   private trailFade = 0
 
+  private jadeVictoryStarted = false
   constructor() {
     super('game')
   }
@@ -2760,23 +4881,68 @@ export class GameScene extends Phaser.Scene {
     this.domainHeartText = null
     this.combatHearts = 0
     this.combatHeartText = null
+    this.combatLabelText = null
     this.messageStack = []
     this.hudZoomActive = false
     this.childe = null
     this.bossState = 'idle'
     this.bossTimer = 0
     this.bossPhase = 1
+    this.bossPendingPhase = 0
     this.bossAttacks = 0
     this.bossLastSide = 0
     this.bossSideStreak = 0
     this.bossGroundY = 1160
     this.bossSlamCount = 0
     this.bossLowerAttacks = 0
+    this.mirrorStepPlatforms = []
+    this.mirrorStepArt = []
+    this.bossBlocks = 0
+    this.bossDodges = 0
+    this.bossObjectiveTitle = null
+    this.bossObjectiveText = null
     this.breakableFloor = null
     this.floorOverlays = []
     this.floorBroken = false
     this.bossDropped = false
-    this.bossChest = null
+    this.jadeGuide = null
+    this.jadeMode = false
+    this.jadeBuilt = false
+    this.jadeWideCamera = false
+    this.enemyPortalLeft = null
+    this.enemyPortalRight = null
+    this.fatuiAgents = []
+    this.ballistae = []
+    this.osialHp = 50
+    this.osialStage = 1
+    this.osialAttackPeriod = 10
+    this.osialSpawnTimer = 0
+    this.osialSpawnCursor = 0
+    this.xiaoHasteEvent?.remove(false)
+    this.xiaoHasteEvent = null
+    this.xiaoAssist = false
+    this.pogoAssist = false
+    this.pogoShockwaveCooldown = 0
+    this.osialMaxHp = 50
+    this.osialHpBar = null
+    this.osialHpText = null
+    this.osialRoot = null
+    this.osialCenterNeck = null
+    this.osialCenterHead = null
+    this.osialLeftNeck = null
+    this.osialLeftHead = null
+    this.osialRightNeck = null
+    this.osialRightHead = null
+    this.osialRoaring = false
+    this.osialAttackIndex = 0
+    this.osialAttackRunning = false
+    this.osialTentacles = []
+    this.osialTentacleHintShown = false
+    this.damageables = []
+    this.resonanceGfx = null
+    this.resonanceRings = []
+    this.combatRevive = false
+    this.waterMirrors = []
     this.bossDash = null
     this.bossBlades = []
     this.domainLeaving = false
@@ -2882,6 +5048,8 @@ export class GameScene extends Phaser.Scene {
     this.metXiao = false
     this.dishMade = false
     this.xiaoGone = false
+    this.ganyuAssist = false
+    this.extraCombatHeart = 0
     this.ingredientHintSeen = false
     this.innkeeper = null
     this.dialogueShowing = false
@@ -2920,7 +5088,9 @@ export class GameScene extends Phaser.Scene {
         })
       })
     }
-    this.collectedIndices = []
+    this.collectedIndices = Array.from(
+      new Set(this.startData.collectedGems ?? [])
+    )
     this.blessed = false
     this.dying = false
 
@@ -3008,6 +5178,8 @@ export class GameScene extends Phaser.Scene {
     this.blockers = this.physics.add.staticGroup()
     this.pillars = this.physics.add.staticGroup()
     this.orbs = this.physics.add.staticGroup()
+
+    this.jadeVictoryStarted = false
 
     const theme = this.level.bg ?? 'field'
     // 兜底：主题名要是还没登记进 THEME_COLORS（比如新关卡的主题先在测试关里试），
@@ -4618,7 +6790,13 @@ export class GameScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(HUD_DEPTH)
       .setVisible(false)
-
+    this.pillarChargeDots = [0, 1].map((index) =>
+      this.add
+        .circle(12 + index * 8, 56, 2, 0xd8b85a)
+        .setScrollFactor(0)
+        .setDepth(HUD_DEPTH)
+        .setVisible(false)
+    )
     // 原石总数 = 关卡里摆着的 + **冻在琥珀里的**（用户 2026/10/17：琥珀里那颗也算一颗）
     const gemTotal = this.gemTotalCount()
     const gemStartX = 480 - 20 - (gemTotal - 1) * 18
@@ -4659,7 +6837,9 @@ export class GameScene extends Phaser.Scene {
     this.armorCooldown = 0
     this.invulnTimer = 0
     this.rockPillar = null
-    this.pillarCooldown = 0
+    this.rockPillars = []
+    this.pillarCharges = [1, 1]
+    this.pillarRecharge = [0, 0]
 
     // 关卡自带的元素也要登记进解锁表：不然它不在表里，Q/E 一转就把它丢了
     unlockElement(this.level.startElement)
@@ -4804,7 +6984,47 @@ export class GameScene extends Phaser.Scene {
     ;(window as unknown as Record<string, unknown>).__zoomTo = (value: number) => {
       this.cameras.main.setZoom(value)
     }
+
+    // 开发用：?level=11&jade=1 直接从群玉阁门口开始，跳过前面的公子战
+    if (DEV_MODE && new URLSearchParams(location.search).get('jade') === '1') {
+      this.time.delayedCall(300, () => {
+        this.bossState = 'down'
+        this.enterJadeChamber()
+      })
+    }
+    if (DEV_MODE && new URLSearchParams(location.search).get('osial') === 'roar') {
+      this.time.delayedCall(1800, () => this.playOsialRoar())
+    }
+    if (DEV_MODE && new URLSearchParams(location.search).get('osial') === 'tentacle') {
+      this.time.delayedCall(1800, () => {
+        this.playOsialTentacle(3300)
+        this.time.delayedCall(180, () => this.playOsialTentacle(3900))
+        this.time.delayedCall(360, () => this.playOsialTentacle(4300))
+      })
+    }
+     if (DEV_MODE && new URLSearchParams(location.search).get('osial') === 'laser') {
+      this.time.delayedCall(1800, () => this.playOsialLaser(3900))
+    }
+     if (DEV_MODE && new URLSearchParams(location.search).get('fatui') === '1') {
+      this.time.delayedCall(1800, () => {
+        if (this.enemyPortalLeft) {
+          this.openEnemyPortal(this.enemyPortalLeft, () =>
+            this.spawnFatui(3150, 3480, 0)
+          )
+        }
+      })
+    }
+    if (DEV_MODE && new URLSearchParams(location.search).get('fatui') === '2') {
+      this.time.delayedCall(1800, () => {
+        if (this.enemyPortalRight) {
+          this.openEnemyPortal(this.enemyPortalRight, () =>
+            this.spawnFatui(4480, 4250, 2)
+          )
+        }
+      })
+    }
   }
+
 
   // 关卡提示统一长这样：一块深色底 + 一行浅字，和交互提示、独白是同一套配色
   // 操作类提示按类别只出现一次：「按空格可跳跃」这类教操作的，同一类之后的关卡不再显示；
@@ -5328,7 +7548,7 @@ export class GameScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(HUD_DEPTH)
 
-    this.add
+    this.combatLabelText = this.add
       .text(240, 27, this.level.combat?.label ?? '战斗', {
         fontFamily: 'sans-serif',
         fontSize: '10px',
@@ -5337,10 +7557,114 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(0.5, 0)
       .setScrollFactor(0)
       .setDepth(HUD_DEPTH)
+         this.bossObjectiveTitle = this.add
+      .text(240, 44, '击败公子', {
+        fontFamily: 'sans-serif',
+        fontSize: '13px',
+        color: '#ffe9a8',
+        stroke: '#3a2a10',
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5, 0)
+      .setScrollFactor(0)
+      .setDepth(HUD_DEPTH)
+      .setVisible(false)
+
+    this.bossObjectiveText = this.add
+      .text(240, 61, '', {
+        fontFamily: 'sans-serif',
+        fontSize: '11px',
+        color: '#ffffff',
+        backgroundColor: '#00000088',
+        padding: { x: 8, y: 3 },
+        align: 'center',
+        wordWrap: { width: 440 },
+      })
+      .setOrigin(0.5, 0)
+      .setScrollFactor(0)
+      .setDepth(HUD_DEPTH)
+      .setVisible(false)
+  }
+  private showBossObjective() {
+    this.bossObjectiveTitle?.setVisible(true)
+    this.bossObjectiveText?.setVisible(true)
+    this.updateBossObjective()
+  }
+
+  private hideBossObjective() {
+    this.bossObjectiveTitle?.setVisible(false)
+    this.bossObjectiveText?.setVisible(false)
+  }
+
+  private updateBossObjective() {
+    if (!this.bossObjectiveText) {
+      return
+    }
+
+    if (this.bossPhase === 1) {
+      this.bossObjectiveText.setText(
+        `第一阶段，用岩柱或岩化阻挡3次攻击后胜利（${this.bossBlocks}/3）`
+      )
+      return
+    }
+
+    if (this.bossPhase === 2) {
+      const broken = this.waterMirrors.filter((one) => one.broken).length
+
+      this.bossObjectiveText.setText(`第二阶段，打破3面水镜后胜利（${broken}/3）`)
+      return
+    }
+    if (this.bossPhase === 3 && !this.bossDropped) {
+      this.bossObjectiveText.setText('小心鲸鱼')
+      return
+    }
+    this.bossObjectiveText.setText(
+      `第三阶段，躲避3组攻击后胜利（${this.bossDodges}/3）`
+    )
+  }
+
+  private registerBossBlock() {
+    if (this.bossState !== 'fight' || this.bossPhase !== 1 || this.bossBlocks >= 3) {
+      return
+    }
+
+    this.bossBlocks += 1
+    this.updateBossObjective()
+
+    if (this.bossBlocks >= 3) {
+      this.bossPendingPhase = 2
+    }
+  }
+
+  private registerBossDodge(dodged: boolean) {
+    if (
+      !dodged ||
+      this.bossState !== 'fight' ||
+      this.bossPhase !== 3 ||
+      !this.bossDropped ||
+      this.bossLowerAttacks < 2 ||
+      this.bossLowerAttacks % 2 !== 0 ||
+      this.bossDodges >= 3
+    ) {
+      return
+    }
+
+    this.bossDodges += 1
+    this.updateBossObjective()
+
+    if (this.bossDodges >= 3) {
+      this.time.delayedCall(650, () => this.defeatChilde())
+    }
   }
 
   private combatHeartString() {
-    return this.combatHearts > 0 ? '♥ '.repeat(this.combatHearts).trim() : '♡'
+    const normal =
+      this.combatHearts > 0
+        ? '♥ '.repeat(this.combatHearts).trim()
+        : '♡'
+    const extra = this.extraCombatHeart > 0 ? ' +♥' : ''
+
+    return `${normal}${extra}`
   }
 
   private refreshCombatHearts() {
@@ -5352,17 +7676,33 @@ export class GameScene extends Phaser.Scene {
     if (!this.level.combat || this.combatHearts <= 0 || this.invulnTimer > 0) {
       return
     }
+    // 甘雨给的额外心脏优先承伤
+    if (this.extraCombatHeart > 0) {
+      this.extraCombatHeart = Math.max(0, this.extraCombatHeart - amount)
+      this.refreshCombatHearts()
+      this.showDamageFeedback(
+        this.slime.x,
+        this.slime.y - 26,
+        amount,
+        '#8fd8f0'
+      )
+      this.invulnTimer = 1.2
+      this.showMessage('甘雨的护佑替你抵下了一击')
+      return
+    }
 
     // 岩化能硬吃一次伤害（和别处的"岩壳挡一击"一致）
     if (this.armored) {
       this.setArmored(false)
       this.invulnTimer = 1.2
+      this.registerBossBlock()
       this.showMessage('岩壳替你挡下了一击')
       return
     }
 
     this.combatHearts = Math.max(0, this.combatHearts - amount)
     this.refreshCombatHearts()
+    this.showDamageFeedback(this.slime.x, this.slime.y - 26, amount, '#ff5a5a')
     this.cameras.main.shake(120, 0.005)
 
     if (this.combatHeartText) {
@@ -5389,7 +7729,7 @@ export class GameScene extends Phaser.Scene {
 
     if (this.combatHearts <= 0) {
       // 黄金屋打公子：不允许无限复活 —— 心扣完就是真死
-      if (!this.level.combat?.revive) {
+      if (!this.combatRevive) {
         this.refreshCombatHearts()
         this.die('childe')
         return
@@ -5526,7 +7866,11 @@ export class GameScene extends Phaser.Scene {
       duration: 280,
       onComplete: () => {
         const point = this.startData.returnPoint ?? { x: 1960, y: 446, element: 'rock' as ElementKey }
-        this.scene.restart({ checkpoint: point, domain: false })
+        this.scene.restart({
+          checkpoint: point,
+          domain: false,
+          collectedGems: this.collectedIndices,
+        })
       },
     })
   }
@@ -5535,6 +7879,7 @@ export class GameScene extends Phaser.Scene {
     this.scene.restart({
       domain: true,
       returnPoint: { x: 1960, y: 446, element: this.element },
+      collectedGems: this.collectedIndices,
     })
   }
 
@@ -5818,11 +8163,21 @@ export class GameScene extends Phaser.Scene {
     x: number
     groundY: number
   }) {
-    const pillar = this.rockPillar
+    const hitPillar = this.rockPillars.find((ref) => {
+      const pillar = ref.sprite
+      const body = pillar.body as
+        | Phaser.Physics.Arcade.StaticBody
+        | undefined
 
-    // 岩柱挡一道就碎：连柱脚土圈一起收掉，免得看着还有根柱子立着
-    if (pillar && pillar.active && Math.abs(pillar.x - spike.x) < 22) {
-      this.breakPillar('岩柱替你挡下了一道岩脊（5 秒后恢复）')
+      return (
+        pillar.active &&
+        body?.enable === true &&
+        Math.abs(pillar.x - spike.x) < 22
+      )
+    })
+
+    if (hitPillar) {
+      this.breakPillar('岩柱替你挡下了一道岩脊', hitPillar.sprite)
       return
     }
 
@@ -5997,30 +8352,37 @@ export class GameScene extends Phaser.Scene {
     sprite: Phaser.GameObjects.Image
     dead: boolean
   }) {
-    const pillar = this.rockPillar
     const top = sideSpike.y - 7
     const bottom = sideSpike.y + 7
 
     // 岩柱竖在地上，正好拦住低空横扫；挡完和岩脊一样整根碎掉
-    if (pillar && pillar.active) {
+    const hitPillar = this.rockPillars.find((ref) => {
+      const pillar = ref.sprite
+      const body = pillar.body as
+        | Phaser.Physics.Arcade.StaticBody
+        | undefined
+
+      if (!pillar.active || !body?.enable) {
+        return false
+      }
+
       const pillarTop = pillar.y - pillar.displayHeight / 2
       const pillarBottom = pillar.y + pillar.displayHeight / 2
 
-      if (
+      return (
         Math.abs(pillar.x - sideSpike.x) < 22 &&
         pillarBottom > top &&
         pillarTop < bottom
-      ) {
-        this.pillarFoot?.destroy()
-        this.pillarFoot = null
-        pillar.destroy()
-        this.rockPillar = null
-        this.breakTrialTwoSideSpike(sideSpike)
-        playSfx(this, 'sfx-land', 0.4)
-        this.cameras.main.shake(180, 0.006)
-        this.showMessage('岩柱替你挡下了一道岩刺')
-        return
-      }
+      )
+    })
+
+    if (hitPillar) {
+      this.breakPillar('岩柱替你挡下了一道岩刺', hitPillar.sprite)
+      this.breakTrialTwoSideSpike(sideSpike)
+      playSfx(this, 'sfx-land', 0.4)
+      this.cameras.main.shake(180, 0.006)
+      this.showMessage('岩柱替你挡下了一道岩刺')
+      return
     }
 
     const body = this.slime.body as Phaser.Physics.Arcade.Body
@@ -6201,6 +8563,7 @@ export class GameScene extends Phaser.Scene {
       this.trialTwoHud?.destroy()
       this.trialTwoHud = null
       this.cameras.main.flash(240, 255, 230, 150)
+      this.spawnDomainTrialGem(2, 830)
     })
   }
 
@@ -6584,7 +8947,10 @@ export class GameScene extends Phaser.Scene {
       this.cameras.main.flash(220, 255, 230, 150)
       this.showDialogue('留云借风真君', lines, () => {
         this.restoreTrialThreeCrane()
-        this.revealGoal()
+        this.inputLocked = true
+        this.physics.world.pause()
+        this.slime.setVelocity(0, 0)
+        this.playChestCloseUp()
       })
       return
     }
@@ -7190,9 +9556,10 @@ export class GameScene extends Phaser.Scene {
 
   // 落柱：合法就砸下来并返回 true，不合法就提示一声
   private castPillar(): boolean {
-    // 柱子被打碎后要冷却 5 秒才能再立
-    if (this.pillarCooldown > 0) {
-      this.showMessage(`岩柱还在恢复（${Math.ceil(this.pillarCooldown)} 秒）`)
+    const readyIndex = this.pillarCharges.findIndex((charge) => charge === 1)
+
+    if (readyIndex < 0) {
+      this.showMessage('岩柱还在恢复')
       return false
     }
 
@@ -7203,11 +9570,49 @@ export class GameScene extends Phaser.Scene {
       return false
     }
 
-    this.spawnRockPillar(target.x, target.landTop, target.spawnBottom)
+    // 已经有两根：先拆掉最早放下的那一根
+    if (this.rockPillars.length >= 2) {
+      const oldest = this.rockPillars[0]
+
+      if (oldest) {
+        this.removeRockPillar(oldest)
+      }
+    }
+
+    this.pillarCharges[readyIndex] = 0
+    this.pillarRecharge[readyIndex] = 5
+
+    this.spawnRockPillar(
+      target.x,
+      target.landTop,
+      target.spawnBottom,
+      readyIndex
+    )
 
     return true
   }
+  private updatePillarCharges(dt: number) {
+    for (let index = 0; index < 2; index++) {
+      if (this.pillarCharges[index] === 0) {
+        this.pillarRecharge[index] -= dt
 
+        if (this.pillarRecharge[index] <= 0) {
+          this.pillarRecharge[index] = 0
+          this.pillarCharges[index] = 1
+        }
+      }
+    }
+
+    const show = this.element === 'rock' && this.rockAvailable
+
+    this.pillarChargeDots.forEach((dot, index) => {
+      dot.setVisible(show)
+      dot.setFillStyle(
+        this.pillarCharges[index] === 1 ? 0xd8b85a : 0x3a3a44,
+        1
+      )
+    })
+  }
   // ── 雷闪（X）───────────────────────────────────────────────
   // 手机上按着按钮的那根手指抬起来（哪怕拖到按钮外面）
   private onGlobalPointerUp(pointer: Phaser.Input.Pointer) {
@@ -8937,14 +11342,20 @@ export class GameScene extends Phaser.Scene {
   }
 
   // 真正生成：从落点上方掉下来，动画期间不参与碰撞，落点就是预览里那一个
-  private spawnRockPillar(x: number, landTop: number, spawnBottom: number) {
-    this.rockPillar?.destroy()
-    this.pillarFoot?.destroy()
-    this.pillarFoot = null
+  private spawnRockPillar(
+    x: number,
+    landTop: number,
+    spawnBottom: number,
+    slot: number
+  ) {
+    const pillar = this.pillars.create(
+      x,
+      0,
+      'rock-pillar'
+    ) as Phaser.Physics.Arcade.Sprite
 
-    // 只进 pillars 组：柱子不进 platforms，玩家就能直接穿过去，只有岩刺会被它挡住
-    const pillar = this.pillars.create(x, 0, 'rock-pillar') as Phaser.Physics.Arcade.Sprite
     pillar.setDepth(3)
+
     const restY = landTop - pillar.displayHeight / 2
     const spawnY = spawnBottom - pillar.displayHeight / 2
     const fall = Math.abs(restY - spawnY)
@@ -8953,16 +11364,26 @@ export class GameScene extends Phaser.Scene {
     pillar.disableBody()
     pillar.refreshBody()
 
+    const ref: RockPillarRef = {
+      sprite: pillar,
+      foot: null,
+      slot,
+      resonanceTimer: 0.5,
+    }
+
+    this.rockPillars.push(ref)
     this.rockPillar = pillar
 
     this.tweens.add({
       targets: pillar,
       y: restY,
-      // 重力 600，自由落体的时间是 sqrt(2h/g)；Quad.easeIn 的位移正好是 t²，配起来像真掉下来
-      duration: Phaser.Math.Clamp(Math.sqrt((2 * fall) / 600) * 1000, 180, 900),
+      duration: Phaser.Math.Clamp(
+        Math.sqrt((2 * fall) / 600) * 1000,
+        180,
+        900
+      ),
       ease: 'Quad.easeIn',
       onComplete: () => {
-        // 柱子还没落地就被打碎：tween 结束时它已经销毁了，别再碰 body
         if (!pillar.active) {
           return
         }
@@ -8972,26 +11393,50 @@ export class GameScene extends Phaser.Scene {
         playSfx(this, 'sfx-land', 0.4)
         this.cameras.main.shake(160, 0.005)
         this.spawnPillarDust(x, landTop)
-        this.pillarFoot = this.makePillarFoot(x, landTop)
+
+        ref.foot = this.makePillarFoot(x, landTop)
+
+        const pillarHits = this.damageDamageablesNear(
+          x,
+          landTop,
+          90,
+          this.pogoAssist ? 2 : 1,
+          'rock'
+        )
+
+        if (pillarHits > 0) {
+          this.triggerPogoShockwave(x, landTop)
+        }
+        ref.resonanceTimer = 0.5
       },
     })
 
     this.time.delayedCall(PILLAR_TIME * 1000, () => {
-      if (this.rockPillar === pillar) {
-        this.rockPillar = null
-        // 只收这一根柱子自己的柱脚；柱子若已被岩脊撞碎、玩家又立了新的，
-        // 这根旧柱子的计时器不能把新柱子的柱脚一起抹掉
-        this.pillarFoot?.destroy()
-        this.pillarFoot = null
-      }
-
-      pillar.destroy()
+      this.removeRockPillar(ref)
     })
   }
 
+  private removeRockPillar(ref: RockPillarRef) {
+    if (ref.foot?.active) {
+      ref.foot.destroy()
+    }
+
+    if (ref.sprite.active) {
+      ref.sprite.destroy()
+    }
+
+    this.rockPillars = this.rockPillars.filter((one) => one !== ref)
+
+    const latest = this.rockPillars[this.rockPillars.length - 1]
+
+    this.rockPillar = latest?.sprite ?? null
+  }
   // 岩柱替人挡下一击：碎成几块、扬起尘土，然后进入 5 秒冷却
-  private breakPillar(reason: string) {
-    const pillar = this.rockPillar
+  private breakPillar(
+    _reason: string,
+    target = this.rockPillar
+  ) {
+    const pillar = target
 
     if (!pillar || !pillar.active) {
       return
@@ -9020,15 +11465,33 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.spawnPillarDust(x, y + pillar.displayHeight / 2)
-    pillar.destroy()
-    this.pillarFoot?.destroy()
-    this.pillarFoot = null
-    this.rockPillar = null
-    this.pillarCooldown = 5
+
+    const ref = this.rockPillars.find((one) => one.sprite === pillar)
+
+    if (ref) {
+      this.removeRockPillar(ref)
+    }
 
     playSfx(this, 'sfx-land', 0.45)
     this.cameras.main.shake(200, 0.007)
-    this.showMessage(reason)
+  }
+
+  // 岩柱挡下攻击：公子被震退、硬直一会儿，并且放一句狠话（不推进阶段）
+  private staggerBoss() {
+    const childe = this.childe
+
+    if (!childe || this.bossState !== 'fight') {
+      return
+    }
+
+    const arena = this.bossArena()
+    const away = childe.x >= this.slime.x ? 1 : -1
+
+    childe.x = Phaser.Math.Clamp(childe.x + away * 46, arena.left + 40, arena.right - 40)
+    this.bossTimer = Math.max(this.bossTimer, 2.6)
+    childe.setTint(0x8fd8f0)
+    this.time.delayedCall(900, () => childe.clearTint())
+    this.showMessage('公子：拿根破柱子挡我？')
   }
 
   // 柱脚常驻的一圈泥：柱子压在弧面上时（就相当于地面是斜的），底边总有一侧会露出缝，
@@ -9146,9 +11609,15 @@ export class GameScene extends Phaser.Scene {
   // 压力板：只有岩柱和「岩化状态」的史莱姆压得动，而且是慢慢压下去的
   private updatePlates(dt: number) {
     this.plateList.forEach((plate) => {
+      const pillarWeight = this.rockPillars.some(
+        (ref) =>
+          ref.sprite.active &&
+          this.physics.overlap(plate.sprite, ref.sprite)
+      )
+
       const weight =
         (this.armored && this.physics.overlap(plate.sprite, this.slime)) ||
-        (this.rockPillar !== null && this.physics.overlap(plate.sprite, this.rockPillar))
+        pillarWeight
       const step = dt / PLATE_PRESS_TIME
 
       // 有重量就往下沉，重量一走就慢慢弹回来
@@ -10148,6 +12617,56 @@ export class GameScene extends Phaser.Scene {
     this.slime.setVelocity(0, 0)
     this.trialArmed = false
     this.cameras.main.flash(240, 255, 230, 150)
+    this.spawnDomainTrialGem(1, 770)
+  }
+
+  private spawnDomainTrialGem(index: number, x: number) {
+    if (!this.domainMode) {
+      return
+    }
+
+    const saved = this.devLevel
+      ? []
+      : (progress.levelGems[progress.levelIndex] ?? [])
+
+    if (
+      this.collectedIndices.includes(index) ||
+      saved.includes(index)
+    ) {
+      return
+    }
+
+    const duplicate = (
+      this.gems.getChildren() as Phaser.Physics.Arcade.Sprite[]
+    ).some((gem) => gem.getData('index') === index)
+
+    if (duplicate) {
+      return
+    }
+
+    const gem = this.gems.create(
+      x,
+      786,
+      'gem'
+    ) as Phaser.Physics.Arcade.Sprite
+
+    gem.setTint(0x6ec6ff)
+    gem.setData('index', index)
+    gem.setData('layer', null)
+    gem.setDepth(5)
+
+    const baseY = gem.y
+
+    this.tweens.add({
+      targets: gem,
+      y: baseY - 4,
+      duration: 760,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    this.showMessage('仙人脚下凝出了一颗原石')
   }
 
   // 敲开琥珀：碎几片琥珀、把里面的东西放出来
@@ -10313,22 +12832,30 @@ export class GameScene extends Phaser.Scene {
     if (!this.resonanceGfx) {
       this.resonanceGfx = this.add.graphics().setDepth(7.5)
     }
+    this.rockPillars.forEach((ref) => {
+      const pillar = ref.sprite
+      const body = pillar.body as
+        | Phaser.Physics.Arcade.StaticBody
+        | undefined
 
-    const pillar = this.rockPillar
-    // **只有柱子落了地才出共鸣**：落下来那一段柱子的刚体是关着的（disableBody），
-    // 所以拿 body.enable 当"已经砸实了"的判据
-    const body = pillar?.body as Phaser.Physics.Arcade.StaticBody | undefined
-    const alive = pillar !== null && pillar.active && body !== undefined && body.enable
-
-    if (alive) {
-      this.resonanceTimer -= dt
-
-      if (this.resonanceTimer <= 0) {
-        // 频率（2026/10/17 用户砍半）：原来 0.55 秒一圈，现在 1.1 秒一圈
-        this.resonanceTimer = 1.1
-        this.resonanceRings.push({ x: pillar.x, y: body.bottom, r: 0 })
+      if (!pillar.active || !body?.enable) {
+        return
       }
-    }
+
+      ref.resonanceTimer -= dt
+
+      if (ref.resonanceTimer > 0) {
+        return
+      }
+
+      ref.resonanceTimer = 1.1
+      this.resonanceRings.push({
+        x: pillar.x,
+        y: body.bottom,
+        r: 0,
+        hits: [],
+      })
+    })
 
     // 光圈往外扩，扩到 REACH 就消失（范围是 2026/10/17 用户砍下来的一半）
     const REACH = 96
@@ -10370,6 +12897,24 @@ export class GameScene extends Phaser.Scene {
 
         if (distance <= outer && distance >= inner) {
           this.breakAmber(amber)
+        }
+      })
+
+      this.damageables.forEach((entry) => {
+        if (!entry.tags.includes('rock-resonance')) {
+          return
+        }
+
+        const distance = Math.abs(entry.sprite.x - ring.x)
+
+        if (
+          distance <= outer &&
+          distance >= inner &&
+          !ring.hits.includes(entry)
+        ) {
+          ring.hits.push(entry)
+          this.hitDamageable(entry, this.pogoAssist ? 1 : 0.5)
+          this.triggerPogoShockwave(entry.sprite.x, entry.sprite.y)
         }
       })
 
@@ -10580,7 +13125,7 @@ export class GameScene extends Phaser.Scene {
     const run = Math.abs(to.x - from.x) / count
     const rise = (from.y - to.y) / count
     // 楼梯下面的图要一直延到地面：底边取「这一跑的下端」和「整关最低那块平台的顶面」里更低的一个
-    const groundTop = this.level.platforms.reduce(
+const groundTop = this.level.platforms.filter((item) => !item.oneWay).reduce(
       (lowest, item) => Math.max(lowest, item.y - item.height / 2),
       Number.NEGATIVE_INFINITY
     )
@@ -11571,9 +14116,11 @@ export class GameScene extends Phaser.Scene {
     let standingFlight = -1
 
     for (const step of this.stairs) {
-      const stepBody = step.body as Phaser.Physics.Arcade.StaticBody
+      const stepBody = step.body as
+        | Phaser.Physics.Arcade.StaticBody
+        | undefined
 
-      if (!stepBody.enable) {
+      if (!step.active || !stepBody || !stepBody.enable) {
         continue
       }
 
@@ -11702,7 +14249,13 @@ export class GameScene extends Phaser.Scene {
         return
       }
 
-      const stepBody = step.body as Phaser.Physics.Arcade.StaticBody
+      const stepBody = step.body as
+        | Phaser.Physics.Arcade.StaticBody
+        | undefined
+
+      if (!step.active || !stepBody) {
+        return
+      }
 
       stepBody.enable = enabled
     })
@@ -11958,10 +14511,12 @@ export class GameScene extends Phaser.Scene {
         continue
       }
 
-      const stepBody = step.body as Phaser.Physics.Arcade.StaticBody
+      const stepBody = step.body as
+        | Phaser.Physics.Arcade.StaticBody
+        | undefined
 
       // 碰撞被临时关掉的踏面（"下跑穿过去"那一段）不参与抬人
-      if (!stepBody.enable) {
+      if (!step.active || !stepBody || !stepBody.enable) {
         continue
       }
 
@@ -12795,10 +15350,16 @@ export class GameScene extends Phaser.Scene {
 
       // 这一跑整段重建：断掉的踏步长回来
       this.stairGfx[def.stair]?.destroy()
-      this.stairs
-        .filter((s) => s.getData('flight') === def.stair)
-        .forEach((s) => s.destroy())
-      this.stairs = this.stairs.filter((s) => s.getData('flight') !== def.stair)
+      // 先从数组里摘掉，再销毁；destroy() 之后 getData 可能已经失效，
+      // 反过来写会把已销毁的踏板留在 this.stairs 里，下一帧访问 body.enable 直接崩。
+      const oldSteps = this.stairs.filter(
+        (s) => s.getData('flight') === def.stair
+      )
+
+      this.stairs = this.stairs.filter(
+        (s) => s.getData('flight') !== def.stair
+      )
+      oldSteps.forEach((s) => s.destroy())
       this.buildStairs(def.stair)
 
       this.inputLocked = false
@@ -12914,8 +15475,13 @@ export class GameScene extends Phaser.Scene {
         | { x: number; y: number; sx: number; sy: number }
         | null
 
-      if (!base || (applied && (anyObj.x !== applied.x || anyObj.y !== applied.y))) {
+      if (!base) {
         base = { x: anyObj.x, y: anyObj.y, sx: anyObj.scaleX, sy: anyObj.scaleY }
+      } else if (applied && (anyObj.x !== applied.x || anyObj.y !== applied.y)) {
+        // 位置被 refreshHud 重设时，只更新基准位置；
+        // 当前 scale 已经是 1/zoom 的补偿值，不能拿来当新基准，否则会反复放大
+        base.x = anyObj.x
+        base.y = anyObj.y
       }
 
       const nx = 240 + (base.x - 240) / zoom
@@ -14723,6 +17289,43 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    // 群玉阁：踏上平台后按平台上下取景，横向跟随玩家
+    if (
+      this.jadeMode &&
+      !this.jadeVictoryStarted &&
+      !this.jadeWideCamera &&
+      this.slime.x > 3060
+    ) {
+      this.jadeWideCamera = true
+
+      const camera = this.cameras.main
+
+      camera.stopFollow()
+      camera.zoomTo(0.8, 700, 'Sine.easeInOut')
+      camera.centerOn(this.slime.x, 1115)
+
+      // 奥赛尔保持约 1/3 画面高度
+      if (this.osialRoot) {
+        this.tweens.add({
+          targets: this.osialRoot,
+          scaleX: 1.25,
+          scaleY: 1.25,
+          x: -135,
+          y: -71,
+          duration: 700,
+          ease: 'Sine.easeInOut',
+        })
+      }
+      if (!this.osialAttackRunning) {
+        this.startOsialAttackLoop()
+      }
+            this.osialSpawnTimer = OSIAL_STAGE_CONFIG[this.osialStage].spawnEvery
+    }
+
+    if (this.jadeMode && this.jadeWideCamera) {
+      this.cameras.main.centerOn(this.slime.x, 1115)
+    }
+
     this.syncHudForZoom()
 
     if (this.windmillBlades) {
@@ -14734,9 +17337,13 @@ export class GameScene extends Phaser.Scene {
     const dt = delta / 1000
 
     this.updateSpeedItems(dt)
+    this.updatePogoAssist(dt)
+    const xiaoMultiplier = this.xiaoAssist ? 1.25 : 1
+    const charmMultiplier =
+      this.speedBoostTimer > 0 ? this.speedBoostMultiplier : 1
+    const speedMultiplier = Math.min(1.8, xiaoMultiplier * charmMultiplier)
 
-    const speed =
-      ELEMENTS[this.element].speed * (this.speedBoostTimer > 0 ? this.speedBoostMultiplier : 1)
+    const speed = ELEMENTS[this.element].speed * speedMultiplier
 
     // 第七关「绕树而上」：踩到判定区就在树前/树后之间切换
     this.updateDepthGates(body)
@@ -15099,6 +17706,11 @@ export class GameScene extends Phaser.Scene {
     this.updateSlopes(body)
     // 岩共鸣：岩柱还在的时候，脚下一直往外散金色光圈，扫到琥珀 / 岩方碑就算激活
     this.updateResonance(dt)
+    this.updateOsialTentacles()
+    this.updateFatuiAgents(dt)
+    this.updateOsialSpawner(dt)
+    this.updateBallistaCharge(dt)
+    this.updateDamageableBars()
     // 跳砸琥珀：普通跳 / 岩化跳砸都能震碎，不依赖岩柱
     this.updateAmberStomp()
     // 第一次靠近未碎的琥珀：提示一次破坏条件
@@ -15118,12 +17730,16 @@ export class GameScene extends Phaser.Scene {
 
     this.updateBoss(dt)
     this.updateBossBlades(dt)
+    this.updateWaterMirrors()
     this.clampToArena()
 
     // 地板塌了、人落到下层：公子跟着下去，之后的招式按 1900 那层算
     if (this.floorBroken && !this.bossDropped && this.slime.y > 1500) {
       this.bossDropped = true
+      this.bossDodges = 0
+      this.bossLowerAttacks = 0
       this.bossGroundY = 1900
+      this.updateBossObjective()
 
       if (this.childe) {
         this.childe.y = 1898
@@ -15140,9 +17756,7 @@ export class GameScene extends Phaser.Scene {
       camera.pan((arena.left + arena.right) / 2, 1900 - 220, 700, 'Sine.easeInOut')
     }
 
-    if (this.pillarCooldown > 0) {
-      this.pillarCooldown = Math.max(0, this.pillarCooldown - dt)
-    }
+    this.updatePillarCharges(dt)
     // 秘境第一重试炼：分段安全台、浮石消失、掉段扣心
     if (this.domainMode) {
       this.updateTrialStones()
@@ -15500,14 +18114,14 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // 第十一关：公子认输后出现的宝箱，由玩家决定开不开
-    if (!prompt && this.bossChest) {
+    // 第十一关：公子认输后，找钟离说话上群玉阁
+    if (!prompt && this.jadeGuide) {
       if (
-        Math.abs(this.slime.x - this.bossChest.x) < 48 &&
-        Math.abs(this.slime.y - this.bossChest.y) < 64
+        Math.abs(this.slime.x - this.jadeGuide.x) < 52 &&
+        Math.abs(this.slime.y - this.jadeGuide.y) < 64
       ) {
-        prompt = this.interactPrefix() + '打开'
-        action = () => this.win()
+        prompt = this.interactPrefix() + '与钟离交谈'
+        action = () => this.talkToZhongliJade()
       }
     }
 
@@ -15643,6 +18257,10 @@ export class GameScene extends Phaser.Scene {
         (!this.level.chaseOnLand || body.blocked.down)
 
       if (ready) {
+        if (this.level.plaza) {
+          playMusic(this, 'music-chase')
+        }
+
         if (this.terraceChased) {
           // 存档里记过这场追击演过了：镜头演出不放，千岩军照样追上来
           this.chased = true

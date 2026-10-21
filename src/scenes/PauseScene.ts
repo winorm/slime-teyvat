@@ -50,7 +50,7 @@ export class PauseScene extends Phaser.Scene {
     // 第 2 行：重开 / 回选关
     this.makeButton(COL.left, ROW[1], COL.half, '重开本关', () => {
       this.scene.stop('game')
-      this.scene.start('game')
+      this.scene.start('game', { domain: false, collectedGems: [] })
     })
 
     this.makeButton(COL.right, ROW[1], COL.half, '回到选择界面', () => {

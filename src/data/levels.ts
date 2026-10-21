@@ -302,6 +302,8 @@ export type LevelDef = {
   goal: GoalDef
   // 本关不摆通关宝箱（第九关的最终宝箱在秘境里，山顶的占位宝箱要关掉）
   goalDisabled?: boolean
+  // 不在关卡 gems 数组里、但属于本关的原石数量（第九关秘境奖励）
+  gemTotalBonus?: number
   // 山顶的仙人（第九关）：靠近按 F 对话，进入仙家试炼
   crane?: { x: number; y: number }
   // 秘境第一重试炼：浮石 + 分段安全台 + 顶部仙家符箓
@@ -530,8 +532,11 @@ export function levelGemTotal(level: LevelDef): number {
   const inAmber = (level.ambers ?? []).filter(
     (amber) => (amber.loot ?? 'gem') === 'gem' || amber.gemIndex !== undefined
   ).length
-
-  return level.gems.length + inAmber
+  return (
+    level.gems.length +
+    inAmber +
+    (level.gemTotalBonus ?? 0)
+  )
 }
 
 export const LEVELS: LevelDef[] = [
@@ -545,6 +550,7 @@ export const LEVELS: LevelDef[] = [
     startElement: 'none',
     spawn: { x: 40, y: 233 },
     bg: 'beach',
+    music: 'music-wind-land',
     // 终点这块台子原来顶面在 126，神像加高到 130 以后会顶出画面，所以整块往下挪 32
     goal: { x: 1230, y: 144, kind: 'chest', prompt: '打开', after: 'statue' },
     // y 是底座底面那条线（站的地面顶面），贴图变高也不用再改这里
@@ -582,6 +588,7 @@ export const LEVELS: LevelDef[] = [
     startElement: 'wind',
     spawn: { x: 60, y: 467 },
     bg: 'field',
+    music: 'music-wind-land',
     windmill: { x: 200, y: 480 },
     goal: { x: 1600, y: 466, kind: 'chest',prompt: '打开',},
     platforms: [
@@ -651,6 +658,7 @@ export const LEVELS: LevelDef[] = [
     startElement: 'wind',
     spawn: { x: 60, y: 377 },
     bg: 'sky',
+    music: 'music-wind-land',
     goal: { x: 2520, y: 466, kind: 'chest',prompt: '打开', },
     platforms: [
       { x: 200, y: 465, width: 400, height: 150 },
@@ -830,6 +838,7 @@ export const LEVELS: LevelDef[] = [
     startElement: 'wind',
     spawn: { x: 60, y: 467 },
     bg: 'liyue',
+    music: 'music-liyue',
     inn: { x: 3450, y: 480 },
     // 神像在过桥之后的土堆顶上：这一关开局没有岩元素，得先摸神像拿到，
     // 后面的双压力板、铁栅栏、岩刺走廊才用得上
@@ -938,6 +947,7 @@ export const LEVELS: LevelDef[] = [
     unlocks: ['wind'],
     spawn: { x: 220, y: 2144 },          // 一楼地面左侧（树根左边）
     bg: 'liyue',
+    music: 'music-liyue',
     // 爬得越高，背景越往一侧流 —— 「绕着古树盘旋而上」的感觉
     bgSpin: 0.25,
     trunk: { x: 460, y: 1555, width: 220, height: 890 },   // 主杆：y 1110~2000
@@ -1071,6 +1081,7 @@ export const LEVELS: LevelDef[] = [
     unlocks: ['wind'],
     spawn: { x: 60, y: 1120 },
     bg: 'harbor',
+    music: 'music-harbor',
     // 宝箱摆在追击段最后一摞木箱（x 6737）最上面那一块上：箱顶 1028，宝箱中心压在上面
     goal: { x: 6737, y: 1014, kind: 'chest', prompt: '打开' },
 
@@ -1318,9 +1329,11 @@ export const LEVELS: LevelDef[] = [
     unlocks: ['wind'],
     spawn: { x: 80, y: 1347 },
     bg: 'mountain',
+    music: 'music-mountain',
     cameraBias: 56,
     goal: { x: 2740, y: 446, kind: 'chest', prompt: '打开' },
     goalDisabled: true,
+    gemTotalBonus: 2,
     crane: { x: 2050, y: 460 },
 
     platforms: [
@@ -1396,17 +1409,16 @@ export const LEVELS: LevelDef[] = [
     // **原石总数还是三颗**（用户 2026/10/17 重申）：这里放两颗（山脚、山顶），
     // 第三颗冻在转角平台 1 的琥珀里 —— 那颗由 ambers 里的 gemIndex 领走下标 1，
     // 所以三颗的序号正好是 0 / 1 / 2，捡满了 HUD 就是三颗全亮，不会多出来第四颗
-    gems: [
-      { x: 150, y: 1347 },    // ① 山脚（顶面 1360）
-      { x: 1650, y: 447 },    // ② 山顶（顶面 460），放在湖环左边
-    ],
+    // 山路上不再直接摆原石。三颗分别是：
+    // 0 = C1琥珀，1 = 第一重奖励，2 = 第二重奖励
+    gems: [],
     blessings: [],
     hazards: [],
     monuments: [],
     // 琥珀（2026/10/17）：摆在两块转角平台上，**要用岩柱的岩共鸣震开**。
     // 里面冻的东西不一样：一块是原石，一块是野猪。第三个平台（山顶）留给仙人和小考验
     ambers: [
-      { x: 3480, y: 1010, loot: 'gem', gemIndex: 2 },
+      { x: 3480, y: 1010, loot: 'gem', gemIndex: 0 },
       { x: 1640, y: 710, loot: 'boar' },
       {
         x: 2200,
@@ -1514,6 +1526,7 @@ export const LEVELS: LevelDef[] = [
     unlocks: ['wind'],
     spawn: { x: 60, y: 1147 },
     bg: 'harbor-land',
+    music: 'music-rite',
     bgFixedY: true,
     // 宝箱在玉京台台面上（祭坛左边一点），送仙典仪演完才出现
     goal: { x: 4940, y: 866, kind: 'chest', prompt: '打开' },
@@ -1676,13 +1689,14 @@ export const LEVELS: LevelDef[] = [
     intro:
       '送仙典仪之后，帝君的仙体被送进黄金屋。\n钟离说，该去看看了 —— 有些事，瞒不了多久。',
 
-    width: 2200,
+    width: 4600,
     // 上下两层金库：上层大厅 1160，第三阶段碎地之后掉到下层 1900
     height: 2200,
     startElement: 'rock',
     unlocks: ['wind'],
     spawn: { x: 100, y: 1147 },
     bg: 'golden-house',
+    music: 'music-golden-house',
     // 背景要跟着镜头横向走，看着像绕着金库走了一圈
     bgTiled: true,
     // 黄金屋这一关还没收尾（公子打完是过场接群玉阁），宝箱先关着
@@ -1700,10 +1714,21 @@ export const LEVELS: LevelDef[] = [
       { x: 2125, y: 1180, width: 150, height: 40, brick: true },
       // 下层金库：碎地之后落在这里（顶面 1900），第三阶段就在这层打完
       { x: 1650, y: 1920, width: 1100, height: 40, brick: true },
+      // 群玉阁：接在黄金屋右侧，先铺一整块地面，布景和平台下一批再细化
+      { x: 3500, y: 1180, width: 2200, height: 40, hidden: true },
     ],
-
+    blockers: [
+      { x: 1098, y: 1810, width: 20, height: 180 },
+      { x: 2202, y: 1810, width: 20, height: 180 },
+      { x: 2930, y: 1060, width: 20, height: 200 },
+      { x: 4502, y: 1060, width: 20, height: 200 },
+    ],
     orbs: [],
-    gems: [],
+    gems: [
+      { x: 480, y: 1147 },
+      { x: 1450, y: 1887 },
+      { x: 2110, y: 1887 },
+    ],
     blessings: [],
     hazards: [],
     monuments: [],

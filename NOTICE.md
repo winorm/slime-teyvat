@@ -21,7 +21,7 @@ Copyright (c) 2013-2025 Richard Davey, Photon Storm Ltd.
 |---|---|---|
 | `sfx/jump.ogg` `sfx/land.ogg` `sfx/gem.ogg` `sfx/interact.ogg` `sfx/win.ogg` `sfx/die.ogg` | Kenney 的 Interface Sounds / Impact Sounds / Music Jingles 素材包（https://kenney.nl） | CC0 1.0，公共领域，可商用、无需署名 |
 | `sfx/fly.wav` `sfx/glide.wav` `sfx/step.wav` | 本项目用脚本合成 | 同本仓库 LICENSE |
-| `bgm/*.wav`（4 首） | 本项目用脚本合成（方波 / 三角波 / 噪声鼓点） | 同上 |
+| `bgm/*.wav`（12 首） | 本项目用脚本合成（波形合成 / 噪声鼓点 / 包络循环） | 同上 |
 
 每个音效的原始文件名、生成参数和用途记在 `public/sfx/来源.txt` 与 `public/bgm/来源.txt` 里。
 

@@ -1,16 +1,25 @@
 背景音乐来源
 ============
 
-这四首全部是用临时脚本现场合成的芯片音乐（方波 / 三角波 / 噪声鼓点），
+全部曲目都是用本地脚本现场合成的芯片音乐（正弦 / 方波 / 三角波 / 锯齿波 / 噪声鼓点），
 不是任何外部素材，所以没有授权问题，也不需要在打包时额外声明。
 
   menu.wav    标题 / 存档 / 成就界面    8 小节，C 大调，温暖慢速
-  field.wav   第一、二、四关            8 小节，C 大调，明快
+  field.wav   默认回退 / 测试关卡        8 小节，C 大调，明快
   tower.wav   第五关（塔）              8 小节，a 小调，神秘无鼓
   chase.wav   第三关（追逐）            8 小节，a 小调，快速紧张
+  wind-land.wav  第一、二、四关         8 小节，C 大调，微风与蒙德旷野
+  liyue.wav   第六、七关                8 小节，D 五声音阶，璃月探索
+  harbor.wav  第八关白天                8 小节，G 大调，璃月港市井
+  mountain.wav  第九关山道              8 小节，d 小调，空阔山风
+  trial.wav   仙家试炼秘境              8 小节，e 小调，云雾与仙铃
+  rite.wav    第十关送仙                8 小节，d 小调，庄重仪式
+  golden-house.wav  第十一关前半段      8 小节，d 小调，黄金屋战斗
+  osial.wav   第十一关群玉阁阶段        8 小节，d 小调，奥赛尔战斗
 
 参数：11025Hz 单声道 16bit，每段 8 小节、长度为整拍，首尾包络归零，
-所以能无缝循环。想调整，就重新跑一遍生成脚本（调式、速度、旋律、鼓点都在脚本里）。
+所以能无缝循环。新增三首想调整，就重新跑生成脚本（调式、速度、旋律、鼓点都在脚本里）。
+新增曲目生成脚本：`tools/generate-music.mjs`，运行 `node tools/generate-music.mjs`。
 
 由谁播放在 GameScene / MenuScene / SaveScene / AchievementListScene 的 create() 里，
 统一走 state/audio.ts 的 playMusic()；音量在 audio.ts 的 MUSIC_VOLUME。

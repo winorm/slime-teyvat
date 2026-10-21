@@ -50,16 +50,36 @@ export class ResultScene extends Phaser.Scene {
     queueAchievementToast('first-clear')
 
     if (isLast) {
-      this.makeButton(180, '重来一次', () => this.scene.start('game'))
-      this.makeButton(218, '回到选择界面', () => this.scene.start('select'))
+      this.makeButton(180, '重来一次', () => {
+        this.scene.start('game', {
+          domain: false,
+          collectedGems: [],
+        })
+      })
+
+      this.makeButton(218, '回到选择界面', () => {
+        this.scene.start('select')
+      })
     } else {
-      this.makeButton(170, '重来一次', () => this.scene.start('game'))
+      this.makeButton(170, '重来一次', () => {
+        this.scene.start('game', {
+          domain: false,
+          collectedGems: [],
+        })
+      })
+
       this.makeButton(202, '下一关', () => {
         progress.levelIndex += 1
         saveProgress()
-        this.scene.start('game')
+        this.scene.start('game', {
+          domain: false,
+          collectedGems: [],
+        })
       })
-      this.makeButton(234, '回到选择界面', () => this.scene.start('select'))
+
+      this.makeButton(234, '回到选择界面', () => {
+        this.scene.start('select')
+      })
     }
 
     this.input.keyboard!.once('keydown-ESC', () => {

@@ -2,16 +2,22 @@
 
 **▶ 在线试玩：<https://winorm.github.io/slime-teyvat/>**（手机浏览器也能玩，竖屏时会提示横过来）
 
-**⤓ 单文件版：<https://winorm.github.io/slime-teyvat/game.html>**（3.5MB，点开就直接开玩；想存成文件发给别人，按 Ctrl+S 另存为就行）
+**⤓ 单文件版：<https://winorm.github.io/slime-teyvat/game.html>**（点开就直接开玩；想存成文件发给别人，按 Ctrl+S 另存为就行）
 
 [![部署状态](https://github.com/winorm/slime-teyvat/actions/workflows/deploy-pages.yml/badge.svg?branch=main)](https://github.com/winorm/slime-teyvat/actions/workflows/deploy-pages.yml)
 
 一只从星间旅行坠落到提瓦特的史莱姆，摸到七天神像就能吸收对应的元素力——外貌、移速、
-能力都会跟着变。目前做完六关：蒙德的海滩与风车、教堂、高空、一座五层的塔（塔顶救了条龙），
-最后一路走到璃月·荻花洲的望舒客栈。
+能力都会跟着变。当前版本已经完成前十一章：从蒙德海滩一路经过风车原野、追逐遗迹、
+五层高塔和璃月·荻花洲，修复望舒客栈、参加请仙典仪、前往黄金屋迎战公子，
+最终登上群玉阁与仙人协力对抗奥赛尔。
+
+游戏包含横版平台跳跃、元素能力解谜、潜行追击、屋顶跑酷、隐藏支线、机关战、
+秘境试炼、首领战、三颗原石收集和隐藏成就。风史莱姆可以悬浮与缓降，岩史莱姆可以岩化、
+立起双岩柱并用岩共鸣激活机关；仙家试炼会在秘境中封印其他元素。
 
 2D 像素风横版冒险解谜，**项目里没有任何外部美术素材**：全部贴图都是启动时用代码
-（Phaser 的 Graphics）画出来的，音频里除六个 CC0 音效外也都是脚本合成的。
+（Phaser 的 Graphics）画出来的，背景音乐也都是项目内脚本合成的循环曲。
+音效里有六个来自 Kenney 的 CC0 素材包。
 
 引擎 **Phaser 4**，构建 **Vite 8**，语言 **TypeScript 6**，逻辑分辨率固定 480×270。
 
@@ -56,13 +62,21 @@ node 打包单文件.mjs  # 把整个游戏压成一个 game.html，双击即玩
 
 调试用的地址参数：`?reset=1` 清一次档，`?fresh=1` 这次不读也不写存档。
 
+开发用关卡入口（需要开启开发者模式）：
+
+- `?level=11&jade=1`：直接进入群玉阁阶段
+- `?domain=1`：直接进入仙家试炼秘境
+- `?dev=1`：进入包含传送门和分类展厅的测试关
+
 ## 目录结构
 
 ```
 src/
   main.ts                  入口与全局配置（画布尺寸、物理、场景列表）
   data/elements.ts         元素的颜色、跳跃、移速、能力
-  data/levels.ts           六关的全部关卡数据 + 各主题的地形配色表
+  data/levels.ts           十一章主线数据 + 各主题的地形配色表
+  data/domainLevel.ts      第九关隐藏的仙家试炼秘境
+  data/devLevel.ts         开发测试关、传送门大厅和分类展厅
   state/progress.ts        存档（localStorage、3 个槽、版本号、开发者开关）
   state/achievements.ts    成就表与解锁逻辑
   state/audio.ts           音效与背景音乐
@@ -78,13 +92,14 @@ src/
   scenes/Achievement*.ts   成就提示条与成就查看页
 public/sfx, public/bgm     音效与背景音乐（附来源说明）
 docs/                      README 用的截图
+tools/generate-music.mjs   背景音乐生成脚本
 开发笔记.md                 逐日开发记录：做完了什么、踩过哪些坑、下一步
 ```
 
 ## 设计笔记
 
 [`开发笔记.md`](开发笔记.md) 是这个项目真正的"说明书"：每一关的坐标、每个数据字段的含义、
-三十条踩过的坑（比如"编译通过不等于能跑""摆台阶先算高度差"）都在里面，
+一百多条踩过的坑（比如"编译通过不等于能跑""摆台阶先算高度差"）都在里面，
 想接着往下做的话建议先读它。
 
 ## 授权与致谢
