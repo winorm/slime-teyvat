@@ -23,13 +23,11 @@ import {
   saveProgress,
   hasSeenHint,
   markHintSeen,
-  DEV_MODE,
 } from '../state/progress'
 import { playMusic, playSfx, setLoop, stopAllLoops } from '../state/audio'
 import { queueAchievementToast } from '../state/achievements'
 import { touchMode, touchText } from '../state/touch'
 import { getMoveMode } from '../state/settings'
-import { DEV_LEVEL, DEV_LEVEL_MODE } from '../data/devLevel'
 import { DOMAIN_LEVEL } from '../data/domainLevel'
 
 type SceneCheckpoint = { x: number; y: number; element?: ElementKey }
@@ -694,618 +692,6 @@ const LAND_BLOCKS: Record<'land-a' | 'land-b', LandPack> = {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 测试关卡（只有 DEV_MODE + ?dev=1 进得来）：大厅 + 分类展示间
-//
-// 用户的新设计（2026-10-08）：进关卡先落在一个大厅里，一排传送门各自写着名字；
-// 走进一扇门就换到一间「只放这一类东西」的展示间，展品之间隔着一段距离，方便逐个看。
-// 传送门的机制（画门 / 按 F / 切房间）在 GameScene 里，房间的内容就是下面这张表。
-// **只影响 ?dev=1 的测试关卡，正式关卡一个字都不动**
-// ─────────────────────────────────────────────────────────────
-const DEV_GROUND_TOP = 860
-
-// 台阶高度实验台（能力测试厅最右边那一排）：从"走上去的上限"一路排到"跳起来挤上去的上限"，
-// 用来量三个阈值 —— 玩家正常走上台阶 ≤14（AUTO_STEP），干净起跳能上去 ≤ 约 56（跳高 260²/(2×600)），
-// 再高就得靠"跳起来顶住侧面往右挤"那条缝隙了
-const STEP_LAB = [16, 24, 40, 51, 54, 58, 62, 66, 70]
-
-// 矮通道实验台（「矮通道」厅）：一排"平台底面离地多高"的通道，用来量**净空**那条边界 ——
-// 史莱姆碰撞盒高 26，净空小于 26 时正常走不进去，但跳到空中同时往右挤，可能会被
-// 引擎按"最浅方向"往下压、从而钻过去。这里的数字都是**净空**（不含平台板厚）
-const GAP_LAB = [12, 16, 20, 22, 24, 26, 30]
-const GAP_TINT = 0x8a4a6a
-
-// 展品：展示间里「同一类东西」中的一个。
-// statue 是已经画好的神像（没做过贴图的元素会自动退回一块灰牌），slot 是纯预留位
-type DevExhibit =
-  // playable：这尊能站面前按 F 看「元素授予」那套演出（展厅里只看动画，不给元素）
-  | { kind: 'statue'; x: number; element: ElementKey; label: string; playable?: boolean }
-  | { kind: 'slot'; x: number; label: string }
-  // prop：随便摆一张贴图当展品（新美术先摆出来给用户审外观用）
-  | { kind: 'prop'; x: number; label: string; key: string; scale?: number; depth?: number; sway?: boolean }
-
-type DevLevelDef = LevelDef & { devExhibits?: DevExhibit[]; guards?: GuardDef[] }
-
-type DevRoomDef = { label: string; level: DevLevelDef }
-
-type DevPortalRef = { x: number; label: string; room: number; groundY: number }
-
-// 展示间的公共壳：一条地面 + 七种元素全解锁 + 不设终点（宝箱摆在世界外面，够不着）
-function devRoomShell(name: string, intro: string, width: number): DevLevelDef {
-  return {
-    name,
-    intro,
-    width,
-    height: 900,
-    startElement: 'none',
-    unlocks: [...ELEMENT_ORDER],
-    spawn: { x: 150, y: 820 },
-    bg: 'field',
-    music: 'music-field',
-    goal: { x: -600, y: DEV_GROUND_TOP - 14, kind: 'chest', prompt: '打开' },
-    platforms: [{ x: width / 2, y: DEV_GROUND_TOP + 20, width, height: 40 }],
-    stairs: [],
-    pickups: [],
-    repairs: [],
-    orbs: [],
-    gems: [],
-    blessings: [],
-    hazards: [],
-    monuments: [],
-    notes: [],
-    hints: [],
-  }
-}
-
-// ① 七天神像：风 / 岩是成品，站面前按 F 能看「元素授予」那套动画 ——
-// 展厅里只放动画、不真的给元素（用户要求：测试关的神像保留动画，不保留功能），另外五种先立灰牌
-function devStatueRoom(): DevLevelDef {
-  const level = devRoomShell(
-    '测试 · 七天神像',
-    '七天神像展厅：\n七尊展品间距 230。\n风、岩能站面前看动画，\n只看演出、不给元素；\n其余五种还是预留位。',
-    1900
-  )
-
-  // 注意：标签里别出现「按 F」三个字 —— makeHint 会把它当成操作提示，
-  // 一旦这一类提示过了就不再显示，标签会整块消失
-  level.devExhibits = [
-    { kind: 'statue', x: 290, element: 'wind', label: '风神像 · 可看演出', playable: true },
-    { kind: 'statue', x: 520, element: 'rock', label: '岩神像 · 可看演出', playable: true },
-    { kind: 'slot', x: 750, label: '雷神像（预留）' },
-    { kind: 'slot', x: 980, label: '草神像（预留）' },
-    { kind: 'slot', x: 1210, label: '水神像（预留）' },
-    { kind: 'slot', x: 1440, label: '火神像（预留）' },
-    { kind: 'slot', x: 1670, label: '冰神像（预留）' },
-  ]
-
-  level.hints = [{ x: 180, y: 752, text: '展厅：神像只演动画，不给元素' }]
-
-  return level
-}
-
-// ② 元素方碑：未点亮 / 已点亮各摆一对（风、岩都是真能点亮的），再往右是预留位
-function devMonumentRoom(): DevLevelDef {
-  const level = devRoomShell(
-    '测试 · 元素方碑',
-    '元素方碑展厅：\n前四块是风 / 岩的\n未点亮与已点亮对照，\n再往右是预留位。',
-    2100
-  )
-
-  level.monuments = [
-    { x: 300, y: 838, element: 'wind', id: 'vm1' },
-    { x: 520, y: 838, element: 'rock', id: 'vm2' },
-    { x: 740, y: 838, element: 'wind', id: 'vm3', startLit: true },
-    { x: 960, y: 838, element: 'rock', id: 'vm4', startLit: true },
-    // 雷方碑：走近了用雷元素碰，或者站在左边用雷鸣劈
-    { x: 1200, y: 838, element: 'thunder', id: 'vm5' },
-  ]
-
-  level.devExhibits = [
-    { kind: 'slot', x: 1420, label: '草方碑（预留）' },
-    { kind: 'slot', x: 1640, label: '水方碑（预留）' },
-    { kind: 'slot', x: 1860, label: '火方碑（预留）' },
-  ]
-
-  level.hints = [
-    { x: 300, y: 690, text: '未点亮' },
-    { x: 740, y: 690, text: '已点亮' },
-    { x: 130, y: 780, text: '风 / 岩 / 雷都能真的点亮' },
-  ]
-
-  return level
-}
-
-// ③ 造物机关：石门、天花板岩刺、横向岩刺、压力板 + 铁栅栏，一样隔一段摆一处
-function devTrapRoom(): DevLevelDef {
-  const level = devRoomShell(
-    '测试 · 造物机关',
-    '造物机关展厅：\n石门（要两块方碑）、\n天花板岩刺、横向岩刺、\n压力板 + 铁栅栏。',
-    2400
-  )
-
-  level.platforms = [
-    { x: 1200, y: DEV_GROUND_TOP + 20, width: 2400, height: 40 },
-    // 岩刺区头顶那块天花板：四个发射器贴在它底面往下打
-    { x: 1300, y: 240, width: 620, height: 30 },
-    // 横向岩刺：两段矮墙隔开一段空档，机关装在右边那段的左面，横着打过来。
-    // 矮墙刚好一人多高（能跳过去，走过去会被挡住），岩刺在中间飞，玩家得用岩柱（C）挡
-    { x: 1660, y: 840, width: 18, height: 40 },
-    { x: 1900, y: 840, width: 18, height: 40 },
-  ]
-
-  level.monuments = [
-    { x: 380, y: 838, element: 'wind', id: 'tm1' },
-    { x: 860, y: 838, element: 'rock', id: 'tm2' },
-  ]
-
-  level.doors = [
-    { x: 620, y: 840, width: 70, height: 40, needs: ['tm1', 'tm2'] },
-    { x: 2200, y: 810, width: 80, height: 100, needs: ['p1', 'p2'], texture: 'iron-gate' },
-  ]
-
-  level.plates = [
-    { x: 1950, y: 856, id: 'p1' },
-    { x: 2030, y: 856, id: 'p2' },
-  ]
-
-  level.launchers = [
-    { x: 1100, y: 262, interval: 2.2 },
-    { x: 1250, y: 262, interval: 2.2 },
-    { x: 1400, y: 262, interval: 2.2 },
-    { x: 1550, y: 262, interval: 2.2 },
-    { x: 1886, y: 845, dir: 'left', interval: 2 },
-  ]
-
-  level.hints = [
-    { x: 380, y: 780, text: '方碑 ①' },
-    { x: 860, y: 780, text: '方碑 ② → 石门' },
-    { x: 1300, y: 180, text: '天花板岩刺 ×4' },
-    { x: 1780, y: 780, text: '横向岩刺：两段矮墙中间，岩柱能挡' },
-    { x: 1990, y: 790, text: '压力板 ×2（岩柱 / 岩化触发）→ 铁栅栏' },
-  ]
-
-  return level
-}
-
-// ④ 能力测试：岩柱 / 岩化、楼梯、电梯、单向平台、碎裂平台都在这儿
-function devAbilityRoom(): DevLevelDef {
-  const level = devRoomShell(
-    '测试 · 能力测试',
-    '能力测试：\n岩柱压板开铁栅栏、楼梯、\n水利电梯、单向平台、\n碎裂平台、雷闪的墙\n都在这儿。',
-    4200
-  )
-
-  level.platforms = [
-    { x: 2100, y: DEV_GROUND_TOP + 20, width: 4200, height: 40 },
-    // 楼梯顶端接的那层楼板（顶面 700），一直连到电梯井口
-    { x: 1465, y: 703, width: 430, height: 6, plank: true },
-    // 电梯的两站：地面（860）和这层（660）
-    { x: 1800, y: 663, width: 240, height: 6, plank: true },
-    { x: 2000, y: 800, width: 120, height: 6, oneWay: true },
-    { x: 2150, y: 740, width: 100, height: 6, crumble: true, tint: 0xa4583a },
-    // 雷闪测试：一道 200 高的墙，跳不过去也绕不过去，只能闪过去；
-    // 墙顶那块雷方碑够不着，只能站在左边用雷鸣劈
-    { x: 2320, y: 760, width: 24, height: 200 },
-    // 台阶高度实验台：一排不同高度的台子，专门用来量「走上去 / 跳上去 / 跳起来挤上去」
-    // 三个阈值到底卡在哪 —— 每级 40 宽、间距 150，顶面高度写在标签上
-    ...STEP_LAB.map((height, index) => ({
-      x: 2650 + index * 150,
-      y: DEV_GROUND_TOP - height / 2,
-      width: 40,
-      height,
-      tint: 0x8a6a4a,
-    })),
-  ]
-
-  level.monuments = [{ x: 2320, y: 638, element: 'thunder', id: 'ah1' }]
-  // 墙那头放一只魔物：碰一下就死，站远点用雷鸣劈晕了再走过去
-  level.monsters = [{ x: 2500, y: DEV_GROUND_TOP, range: 60 }]
-
-  level.stairs = [
-    { from: { x: 1050, y: DEV_GROUND_TOP }, to: { x: 1250, y: 700 }, layer: 'front' },
-  ]
-
-  level.lift = { x: 1800, width: 80, stops: [660, 860] }
-
-  level.plates = [{ x: 600, y: 856, id: 'a1' }]
-  level.doors = [
-    { x: 820, y: 810, width: 80, height: 100, needs: ['a1'], texture: 'iron-gate' },
-  ]
-
-  level.hints = [
-    { x: 600, y: 800, text: '压力板：只有岩柱 / 岩化能压住' },
-    { x: 1150, y: 780, text: '楼梯（走上去自动抬脚）' },
-    { x: 1800, y: 600, text: '水利电梯：右半边上行、左半边下行' },
-    { x: 2000, y: 760, text: '单向平台' },
-    { x: 2150, y: 700, text: '碎裂平台' },
-    { x: 2180, y: 780, text: '雷闪：X 键长按瞄准，松开闪出' },
-    { x: 2320, y: 592, text: '雷方碑（够不着，用雷鸣劈）' },
-    { x: 2500, y: 760, text: '魔物：碰到即死，雷鸣劈中晕 3 秒' },
-    ...STEP_LAB.map((height, index) => ({
-      x: 2650 + index * 150,
-      y: DEV_GROUND_TOP - height - 16,
-      text: '台阶 ' + height,
-    })),
-  ]
-
-  return level
-}
-
-// ⑤ 地形与建材：六块矮台依次是 草 / 浅水 / 砖 / 木 / 单向 / 碎裂，右边是背景静物
-function devTerrainRoom(): DevLevelDef {
-  const level = devRoomShell(
-    '测试 · 地形与建材',
-    '地形与建材展厅：\n六块矮台依次是草、浅水、\n砖、木、单向、碎裂，\n右边是背景静物。',
-    1800
-  )
-
-  level.platforms = [
-    { x: 900, y: DEV_GROUND_TOP + 20, width: 1800, height: 40 },
-    { x: 320, y: 822, width: 110, height: 6, grass: true },
-    { x: 470, y: 822, width: 110, height: 6, water: true },
-    { x: 620, y: 822, width: 110, height: 6, brick: true },
-    { x: 770, y: 822, width: 110, height: 6, plank: true },
-    { x: 920, y: 822, width: 110, height: 6, oneWay: true },
-    { x: 1070, y: 822, width: 110, height: 6, crumble: true, tint: 0xa4583a },
-    // 第七关楼板那两样：护栏 + 楼板下面的立柱
-    { x: 1350, y: 700, width: 220, height: 8, plank: true, rail: true, pillars: 2 },
-  ]
-
-  level.decor = [
-    { x: 1460, y: DEV_GROUND_TOP, key: 'mine-hill' },
-    { x: 1680, y: DEV_GROUND_TOP, key: 'ruin-house', scale: 0.85 },
-  ]
-  level.windmill = { x: 1780, y: DEV_GROUND_TOP }
-
-  level.hints = [
-    { x: 320, y: 770, text: '草 grass' },
-    { x: 470, y: 770, text: '浅水 water' },
-    { x: 620, y: 770, text: '砖 brick' },
-    { x: 770, y: 770, text: '木 plank' },
-    { x: 920, y: 770, text: '单向 oneWay' },
-    { x: 1070, y: 770, text: '碎裂 crumble' },
-    { x: 1350, y: 640, text: '护栏 rail + 立柱 pillars' },
-  ]
-
-  return level
-}
-
-// ⑥ 矮通道：量"平台底下多矮还能钻过去"（净空），第八关可以用它做暗道 / 藏东西
-function devGapRoom(): DevLevelDef {
-  const level = devRoomShell(
-    '测试 · 矮通道',
-    '矮通道实验台：\n每块平台底面离地多少写在牌子上。\n站在左边只按右会被挡住，\n跳起来同时按右挤，就能看出哪几档钻得过去。',
-    2600
-  )
-
-  level.platforms = [
-    { x: 1300, y: DEV_GROUND_TOP + 20, width: 2600, height: 40 },
-    // 每块板底面离地 = gap（板本身 20 厚），间距 300，板宽 200
-    ...GAP_LAB.map((gap, index) => ({
-      x: 500 + index * 300,
-      y: DEV_GROUND_TOP - gap - 10,
-      width: 200,
-      height: 20,
-      tint: GAP_TINT,
-    })),
-  ]
-
-  level.hints = GAP_LAB.map((gap, index) => ({
-    x: 500 + index * 300,
-    y: DEV_GROUND_TOP - gap - 36,
-    text: '净空 ' + gap + ' 像素',
-  }))
-
-  return level
-}
-
-// ⑦ 潜行：千岩军巡逻 + 几摞木箱当掩体 —— 第八关「可疑人员」的核心玩法先在这儿试
-function devStealthRoom(): DevLevelDef {
-  const level = devRoomShell(
-    '测试 · 潜行',
-    '潜行测试：\n千岩军的视野是一个扇形。\n躲在木箱后面他看不见你，\n被看见 1.2 秒他就会追过来。',
-    1900
-  )
-
-  level.platforms = [
-    { x: 950, y: DEV_GROUND_TOP + 20, width: 1900, height: 40 },
-    // 掩体：三摞木箱。48 高 —— 站着能挡住视线，跳一下又能翻过去
-    { x: 420, y: 836, width: 76, height: 48, plank: true },
-    { x: 980, y: 836, width: 76, height: 48, plank: true },
-    { x: 1500, y: 836, width: 76, height: 48, plank: true },
-  ]
-
-  // 巡逻范围特意错开那三摞木箱（382~458 / 942~1018 / 1462~1538）——
-  // 现在巡逻不再因为障碍掉头了，范围要是不错开，他会从箱子里穿过去
-  level.guards = [
-    { x: 700, y: DEV_GROUND_TOP, range: 120 },
-    { x: 1250, y: DEV_GROUND_TOP, range: 150, facing: -1 },
-    { x: 1700, y: DEV_GROUND_TOP, range: 110 },
-  ]
-
-  level.hints = [
-    { x: 160, y: 780, text: '走到右边去：别走进扇形视野' },
-    { x: 420, y: 770, text: '木箱后面看不见你' },
-    { x: 980, y: 770, text: '掩体' },
-    { x: 1500, y: 770, text: '掩体' },
-  ]
-
-  return level
-}
-
-// ⑧ 追击：走过触发点先放一段"被发现了"的演出，然后一道封锁线从后面压上来，
-// 剩下那一整段是不同高度的跑酷（一级一级往上爬再跳下来），掉进水里不会死、
-// 但大概率会被追上 —— 第八关"逃出璃月港"那段的手感先在这儿试
-function devChaseRoom(): DevLevelDef {
-  const level = devRoomShell(
-    '测试 · 追击',
-    '追击测试：\n往右跑，走过 x=380 会触发追击。\n剩下全是不同高度的跑酷，\n掉进水里不会死，但会被追上。',
-    2600
-  )
-
-  // 高一点的关卡：下面要留出水面
-  level.height = 960
-
-  level.platforms = [
-    // 出发点：一小段实地
-    { x: 250, y: 880, width: 500, height: 40 },
-    // 底下那片水：掉下来浮在水面上不会死。水面只比出发点低 12 像素 ——
-    // 这样从水里能跳回最矮的那几级（跳高 56，最矮的台子顶面 821 离水面 51），
-    // 落水是"掉一段节奏"而不是死路
-    { x: 1600, y: 892, width: 2600, height: 40, water: true },
-
-    // 跑酷路线：一级比一级高一点点（每级不超过 48，跳得上去）
-    { x: 600, y: 838, width: 120, height: 34, plank: true },
-    { x: 760, y: 806, width: 120, height: 34, plank: true },
-    { x: 920, y: 782, width: 140, height: 34, plank: true },
-    // 屋顶那一段可以一直跑
-    { x: 1150, y: 782, width: 300, height: 34, plank: true },
-    { x: 1440, y: 830, width: 120, height: 34, plank: true },
-    { x: 1620, y: 800, width: 100, height: 34, plank: true },
-    // 最后跳上一条船，再上岸
-    { x: 1810, y: 790, width: 220, height: 30, plank: true },
-    { x: 2060, y: 812, width: 140, height: 34, plank: true },
-    { x: 2350, y: 838, width: 400, height: 40, plank: true },
-    // 落水之后的救援台阶：贴着水面，能一级一级爬回路线
-    { x: 2280, y: 880, width: 100, height: 30, plank: true },
-  ]
-
-  const tuning = level as DevLevelDef & ChaseTuning
-
-  // 没有红色判定线了：走过 380 就演出一下、原地生成三个千岩军自己追
-  tuning.chaseAt = 380
-  tuning.squadCount = 3
-  tuning.squadSpeed = 92
-  tuning.squadSpawnGap = 240
-  tuning.squadStop = 2480
-  tuning.chaseCause = 'guard'
-
-  level.hints = [
-    { x: 200, y: 780, text: '往右跑 —— 走过 x=380 会被千岩军盯上' },
-    { x: 900, y: 690, text: '一级一级往上跳' },
-    { x: 1500, y: 830, text: '掉进水里不会死，但他们会追上来' },
-    { x: 2350, y: 760, text: '跑到尽头（x=2480）就甩掉他们了' },
-  ]
-
-  return level
-}
-
-// 大厅里那一排门。x 是门中心，间距 230；最后一扇通向原来那个「一关走完全部机关」的旧沙盒
-// ⑩ 港口打包预览：三类打包各摆三段（第一 / 二 / 三版，用户要求先在测试关里看效果，再拿去第八关铺）
-function devHarborBlockRoom(): DevLevelDef {
-  const level = devRoomShell(
-    '测试 · 港口打包',
-    '港口打包预览：\n每一段单独放，中间留空。\n从左到右：港口 ①②③、街道 ①②③、郊区 ①②③。\n每段 460 宽。',
-    6300
-  )
-
-  // 用港口主题，水面 / 护栏 / 白天天空和随机远山才会出来
-  level.bg = 'harbor'
-
-  level.hints = [
-    { x: 300, y: 700, text: '港口 第一版：一正一背两个摊位 + 小船' },
-    { x: 1000, y: 700, text: '港口 第二版：两栋相连的楼房 + 灯笼串 + 牌楼' },
-    { x: 1700, y: 700, text: '港口 第三版：宽厅 + 小屋 + 高帆渔船' },
-    { x: 2400, y: 700, text: '街道 第一版：房子 + 街上摊位，右边是背向的房子' },
-    { x: 3100, y: 700, text: '街道 第二版：高铺 + 小屋 + 左侧背向摊位' },
-    { x: 3800, y: 700, text: '街道 第三版：两栋房子 + 右边背向摊位' },
-    { x: 4500, y: 700, text: '郊区 第一版：两栋小屋、人少' },
-    { x: 5200, y: 700, text: '郊区 第二版：大厅 + 小屋、路边摊' },
-    { x: 5900, y: 700, text: '郊区 第三版：最空的一版，前景不摆东西' },
-  ]
-
-  const tuning = level as DevLevelDef & {
-    harborBlocks?: { at: number; kind: 'dock' | 'street' | 'suburb'; variant?: number }[]
-  }
-
-  tuning.harborBlocks = [
-    // 每段之间空 240（段宽 460），这样一眼能看出"一段到哪儿结束"
-    { at: 70, kind: 'dock' },
-    { at: 770, kind: 'dock', variant: 2 },
-    { at: 1470, kind: 'dock', variant: 3 },
-    { at: 2170, kind: 'street' },
-    { at: 2870, kind: 'street', variant: 2 },
-    { at: 3570, kind: 'street', variant: 3 },
-    { at: 4270, kind: 'suburb' },
-    { at: 4970, kind: 'suburb', variant: 2 },
-    { at: 5670, kind: 'suburb', variant: 3 },
-  ]
-
-  return level
-}
-
-// ⑪ 人物：专门用来审角色的样子 —— 新画的 NPC 先摆这儿看，定稿了再挪进正式关卡。
-//    别人的展厅是一类机制一间，这间只放"人"
-function devCharacterRoom(): DevLevelDef {
-  const level = devRoomShell(
-    '测试 · 人物',
-    '人物展厅：\n新画的人物先摆在这儿看，\n定稿了再挪进正式关卡。',
-    1400
-  )
-
-  level.devExhibits = [
-    { kind: 'prop', x: 420, label: '留云借风真君 · 鸟兽形态', key: 'npc-cloud-retainer-crane' },
-  ]
-
-  return level
-}
-
-// ⑫ 拱形土坡：走线本身是一条**真的弧**（`slopes`），不是台阶拼的 —— 给第九关的"爬山"试路。
-//    两座拱：左边缓的（拱高 100、跨 700），右边陡的（拱高 300、跨 460）。
-//    两座的两端都落在同一水平线上（DEV_GROUND_TOP），所以走到哪一段都是连着的地面
-function devSlopeRoom(): DevLevelDef {
-  const level = devRoomShell(
-    '测试 · 拱形土坡',
-    '拱形土坡实验台：\n走线是一条真的弧，不是台阶。\n左右走走、顶上跳一下，\n看脚底跟不跟得上弧面。',
-    // 宽度要盖住掉头平台（一直铺到 2980）：关卡边界就是这里的宽度，写小了人会被挡在平台前面
-    3400
-  )
-
-  level.platforms = [
-    { x: 1700, y: DEV_GROUND_TOP + 20, width: 3400, height: 40, grass: true },
-    // 盘山道的转角平台：**左端必须正好落在下跑收平的那一点（x 2500、顶面 720）**，
-    // 多伸出去一截就是一道坎，人爬坡上来会被它挡住（第一版伸到 2440，实测卡在 x 2424）
-    { x: 2560, y: 723, width: 120, height: 6, grass: true, depth: 3 },
-    // 上跑尽头的上层平台（372 这一层，在后层）
-    { x: 1900, y: 375, width: 120, height: 6, grass: true, depth: 1.9 },
-    // 缓坡顶上的平台（600）：上楼走到这儿翻层再往左上，下楼顺着上跑下来落在这儿。
-    // 右端一直顶到关卡边（3400 宽、边界在 3384），免得往右走过头掉下去
-    { x: 3242, y: 603, width: 284, height: 6, grass: true, depth: 3 },
-  ]
-
-  level.slopes = [
-    // 缓坡：拱顶 760、两端落到 860（＝地面线），跨度 700
-    { x: 700, y: 760, width: 700, rise: 100, grass: true },
-    // 陡坡：拱顶 560、两端同样落在 860，跨度 460（两端坡度接近 69°）
-    { x: 1500, y: 560, width: 460, rise: 300, grass: true },
-    // ── 叠两层：盘山道 ────────────────────────────────────────────────
-    // 一笔写清楚这一层的走向：地面 860 →（下跑）→ 720 转角 →（引道）→ 640 →（上跑）→ 360 上层平台。
-    // 关键是**四条坡在接缝处的斜率都对上了**（都等于 2·rise ÷ half），所以走上去是光滑的：
-    //   下跑端点斜率 0（收平）→ 转角平台是平的 ✓
-    //   引道上端斜率 0 → 上跑 a 起点斜率 0 ✓
-    //   上跑 a 在 x=2300 处的斜率 +0.636 → 上跑 b 同一点也是 +0.636 ✓（b 的 rise 就是照这个反推的）
-    // 下跑：地面 860（x 1900）升到 720（x 2500），越走越平
-    { x: 2500, y: 720, width: 1200, rise: 140, tStart: -1, tEnd: 0, grass: true, depthTo: DEV_GROUND_TOP, depth: 2.3 },
-    // 引道（转角那一下）：从转角平台右边（x 2620、720）抬到 640（x 2860）。
-    // **底必须够缓**（2·rise ÷ half ≤ 0.7 左右）：贴地"开始骑"只认脚底离弧面 2 像素以内的，
-    // 底太陡的话，人从平台边上迈出去的第一步就已经掉到弧面下面十几像素，直接被判成"在弧底下"进不去
-    // （第一版 240 宽、底 53°，实测就在这儿掉回地面）
-    { x: 2860, y: 640, width: 480, rise: 80, tStart: -1, tEnd: 0, grass: true, depthTo: DEV_GROUND_TOP, depth: 2.2 },
-    // 缓坡：掉头平台（2860、640）走到缓坡顶（3100、600）—— **一条能直接走上去的坡**，
-    // 不用跳。坡顶是平的，和上面那条上跑的起点同高，翻层之后接着就往左上
-    { x: 3100, y: 600, width: 480, rise: 40, tStart: -1, tEnd: 0, grass: true, depthTo: DEV_GROUND_TOP, depth: 2.2 },
-    // 上跑 a（**后层**）：起点 x 3100、600（就在缓坡顶上），往左升到 460（x 2400）。
-    // 它和缓坡在下头这一段是重叠的 —— 靠 layer 分开，贴地只认当前那一层
-    { x: 3100, y: 600, width: 1400, rise: -140, tStart: -1, tEnd: 0, grass: true, depthTo: DEV_GROUND_TOP, layer: 'back', depth: 1.8 },
-    // 上跑 b（后层）：从 460（x 2400）继续往左升到 372（x 1960），到顶收平
-    { x: 1960, y: 372, width: 880, rise: 88, tStart: 0, tEnd: 1, grass: true, depthTo: DEV_GROUND_TOP, layer: 'back', depth: 1.8 },
-  ]
-
-  level.hints = [
-    { x: 300, y: 740, text: '拱形土坡 · 缓（拱高 100 / 跨 700）' },
-    { x: 1500, y: 470, text: '拱形土坡 · 陡（拱高 300 / 跨 460）' },
-    { x: 2150, y: 680, text: '叠两层 · 下跑（1900→2500，860→720）' },
-    { x: 2400, y: 420, text: '叠两层 · 上跑（3100→1960，600→372，后层）' },
-    { x: 2950, y: 640, text: '顺这条缓坡走上上跑' },
-  ]
-
-  // 拐角的两道翻层判定区（和玉京台折返楼梯一个思路：两条跑 x 重叠，靠层分开）：
-  //   站在坡顶往**左**走 → 翻到后层，贴地就认上跑 a 了，一路往上
-  //   顺着上跑走到头、往**右**走 → 翻回前层，贴地认缓坡，一路下来
-  level.depthGates = [
-    // 坡顶平台靠左这一小段：往左走 → 翻到后层（接着就骑上跑 a 往上）
-    { x: 3120, y: 587, width: 40, height: 40, dir: -1 },
-    // 平台靠右这一小段：往右走 → 翻回前层（再往回走就是缓坡下坡）
-    { x: 3300, y: 587, width: 40, height: 40, dir: 1 },
-  ]
-
-  return level
-}
-
-// ⑬ 悬崖·树·石头：崖上的树 3 种（一种带鸟巢）、桦木 3 种、岩石横截面 3 种、
-//    小石子 3 种、石堆。全是 2026/10/17 用户给第九关点的素材，先摆出来看
-function devCliffRoom(): DevLevelDef {
-  const level = devRoomShell(
-    '测试 · 悬崖·树·石头',
-    '悬崖素材展厅：\n崖树 / 桦木 / 岩石横截面 /\n小石子 / 石堆，\n排成两排看。',
-    1300
-  )
-
-  level.devExhibits = [
-    { kind: 'prop', x: 120, label: '崖松（斜长）', key: 'tree-cliff-a' },
-    { kind: 'prop', x: 260, label: '崖树（带鸟巢）', key: 'tree-cliff-b' },
-    { kind: 'prop', x: 400, label: '风歪树', key: 'tree-cliff-c' },
-    { kind: 'prop', x: 540, label: '桦木 a', key: 'birch-a' },
-    { kind: 'prop', x: 660, label: '桦木 c', key: 'birch-c' },
-    { kind: 'prop', x: 880, label: '岩石横截面 a', key: 'rock-strata-a' },
-    { kind: 'prop', x: 960, label: '岩石横截面 b', key: 'rock-strata-b' },
-    { kind: 'prop', x: 1040, label: '岩石横截面 c', key: 'rock-strata-c' },
-    { kind: 'prop', x: 1120, label: '石子 a', key: 'pebble-a' },
-    { kind: 'prop', x: 1150, label: '石子 b', key: 'pebble-b' },
-    { kind: 'prop', x: 1180, label: '石子 c', key: 'pebble-c' },
-    { kind: 'prop', x: 1240, label: '石堆', key: 'stone-pile' },
-  ]
-
-  return level
-}
-
-const DEV_ROOMS: DevRoomDef[] = [
-  { label: '七天神像', level: devStatueRoom() },
-  { label: '元素方碑', level: devMonumentRoom() },
-  { label: '造物机关', level: devTrapRoom() },
-  { label: '能力测试', level: devAbilityRoom() },
-  { label: '地形与建材', level: devTerrainRoom() },
-  { label: '矮通道', level: devGapRoom() },
-  { label: '潜行', level: devStealthRoom() },
-  { label: '追击', level: devChaseRoom() },
-  { label: '港口打包', level: devHarborBlockRoom() },
-  { label: '人物', level: devCharacterRoom() },
-  { label: '综合沙盒', level: DEV_LEVEL },
-  // 新展厅一律**加在最后**：前面的下标是 `?room=N` 认的，插在中间会把老书签挪位
-  { label: '拱形土坡', level: devSlopeRoom() },
-  { label: '悬崖·树·石头', level: devCliffRoom() },
-]
-
-const DEV_PORTALS: DevPortalRef[] = DEV_ROOMS.map((room, index) => ({
-  x: 260 + index * 230,
-  label: room.label,
-  room: index,
-  groundY: DEV_GROUND_TOP,
-}))
-
-// 调试某一间展厅时不用先走大厅：地址上带 ?room=3 就直接落进第 3 间（0 起，越界就当大厅）
-const DEV_START_ROOM = (() => {
-  const raw = new URLSearchParams(location.search).get('room')
-  const index = raw === null ? -1 : Number.parseInt(raw, 10)
-
-  return Number.isInteger(index) && index >= 0 && index < DEV_ROOMS.length ? index : -1
-})()
-
-// 长房间（造物机关 2400 宽）想直接看中间某一处时：地址上再带 at=1700 就出生在那一列
-const DEV_SPAWN_X = (() => {
-  const raw = new URLSearchParams(location.search).get('at')
-  const x = raw === null ? Number.NaN : Number.parseFloat(raw)
-
-  return Number.isFinite(x) ? x : null
-})()
-
-// 秘境调试：?domain=1&trial=2 直接落到第二重擂台，?domain=1&trial=3 直接进第三重
-const DOMAIN_START_TRIAL = (() => {
-  const raw = new URLSearchParams(location.search).get('trial')
-
-  return raw === '2' ? 2 : raw === '3' ? 3 : 0
-})()
-
-const DEV_HUB: DevLevelDef = {
-  ...devRoomShell(
-    '测试关卡 · 大厅',
-    '测试关卡 · 大厅\n一排门各通一间展厅，\n站到门前按 F 进去。',
-    // 12 扇门了：260 + 11 × 230 = 2790，大厅至少要有这么宽
-    3100
-  ),
-  spawn: { x: 90, y: 820 },
-  hints: [{ x: 90, y: 740, text: '开发用的测试大厅（正式关卡里没有）' }],
-}
-
 type MonumentRef = {
   pillar: Phaser.Physics.Arcade.Sprite
   head: Phaser.GameObjects.Image
@@ -1535,8 +921,6 @@ export class GameScene extends Phaser.Scene {
   private innRestored = false
   // 第五关同理：存档里记着"小龙已经救出来了"
   private towerRestored = false
-  // 这一局跑的是不是测试沙盒（?dev=1）：是的话原石和通关记录都不进存档
-  private devLevel = false
   // 隐藏的仙家试炼秘境：不是 LEVELS 里的关卡，只从第九关山顶的仙人进入
   private startData: GameSceneStartData = {}
   private domainMode = false
@@ -4592,23 +3976,10 @@ return this.level.platforms.filter((item) => !item.oneWay).reduce(
   private trialThreeDecor: Phaser.GameObjects.GameObject[] = []
   private trialThreeCraneHome: { x: number; y: number } | null = null
   private trialThreeStartMarker: Phaser.GameObjects.Image | null = null
-  // 测试关卡现在待在哪一间：-1 = 大厅，0 起 = 大厅里那排传送门的下标。
-  // 初值来自地址上的 ?room=N（见 DEV_START_ROOM），用来直接打开某一间
-  private devRoom = DEV_START_ROOM
-  // 从展厅回大厅时站的位置（进门前那扇门的右边一点，不站正门上）
-  private devReturnX = 0
   // 这一局里能用的传送门：大厅是七扇，展厅里只有一扇「回大厅」
-  private devPortals: DevPortalRef[] = []
   // 展厅里「能看演出」的神像：站面前按 F，只放动画、不授予元素。
   // groundY 用来算「人站得够不够近」，figure 是造像本体 —— 元素力从它身上冒出来
-  private devStatues: {
-    x: number
-    groundY: number
-    element: ElementKey
-    figure: Phaser.GameObjects.Image
-  }[] = []
   // 已经看过开场的房间（大厅记 -1），免得来回换房间每次都被黑屏文字挡一下
-  private devIntroSeen: number[] = []
   private innkeeper: Phaser.GameObjects.Image | null = null
 
   // 对话板（老板娘 / 仙人说话用）：一次显示一句，"按 F / 点屏幕"翻到下一句
@@ -4871,11 +4242,9 @@ return this.level.platforms.filter((item) => !item.oneWay).reduce(
   }
 
   create() {
-    // 测试沙盒（src/data/devLevel.ts）：只在 DEV_MODE 开着 + 地址带 ?dev=1 时进得来。
     // **这里绝对不要动 progress.levelIndex** —— 死亡界面 DeadScene 会拿它去查
     // `LEVELS[progress.levelIndex].name`，之前图省事塞了个越界下标（LEVELS.length），
     // 结果死亡界面在 create() 里就抛错了、三个按钮根本没建出来（表现就是"死了没法复活"）。
-    // 沙盒自己的原石 / 通关记录改用下面这个 devLevel 开关挡住，不碰存档
     this.domainMode = this.startData.domain === true
     this.domainHearts = 3
     this.domainHeartText = null
@@ -4994,30 +4363,13 @@ return this.level.platforms.filter((item) => !item.oneWay).reduce(
     this.zhongliRite = null
     this.sendOffUnlocked = false
     this.sendOffDone = false
-    this.devLevel = !this.domainMode && DEV_LEVEL_MODE
-    // 测试关卡是「大厅 + 展厅」：devRoom < 0 在大厅，其余去对应那间展厅。
-    // 换房间走 scene.restart()，所以 devRoom 是在上一帧就定好的
-    this.level = this.domainMode
-      ? DOMAIN_LEVEL
-      : this.devLevel
-        ? this.devRoom >= 0
-          ? (DEV_ROOMS[this.devRoom]?.level ?? DEV_HUB)
-          : DEV_HUB
-        : LEVELS[progress.levelIndex]
+    this.level = this.domainMode ? DOMAIN_LEVEL : LEVELS[progress.levelIndex]
 
-    // 出生点：正常用关卡自己写的；测试关卡从展厅回大厅时站回刚才那扇门的右边一点
-    // （不站门上，起身就不会又提示按 F）；地址上带 ?at=1700 时直接出生在那一列
+    // 出生点优先使用关卡数据；秘境返回时使用显式 checkpoint。
     let spawnPoint = this.level.spawn
 
     if (this.startData.checkpoint) {
       spawnPoint = { x: this.startData.checkpoint.x, y: this.startData.checkpoint.y }
-    } else if (this.devLevel && DEV_SPAWN_X !== null) {
-      spawnPoint = { x: DEV_SPAWN_X, y: 820 }
-    } else if (!this.devLevel && DEV_SPAWN_X !== null) {
-      // 正式关卡也认 ?at=：调试时想直接站到某一列就用它（出生高度沿用关卡自己的）
-      spawnPoint = { x: DEV_SPAWN_X, y: this.level.spawn.y }
-    } else if (this.devLevel && this.devRoom < 0 && this.devReturnX > 0) {
-      spawnPoint = { x: this.devReturnX + 48, y: 820 }
     }
 
     this.touchMode = touchMode()
@@ -6207,8 +5559,7 @@ return this.level.platforms.filter((item) => !item.oneWay).reduce(
       this.makeHint(hint.x, hint.y, hint.text)
     })
 
-    // 测试沙盒不看存档里"捡过没"：每次都当全新的一关
-    const savedGems = this.devLevel ? [] : (progress.levelGems[progress.levelIndex] ?? [])
+    const savedGems = progress.levelGems[progress.levelIndex] ?? []
 
     this.level.gems.forEach((spot, index) => {
       if (savedGems.includes(index)) {
@@ -6895,18 +6246,7 @@ return this.level.platforms.filter((item) => !item.oneWay).reduce(
       this.revealGoal()
     }
 
-    // 测试关卡：同一间展厅只看一次开场，来回换房间不会被黑屏文字反复挡
-    if (this.devLevel) {
-      this.buildDevExhibits()
-      this.buildDevPortals()
-
-      if (!this.devIntroSeen.includes(this.devRoom)) {
-        this.devIntroSeen.push(this.devRoom)
-        this.showIntro(this.level.intro)
-      }
-    } else if (!(this.domainMode && DOMAIN_START_TRIAL > 0)) {
-      this.showIntro(this.level.intro)
-    }
+    this.showIntro(this.level.intro)
 
     playMusic(this, this.level.music ?? 'music-field')
 
@@ -6960,17 +6300,6 @@ return this.level.platforms.filter((item) => !item.oneWay).reduce(
       stopAllLoops()
     })
 
-    if (this.domainMode && DOMAIN_START_TRIAL === 2 && this.level.trialTwo) {
-      this.trialOneDone = true
-      this.time.delayedCall(120, () => this.startTrialTwo())
-    }
-
-    if (this.domainMode && DOMAIN_START_TRIAL === 3 && this.level.trialThree) {
-      this.trialOneDone = true
-      this.trialTwoDone = true
-      this.time.delayedCall(120, () => this.startTrialThree())
-    }
-
     ;(window as unknown as Record<string, unknown>).__icons = () => ({
       zoom: Number(this.cameras.main.zoom.toFixed(2)),
       icons: this.elementIcons.map((icon) => ({
@@ -6986,43 +6315,6 @@ return this.level.platforms.filter((item) => !item.oneWay).reduce(
     }
 
     // 开发用：?level=11&jade=1 直接从群玉阁门口开始，跳过前面的公子战
-    if (DEV_MODE && new URLSearchParams(location.search).get('jade') === '1') {
-      this.time.delayedCall(300, () => {
-        this.bossState = 'down'
-        this.enterJadeChamber()
-      })
-    }
-    if (DEV_MODE && new URLSearchParams(location.search).get('osial') === 'roar') {
-      this.time.delayedCall(1800, () => this.playOsialRoar())
-    }
-    if (DEV_MODE && new URLSearchParams(location.search).get('osial') === 'tentacle') {
-      this.time.delayedCall(1800, () => {
-        this.playOsialTentacle(3300)
-        this.time.delayedCall(180, () => this.playOsialTentacle(3900))
-        this.time.delayedCall(360, () => this.playOsialTentacle(4300))
-      })
-    }
-     if (DEV_MODE && new URLSearchParams(location.search).get('osial') === 'laser') {
-      this.time.delayedCall(1800, () => this.playOsialLaser(3900))
-    }
-     if (DEV_MODE && new URLSearchParams(location.search).get('fatui') === '1') {
-      this.time.delayedCall(1800, () => {
-        if (this.enemyPortalLeft) {
-          this.openEnemyPortal(this.enemyPortalLeft, () =>
-            this.spawnFatui(3150, 3480, 0)
-          )
-        }
-      })
-    }
-    if (DEV_MODE && new URLSearchParams(location.search).get('fatui') === '2') {
-      this.time.delayedCall(1800, () => {
-        if (this.enemyPortalRight) {
-          this.openEnemyPortal(this.enemyPortalRight, () =>
-            this.spawnFatui(4480, 4250, 2)
-          )
-        }
-      })
-    }
   }
 
 
@@ -7145,13 +6437,6 @@ return this.level.platforms.filter((item) => !item.oneWay).reduce(
   private availableElements(): ElementKey[] {
     if (this.domainMode) {
       return ELEMENT_ORDER.slice(0, ELEMENT_ORDER.indexOf('rock') + 1)
-    }
-
-    // 测试关卡：不按关卡进度卡元素，解锁过什么就能切什么。
-    // 不这么写的话，?dev=1 进来时 progress.levelIndex 还在第一关，
-    // 上面那圈只认"前十关发过的元素"，沙盒里就只剩一个"无"能用了
-    if (this.devLevel) {
-      return ELEMENT_ORDER.filter((key) => progress.unlocked.includes(key))
     }
 
     const list: ElementKey[] = []
@@ -9165,10 +8450,7 @@ return this.level.platforms.filter((item) => !item.oneWay).reduce(
     this.pillarPressed = false
     this.stopPillarPreview()
 
-    // 测试沙盒的通关不进存档（不然会把"最后一关"的进度和原石记乱）
-    if (!this.devLevel) {
-      recordClear(progress.levelIndex, this.collectedIndices)
-    }
+    recordClear(progress.levelIndex, this.collectedIndices)
 
     // 第八关：开箱之后把那两处动画记进存档（用户要求）——
     // 下次进来祭坛就是撞毁的、龙还趴在上面，追击的镜头演出也不再放一遍
@@ -9237,9 +8519,7 @@ return this.level.platforms.filter((item) => !item.oneWay).reduce(
     return figure
   }
 
-  // grant = false 时只放动画：不解锁元素、不变身、也不结算
-  // （测试关卡的展厅要的就是这个：保留动画，不保留功能）。
-  // from 是演出以哪尊神像为中心；展厅里的神像不是 level.statue，得由调用方指过来
+  // grant = false 时只放动画：不解锁元素、不变身、也不结算。
   private playStatueScene(granted: ElementKey, grant = true, from?: { x: number; y: number }) {
     if (grant) {
       unlockElement(granted)
@@ -12625,9 +11905,7 @@ return this.level.platforms.filter((item) => !item.oneWay).reduce(
       return
     }
 
-    const saved = this.devLevel
-      ? []
-      : (progress.levelGems[progress.levelIndex] ?? [])
+    const saved = progress.levelGems[progress.levelIndex] ?? []
 
     if (
       this.collectedIndices.includes(index) ||
@@ -14707,7 +13985,7 @@ const groundTop = this.level.platforms.filter((item) => !item.oneWay).reduce(
 
   private refreshGemHud() {
     const collected = new Set([
-      ...(this.devLevel ? [] : (progress.levelGems[progress.levelIndex] ?? [])),
+      ...(progress.levelGems[progress.levelIndex] ?? []),
       ...this.collectedIndices,
     ])
 
@@ -16117,8 +15395,7 @@ const groundTop = this.level.platforms.filter((item) => !item.oneWay).reduce(
     stopAllLoops()
     playSfx(this, 'sfx-die', 0.45)
     this.scene.pause()
-    // 关卡名一起带过去：死亡界面显示的是"死在哪一关"，
-    // 而测试关卡不在 LEVELS 里，它自己查存档下标只会查出别人家的名字
+    // 关卡名一起带过去：死亡界面显示的是"死在哪一关"。
     this.scene.launch('dead', { cause, name: this.level.name })
   }
 
@@ -16173,125 +15450,6 @@ const groundTop = this.level.platforms.filter((item) => !item.oneWay).reduce(
         this.showMessage('乘电梯上楼，找老板娘问问')
       })
     }
-  }
-
-  // ── 测试关卡：大厅 + 分类展厅 ──────────────────────────────────
-  // 展厅里的展品：神像摆真的，没做过贴图的元素退回一块灰牌
-  private buildDevExhibits() {
-    const def = this.level as DevLevelDef
-
-    this.devStatues = []
-
-    ;(def.devExhibits ?? []).forEach((exhibit) => {
-      if (exhibit.kind === 'prop') {
-        const prop = this.add
-          .image(exhibit.x, DEV_GROUND_TOP, exhibit.key)
-          .setOrigin(0.5, 1)
-          .setScale(exhibit.scale ?? 1)
-          .setDepth(exhibit.depth ?? 4)
-
-        // 灯笼串那种挂着的，给它一点轻轻晃
-        if (exhibit.sway) {
-          this.tweens.add({
-            targets: prop,
-            y: DEV_GROUND_TOP + 2,
-            duration: 1600,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.easeInOut',
-          })
-        }
-
-        this.makeHint(
-          exhibit.x,
-          DEV_GROUND_TOP - prop.displayHeight - 14,
-          exhibit.label
-        )
-        return
-      }
-
-      if (exhibit.kind === 'statue' && this.textures.exists('statue-' + exhibit.element)) {
-        const figure = this.placeStatue(exhibit.x, DEV_GROUND_TOP, exhibit.element)
-
-        // 挂了 playable 的才登记成「能按 F 看演出」的；演出只走动画，不给元素
-        if (exhibit.playable) {
-          this.devStatues.push({
-            x: exhibit.x,
-            groundY: DEV_GROUND_TOP,
-            element: exhibit.element,
-            figure,
-          })
-        }
-
-        this.makeHint(exhibit.x, DEV_GROUND_TOP - 148, exhibit.label)
-
-        return
-      }
-
-      this.addDevSlot(exhibit.x, exhibit.label)
-    })
-  }
-
-  // 预留位：一块灰牌，写清以后这里要放什么
-  private addDevSlot(x: number, label: string) {
-    this.add
-      .rectangle(x, DEV_GROUND_TOP - 44, 44, 88, 0x232833, 0.7)
-      .setStrokeStyle(1, 0x5a6272)
-      .setDepth(1)
-
-    this.makeHint(x, DEV_GROUND_TOP - 100, label)
-  }
-
-  // 传送门：大厅里一排七扇（每扇写着那间展厅的名字），展厅里只有一扇「回大厅」
-  private buildDevPortals() {
-    this.devPortals = []
-
-    if (this.devRoom >= 0) {
-      const back: DevPortalRef = { x: 70, label: '回大厅', room: -1, groundY: DEV_GROUND_TOP }
-
-      this.drawDevPortal(back.x, back.label, 0xffd27a)
-      this.devPortals.push(back)
-
-      return
-    }
-
-    DEV_PORTALS.forEach((portal) => {
-      this.drawDevPortal(portal.x, portal.label, 0x6ec6ff)
-      this.devPortals.push(portal)
-    })
-  }
-
-  private drawDevPortal(x: number, label: string, tint: number) {
-    const midY = DEV_GROUND_TOP - 32
-
-    // 门里那层光：外圈淡、内芯亮，外圈慢慢呼吸
-    const glow = this.add.rectangle(x, midY, 38, 66, tint, 0.3).setDepth(1)
-    this.add.rectangle(x, midY, 20, 54, 0xdff2ff, 0.85).setDepth(1.2)
-
-    // 门框：两根立柱 + 一根门楣
-    this.add.rectangle(x - 19, midY, 6, 70, 0x39435a).setDepth(1.4)
-    this.add.rectangle(x + 19, midY, 6, 70, 0x39435a).setDepth(1.4)
-    this.add.rectangle(x, midY - 38, 44, 6, 0x39435a).setDepth(1.4)
-
-    this.tweens.add({
-      targets: glow,
-      alpha: { from: 0.12, to: 0.45 },
-      duration: 900,
-      yoyo: true,
-      repeat: -1,
-    })
-
-    this.makeHint(x, DEV_GROUND_TOP - 92, label)
-  }
-
-  // 站到门前按 F 换房间：进厅里的门先记下位置，回来时站回它右边
-  private useDevPortal(portal: DevPortalRef) {
-    if (portal.room >= 0) {
-      this.devReturnX = portal.x
-    }
-
-    this.devRoom = portal.room
-    this.scene.restart()
   }
 
   private lightMonument(monument: MonumentRef) {
@@ -17780,39 +16938,6 @@ const groundTop = this.level.platforms.filter((item) => !item.oneWay).reduce(
 
     let prompt: string | null = null
     let action: (() => void) | null = null
-
-    // 测试关卡的传送门：放在整条交互链最前面。
-    // 后面那些交互（方碑 / 老板娘）都是按距离算的，不抢先的话大厅里会串味
-    if (this.devPortals.length > 0) {
-      for (const portal of this.devPortals) {
-        if (
-          Math.abs(this.slime.x - portal.x) < 40 &&
-          Math.abs(this.slime.y - portal.groundY) < 70
-        ) {
-          prompt = this.interactPrefix() + (portal.room < 0 ? '回大厅' : '进入 ' + portal.label)
-          action = () => this.useDevPortal(portal)
-          break
-        }
-      }
-    }
-
-    // 展厅里能看演出的神像：只放「元素授予」那套动画，不给元素、不结算，可以反复看
-    if (!prompt && this.devStatues.length > 0) {
-      for (const statue of this.devStatues) {
-        const distance = Phaser.Math.Distance.Between(
-          this.slime.x,
-          this.slime.y,
-          statue.x,
-          statue.groundY
-        )
-
-        if (distance < 70) {
-          prompt = this.interactPrefix() + '看演出'
-          action = () => this.playStatueScene(statue.element, false, statue.figure)
-          break
-        }
-      }
-    }
 
     let target: MonumentRef | null = null
     let nearest = 56

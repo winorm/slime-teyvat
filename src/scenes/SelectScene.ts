@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { LEVELS } from '../data/levels'
-import { progress, saveProgress, DEV_MODE } from '../state/progress'
+import { progress, saveProgress } from '../state/progress'
 import { ELEMENTS } from '../data/elements'
 import { playMusic } from '../state/audio'
 import { touchMode } from '../state/touch'
@@ -111,15 +111,6 @@ export class SelectScene extends Phaser.Scene {
       }
     })
 
-    if (DEV_MODE) {
-      this.add
-        .text(12, 30, '开发者模式：全部关卡已解锁', {
-          fontFamily: 'sans-serif',
-          fontSize: '10px',
-          color: '#ff9a9a',
-        })
-        .setOrigin(0, 0)
-    }
   }
 
   private cellAt(index: number) {
@@ -132,7 +123,7 @@ export class SelectScene extends Phaser.Scene {
   private isPlayable(index: number) {
     const level = LEVELS[index]
 
-    return level !== undefined && (DEV_MODE || index <= progress.maxLevel)
+    return level !== undefined && index <= progress.maxLevel
   }
 
   private refreshSelection() {
@@ -180,7 +171,7 @@ export class SelectScene extends Phaser.Scene {
 
   private makeCell(index: number, x: number, y: number) {
     const level = LEVELS[index]
-    const isPlayable = level !== undefined && (DEV_MODE || index <= progress.maxLevel)
+    const isPlayable = level !== undefined && index <= progress.maxLevel
 
     this.add.rectangle(x, y, 76, 62, 0x1e1e30).setStrokeStyle(2, 0x3a3a5a)   // 52 → 62
 

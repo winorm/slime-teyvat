@@ -12,7 +12,7 @@ export class DeadScene extends Phaser.Scene {
 
   init(data: { cause?: string; name?: string }) {
     this.cause = data?.cause ?? 'fall'
-    // 关卡名由 GameScene 带过来；旧调用没带就退回按存档下标查（测试关卡不在 LEVELS 里）
+    // 关卡名由 GameScene 带过来；旧调用没带就退回按存档下标查。
     this.levelName = data?.name ?? LEVELS[progress.levelIndex]?.name ?? ''
   }
 

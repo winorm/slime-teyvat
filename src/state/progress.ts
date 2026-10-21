@@ -1,13 +1,6 @@
 import type { ElementKey } from '../data/elements'
 import { ELEMENT_ORDER } from '../data/elements'
 
-// 开发者模式：改成 true 就能解锁全部关卡，用于测试
-// 这个值在打包时会被写死，发布版本必须是 false
-export const DEV_MODE = true
-
-// 开发用开关：改成 true 就是「每次启动都清档」，测试时不受旧存档干扰
-export const DEV_RESET_SAVE = false
-
 const SAVE_KEY = 'slime-teyvat'
 const SAVE_VERSION = 2
 
@@ -161,7 +154,7 @@ function writeSlots(list: SaveData[]) {
 const query = new URLSearchParams(location.search)
 const freshSession = query.has('fresh')
 
-if (query.has('reset') || DEV_RESET_SAVE) {
+if (query.has('reset')) {
   clearStorage()
 }
 

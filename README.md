@@ -62,12 +62,6 @@ node 打包单文件.mjs  # 把整个游戏压成一个 game.html，双击即玩
 
 调试用的地址参数：`?reset=1` 清一次档，`?fresh=1` 这次不读也不写存档。
 
-开发用关卡入口（需要开启开发者模式）：
-
-- `?level=11&jade=1`：直接进入群玉阁阶段
-- `?domain=1`：直接进入仙家试炼秘境
-- `?dev=1`：进入包含传送门和分类展厅的测试关
-
 ## 目录结构
 
 ```
@@ -76,7 +70,6 @@ src/
   data/elements.ts         元素的颜色、跳跃、移速、能力
   data/levels.ts           十一章主线数据 + 各主题的地形配色表
   data/domainLevel.ts      第九关隐藏的仙家试炼秘境
-  data/devLevel.ts         开发测试关、传送门大厅和分类展厅
   state/progress.ts        存档（localStorage、3 个槽、版本号、开发者开关）
   state/achievements.ts    成就表与解锁逻辑
   state/audio.ts           音效与背景音乐

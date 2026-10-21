@@ -1,14 +1,10 @@
 import Phaser from 'phaser'
 import { ELEMENTS, type ElementKey } from '../data/elements'
-import { DEV_MODE, newGame } from '../state/progress'
+import { newGame } from '../state/progress'
 import { playMusic } from '../state/audio'
 import { touchMode, touchText } from '../state/touch'
 
-// 开发版（DEV_MODE）才多出「测试关卡」那一项：发布版这里只有三项，
-// 和"别人就算知道 ?dev=1 也进不去"是同一道门
-const MENU_OPTIONS = DEV_MODE
-  ? ['新游戏', '继续游戏', '成就', '测试关卡']
-  : ['新游戏', '继续游戏', '成就']
+const MENU_OPTIONS = ['新游戏', '继续游戏', '成就']
 
 export class MenuScene extends Phaser.Scene {
   private cursor = 0
@@ -40,9 +36,8 @@ export class MenuScene extends Phaser.Scene {
     this.makeSlime(240, 126, 'wind')
     this.makeSlime(320, 126, 'rock')
 
-    // 四项（开发版）时整体往上收一点，不然最后一项会压到底部那行说明上
-    const startY = MENU_OPTIONS.length > 3 ? 168 : 178
-    const gap = MENU_OPTIONS.length > 3 ? 24 : 28
+    const startY = 178
+    const gap = 28
 
     MENU_OPTIONS.forEach((text, index) => {
       const label = this.add
@@ -79,32 +74,6 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5)
 
     this.refreshMenu()
-
-    // 开发版：左下角一个小按钮，一键切「手机版预览」——
-    // 电脑上想看虚拟按键/手机版式的时候点它，省得手打 ?touch=1 打错
-    if (DEV_MODE) {
-      const on = new URLSearchParams(location.search).get('touch') === '1'
-      const toggle = this.add
-        .text(10, 258, on ? '退出手机版' : '手机版预览', {
-          fontFamily: 'sans-serif',
-          fontSize: '11px',
-          color: '#6f8399',
-        })
-        .setOrigin(0, 0.5)
-        .setInteractive({ useHandCursor: true })
-
-      toggle.on('pointerdown', () => {
-        const params = new URLSearchParams(location.search)
-
-        if (on) {
-          params.delete('touch')
-        } else {
-          params.set('touch', '1')
-        }
-
-        location.search = params.toString()
-      })
-    }
 
     this.input.keyboard!.on('keydown-UP', () => this.moveMenu(-1))
     this.input.keyboard!.on('keydown-DOWN', () => this.moveMenu(1))
@@ -147,19 +116,6 @@ export class MenuScene extends Phaser.Scene {
 
     if (this.cursor === 1) {
       this.scene.start('save')
-      return
-    }
-
-    if (this.cursor === 3) {
-      // 测试关卡：给地址补一个 ?dev=1 再刷新一次（BootScene 认这个参数，
-      // 会跳过主菜单直接进测试关的大厅）。手机上这么点一下就够了，不用手打地址。
-      // 顺带带上 fresh=1：测试关里会把七种元素全解锁，别写进正式存档
-      const params = new URLSearchParams(location.search)
-
-      params.set('dev', '1')
-      params.set('fresh', '1')
-      location.search = params.toString()
-
       return
     }
 
