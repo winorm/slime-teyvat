@@ -23,9 +23,9 @@
 
 ![主菜单](docs/screenshot-menu.png)
 
-| 荻花洲的拱形木桥 | 望舒客栈 |
+| 仙家试炼秘境 | 黄金屋 · 公子战 |
 |---|---|
-| ![木桥](docs/screenshot-bridge.png) | ![客栈](docs/screenshot-inn.png) |
+| ![仙家试炼秘境](docs/screenshot-domain.png) | ![黄金屋公子战](docs/screenshot-childe.png) |
 
 ## 怎么玩
 
